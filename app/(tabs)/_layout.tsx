@@ -38,7 +38,8 @@ export default function TabLayout() {
 
   // Not approved → redirect to website
   if (isApproved === false) {
-    Linking.openURL("https://www.campzeo.com");
+    Linking.openURL("https://camp-zeo-testing-git-testing-mandav-consultancy.vercel.app");
+    // another url :  https://www.campzeo.com
     return null;
   }
 

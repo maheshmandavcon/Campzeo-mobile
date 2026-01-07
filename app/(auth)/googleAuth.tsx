@@ -36,18 +36,18 @@ export default function GoogleAuth() {
     <Pressable
       onPress={handleGoogleSignIn}
       style={{
-        height: 50,
+        height: 45,
         borderWidth: 1,
-        borderColor: "#E5E7EB",
+        borderColor: "#991b1b",
         borderRadius: 10,
         justifyContent: "center",
-        alignItems: "center",
+        alignItems: "center"
       }}
     >
       {loading ? (
         <ActivityIndicator color={"#dc2626"}/>
       ) : (
-        <Text style={{ fontSize: 16, fontWeight: "600" }}>
+        <Text style={{ fontSize: 16, fontWeight: "600" , color:"#991b1b"}}>
           Continue with Google
         </Text>
       )}

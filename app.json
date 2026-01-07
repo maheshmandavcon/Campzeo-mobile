@@ -8,30 +8,32 @@
     "scheme": "userinterface",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "package": "com.campzeo.app",
+      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "foregroundImage": "./assets/app-images/app-logo.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.userInterface"
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/app-images/app-logo.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/app-images/app-logo.png",
           "imageWidth": 200,
           "resizeMode": "cover",
           "backgroundColor": "#ffffff",
@@ -44,6 +46,14 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "clerkPublishableKey": "pk_test_ZmFzdC1yZWRmaXNoLTUyLmNsZXJrLmFjY291bnRzLmRldiQ",
+      "apiBaseUrl": "https://campzeo-v1-oym2.vercel.app/api/",
+      "router": {},
+      "eas": {
+        "projectId": "b6f3a055-c353-4a33-8a68-ced60513ff03"
+      }
     }
   }
 }
