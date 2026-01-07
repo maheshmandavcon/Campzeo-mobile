@@ -42,6 +42,7 @@ app-example
 /ios
 /android
 /.history
+.env
+.env
 /.idea
 /.vscode
-.env

@@ -197,6 +197,10 @@ export default function CampaignsDetails() {
     });
   };
 
+  const handleSharePost = (postId: number) => {
+    console.log("Share post clicked for ID:", postId);
+  };
+
   // ========= RENDER POST =========
   const renderPostItem = ({ item }: { item: any }) => {
     const platform = platformIcons[item.type];
@@ -213,6 +217,22 @@ export default function CampaignsDetails() {
             elevation: 10,
           }}
         >
+
+          <TouchableOpacity
+            onPress={() => handleSharePost(campaign!.id,)}
+            activeOpacity={0.6}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              justifyContent: "center",
+              alignItems: "center",
+              // backgroundColor: "#ecfdf5",
+            }}
+          >
+            <Ionicons name="share-social-outline" size={22} color="#3b82f6" />
+          </TouchableOpacity>
+
           <TouchableOpacity
             onPress={() => handleEditPost(campaign!.id, item)}
             activeOpacity={0.6}
@@ -246,7 +266,8 @@ export default function CampaignsDetails() {
 
         {item.subject ? (
           <Text
-            className="text-lg font-bold mb-2 pr-20"
+            className="text-lg font-bold mb-2"
+            style={{ marginRight: 120 }}
             numberOfLines={1}
             ellipsizeMode="tail"
           >
