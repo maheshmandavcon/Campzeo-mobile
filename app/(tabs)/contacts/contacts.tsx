@@ -6,8 +6,9 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  useColorScheme,
 } from "react-native";
-import { View, Text } from "@gluestack-ui/themed";
+import { Text } from "@gluestack-ui/themed";
 import { Ionicons } from "@expo/vector-icons";
 import ContactCard, { ContactsRecord } from "./contactComponents/contactCard";
 import { router, useLocalSearchParams } from "expo-router";
@@ -16,6 +17,8 @@ import {
   deleteContactApi,
   exportContactsApi,
 } from "@/api/contact/contactApi";
+import { ThemedView } from "@/components/themed-view";
+import { ThemedText } from "@/components/themed-text";
 import { useAuth } from "@clerk/clerk-expo";
 import { useFocusEffect } from "@react-navigation/native";
 import * as FileSystem from "expo-file-system/legacy";
@@ -29,8 +32,17 @@ export default function Contacts() {
   const [loading, setLoading] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
 
+  const isDark = useColorScheme() === "dark";
+
+  const DARK_TOPBAR_BG = "#1f2937"; // gray-800
+  const DARK_SEARCH_BG = "#374151"; // gray-700
+  const DARK_BUTTON_BG = "#2563eb"; // blue-600
+  const DARK_TEXT = "#ffffff";
+  const DARK_BORDER = "#ffffff";
+
   const { getToken } = useAuth();
 
+  /* ================= FETCH ================= */
   const fetchContacts = async () => {
     try {
       setLoading(true);
@@ -74,6 +86,7 @@ export default function Contacts() {
   const visibleRecords = filteredRecords.slice(0, visibleCount);
   const isAllVisible = visibleCount >= filteredRecords.length;
 
+  /* ================= ACTIONS ================= */
   const handleEdit = (record: ContactsRecord) => {
     router.push({
       pathname: "/contacts/createContact",
@@ -108,7 +121,6 @@ export default function Contacts() {
     ]);
   };
 
-  /* ================= EXPORT ================= */
   const handleExportAll = async () => {
     try {
       setMenuVisible(false);
@@ -117,18 +129,13 @@ export default function Contacts() {
       const token = await getToken();
       if (!token) throw new Error("Token missing");
 
-      // Get data as arraybuffer instead of blob
-      const arrayBuffer = await exportContactsApi(token); // make sure API returns arraybuffer
-
-      // Convert arraybuffer to base64
+      const arrayBuffer = await exportContactsApi(token);
       const binary = new Uint8Array(arrayBuffer);
       let binaryString = "";
-      for (let i = 0; i < binary.length; i++) {
-        binaryString += String.fromCharCode(binary[i]);
-      }
-      const base64Data = btoa(binaryString); // Base64 encoded string
+      binary.forEach((b) => (binaryString += String.fromCharCode(b)));
+      const base64Data = btoa(binaryString);
 
-      const fileUri = `${FileSystem.cacheDirectory}contacts_export_${Date.now()}.csv`;
+      const fileUri = `${FileSystem.cacheDirectory}contacts_${Date.now()}.csv`;
 
       await FileSystem.writeAsStringAsync(fileUri, base64Data, {
         encoding: FileSystem.EncodingType.Base64,
@@ -136,19 +143,12 @@ export default function Contacts() {
 
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(fileUri);
-      } else {
-        Alert.alert("Exported", "Contacts exported successfully");
       }
     } catch (e: any) {
       Alert.alert("Export Failed", e.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleImportContacts = () => {
-    setMenuVisible(false);
-    Alert.alert("Coming Soon", "Import Contacts feature will be added soon.");
   };
 
   const toggleSortOrder = () => {
@@ -161,53 +161,61 @@ export default function Contacts() {
       : setVisibleCount(filteredRecords.length);
   };
 
-  const handleNew = () => {
-    router.push("/contacts/createContact");
-  };
-
   const toggleShow = (record: ContactsRecord) => {
     record.show = !record.show;
     setRecords([...records]);
   };
 
-  const handleAddOrUpdate = useCallback((newContact: ContactsRecord) => {
-    setRecords((prev) => {
-      const index = prev.findIndex((r) => r.id === newContact.id);
-      if (index >= 0) {
-        const updated = [...prev];
-        updated[index] = newContact;
-        return updated;
-      }
-      return [...prev, { ...newContact, show: true }];
-    });
-  }, []);
-
-  const { newContact } = useLocalSearchParams();
-  useEffect(() => {
-    if (newContact) {
-      handleAddOrUpdate(JSON.parse(newContact as string));
-    }
-  }, [newContact]);
-
+  /* ================= UI ================= */
   return (
     <Pressable onPress={() => setMenuVisible(false)} className="flex-1">
-      <View className="flex-1 p-4 bg-gray-100">
+      <ThemedView
+        style={{ backgroundColor: isDark ? "#000000" : "#f3f4f6" }} // gray-100 light bg
+        className="flex-1 p-4"
+      >
         {loading && (
-          <View className="absolute inset-0 justify-center items-center bg-black/10 z-10">
-            <ActivityIndicator size="large" />
-          </View>
+          <ThemedView className="absolute inset-0 justify-center items-center bg-black/40 z-10">
+            <ActivityIndicator size="large" color={DARK_TEXT} />
+          </ThemedView>
         )}
 
         {/* Top Bar */}
-        <View className="flex-row items-center mb-4">
+        <ThemedView
+          className="flex-row items-center mb-4"
+          style={{ backgroundColor: "transparent" }}
+        >
+          {/* New Button */}
           <TouchableOpacity
-            onPress={handleNew}
-            className="flex-row items-center px-3 py-2 rounded-full bg-blue-100 mr-2"
+            onPress={() => router.push("/contacts/createContact")}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 9999,
+              backgroundColor: isDark ? DARK_TOPBAR_BG : "#bfdbfe", // gray-800 / blue-100
+              borderWidth: 1,
+              borderColor: isDark ? DARK_BORDER : "transparent",
+              marginRight: 8,
+            }}
           >
-            <Ionicons name="add-circle-outline" size={20} color="#0284c7" />
-            <Text className="ml-2 font-semibold text-blue-700">New</Text>
+            <Ionicons
+              name="add-circle-outline"
+              size={20}
+              color={isDark ? DARK_TEXT : "#0284c7"}
+            />
+            <Text
+              style={{
+                marginLeft: 8,
+                fontWeight: "600",
+                color: isDark ? DARK_TEXT : "#1e40af",
+              }}
+            >
+              New
+            </Text>
           </TouchableOpacity>
 
+          {/* Search Bar */}
           <TextInput
             value={search}
             onChangeText={(v) => {
@@ -215,65 +223,71 @@ export default function Contacts() {
               setVisibleCount(5);
             }}
             placeholder="Search contacts..."
-            className="flex-1 px-3 py-2 rounded-full border border-gray-300 bg-white"
+            placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"} // gray-400 / gray-500
+            style={{
+              flex: 1,
+              backgroundColor: isDark ? DARK_SEARCH_BG : "#ffffff",
+              color: isDark ? DARK_TEXT : "#000000",
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 9999,
+              borderWidth: 1,
+              borderColor: isDark ? "#4b5563" : "#d1d5db", // gray-600 / gray-300
+            }}
           />
 
+          {/* 3-dot menu */}
           <TouchableOpacity
             onPress={() => setMenuVisible(!menuVisible)}
-            className="ml-2 rounded-full"
+            className="ml-2"
+            style={{
+              padding: 8,
+              borderRadius: 9999,
+              borderColor: isDark ? DARK_BORDER : "transparent",
+            }}
           >
-            <Ionicons name="ellipsis-vertical" size={20} />
+            <Ionicons
+              name="ellipsis-vertical"
+              size={20}
+              color={isDark ? DARK_TEXT : "#000000"}
+            />
           </TouchableOpacity>
-        </View>
+        </ThemedView>
 
-        {/* Dropdown Menu */}
+        {/* Dropdown */}
         {menuVisible && (
-          <View className="absolute right-4 top-20 bg-white rounded-xl shadow-lg border border-gray-200 z-20">
-            <TouchableOpacity
-              onPress={handleImportContacts}
-              className="flex-row items-center px-4 py-3"
-            >
-              <Ionicons
-                name="cloud-upload-outline"
-                size={18}
-                color="#2563eb"
-              />
-              <Text className="ml-3 font-medium text-blue-700">
-                Import Contacts
-              </Text>
-            </TouchableOpacity>
-
-            <View className="h-[1px] bg-gray-200 mx-3" />
-
+          <ThemedView
+            style={{
+              backgroundColor: isDark ? DARK_TOPBAR_BG : "#ffffff",
+              borderColor: isDark ? DARK_BORDER : "#d1d5db",
+            }}
+            className="absolute right-4 top-20 rounded-xl border z-20"
+          >
             <TouchableOpacity
               onPress={handleExportAll}
               className="flex-row items-center px-4 py-3"
             >
-              <Ionicons name="download-outline" size={18} color="#7c3aed" />
-              <Text className="ml-3 font-medium text-purple-700">
-                Export All
-              </Text>
+              <Ionicons name="download-outline" size={18} color={DARK_TEXT} />
+              <Text className="ml-3 font-medium text-white">Export All</Text>
             </TouchableOpacity>
-
-            <View className="h-[1px] bg-gray-200 mx-3" />
 
             <TouchableOpacity
               onPress={toggleSortOrder}
               className="flex-row items-center px-4 py-3"
             >
-              <Ionicons name="funnel-outline" size={18} color="#f59e0b" />
-              <Text className="ml-3 font-medium text-yellow-700">
+              <Ionicons name="funnel-outline" size={18} color={DARK_TEXT} />
+              <Text className="ml-3 font-medium text-white">
                 {sortOrder === "asc"
                   ? "Sort Z → A"
                   : sortOrder === "desc"
-                    ? "Sort A → Z"
-                    : "Sort"}
+                  ? "Sort A → Z"
+                  : "Sort"}
               </Text>
             </TouchableOpacity>
-          </View>
+          </ThemedView>
         )}
 
-        {/* Contact List */}
+        {/* List */}
         <FlatList
           data={visibleRecords}
           keyExtractor={(item) => item.id.toString()}
@@ -283,24 +297,25 @@ export default function Contacts() {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onToggleShow={toggleShow}
-              onCopy={() => { }}
+              onCopy={() => {}}
             />
           )}
-          ListEmptyComponent={
-            !loading ? (
-              <Text className="text-center mt-6">No Contacts Found</Text>
-            ) : null
-          }
           ListFooterComponent={
             filteredRecords.length > 5 ? (
               <TouchableOpacity
                 onPress={handleLoadToggle}
-                className={`py-3 my-2 rounded-xl items-center ${isAllVisible ? "bg-red-100" : "bg-blue-100"
-                  }`}
+                className="py-3 my-2 rounded-xl items-center"
+                style={{
+                  backgroundColor: isDark ? DARK_TOPBAR_BG : "#e0f2fe", // light blue
+                  borderWidth: isDark ? 1 : 0,
+                  borderColor: isDark ? DARK_BORDER : "transparent",
+                }}
               >
                 <Text
-                  className={`font-semibold ${isAllVisible ? "text-red-700" : "text-blue-700"
-                    }`}
+                  style={{
+                    color: isDark ? DARK_TEXT : "#0284c7",
+                    fontWeight: "600",
+                  }}
                 >
                   {isAllVisible ? "See Less" : "Load More"}
                 </Text>
@@ -308,7 +323,7 @@ export default function Contacts() {
             ) : null
           }
         />
-      </View>
+      </ThemedView>
     </Pressable>
   );
 }

@@ -1,6 +1,14 @@
-import { View, Text, TouchableOpacity, Alert, Modal, ScrollView } from "react-native";
+import {
+  Text,
+  TouchableOpacity,
+  Modal,
+  ScrollView,
+  useColorScheme,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
+import { ThemedView } from "@/components/themed-view";
+import { ThemedText } from "@/components/themed-text";
 
 export interface ContactsRecord {
   id: number;
@@ -27,34 +35,51 @@ export default function ContactCard({
   onCopy,
   onToggleShow,
 }: RecordCardProps) {
-
   const [modalVisible, setModalVisible] = React.useState(false);
 
-  const handleDelete = () => {
-    onDelete(record);
-  };
+  const isDark = useColorScheme() === "dark";
+  const iconColor = isDark ? "#ffffff" : "#000000";
+  // 🔥 Dark mode constants
+  const DARK_BG = "#000000";
+  const DARK_BORDER = "#ffffff";
+  const DARK_TEXT = "#ffffff";
+  const DARK_SUBTEXT = "#d1d5db";
 
   return (
-    <View
+    <ThemedView
       style={{
-        backgroundColor: "white",
-        padding: 16,
-        borderRadius: 12,
-        marginBottom: 12,
-      }}
+  backgroundColor: isDark ? DARK_BG : "white",
+
+  // 🔥 BORDER FIX
+  borderWidth: isDark ? 1 : 1,
+  borderColor: isDark ? DARK_BORDER : "#e5e7eb", // light gray border
+
+  padding: 16,    
+  borderRadius: 12,
+  marginBottom: 12,
+}}
     >
       {/* Name + Icons */}
-      <View className="flex-row justify-between items-center">
-        <Text className="font-bold text-lg text-gray-900">
+      <ThemedView
+        style={{ backgroundColor: isDark ? "transparent" : undefined }}
+        className="flex-row justify-between items-center"
+      >
+        <Text
+          style={{ color: isDark ? DARK_TEXT : "#111827" }}
+          className="font-bold text-lg"
+        >
           {record.name}
         </Text>
 
-        <View className="flex-row">
+        <ThemedView
+          style={{ backgroundColor: isDark ? "transparent" : undefined }}
+          className="flex-row"
+        >
           <TouchableOpacity onPress={() => onEdit(record)} className="mx-1">
             <Ionicons name="create-outline" size={22} color="#10b981" />
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={handleDelete} className="mx-1">
+          <TouchableOpacity onPress={() => onDelete(record)} className="mx-1">
             <Ionicons name="trash-outline" size={22} color="#ef4444" />
           </TouchableOpacity>
 
@@ -69,86 +94,92 @@ export default function ContactCard({
             <Ionicons
               name={record.show ? "eye-off-outline" : "eye-outline"}
               size={22}
-              color="#6b7280"
+              color={isDark ? "#9ca3af" : "#6b7280"}
             />
           </TouchableOpacity>
-        </View>
-      </View>
+        </ThemedView>
+      </ThemedView>
 
       {/* Details */}
       {record.show && (
-        <View className="mt-3 space-y-2">
+        <ThemedView
+          style={{ backgroundColor: isDark ? "transparent" : undefined }}
+          className="mt-3 space-y-2"
+        >
           {[
-            { label: "Email", value: record.email, icon: "mail-outline", color: "blue-500" },
-            { label: "Mobile", value: record.mobile, icon: "call-outline", color: "gray-500" },
-            { label: "WhatsApp", value: record.whatsapp, icon: "logo-whatsapp", color: "green-500" },
+            { label: "Email", value: record.email, icon: "mail-outline" },
+            { label: "Mobile", value: record.mobile, icon: "call-outline" },
+            { label: "WhatsApp", value: record.whatsapp, icon: "logo-whatsapp" },
           ].map((item, index) => (
-            <View key={index} className="flex-row justify-between items-center">
-              <View className="flex-row items-center gap-2">
-                <Ionicons name={item.icon as any} size={18} color={`#${item.color}`} />
-                <Text className="text-base font-bold text-gray-700">{item.label}</Text>
-              </View>
-              <View className="bg-gray-100 px-2 py-0.5 rounded-full">
-                <Text className="text-base text-gray-800">{item.value}</Text>
-              </View>
-            </View>
+            <ThemedView
+              key={index}
+              style={{ backgroundColor: isDark ? "transparent" : undefined }}
+              className="flex-row justify-between items-center"
+            >
+              <ThemedView
+                style={{ backgroundColor: isDark ? "transparent" : undefined }}
+                className="flex-row items-center gap-2"
+              >
+                <Ionicons
+                  name={item.icon as any}
+                  size={18}
+                  color={iconColor}
+                />
+                <Text
+                  style={{ color: isDark ? DARK_SUBTEXT : "#374151" }}
+                  className="text-base font-bold"
+                >
+                  {item.label}
+                </Text>
+              </ThemedView>
+
+              {isDark ? (
+                <Text className="text-white text-sm">{item.value}</Text>
+              ) : (
+                <ThemedView className="bg-gray-100 px-2 py-0.5 rounded-full">
+                  <Text className="text-base text-gray-800">
+                    {item.value}
+                  </Text>
+                </ThemedView>
+              )}
+            </ThemedView>
           ))}
 
           {/* Campaign Count */}
-          <View className="flex-row justify-between items-center">
-            <View className="flex-row items-center gap-2">
-              <Ionicons name="megaphone-outline" size={18} color="green-500" />
-              <Text className="text-base font-bold text-gray-700">Campaigns</Text>
-            </View>
-
-            <TouchableOpacity
-              onPress={() => setModalVisible(true)}
-              className="bg-gray-100 px-2 py-0.5 rounded-full"
+          <ThemedView
+            style={{ backgroundColor: isDark ? "transparent" : undefined }}
+            className="flex-row justify-between items-center"
+          >
+            <ThemedView
+              style={{ backgroundColor: isDark ? "transparent" : undefined }}
+              className="flex-row items-center gap-2"
             >
-              <Text className="text-gray-800 text-base">
-                {record.campaigns?.length ?? 0} {record.campaigns?.length === 1 ? "campaign" : "campaigns"}
+              <Ionicons
+                name="megaphone-outline"
+                size={18}
+                color={iconColor}
+              />
+              <Text
+                style={{ color: isDark ? DARK_SUBTEXT : "#374151" }}
+                className="text-base font-bold"
+              >
+                Campaigns
+              </Text>
+            </ThemedView>
+
+            <TouchableOpacity onPress={() => setModalVisible(true)}>
+              <Text
+                style={{ color: isDark ? DARK_TEXT : "#1f2937" }}
+                className="text-base"
+              >
+                {record.campaigns?.length ?? 0}{" "}
+                {record.campaigns?.length === 1 ? "campaign" : "campaigns"}
               </Text>
             </TouchableOpacity>
-          </View>
+          </ThemedView>
+        </ThemedView>
 
-          {/* Modal */}
-          <Modal
-            visible={modalVisible}
-            transparent={true}
-            animationType="slide"
-            onRequestClose={() => setModalVisible(false)}
-          >
-            <View className="flex-1 justify-center items-center bg-black/50 p-4">
-              <View className="bg-white w-full max-h-80 p-4 rounded-lg">
-                <Text className="font-bold text-lg mb-3">Campaigns</Text>
-                <ScrollView>
-                  {record.campaigns && record.campaigns.length > 0 ? (
-                    record.campaigns.map((c) => (
-                      <Text key={c.id} className="text-gray-800 text-base py-1">
-                        {c.name}
-                      </Text>
-                    ))
-                  ) : (
-                    <Text className="text-gray-500">No campaigns</Text>
-                  )}
-                </ScrollView>
-                <TouchableOpacity
-                  onPress={() => setModalVisible(false)}
-                  style={{
-                    backgroundColor: "#dc2626", // red background
-                    paddingVertical: 10,
-                    borderRadius: 8,
-                    alignItems: "center",
-                  }}
-                >
-                  <Text className="text-white font-semibold text-base">Close</Text>
-                </TouchableOpacity>
-
-              </View>
-            </View>
-          </Modal>
-        </View>
       )}
-    </View>
+    </ThemedView>
   );
 }

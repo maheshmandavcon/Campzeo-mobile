@@ -1,5 +1,4 @@
-import axios from "axios";
-import { BASE_URL } from "../config";
+import https from "../https";
 
 export type AuthToken = string;
 
@@ -26,7 +25,7 @@ export interface CampaignPostData {
 // Create a new campaign
 export const createCampaignApi = async (data: CampaignData, token: AuthToken) => {
   try {
-    const response = await axios.post(`${BASE_URL}/campaigns`, data, {
+    const response = await https.post("/campaigns", data, {
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     });
     return response.data;
@@ -47,7 +46,7 @@ export const getCampaignsApi = async (
     const params: any = { page, limit };
     if (search) params.search = search;
 
-    const response = await axios.get(`${BASE_URL}/campaigns`, {
+    const response = await https.get("/campaigns", {
       headers: { Authorization: `Bearer ${token}` },
       params,
     });
@@ -61,7 +60,7 @@ export const getCampaignsApi = async (
 // Get single campaign by ID
 export const getCampaignByIdApi = async (id: number, token: AuthToken) => {
   try {
-    const response = await axios.get(`${BASE_URL}/campaigns/${id}`, {
+    const response = await https.get(`/campaigns/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     return response.data;
@@ -74,7 +73,7 @@ export const getCampaignByIdApi = async (id: number, token: AuthToken) => {
 // Update campaign by ID
 export const updateCampaignApi = async (id: number, data: CampaignData, token: AuthToken) => {
   try {
-    const response = await axios.put(`${BASE_URL}/campaigns/${id}`, data, {
+    const response = await https.put(`/campaigns/${id}`, data, {
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     });
     return response.data;
@@ -84,11 +83,10 @@ export const updateCampaignApi = async (id: number, data: CampaignData, token: A
   }
 };
 
-
 // Delete campaign
 export const deleteCampaignApi = async (id: number, token: AuthToken) => {
   try {
-    const response = await axios.delete(`${BASE_URL}/campaigns/${id}`, {
+    const response = await https.delete(`/campaigns/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     return response.data;
@@ -101,15 +99,16 @@ export const deleteCampaignApi = async (id: number, token: AuthToken) => {
 // ---------------------- Campaign Posts APIs ---------------------- //
 
 // Get posts for a specific campaign
-export const getPostsByCampaignIdApi = async (campaignId: number, token: string) => {
+export const getPostsByCampaignIdApi = async (campaignId: number, token: AuthToken) => {
   try {
-    const res = await axios.get(`${BASE_URL}/campaigns/${campaignId}/posts`, {
+    // console.log("Fetching posts for campaign:", campaignId);
+    const res = await https.get(`/campaigns/${campaignId}/posts`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     return res.data;
   } catch (error: any) {
     console.error("Get Posts Error:", error.response?.data || error.message);
-    return null; 
+    return null;
   }
 };
 
@@ -120,7 +119,7 @@ export const createPostForCampaignApi = async (
   token: AuthToken
 ) => {
   try {
-    const response = await axios.post(`${BASE_URL}/campaigns/${campaignId}/posts`, data, {
+    const response = await https.post(`/campaigns/${campaignId}/posts`, data, {
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     });
     return response.data;
@@ -138,25 +137,15 @@ export const updatePostForCampaignApi = async (
   token: AuthToken
 ) => {
   try {
-    const response = await axios.put(
-      `${BASE_URL}/campaigns/${campaignId}/posts/${postId}`,
-      data,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
+    const response = await https.put(`/campaigns/${campaignId}/posts/${postId}`, data, {
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    });
     return response.data;
   } catch (error: any) {
     console.error("Update Post API Error:", error.response || error.message);
     throw error;
   }
 };
-
-// ---------------------- Delete Post ---------------------- //
 
 // Delete a post for a specific campaign
 export const deletePostForCampaignApi = async (
@@ -165,7 +154,7 @@ export const deletePostForCampaignApi = async (
   token: AuthToken
 ) => {
   try {
-    const response = await axios.delete(`${BASE_URL}/campaigns/${campaignId}/posts/${postId}`, {
+    const response = await https.delete(`/campaigns/${campaignId}/posts/${postId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     return response.data;
@@ -198,15 +187,12 @@ export interface AIContentResponse {
   variations: AIVariation[];
 }
 
-/**
- * Generate AI content for a given prompt & platform
- */
 export const generateAIContentApi = async (
   data: AIContentRequest,
   token?: AuthToken
 ): Promise<AIContentResponse> => {
   try {
-    const response = await axios.post(`${BASE_URL}/ai/generate-content`, data, {
+    const response = await https.post("/ai/generate-content", data, {
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -223,31 +209,27 @@ export const generateAIContentApi = async (
 
 export interface AIImageRequest {
   prompt: string;
-  count?: number; // Number of images to generate
+  count?: number;
 }
 
 export interface AIImageResponse {
   success: boolean;
-  images?: string[]; 
-  imagePrompt: string; 
+  images?: string[];
+  imagePrompt: string;
   message: string;
 }
 
-/**
- * Generate images using AI for a given prompt
- */
 export const generateAIImageApi = async (
   data: AIImageRequest,
   token?: AuthToken
 ): Promise<AIImageResponse> => {
   try {
-    const response = await axios.post(`${BASE_URL}/ai/generate-image`, data, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      }
-    );
+    const response = await https.post("/ai/generate-image", data, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
     return response.data;
   } catch (error: any) {
     console.error("AI Image Generation API Error:", error.response || error.message);

@@ -16,9 +16,11 @@ import {
   ScrollView,
   Text,
   TouchableOpacity,
-  View,
   ActivityIndicator,
+  useColorScheme,
 } from "react-native";
+import { ThemedView } from "@/components/themed-view";
+import { ThemedText } from "@/components/themed-text";
 
 type Contact = {
   id?: number;
@@ -27,6 +29,7 @@ type Contact = {
   mobile: string;
   whatsapp: string;
   campaignIds: number[];
+  campaigns?: { id: number; name: string }[];
 };
 
 type CampaignOption = {
@@ -38,6 +41,7 @@ export default function CreateContact() {
   const { getToken } = useAuth();
   const [campaignOptions, setCampaignOptions] = useState<CampaignOption[]>([]);
   const [loadingCampaigns, setLoadingCampaigns] = useState(false);
+  const isDark = useColorScheme() === "dark";
 
   const { contactId, record: recordStr } = useLocalSearchParams();
   const isEdit = !!contactId;
@@ -65,10 +69,9 @@ export default function CreateContact() {
   });
 
   const selectedCampaigns = watch("campaignIds");
-
   const hasResetRef = useRef(false);
 
-  // Populate form if editing
+  /* Populate form if editing */
   useEffect(() => {
     if (!editingContact || hasResetRef.current) return;
 
@@ -77,13 +80,15 @@ export default function CreateContact() {
       email: editingContact.email ?? "",
       mobile: editingContact.mobile ?? "",
       whatsapp: editingContact.whatsapp ?? "",
-      campaignIds: editingContact.campaignIds ?? [],
+      campaignIds: editingContact.campaigns
+        ? editingContact.campaigns.map(c => c.id)
+        : editingContact.campaignIds ?? [],
     });
 
     hasResetRef.current = true;
-  }, [editingContact]);
+  }, [editingContact, reset]);
 
-  // Fetch campaigns dynamically
+  /* Fetch campaigns dynamically */
   useEffect(() => {
     const fetchCampaigns = async () => {
       setLoadingCampaigns(true);
@@ -91,7 +96,7 @@ export default function CreateContact() {
         const token = await getToken();
         if (!token) throw new Error("Token missing");
 
-        const data = await getCampaignsApi(token, 1, 50); // fetch first 50 campaigns
+        const data = await getCampaignsApi(token, 1, 50);
         const options =
           data?.campaigns?.map((c: any) => ({ id: c.id, name: c.name })) ?? [];
         setCampaignOptions(options);
@@ -127,15 +132,24 @@ export default function CreateContact() {
   };
 
   const requiredLabel = (label: string) => (
-    <Text className="text-base mt-3 font-semibold text-gray-700">
+    <Text
+      className="text-base mt-3 font-semibold"
+      style={{ color: isDark ? "#f3f4f6" : "#111" }}
+    >
       {label} <Text className="text-red-500">*</Text>
     </Text>
   );
 
+  // ✅ Dynamic colors for light/dark
+  const inputBg = isDark ? "#000000" : "#fff";        
+  const inputBorder = isDark ? "#4b5563" : "#d1d5db"; 
+  const inputText = isDark ? "#fff" : "#111";         
+  const labelText = isDark ? "#f3f4f6" : "#111";     
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      className="flex-1 bg-gray-50"
+      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#fff" }}
     >
       <ScrollView
         className="flex-1 px-6 py-6"
@@ -145,30 +159,55 @@ export default function CreateContact() {
           onPress={() => router.back()}
           style={{ position: "absolute", right: 10, zIndex: 10, padding: 8 }}
         >
-          <Ionicons name="close" size={24} color="#334155" />
+          <Ionicons
+            name="close"
+            size={24}
+            color={isDark ? "#fff" : "#111"}
+          />
         </TouchableOpacity>
 
-        <View className="flex-row items-center mb-6">
-          <View className="w-14 h-14 rounded-lg border-transparent bg-[#dc2626] items-center justify-center">
+        <ThemedView className="flex-row items-center mb-6"
+        style={{
+              backgroundColor: isDark ? "#000" : "#fff",
+            }}>
+          <ThemedView
+            className="w-14 h-14 rounded-lg border-transparent items-center justify-center"
+            style={{ backgroundColor: "#dc2626" }} // red icon background
+          >
             <Ionicons
               name={isEdit ? "person" : "person-add"}
               size={28}
               color="#fff"
             />
-          </View>
-          <View className="ml-4">
-            <Text className="text-2xl font-bold text-gray-800">
+          </ThemedView>
+
+          <ThemedView
+            className="ml-4 p-4 rounded-lg"
+            style={{
+              backgroundColor: isDark ? "#000" : "#fff",
+            }}
+          >
+            <ThemedText
+              className="text-2xl font-bold"
+              style={{ color: isDark ? "#f3f4f6" : "#111" }}
+            >
               {isEdit ? "Edit Contact" : "Create Contact"}
-            </Text>
-            <Text className="text-sm text-gray-500">
+            </ThemedText>
+            <ThemedText
+              className="text-sm mt-1"
+              style={{ color: isDark ? "#d1d5db" : "#6b7280" }}
+            >
               {isEdit
                 ? "Update the contact details"
                 : "Add a new contact to your list"}
-            </Text>
-          </View>
-        </View>
+            </ThemedText>
+          </ThemedView>
+        </ThemedView>
 
-        <View className="space-y-6">
+        <ThemedView className="space-y-6"
+        style={{
+              backgroundColor: isDark ? "#000" : "#fff",
+            }}>
           {/* Name */}
           <FormControl isInvalid={!!errors.name}>
             <FormControl.Label>{requiredLabel("Name")}</FormControl.Label>
@@ -184,11 +223,13 @@ export default function CreateContact() {
                 },
               }}
               render={({ field: { onChange, value } }) => (
-                <Input className="border border-gray-300 rounded-xl">
+                <Input style={{ backgroundColor: inputBg, borderColor: inputBorder }}>
                   <InputField
                     placeholder="Enter Name"
                     value={value}
                     onChangeText={onChange}
+                    style={{ color: inputText }}
+                    placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
                   />
                 </Input>
               )}
@@ -214,13 +255,15 @@ export default function CreateContact() {
                 },
               }}
               render={({ field: { onChange, value } }) => (
-                <Input className="border border-gray-300 rounded-xl">
+                <Input style={{ backgroundColor: inputBg, borderColor: inputBorder }}>
                   <InputField
                     placeholder="Enter Email"
                     value={value}
                     onChangeText={onChange}
                     keyboardType="email-address"
                     autoCapitalize="none"
+                    style={{ color: inputText }}
+                    placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
                   />
                 </Input>
               )}
@@ -246,12 +289,14 @@ export default function CreateContact() {
                 },
               }}
               render={({ field: { onChange, value } }) => (
-                <Input className="border border-gray-300 rounded-xl">
+                <Input style={{ backgroundColor: inputBg, borderColor: inputBorder }}>
                   <InputField
                     placeholder="Enter Mobile"
                     value={value}
                     onChangeText={onChange}
                     keyboardType="phone-pad"
+                    style={{ color: inputText }}
+                    placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
                   />
                 </Input>
               )}
@@ -277,12 +322,14 @@ export default function CreateContact() {
                 },
               }}
               render={({ field: { onChange, value } }) => (
-                <Input className="border border-gray-300 rounded-xl">
+                <Input style={{ backgroundColor: inputBg, borderColor: inputBorder }}>
                   <InputField
                     placeholder="Enter WhatsApp"
                     value={value}
                     onChangeText={onChange}
                     keyboardType="phone-pad"
+                    style={{ color: inputText }}
+                    placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
                   />
                 </Input>
               )}
@@ -297,7 +344,7 @@ export default function CreateContact() {
           {/* Associate with Campaigns */}
           <FormControl>
             <FormControl.Label>
-              <Text className="text-base mt-3 font-semibold text-gray-700">
+              <Text className="text-base mt-3 font-semibold" style={{ color: labelText }}>
                 Associate with Campaigns
               </Text>
             </FormControl.Label>
@@ -305,9 +352,12 @@ export default function CreateContact() {
             {loadingCampaigns ? (
               <ActivityIndicator size="small" color="#dc2626" />
             ) : campaignOptions.length === 0 ? (
-              <Text>No campaigns available</Text>
+              <Text style={{ color: labelText }}>No campaigns available</Text>
             ) : (
-              <View className="border border-gray-300 rounded-lg p-4">
+              <ThemedView
+                className="border rounded-lg p-4"
+                style={{ borderColor: inputBorder, backgroundColor: inputBg }}
+              >
                 {campaignOptions.map((campaign) => {
                   const checked = selectedCampaigns.includes(campaign.id);
                   return (
@@ -326,26 +376,27 @@ export default function CreateContact() {
                       }}
                       className="flex-row items-center my-2"
                     >
-                      <View className="w-5 h-5 mr-3 border rounded items-center justify-center border-gray-300">
+                      <ThemedView
+                        className="w-5 h-5 mr-3 border rounded items-center justify-center"
+                        style={{ borderColor: inputBorder }}
+                      >
                         {checked && (
                           <Ionicons name="checkmark-outline" size={16} color="#dc2626" />
                         )}
-                      </View>
-                      <Text className="flex-1">
-                        {campaign.name}
-                      </Text>
+                      </ThemedView>
+                      <Text style={{ color: inputText }}>{campaign.name}</Text>
                     </TouchableOpacity>
                   );
                 })}
-              </View>
+              </ThemedView>
             )}
-
           </FormControl>
-        </View>
+        </ThemedView>
 
+        {/* Submit Button */}
         <TouchableOpacity
           onPress={handleSubmit(onSubmit)}
-          className="w-full mt-10 mb-10 rounded-xl items-center justify-center py-4"
+          className="w-full mt-5 mb-10 rounded-xl items-center justify-center py-4"
           style={{
             backgroundColor: "#dc2626",
             shadowColor: "#000",

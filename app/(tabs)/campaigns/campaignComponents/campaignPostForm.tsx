@@ -23,7 +23,8 @@ import {
   generateAIImageApi,
 } from "@/api/campaign/campaignApi";
 import { Ionicons } from "@expo/vector-icons";
- 
+import { ActivityIndicator } from "react-native";
+
 // ================= TYPES =================
 interface CampaignPostData {
   senderEmail?: string;
@@ -33,13 +34,18 @@ interface CampaignPostData {
   type: string;
   attachments?: { uri: string; name: string; type: string }[];
 }
- 
+
 interface Attachment {
   uri: string;
   name: string;
   type: string;
 }
- 
+
+interface AIVariation {
+  subject: string;
+  content: string;
+}
+
 // ================= COMPONENT =================
 export default function CampaignPostForm({
   platform,
@@ -55,7 +61,7 @@ export default function CampaignPostForm({
   existingPost?: any;
 }) {
   const { getToken } = useAuth();
- 
+
   const [senderEmail, setSenderEmail] = useState(existingPost?.senderEmail || "");
   const [subject, setSubject] = useState(existingPost?.subject || "");
   const [message, setMessage] = useState(existingPost?.message || "");
@@ -65,39 +71,49 @@ export default function CampaignPostForm({
   const [attachments, setAttachments] = useState<Attachment[]>(
     existingPost?.attachments || []
   );
- 
+
   // AI text states
   const [aiPrompt, setAiPrompt] = useState("");
   const [loadingAI, setLoadingAI] = useState(false);
-  const [aiResults, setAiResults] = useState<string[]>([]);
+  const [aiResults, setAiResults] = useState<AIVariation[]>([]);
   const [aiModalVisible, setAiModalVisible] = useState(false);
- 
+
   // AI image states
   const [imagePrompt, setImagePrompt] = useState("");
   const [loadingImage, setLoadingImage] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | undefined>(existingPost?.image || undefined);
   const [imageModalVisible, setImageModalVisible] = useState(false);
- 
+
   // Date picker
   const [showPicker, setShowPicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
- 
+
   // const showWhatsAppContent = platform === "WHATSAPP";
- 
+
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
- 
+
   const [pinterestBoard, setPinterestBoard] = useState<string>(""); // selected board
   const [isCreatingPinterestBoard, setIsCreatingPinterestBoard] = useState(false);
   const [destinationLink, setDestinationLink] = useState<string>("");
+
+  const [facebookContentType, setFacebookContentType] = useState<string>(
+  existingPost?.facebookContentType || "STANDARD"
+);
+
+const [coverImage, setCoverImage] = useState<string | null>(
+  existingPost?.coverImage || null
+);
+
+
   // ================= EFFECT =================
   useEffect(() => {
     if (generatedImages.length > 0 && !selectedImage) {
       setSelectedImage(generatedImages[0]);
     }
   }, [generatedImages]);
- 
- 
+
+
   // ================= HANDLE ATTACHMENTS =================
   const handleAddAttachment = async () => {
     try {
@@ -105,12 +121,12 @@ export default function CampaignPostForm({
         type: "*/*",
         multiple: false,
       });
- 
+
       if (result.canceled) return;
- 
+
       const file = result.assets?.[0];
       if (!file) return;
- 
+
       setAttachments((prev) => [
         ...prev,
         {
@@ -123,23 +139,23 @@ export default function CampaignPostForm({
       console.error("Document picker error:", error);
     }
   };
- 
+
   const handleRemoveAttachment = (index: number) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
- 
+
   // ================= CREATE OR EDIT POST =================
   const handleSubmit = async () => {
     if (!subject || !message || !postDate || (platform === "EMAIL" && !senderEmail)) {
       Alert.alert("⚠️ Please fill in all fields.");
       return;
     }
- 
+
     if (!campaignId) {
       Alert.alert("Campaign ID missing");
       return;
     }
- 
+
     const postData: CampaignPostData = {
       senderEmail: senderEmail || undefined,
       subject,
@@ -148,11 +164,11 @@ export default function CampaignPostForm({
       type: platform,
       attachments,
     };
- 
+
     try {
       const token = await getToken();
       if (!token) throw new Error("Authentication token missing");
- 
+
       let response;
       if (existingPost?.id) {
         response = await updatePostForCampaignApi(
@@ -164,9 +180,9 @@ export default function CampaignPostForm({
       } else {
         response = await createPostForCampaignApi(Number(campaignId), postData, token);
       }
- 
+
       onClose?.(response);
- 
+
       if (!existingPost) {
         setSenderEmail("");
         setSubject("");
@@ -177,13 +193,13 @@ export default function CampaignPostForm({
         setGeneratedImages([]);
         setSelectedImage(undefined);
       }
- 
+
       onCreatedNavigate ? onCreatedNavigate() : router.back();
     } catch (error: any) {
       Alert.alert("Error", error?.message || "Something went wrong");
     }
   };
- 
+
   // ================= RENDER ATTACHMENTS =================
   const renderAttachmentItem = ({ item, index }: { item: Attachment; index: number }) => (
     <View className="flex-row items-center bg-gray-200 rounded-lg px-2 py-1 mr-2 mb-2">
@@ -201,7 +217,7 @@ export default function CampaignPostForm({
       </TouchableOpacity>
     </View>
   );
- 
+
   // ================= AI TEXT =================
   const handleGenerateAIText = async () => {
     if (!aiPrompt.trim()) {
@@ -209,33 +225,40 @@ export default function CampaignPostForm({
       return;
     }
     if (loadingAI) return;
- 
+
     setLoadingAI(true);
- 
+
     try {
       const token = await getToken();
       if (!token) throw new Error("Authentication token missing");
- 
+
       const payload = {
         prompt: aiPrompt,
         context: { platform, existingContent: message || "" },
         mode: "generate-multiple",
       };
- 
+
       const response = await generateAIContentApi(payload, token);
- 
+
       if (!response?.variations || response.variations.length === 0) {
         throw new Error("No AI suggestions returned");
       }
- 
-      setAiResults(response.variations.slice(0, 3).map((v: any) => v.content));
+
+      // ✅ Store both subject and content
+      setAiResults(
+        response.variations.slice(0, 3).map((v: any) => ({
+          subject: v.subject,
+          content: v.content,
+        }))
+      );
+
     } catch (error: any) {
       Alert.alert("AI Error", error?.message || "Failed to generate content");
     } finally {
       setLoadingAI(false);
     }
   };
- 
+
   // ================= AI IMAGE =================
   const handleGenerateAIImage = async () => {
     if (!imagePrompt.trim()) {
@@ -243,17 +266,17 @@ export default function CampaignPostForm({
       return;
     }
     if (loadingImage) return;
- 
+
     setLoadingImage(true);
- 
+
     try {
       const token = await getToken();
       if (!token) throw new Error("Authentication token missing");
- 
+
       const response = await generateAIImageApi({ prompt: imagePrompt }, token);
- 
+
       console.log("AI Image API Response:", response);
- 
+
       // Use 'images' array or fallback to 'imagePrompt'
       const imageUrl = response?.images?.[0] || response?.imagePrompt || "https://picsum.photos/200";
       setGeneratedImages([imageUrl]);
@@ -264,32 +287,32 @@ export default function CampaignPostForm({
       setLoadingImage(false);
     }
   };
- 
- 
+
+
   const [youTubeContentType, setYouTubeContentType] = useState<string>("Standard Video");
   const [youTubeTags, setYouTubeTags] = useState<string>("");
   const [youTubeStatus, setYouTubeStatus] = useState<string>("");
   const [showStatusDropdown, setShowStatusDropdown] = useState<boolean>(false);
   const [customThumbnail, setCustomThumbnail] = useState<string | null>(null);
- 
+
   const handleCustomThumbnailUpload = async () => {
     // try {
     //   const result = await DocumentPicker.getDocumentAsync({
     //     type: "image/*",
     //     multiple: false,
     //   });
- 
+
     //   // result.type is either 'success' or 'cancel'
     //   if (result.type === "cancel") return;
- 
+
     //   // TypeScript knows that if not canceled, result is the success type
     //   setCustomThumbnail(result.uri);
     // } catch (error) {
     //   console.error("Thumbnail upload error:", error);
     // }
   };
- 
- 
+
+
   return (
     <KeyboardAvoidingView
       className="flex-1"
@@ -298,10 +321,16 @@ export default function CampaignPostForm({
     >
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
         <View className="flex-1 bg-gray-100">
- 
+
           {platform === "EMAIL" && (
             <>
-              <Text className="mb-2 font-bold text-black ml-1">Sender Email</Text>
+              <Text style={{
+                color: "#000",
+                fontWeight: "bold",
+                marginBottom: 8,
+                marginLeft: 4,
+              }}>
+                Sender Email</Text>
               <TextInput
                 placeholder="sender@eg.com"
                 value={senderEmail}
@@ -311,16 +340,25 @@ export default function CampaignPostForm({
               />
             </>
           )}
- 
+
           {/* SUBJECT */}
-          <Text className="mb-2 font-bold text-black ml-1">Subject</Text>
+          <Text
+            style={{
+              color: "#000",
+              fontWeight: "bold",
+              marginBottom: 8,
+              marginLeft: 4,
+            }}
+          >
+            {platform === "EMAIL" ? "Subject" : "Title"}
+          </Text>
           <TextInput
-            placeholder="Enter subject/title"
+            placeholder={platform === "EMAIL" ? "Enter subject/title" : "Enter title"}
             value={subject}
             onChangeText={setSubject}
             className="border border-gray-300 rounded-full px-3 h-12 mb-2 bg-white"
           />
- 
+
           {/* AI TEXT BUTTON FOR ALL PLATFORMS */}
           <TouchableOpacity
             onPress={() => setAiModalVisible(true)} // or setImageModalVisible(true)
@@ -333,6 +371,7 @@ export default function CampaignPostForm({
               paddingHorizontal: 16,
               borderRadius: 25,
               marginBottom: 8,
+              marginTop: 8,
             }}
           >
             <Ionicons name="sparkles" size={20} color="#fff" style={{ marginRight: 12 }} />
@@ -340,10 +379,14 @@ export default function CampaignPostForm({
               Text Generate AI Assistant
             </Text>
           </TouchableOpacity>
- 
- 
+
           {/* MESSAGE */}
-          <Text className="mb-2 font-bold text-black ml-1">Message</Text>
+          <Text style={{
+            color: "#000",
+            fontWeight: "bold",
+            marginBottom: 8,
+            marginLeft: 4,
+          }}>Message</Text>
           <TextInput
             placeholder={`Enter your ${platform} content here...`}
             value={message}
@@ -353,9 +396,9 @@ export default function CampaignPostForm({
             textAlignVertical="top"
             className="border border-gray-300 rounded-lg p-3 mb-2 min-h-[120px] bg-white"
           />
- 
+
           {/* AI IMAGE BUTTON */}
- 
+
           <TouchableOpacity
             onPress={() => setImageModalVisible(true)}
             style={{
@@ -366,7 +409,8 @@ export default function CampaignPostForm({
               paddingVertical: 10,
               paddingHorizontal: 16,
               borderRadius: 25,
-              marginBottom: 16,
+              marginBottom: 8,
+              marginTop: 8,
             }}
           >
             <Ionicons name="sparkles" size={24} color="#fff" style={{ marginRight: 12 }} />
@@ -374,7 +418,7 @@ export default function CampaignPostForm({
               Image Generate AI Assistant
             </Text>
           </TouchableOpacity>
- 
+
           {/* AI TEXT MODAL */}
           <Modal visible={aiModalVisible} transparent animationType="slide">
             <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 20 }}>
@@ -402,15 +446,31 @@ export default function CampaignPostForm({
                     <Ionicons name="sparkles" size={24} color={loadingAI ? "#fff" : "#fff"} />
                   </TouchableOpacity>
                 </View>
- 
-                {aiResults.length > 0 && (
+
+                {loadingAI ? (
+                  <View
+                    style={{
+                      height: 150, // fixed height
+                      justifyContent: "center",
+                      alignItems: "center",
+                      marginVertical: 20,
+                      borderRadius: 12,
+                    }}
+                  >
+                    <ActivityIndicator size="large" color="#dc2626" />
+                    <Text style={{ marginTop: 12, fontWeight: "bold", color: "#000" }}>
+                      Generating AI suggestions...
+                    </Text>
+                  </View>
+                ) : aiResults.length > 0 ? (
                   <FlatList
                     data={aiResults}
                     keyExtractor={(_, index) => index.toString()}
                     renderItem={({ item }) => (
                       <TouchableOpacity
                         onPress={() => {
-                          setMessage(item);
+                          setMessage(item.content);
+                          setSubject(item.subject);
                           setAiModalVisible(false);
                         }}
                         style={{
@@ -420,19 +480,25 @@ export default function CampaignPostForm({
                           marginBottom: 8,
                         }}
                       >
-                        <Text>{item}</Text>
+                        <Text style={{ fontWeight: "bold" }}>{item.subject}</Text>
+                        <Text>{item.content}</Text>
                       </TouchableOpacity>
                     )}
                   />
+                ) : (
+                  <Text style={{ textAlign: "center", color: "#555", marginVertical: 12 }}>
+                    No AI suggestions yet. Enter a prompt and tap Generate.
+                  </Text>
                 )}
- 
-                <Button onPress={() => setAiModalVisible(false)} style={{ backgroundColor: "#aaa", marginTop: 12 }}>
+
+
+                <Button onPress={() => setAiModalVisible(false)} style={{ backgroundColor: "#dc2626", marginTop: 12 }}>
                   <Text style={{ color: "#fff", fontWeight: "bold" }}>Close</Text>
                 </Button>
               </View>
             </View>
           </Modal>
- 
+
           {/* AI IMAGE MODAL */}
           <Modal visible={imageModalVisible} transparent animationType="slide">
             <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 20 }}>
@@ -447,7 +513,8 @@ export default function CampaignPostForm({
                   <TouchableOpacity
                     disabled={loadingImage}
                     onPress={handleGenerateAIImage}
-                    style={{backgroundColor: loadingImage ? "#aaa" : "#2563eb",
+                    style={{
+                      backgroundColor: loadingImage ? "#aaa" : "#2563eb",
                       height: 43,
                       paddingHorizontal: 16,
                       justifyContent: "center",
@@ -459,8 +526,22 @@ export default function CampaignPostForm({
                     <Ionicons name="sparkles" size={24} color={loadingImage ? "#fff" : "#fff"} />
                   </TouchableOpacity>
                 </View>
- 
-                {generatedImages.length > 0 && (
+
+                {/* AI GENERATED IMAGES */}
+                {loadingImage ? (
+                  <View
+                    style={{
+                      height: 150, // fixed height
+                      justifyContent: "center",
+                      alignItems: "center",
+                      marginVertical: 20,
+                      borderRadius: 12,
+                    }}
+                  >
+                    <ActivityIndicator size="large" color="#2563eb" />
+                    <Text style={{ marginTop: 12, fontWeight: "bold", color: "#000" }}>Generating image...</Text>
+                  </View>
+                ) : generatedImages.length > 0 ? (
                   <FlatList
                     data={generatedImages}
                     keyExtractor={(item, index) => item || index.toString()}
@@ -489,18 +570,27 @@ export default function CampaignPostForm({
                       </TouchableOpacity>
                     )}
                   />
+                ) : (
+                  <Text style={{ color: "#555", marginVertical: 8 }}>No images yet. Enter a prompt and generate.</Text>
                 )}
- 
- 
-                <Button onPress={() => setImageModalVisible(false)} style={{ backgroundColor: "#aaa", marginTop: 12 }}>
+
+
+                <Button onPress={() => setImageModalVisible(false)} style={{ backgroundColor: "#dc2626", marginTop: 12 }}>
                   <Text style={{ color: "#fff", fontWeight: "bold" }}>Close</Text>
                 </Button>
               </View>
             </View>
           </Modal>
- 
+
           {/* ATTACHMENTS */}
-          <Text className="mb-2 font-bold text-black ml-1">Attachments</Text>
+          <Text style={{
+            color: "#000",
+            fontWeight: "bold",
+            marginBottom: 8,
+            marginLeft: 4,
+          }}>
+            Attachments
+          </Text>
           <FlatList
             data={attachments}
             horizontal
@@ -515,13 +605,102 @@ export default function CampaignPostForm({
               </TouchableOpacity>
             }
           />
- 
+
+          {/* FACEBOOK CONTENT TYPE */}
+          {platform === "FACEBOOK" && (
+            <View
+              style={{
+                borderWidth: 2,
+                borderColor: "#d1d5db",
+                borderRadius: 10,
+                padding: 12,
+                marginTop: 10,
+                marginBottom: 10,
+              }}
+            >
+              {/* Heading inside border */}
+              <Text
+                style={{
+                  color: "#000",
+                  fontWeight: "bold",
+                  marginBottom: 12,
+                }}
+              >
+                Content Type
+              </Text>
+
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                {/* Standard Post */}
+                <TouchableOpacity
+                  onPress={() => setFacebookContentType("STANDARD")}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    marginRight: 6,
+                    borderRadius: 8,
+                    borderWidth: 2,
+                    borderColor:
+                      facebookContentType === "STANDARD" ? "#2563eb" : "#d1d5db",
+                    backgroundColor:
+                      facebookContentType === "STANDARD" ? "#eff6ff" : "#fff",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontWeight: "bold",
+                      fontSize: 12,
+                      color:
+                        facebookContentType === "STANDARD" ? "#2563eb" : "#000",
+                    }}
+                  >
+                    Standard Post
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Reel / Short Video */}
+                <TouchableOpacity
+                  onPress={() => setFacebookContentType("REEL")}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    marginLeft: 6,
+                    borderRadius: 8,
+                    borderWidth: 2,
+                    borderColor:
+                      facebookContentType === "REEL" ? "#2563eb" : "#d1d5db",
+                    backgroundColor:
+                      facebookContentType === "REEL" ? "#eff6ff" : "#fff",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontWeight: "bold",
+                      fontSize: 12,
+                      color:
+                        facebookContentType === "REEL" ? "#2563eb" : "#000",
+                    }}
+                  >
+                    Reel / Short Video
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
           {platform === "YOUTUBE" && (
             <View className="bg-gray-100 rounded-lg shadow-md">
- 
+
               {/* ---------- YouTube Settings Heading ---------- */}
-              <Text className="text-lg font-bold mb-4">YouTube Settings</Text>
- 
+              <Text style={{
+                color: "#000",
+                fontWeight: "bold",
+                marginBottom: 8,
+                marginLeft: 4,
+              }}>
+                YouTube Settings</Text>
+
               {/* ---------- Content Type ---------- */}
               <View
                 style={{
@@ -533,10 +712,15 @@ export default function CampaignPostForm({
                 }}
               >
                 {/* Heading */}
-                <Text style={{ fontWeight: "bold", fontSize: 16, marginBottom: 8 }}>
+                <Text style={{
+                  color: "#000",
+                  fontWeight: "bold",
+                  marginBottom: 8,
+                  marginLeft: 4,
+                }}>
                   Content Type
                 </Text>
- 
+
                 {/* Buttons */}
                 <View style={{ marginBottom: 16 }}>
                   {/* Content Type Buttons */}
@@ -571,7 +755,7 @@ export default function CampaignPostForm({
                       </TouchableOpacity>
                     ))}
                   </View>
- 
+
                   {/* Show this button only if "Playlist" is selected */}
                   {youTubeContentType === "Playlist" && (
                     <TouchableOpacity
@@ -600,18 +784,30 @@ export default function CampaignPostForm({
                   )}
                 </View>
               </View>
- 
+
               {/* ---------- Tags Input ---------- */}
-              <Text className="font-semibold mb-2">Tags</Text>
+              <Text style={{
+                color: "#000",
+                fontWeight: "bold",
+                marginBottom: 8,
+                marginLeft: 4,
+              }}>
+                Tags</Text>
               <TextInput
                 placeholder="Enter tags separated by commas"
                 value={youTubeTags}
                 onChangeText={setYouTubeTags}
                 className="border border-gray-300 rounded-full px-3 h-12 mb-4 bg-white"
               />
- 
+
               {/* ---------- Status Dropdown ---------- */}
-              <Text className="font-semibold mb-2">Status</Text>
+              <Text style={{
+                color: "#000",
+                fontWeight: "bold",
+                marginBottom: 8,
+                marginLeft: 4,
+              }}>
+                Status</Text>
               <TouchableOpacity
                 onPress={() => setShowStatusDropdown(!showStatusDropdown)}
                 className="border border-gray-300 rounded-full px-3 h-12 mb-4 bg-white flex-row justify-between items-center"
@@ -635,16 +831,22 @@ export default function CampaignPostForm({
                   ))}
                 </View>
               )}
- 
+
               {/* ---------- Custom Thumbnail ---------- */}
-              <Text className="font-semibold mb-2">Custom Thumbnail</Text>
+              <Text style={{
+                color: "#000",
+                fontWeight: "bold",
+                marginBottom: 8,
+                marginLeft: 4,
+              }}>
+                Custom Thumbnail</Text>
               <TouchableOpacity
                 onPress={handleCustomThumbnailUpload}
                 className="bg-blue-100 px-4 py-3 rounded-lg items-center mb-4"
               >
                 <Text style={{ color: "#2563eb", fontWeight: "bold" }}>Upload Thumbnail</Text>
               </TouchableOpacity>
- 
+
               {/* ---------- Optional: Show selected thumbnail ---------- */}
               {customThumbnail && (
                 <Image
@@ -655,12 +857,12 @@ export default function CampaignPostForm({
               )}
             </View>
           )}
- 
+
           {platform === "PINTEREST" && (
             <View style={{ marginTop: 16, padding: 12, borderWidth: 1, borderColor: "#d1d5db", borderRadius: 8 }}>
               {/* Pinterest Settings Heading */}
               <Text style={{ fontWeight: "bold", marginBottom: 8 }}>Pinterest Settings</Text>
- 
+
               {/* Select Board */}
               <Text style={{ fontWeight: "600", marginBottom: 4 }}>Select Board</Text>
               <TouchableOpacity
@@ -676,7 +878,7 @@ export default function CampaignPostForm({
               >
                 <Text>{pinterestBoard || "Select a board"}</Text>
               </TouchableOpacity>
- 
+
               {/* + Create New Board */}
               {isCreatingPinterestBoard && (
                 <TouchableOpacity
@@ -698,7 +900,7 @@ export default function CampaignPostForm({
                   </Text>
                 </TouchableOpacity>
               )}
- 
+
               {/* Destination Link */}
               <Text style={{ fontWeight: "600", marginBottom: 4 }}>Destination Link (Optional)</Text>
               <TextInput
@@ -716,7 +918,7 @@ export default function CampaignPostForm({
               />
             </View>
           )}
- 
+
           {/* DATE TIME */}
           <TouchableOpacity
             onPress={() => setShowPicker(true)}
@@ -724,7 +926,7 @@ export default function CampaignPostForm({
           >
             <Text>{postDate ? postDate.toLocaleString() : "Select Date & Time"}</Text>
           </TouchableOpacity>
- 
+
           {showPicker && (
             <DateTimePicker
               value={postDate || new Date()}
@@ -739,7 +941,7 @@ export default function CampaignPostForm({
               }}
             />
           )}
- 
+
           {showTimePicker && (
             <DateTimePicker
               value={postDate || new Date()}
@@ -760,7 +962,7 @@ export default function CampaignPostForm({
               }}
             />
           )}
- 
+
           <Button
             onPress={handleSubmit}
             className="rounded-full mb-8"
