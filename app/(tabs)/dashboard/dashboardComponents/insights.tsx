@@ -1,0 +1,435 @@
+import { getUsage } from "@/api/billingApi";
+import {
+  getCampaigns,
+  getContacts,
+  // getNotifications,
+  getUser,
+} from "@/api/dashboardApi";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import {
+  Box,
+  Center,
+  HStack,
+  Pressable,
+  Progress,
+  ProgressFilledTrack,
+  ScrollView,
+  Text,
+  VStack,
+} from "@gluestack-ui/themed";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, StyleSheet } from "react-native";
+
+/* ================= TYPES ================= */
+
+type UsageItem = {
+  current?: number;
+  limit?: number;
+  percentage?: number;
+  isNearLimit?: boolean;
+};
+
+/* ================= COMPONENT ================= */
+
+export default function Insights() {
+  const routePage = useRouter();
+
+  const [userData, setUserData] = useState<any>(null);
+  const [campaignData, setCampaignData] = useState<any>(null);
+  const [contactsData, setContactsData] = useState<any>(null);
+  const [usageData, setUsageData] = useState<any>(null);
+  // const [notificationData, setNotificationData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  /* ================= API ================= */
+  useEffect(() => {
+    const fetchInsights = async () => {
+      try {
+        const user = await getUser();
+        const campaigns = await getCampaigns();
+        const contacts = await getContacts();
+        const usage = await getUsage();
+        // const notification = await getNotifications();
+
+        setUserData(user);
+        setCampaignData(campaigns);
+        setContactsData(contacts);
+        setUsageData(usage);
+       
+      } catch (error) {
+        console.error("Dashboard fetch error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInsights();
+  }, []);
+
+  /* ================= LOADING ================= */
+  if (loading) {
+    return (
+      <ThemedView style={styles.loader}>
+        <ActivityIndicator size="large" color="#dc2626" />
+        <ThemedText style={styles.loadingText}>Loading dashboard…</ThemedText>
+      </ThemedView>
+    );
+  }
+
+  /* ================= DERIVED DATA ================= */
+
+  const organisationName = userData?.organisation?.name ?? "Organisation";
+
+  const totalCampaigns =
+    campaignData?.pagination?.total ?? campaignData?.campaigns?.length ?? "-";
+
+  const totalContacts =
+    contactsData?.pagination?.total ?? contactsData?.contacts?.length ?? "-";
+
+  const teamSize =
+    usageData?.usage?.users?.current ??
+    userData?.organisation?.users?.length ??
+    1;
+
+  const planName =
+    userData?.organisation?.subscriptions?.[0]?.plan?.name ?? "FREE TRIAL";
+
+  const isApproved =
+    userData?.organisation?.isApproved ?? null;
+
+    // console.log("isapp check",isApproved);
+    
+  // const trialEndDate = userData?.organisation?.trialEndDate
+  //   ? new Date(userData.organisation.trialEndDate).toLocaleDateString()
+  //   : "N/A";
+
+  // const notifications: NotificationItem[] =
+  //   notificationData?.data?.notifications ?? [];
+
+  /* ================= HELPERS ================= */
+
+  // const formatDate = (date: string) =>
+  //   new Date(date).toLocaleString();
+
+  const renderUsageItem = (label: string, data?: UsageItem) => {
+    const current = data?.current ?? "-";
+    const limit = data?.limit ?? "-";
+    const percentage =
+      typeof data?.percentage === "number" ? data.percentage : 0;
+
+    const progressColor = data?.isNearLimit ? "#f97316" : "#22c55e";
+
+    return (
+      <VStack style={{ marginBottom: 16 }}>
+        <HStack justifyContent="space-between">
+          <ThemedText>{label}</ThemedText>
+          <ThemedText>
+            {current}/{limit}
+          </ThemedText>
+        </HStack>
+
+        <Center style={{ marginTop: 6 }}>
+          <Progress value={percentage} size="sm">
+            <ProgressFilledTrack style={{ backgroundColor: progressColor }} />
+          </Progress>
+        </Center>
+      </VStack>
+    );
+  };
+
+  /* ================= UI ================= */
+
+  return (
+    <ThemedView style={styles.container}>
+      {/* HEADER */}
+      <HStack style={styles.header}>
+        <ThemedText style={styles.heading}>Welcome back, </ThemedText>
+        <ThemedText style={styles.orgName}>{organisationName}</ThemedText>
+      </HStack>
+
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* PLAN CARD */}
+        <Box style={styles.planCard}>
+          <HStack justifyContent="space-between" alignItems="center">
+            <VStack>
+              <Text style={styles.planLabel}>Current Plan</Text>
+              <ThemedText style={styles.planName}>{planName}</ThemedText>
+            </VStack>
+
+            <Pressable
+              style={styles.trialBadge}
+              onPress={() => routePage.push("/(billing)/billingPage")}
+            >
+              <Text style={styles.trialText}>Manage Billing</Text>
+            </Pressable>
+          </HStack>
+
+          <Text
+            style={[
+              styles.trialDate,
+              {
+                color:
+                  isApproved === true
+                    ? "#dcfce7" // light green
+                    : isApproved === false
+                    ? "#fee2e2" // light red
+                    : "#ffffff",
+              },
+            ]}
+          >
+            {isApproved === true && "Your subscription is active."}
+            {isApproved === false && "You don't have any active subscription."}
+            {isApproved === null && "-"}
+          </Text>
+        </Box>
+
+        {/* ================= STATS ================= */}
+        <VStack style={styles.section}>
+          <HStack style={styles.statsRow}>
+            <Box style={styles.statCard}>
+              <Text style={styles.statLabel}>Total Campaigns</Text>
+              <ThemedText style={styles.statValue}>{totalCampaigns}</ThemedText>
+              <ThemedText style={styles.statSubtext}>
+                Total Active Campaigns
+              </ThemedText>
+            </Box>
+
+            <Box style={styles.statCard}>
+              <Text style={styles.statLabel}>Total Contacts</Text>
+              <ThemedText style={styles.statValue}>{totalContacts}</ThemedText>
+              <ThemedText style={styles.statSubtext}>
+                Audience Reached
+              </ThemedText>
+            </Box>
+          </HStack>
+
+          <Box style={[styles.statCard, styles.statCardFull]}>
+            <Text style={styles.statLabel}>Team Size</Text>
+            <ThemedText style={styles.statValue}>{teamSize}</ThemedText>
+            <ThemedText style={styles.statSubtext}>
+              Active team members
+            </ThemedText>
+          </Box>
+        </VStack>
+
+        {/* ================= USAGE ================= */}
+        <Box style={styles.usageCard}>
+          <ThemedText style={styles.usageName}>Usage Details</ThemedText>
+          <ThemedText style={styles.usageLabel}>
+            Detailed breakdown of your usage and limits
+          </ThemedText>
+
+          {renderUsageItem("Monthly Posts", usageData?.usage?.postsThisMonth)}
+          {renderUsageItem("Total Contacts", usageData?.usage?.contacts)}
+          {renderUsageItem("Campaigns", usageData?.usage?.campaigns)}
+          {renderUsageItem("Platform Connections", usageData?.usage?.platforms)}
+          {renderUsageItem("Team Members", usageData?.usage?.users)}
+        </Box>
+
+        {/* ================= TEAM ================= */}
+        <Box style={styles.usageCard}>
+          <ThemedText style={styles.usageName}>Team Members</ThemedText>
+
+          <HStack justifyContent="space-between" alignItems="center">
+            <VStack>
+              <ThemedText>
+                {userData?.firstName} {userData?.lastName}
+              </ThemedText>
+              <ThemedText>{userData?.email}</ThemedText>
+            </VStack>
+
+            <Box style={styles.roleBadge}>
+              <Text style={styles.badgeText}>{userData?.role}</Text>
+            </Box>
+          </HStack>
+        </Box>
+
+        {/* ================= NOTIFICATIONS ================= */}
+        {/* <Box style={styles.usageCard}>
+          <ThemedText style={styles.usageName}>
+            Recent Activity
+          </ThemedText>
+
+          {notifications.length === 0 ? (
+            <ThemedText>-</ThemedText>
+          ) : (
+            notifications.map((item) => (
+              <Box key={item.id} style={styles.notificationItem}>
+                <ThemedText style={styles.notificationMessage}>
+                  {item.message}
+                </ThemedText>
+
+                <HStack justifyContent="space-between">
+                  <ThemedText style={styles.notificationDate}>
+                    {formatDate(item.createdAt)}
+                  </ThemedText>
+
+                  {item.platform && (
+                    <Box style={styles.platformBadge}>
+                      <Text style={styles.badgeText}>
+                        {item.platform}
+                      </Text>
+                    </Box>
+                  )}
+                </HStack>
+              </Box>
+            ))
+          )}
+        </Box> */}
+      </ScrollView>
+    </ThemedView>
+  );
+}
+
+/* ================= STYLES ================= */
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+  },
+  loader: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#6b7280",
+  },
+  header: {
+    marginBottom: 24,
+  },
+  heading: {
+    fontSize: 22,
+    fontWeight: "700",
+  },
+  orgName: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#dc2626",
+  },
+
+  /* PLAN */
+  planCard: {
+    backgroundColor: "#dc2626",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+  },
+  planLabel: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 13,
+  },
+  planName: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  trialBadge: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  trialText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  trialDate: {
+    color: "#fff",
+    fontSize: 13,
+    marginTop: 5,
+  },
+
+  /* STATS */
+  section: {
+    marginBottom: 24,
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 12,
+  },
+  statCard: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 16,
+    padding: 16,
+    minHeight: 130,
+    justifyContent: "space-between",
+  },
+  statCardFull: {
+    width: "100%",
+  },
+  statLabel: {
+    fontSize: 13,
+    color: "#6b7280",
+  },
+  statValue: {
+    fontSize: 30,
+    fontWeight: "700",
+  },
+  statSubtext: {
+    fontSize: 12,
+    color: "#9ca3af",
+  },
+
+  /* USAGE */
+  usageCard: {
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+  },
+  usageName: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 9
+  },
+  usageLabel: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginBottom: 12,
+  },
+
+  /* BADGES */
+  roleBadge: {
+    backgroundColor: "#e0f2fe",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  platformBadge: {
+    backgroundColor: "#ede9fe",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  /* NOTIFICATIONS */
+  notificationItem: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+    paddingVertical: 12,
+  },
+  notificationMessage: {
+    fontSize: 14,
+    marginBottom: 6,
+  },
+  notificationDate: {
+    fontSize: 12,
+    color: "#6b7280",
+  },
+});

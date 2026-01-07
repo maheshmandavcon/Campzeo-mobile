@@ -1,0 +1,89 @@
+import { fetchInvoices } from "@/api/invoicesApi";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { Invoice } from "@/types/types";
+import { useUser } from "@clerk/clerk-expo";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, ScrollView, Text } from "react-native";
+
+export default function Invoices() {
+  const { user, isLoaded } = useUser();
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isLoaded || !user) return;
+
+    const loadInvoices = async () => {
+      try {
+        const data = await fetchInvoices(user.id);
+        setInvoices(data.invoices);
+      } catch (error) {
+        console.log("Error loading invoices:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInvoices();
+  }, [isLoaded, user]);
+
+  if (loading) {
+    return (
+      <ThemedView className="flex-1 items-center justify-center">
+        <ActivityIndicator size="large" color="#dc2626" />
+        <ThemedText
+          style={{
+            marginTop: 12,
+            fontSize: 14,
+            color: "#6b7280",
+          }}
+        >
+          Loading Invoices…
+        </ThemedText>
+      </ThemedView>
+    );
+  }
+
+  return (
+    <ScrollView className="flex-1 px-4 py-4">
+      {invoices.length === 0 ? (
+        <ThemedView className="items-center mt-10">
+          <ThemedText>No invoices found</ThemedText>
+        </ThemedView>
+      ) : (
+        invoices.map((item) => (
+          <ThemedView
+            key={item.id}
+            className="bg-gray-50 rounded-xl p-4 mb-4 border border-gray-200"
+          >
+            <ThemedView className="flex-row justify-between mb-2">
+              <ThemedText className="font-semibold text-gray-800">
+                Invoice ID: #{item.id}
+              </ThemedText>
+              <Text
+                className={`font-semibold ${
+                  item.status === "PAID" ? "text-green-600" : "text-yellow-600"
+                }`}
+              >
+                {item.status}
+              </Text>
+            </ThemedView>
+
+            <ThemedText className="text-sm text-gray-600 mb-1">
+              Date: {new Date(item.invoiceDate).toLocaleDateString()}
+            </ThemedText>
+
+            <ThemedText className="text-sm text-gray-600 mb-1">
+              Description: {item.description}
+            </ThemedText>
+
+            <ThemedText className="text-base font-bold text-gray-900 mt-2">
+              Amount: ₹{item.amount}
+            </ThemedText>
+          </ThemedView>
+        ))
+      )}
+    </ScrollView>
+  );
+}
