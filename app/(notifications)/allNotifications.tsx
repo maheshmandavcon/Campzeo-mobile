@@ -18,6 +18,7 @@ import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { SafeAreaView } from "@gluestack-ui/themed";
 import { useColorMode } from "@gluestack-ui/themed";
+import { useColorScheme } from "react-native";
 
 export default function AllNotifications() {
   const navigation = useNavigation();
@@ -29,7 +30,7 @@ export default function AllNotifications() {
   const [visibleCount, setVisibleCount] = useState(5);
   const [searchText, setSearchText] = useState("");
 
-  const colorMode = useColorMode(); 
+  // const colorMode = useColorMode();
 
   // ---------------- FORMAT API DATA ----------------
   const formatNotification = (item: any, existingReadStatus?: boolean) => {
@@ -128,7 +129,7 @@ export default function AllNotifications() {
                 Alert.alert(
                   "Error",
                   error.response?.data?.message ||
-                    "Failed to delete notification"
+                  "Failed to delete notification"
                 );
               }
             },
@@ -139,6 +140,15 @@ export default function AllNotifications() {
       console.log("Delete notification error:", error);
     }
   };
+
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
+  const CARD_BG = isDark ? "#0f172a" : "#ffffff";
+  const CARD_BORDER = isDark ? "#1e293b" : "#e5e7eb";
+  const TEXT_SECONDARY = isDark ? "#94a3b8" : "#6b7280";
+  const TEXT_MUTED = isDark ? "#64748b" : "#9ca3af";
+  const SCREEN_BG = isDark ? "#020617" : "#EEF2FF";
 
   // ---------------- GROUP BY DATE ----------------
   const grouped: Record<string, any[]> = {};
@@ -183,12 +193,12 @@ export default function AllNotifications() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#EEF2FF" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: SCREEN_BG }}>
       <ThemedView className="flex-1 px-4 pt-4">
         {/* HEADER */}
         <ThemedView className="flex-row items-center justify-between my-5">
           <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 8 }}>
-            <Ionicons name="arrow-back" size={24} color="#333" />
+            <Ionicons name="arrow-back" size={24} color={isDark ? "#e5e7eb" : "#333"} />
           </TouchableOpacity>
 
           <ThemedText style={{ fontSize: 18, fontWeight: "bold" }}>
@@ -200,11 +210,17 @@ export default function AllNotifications() {
 
         {/* SEARCH + REFRESH */}
         <ThemedView className="flex-row items-center mb-3">
-          <ThemedView className="flex-1 flex-row items-center bg-white rounded-full px-4 border border-gray-300 shadow-sm">
-            <Ionicons name="search-outline" size={20} color="#777" />
+          <ThemedView className="flex-1 flex-row items-center rounded-full px-4 border shadow-sm"
+            style={{
+              backgroundColor: isDark ? "#161618" : "#fff",
+              borderColor: isDark ? "#fff" : "#d1d5db",
+            }}>
+            <Ionicons name="search-outline" size={20} color={isDark ? "#fff" : "#777"} />
             <TextInput
-              placeholder="Search"
-              className="flex-1 px-2 text-gray-700"
+              placeholder="Search..."
+              className="flex-1 px-2"
+              style={{ color: isDark ? "#e5e7eb" : "#374151" }}
+              placeholderTextColor={isDark ? "#94a3b8" : "#9ca3af"} // placeholder color
               value={searchText}
               onChangeText={(text) => {
                 setSearchText(text);
@@ -214,23 +230,35 @@ export default function AllNotifications() {
           </ThemedView>
 
           <TouchableOpacity className="ml-3" onPress={fetchNotifications}>
-            <Ionicons name="sync-outline" size={22} color="#444" />
+            <Ionicons name="sync-outline" size={22} color={isDark ? "#fff" : "#444"} />
           </TouchableOpacity>
         </ThemedView>
 
         {/* TABS */}
         <ThemedView className="flex-row items-center justify-between mb-3">
-          <ThemedView className="flex-row space-x-2">
+          {/* TABS */}
+          <ThemedView className="flex-row space-x-4">
             <TouchableOpacity
               onPress={() => setTab("All")}
-              className={`px-4 py-1 rounded-full ${
-                tab === "All" ? "bg-[#dc2626]" : "bg-white"
-              }`}
+              style={{
+                backgroundColor: tab === "All"
+                  ? "#dc2626"
+                  : isDark
+                    ? "#161618"
+                    : "#ffffff",
+                paddingHorizontal: 16,
+                paddingVertical: 4,
+                borderRadius: 9999, // fully rounded
+              }}
             >
               <ThemedText
                 style={{
                   fontWeight: tab === "All" ? "bold" : "normal",
-                  color: tab === "All" ? "#fff" : "#374151",
+                  color: tab === "All"
+                    ? "#fff"
+                    : isDark
+                      ? "#e5e7eb"
+                      : "#374151",
                 }}
               >
                 All ({notifications.length})
@@ -239,14 +267,25 @@ export default function AllNotifications() {
 
             <TouchableOpacity
               onPress={() => setTab("Unread")}
-              className={`px-4 py-1 rounded-full ${
-                tab === "Unread" ? "bg-[#dc2626]" : "bg-white"
-              }`}
+              style={{
+                backgroundColor: tab === "Unread"
+                  ? "#dc2626"
+                  : isDark
+                    ? "#161618"
+                    : "#ffffff",
+                paddingHorizontal: 16,
+                paddingVertical: 4,
+                borderRadius: 9999,
+              }}
             >
               <ThemedText
                 style={{
                   fontWeight: tab === "Unread" ? "bold" : "normal",
-                  color: tab === "Unread" ? "#fff" : "#374151",
+                  color: tab === "Unread"
+                    ? "#fff"
+                    : isDark
+                      ? "#e5e7eb"
+                      : "#374151",
                 }}
               >
                 Unread ({unreadCount})
@@ -254,8 +293,14 @@ export default function AllNotifications() {
             </TouchableOpacity>
           </ThemedView>
 
+          {/* MARK ALL AS READ */}
           <TouchableOpacity onPress={markAllAsRead}>
-            <ThemedText style={{ color: "#dc2626", fontWeight: "bold" }}>
+            <ThemedText
+              style={{
+                fontWeight: "bold",
+                color: isDark ? "#fff" : "#dc2626",
+              }}
+            >
               Mark all as read
             </ThemedText>
           </TouchableOpacity>
@@ -272,7 +317,7 @@ export default function AllNotifications() {
         {!loading && !hasNotifications && (
           <ThemedView className="flex-1 items-center justify-center mt-10">
             <Ionicons name="notifications-off-outline" size={70} color="#9AA6FF" />
-            <ThemedText style={{ color: "#6b7280", marginTop: 12 }}>
+            <ThemedText style={{ color: TEXT_SECONDARY, marginTop: 12 }}>
               Looks like there’s nothing here
             </ThemedText>
           </ThemedView>
@@ -288,7 +333,7 @@ export default function AllNotifications() {
               <ThemedText
                 style={{
                   fontWeight: "bold",
-                  color: "#6b7280",
+                  color: TEXT_SECONDARY,
                   marginTop: 16,
                   marginBottom: 4,
                 }}
@@ -299,16 +344,17 @@ export default function AllNotifications() {
             renderItem={({ item }) => (
               <ThemedView style={{ marginBottom: 12 }}>
                 <TouchableOpacity
-                  onPress={() => markAsRead(item.id)}
+                  onPress={() => markAsRead(item.id)} // tap marks as read
+                  onLongPress={() => deleteNotification(item.id)} // long press deletes
                   style={{
                     flexDirection: "row",
-                    backgroundColor: "#fff",
+                    backgroundColor: isDark ? "#161618" : "#ffffff",
+                    borderColor: isDark ? "#fff" : "#e5e7eb",
                     borderRadius: 16,
                     padding: 12,
                     marginVertical: 4,
                     alignItems: "flex-start",
                     borderWidth: 1,
-                    borderColor: "#e5e7eb",
                   }}
                 >
                   <ThemedView style={{ flex: 1 }}>
@@ -321,13 +367,13 @@ export default function AllNotifications() {
                       {item.title}
                     </ThemedText>
 
-                    <ThemedText style={{ color: "#6b7280", marginTop: 4 }}>
+                    <ThemedText style={{ color: TEXT_SECONDARY, marginTop: 4 }}>
                       {item.desc}
                     </ThemedText>
 
                     <ThemedText
                       style={{
-                        color: "#9ca3af",
+                        color: TEXT_MUTED,
                         fontSize: 12,
                         marginTop: 4,
                       }}

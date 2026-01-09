@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  useColorScheme,
 } from "react-native";
 import { View, Text } from "@gluestack-ui/themed";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
@@ -13,6 +14,8 @@ import CampaignPostForm from "./campaignPostForm";
 import { useRoute } from "@react-navigation/native";
 import { useAuth } from "@clerk/clerk-expo";
 import axios from "axios";
+import { ThemedView } from "@/components/themed-view";
+import { ThemedText } from "@/components/themed-text";
 
 export default function CampaignPost() {
   const [selected, setSelected] = useState<string | null>(null);
@@ -66,6 +69,8 @@ export default function CampaignPost() {
     return () => { isMounted = false };
   }, [campaignId, postId]);
 
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   // ---------- SOCIAL MEDIA ICONS ----------
   const icons = [
@@ -86,30 +91,33 @@ export default function CampaignPost() {
       keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
     >
       <ScrollView
-        className="flex-1 bg-gray-100 p-4"
+        className="flex-1 p-4"
+        style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: 150 }}
         showsVerticalScrollIndicator={false}
       >
-        <Text
+        <ThemedText
           style={{
             fontSize: 18,
             fontWeight: "bold",
             marginBottom: 12,
-            color: "black",
+            color: isDark ? "#fff" : "#000",
           }}
         >
           {postId ? "Edit Campaign Post" : "Create Campaign Post"}
-        </Text>
+        </ThemedText>
 
         {/* ---------- ICON SECTION ---------- */}
-        <View className="flex-row flex-wrap justify-between mb-4">
+        <ThemedView className="flex-row flex-wrap justify-between mb-4"
+        style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
           {icons.map((icon, index) => {
             const IconComponent = icon.library;
             const isSelected = selected === icon.label;
 
             return (
-              <View key={index} className="w-1/4 mb-6 items-center">
+              <ThemedView key={index} className="w-1/4 mb-6 items-center"
+              style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
                 <RNView
                   style={{
                     width: 64,
@@ -134,18 +142,18 @@ export default function CampaignPost() {
                       justifyContent: "center",
                       borderWidth: 2,
                       borderColor: isSelected ? icon.color : "#d1d5db",
-                      backgroundColor: "#ffffff",
+                      backgroundColor: isDark ? "#161618" : "#ffffff",
                     }}
                   >
                     <IconComponent
                       name={icon.name as any}
                       size={28}
-                      color={icon.color}
+                      color={isDark ? "#ffffff" : icon.color}
                     />
                   </TouchableOpacity>
                 </RNView>
 
-                <Text
+                <ThemedText
                   style={{
                     marginTop: 8,
                     textAlign: "center",
@@ -154,15 +162,15 @@ export default function CampaignPost() {
                   }}
                 >
                   {icon.label}
-                </Text>
-              </View>
+                </ThemedText>
+              </ThemedView>
             );
           })}
-        </View>
+        </ThemedView>
 
         {/* ---------- FORM ---------- */}
         {selected && (
-          <View style={{ marginTop: 0, marginBottom: 5 }}>
+          <ThemedView style={{ marginTop: 0, marginBottom: 5 }}>
             <CampaignPostForm
               key={selected} // ✅ this forces remount on platform change
               platform={selected}
@@ -173,7 +181,7 @@ export default function CampaignPost() {
                 setExistingPost(null);
               }}
             />
-          </View>
+          </ThemedView>
         )}
 
       </ScrollView>

@@ -22,6 +22,8 @@ import {
   getCampaignByIdApi,
 } from "@/api/campaign/campaignApi";
 import { getContactsApi } from "@/api/contact/contactApi";
+import { ThemedView } from "@/components/themed-view";
+import { ThemedText } from "@/components/themed-text";
 
 type Contact = {
   id: number;
@@ -166,9 +168,9 @@ export default function CreateCampaign() {
 
   if (loadingCampaign) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f9fafb" }}>
+      <ThemedView style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f9fafb" }}>
         <ActivityIndicator size="large" color="#0284c7" />
-      </View>
+      </ThemedView>
     );
   }
 
@@ -192,22 +194,22 @@ export default function CreateCampaign() {
         </TouchableOpacity>
 
         {/* Header */}
-        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 24 }}>
-          <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: "#0284c7", alignItems: "center", justifyContent: "center" }}>
+        <ThemedView style={{ flexDirection: "row", alignItems: "center", marginBottom: 24 }}>
+          <ThemedView style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: "#0284c7", alignItems: "center", justifyContent: "center" }}>
             <Ionicons name="megaphone" size={28} color="#fff" />
-          </View>
-          <View style={{ marginLeft: 16 }}>
-            <Text style={{ fontSize: 22, fontWeight: "700", color: "#111827" }}>
+          </ThemedView>
+          <ThemedView style={{ marginLeft: 16 }}>
+            <ThemedText style={{ fontSize: 22, fontWeight: "700", color: "#111827" }}>
               {isEditMode ? "Update Campaign" : "Create Campaign"}
-            </Text>
-            <Text style={{ fontSize: 14, color: "#6b7280" }}>
+            </ThemedText>
+            <ThemedText style={{ fontSize: 14, color: "#6b7280" }}>
               {isEditMode ? "Update campaign details" : "Add all campaign details"}
-            </Text>
-          </View>
-        </View>
+            </ThemedText>
+          </ThemedView>
+        </ThemedView>
 
         {/* Form Fields */}
-        <View style={{ marginBottom: 20 }}>
+        <ThemedView style={{ marginBottom: 20 }}>
           {/* Name */}
           <FormControl isInvalid={!!errors.name}>
             <FormControl.Label>{requiredLabel("Name")}</FormControl.Label>
@@ -311,17 +313,17 @@ export default function CreateCampaign() {
           {/* Select Contacts */}
           <FormControl>
             <FormControl.Label>
-              <Text style={{ fontSize: 16, fontWeight: "600", marginTop: 12, color: "#374151" }}>
+              <ThemedText style={{ fontSize: 16, fontWeight: "600", marginTop: 12, color: "#374151" }}>
                 Select Contacts
-              </Text>
+              </ThemedText>
             </FormControl.Label>
 
             {loadingContacts ? (
               <ActivityIndicator size="small" color="#0284c7" />
             ) : contacts.length === 0 ? (
-              <Text>No contacts available</Text>
+              <ThemedText>No contacts available</ThemedText>
             ) : (
-              <View style={{ borderColor: "#d1d5db", borderWidth: 1, borderRadius: 12, padding: 12 }}>
+              <ThemedView style={{ borderColor: "#d1d5db", borderWidth: 1, borderRadius: 12, padding: 12 }}>
                 {contacts.map((contact) => {
                   const checked = selectedContactIds.includes(contact.id);
                   return (
@@ -331,7 +333,7 @@ export default function CreateCampaign() {
                       style={{ flexDirection: "row", alignItems: "center", marginVertical: 6 }}
                     >
                       {/* Checkbox */}
-                      <View
+                      <ThemedView
                         style={{
                           width: 20,
                           height: 20,
@@ -344,21 +346,21 @@ export default function CreateCampaign() {
                         }}
                       >
                         {checked && <Ionicons name="checkmark-outline" size={16} color="#0284c7" />}
-                      </View>
+                      </ThemedView>
 
                       {/* Name + Email Row */}
-                      <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                        <Text style={{ color: "#374151", fontWeight: "500" }}>{contact.name}</Text>
-                        <Text style={{ color: "#6b7280", fontSize: 14 }}>{contact.email}</Text>
-                      </View>
+                      <ThemedView style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                        <ThemedText style={{ color: "#374151", fontWeight: "500" }}>{contact.name}</ThemedText>
+                        <ThemedText style={{ color: "#6b7280", fontSize: 14 }}>{contact.email}</ThemedText>
+                      </ThemedView>
                     </TouchableOpacity>
                   );
                 })}
-              </View>
+              </ThemedView>
 
             )}
           </FormControl>
-        </View>
+        </ThemedView>
 
         {/* Submit Button */}
         <TouchableOpacity
@@ -374,9 +376,9 @@ export default function CreateCampaign() {
           }}
           disabled={isSubmitting || loadingCampaign}
         >
-          <Text style={{ color: "#fff", fontWeight: "600", fontSize: 18 }}>
+          <ThemedText style={{ color: "#fff", fontWeight: "600", fontSize: 18 }}>
             {isSubmitting ? (isEditMode ? "Updating..." : "Creating...") : isEditMode ? "Update Campaign" : "Create Campaign"}
-          </Text>
+          </ThemedText>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

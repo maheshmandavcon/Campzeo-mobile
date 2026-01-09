@@ -7,6 +7,7 @@ import {
   Alert,
   Pressable,
   useColorScheme,
+  View,
 } from "react-native";
 import { Text } from "@gluestack-ui/themed";
 import { Ionicons } from "@expo/vector-icons";
@@ -170,17 +171,35 @@ export default function Contacts() {
   return (
     <Pressable onPress={() => setMenuVisible(false)} className="flex-1">
       <ThemedView
-        style={{ backgroundColor: isDark ? "#000000" : "#f3f4f6" }} // gray-100 light bg
+        style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }} // gray-100 light bg
         className="flex-1 p-4"
       >
         {loading && (
-          <ThemedView className="absolute inset-0 justify-center items-center bg-black/40 z-10">
-            <ActivityIndicator size="large" color={DARK_TEXT} />
+          <ThemedView
+            className="absolute inset-0 justify-center items-center z-10"
+            style={{
+              backgroundColor: isDark ? "rgba(0,0,0,0.6)" : "rgba(0,0,0,0.2)", // darker overlay for dark mode
+            }}
+          >
+            <ActivityIndicator
+              size="large"
+              color={isDark ? "#ffffff" : "#dc2626"} // white in dark mode, red in light mode
+            />
+            <Text
+              style={{
+                marginTop: 12,
+                fontWeight: "bold",
+                color: isDark ? "#ffffff" : "#111827", // text color dynamic
+                fontSize: 16,
+              }}
+            >
+              Loading contacts...
+            </Text>
           </ThemedView>
         )}
 
         {/* Top Bar */}
-        <ThemedView
+        <View
           className="flex-row items-center mb-4"
           style={{ backgroundColor: "transparent" }}
         >
@@ -193,7 +212,7 @@ export default function Contacts() {
               paddingHorizontal: 12,
               paddingVertical: 8,
               borderRadius: 9999,
-              backgroundColor: isDark ? DARK_TOPBAR_BG : "#bfdbfe", // gray-800 / blue-100
+              backgroundColor: isDark ? "#161618" : "#bfdbfe", // gray-800 / blue-100
               borderWidth: 1,
               borderColor: isDark ? DARK_BORDER : "transparent",
               marginRight: 8,
@@ -226,20 +245,20 @@ export default function Contacts() {
             placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"} // gray-400 / gray-500
             style={{
               flex: 1,
-              backgroundColor: isDark ? DARK_SEARCH_BG : "#ffffff",
-              color: isDark ? DARK_TEXT : "#000000",
+              backgroundColor: isDark ? "#161618" : "#ffffff",
+              color: isDark ? "#e5e7eb" : "#000000", // light text in dark mode
               paddingHorizontal: 12,
               paddingVertical: 8,
               borderRadius: 9999,
               borderWidth: 1,
-              borderColor: isDark ? "#4b5563" : "#d1d5db", // gray-600 / gray-300
+              borderColor: isDark ? "#fff" : "#d1d5db", // darker gray border in dark mode
             }}
           />
 
           {/* 3-dot menu */}
           <TouchableOpacity
             onPress={() => setMenuVisible(!menuVisible)}
-            className="ml-2"
+            className=""
             style={{
               padding: 8,
               borderRadius: 9999,
@@ -252,13 +271,13 @@ export default function Contacts() {
               color={isDark ? DARK_TEXT : "#000000"}
             />
           </TouchableOpacity>
-        </ThemedView>
+        </View>
 
         {/* Dropdown */}
         {menuVisible && (
           <ThemedView
             style={{
-              backgroundColor: isDark ? DARK_TOPBAR_BG : "#ffffff",
+              backgroundColor: isDark ? "#161618" : "#ffffff",
               borderColor: isDark ? DARK_BORDER : "#d1d5db",
             }}
             className="absolute right-4 top-20 rounded-xl border z-20"
@@ -268,7 +287,7 @@ export default function Contacts() {
               className="flex-row items-center px-4 py-3"
             >
               <Ionicons name="download-outline" size={18} color={DARK_TEXT} />
-              <Text className="ml-3 font-medium text-white">Export All</Text>
+              <ThemedText className="ml-3 font-medium text-white">Export All</ThemedText>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -276,13 +295,13 @@ export default function Contacts() {
               className="flex-row items-center px-4 py-3"
             >
               <Ionicons name="funnel-outline" size={18} color={DARK_TEXT} />
-              <Text className="ml-3 font-medium text-white">
+              <ThemedText className="ml-3 font-medium text-white">
                 {sortOrder === "asc"
                   ? "Sort Z → A"
                   : sortOrder === "desc"
-                  ? "Sort A → Z"
-                  : "Sort"}
-              </Text>
+                    ? "Sort A → Z"
+                    : "Sort"}
+              </ThemedText>
             </TouchableOpacity>
           </ThemedView>
         )}
@@ -297,7 +316,7 @@ export default function Contacts() {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onToggleShow={toggleShow}
-              onCopy={() => {}}
+              onCopy={() => { }}
             />
           )}
           ListFooterComponent={
@@ -311,14 +330,14 @@ export default function Contacts() {
                   borderColor: isDark ? DARK_BORDER : "transparent",
                 }}
               >
-                <Text
+                <ThemedText
                   style={{
                     color: isDark ? DARK_TEXT : "#0284c7",
                     fontWeight: "600",
                   }}
                 >
                   {isAllVisible ? "See Less" : "Load More"}
-                </Text>
+                </ThemedText>
               </TouchableOpacity>
             ) : null
           }

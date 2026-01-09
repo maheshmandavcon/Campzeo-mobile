@@ -141,15 +141,15 @@ export default function CreateContact() {
   );
 
   // ✅ Dynamic colors for light/dark
-  const inputBg = isDark ? "#000000" : "#fff";        
-  const inputBorder = isDark ? "#4b5563" : "#d1d5db"; 
-  const inputText = isDark ? "#fff" : "#111";         
-  const labelText = isDark ? "#f3f4f6" : "#111";     
+  const inputBg = isDark ? "#161618" : "#fff";
+  const inputBorder = isDark ? "#4b5563" : "#d1d5db";
+  const inputText = isDark ? "#fff" : "#111";
+  const labelText = isDark ? "#f3f4f6" : "#111";
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#fff" }}
+      style={{ flex: 1, backgroundColor: isDark ? "#161618" : "#fff" }}
     >
       <ScrollView
         className="flex-1 px-6 py-6"
@@ -166,10 +166,10 @@ export default function CreateContact() {
           />
         </TouchableOpacity>
 
-        <ThemedView className="flex-row items-center mb-6"
-        style={{
-              backgroundColor: isDark ? "#000" : "#fff",
-            }}>
+        <ThemedView className="flex-row items-center"
+          style={{
+            backgroundColor: isDark ? "#161618" : "#fff",
+          }}>
           <ThemedView
             className="w-14 h-14 rounded-lg border-transparent items-center justify-center"
             style={{ backgroundColor: "#dc2626" }} // red icon background
@@ -184,7 +184,7 @@ export default function CreateContact() {
           <ThemedView
             className="ml-4 p-4 rounded-lg"
             style={{
-              backgroundColor: isDark ? "#000" : "#fff",
+              backgroundColor: isDark ? "#161618" : "#fff",
             }}
           >
             <ThemedText
@@ -204,10 +204,17 @@ export default function CreateContact() {
           </ThemedView>
         </ThemedView>
 
+        <ThemedView
+          style={{
+            height: 1, // thickness of the line
+            backgroundColor: isDark ? "#ffffff" : "#fff", // white in dark mode
+            marginVertical: 12, // space above and below
+          }}
+        />
         <ThemedView className="space-y-6"
-        style={{
-              backgroundColor: isDark ? "#000" : "#fff",
-            }}>
+          style={{
+            backgroundColor: isDark ? "#161618" : "#fff",
+          }}>
           {/* Name */}
           <FormControl isInvalid={!!errors.name}>
             <FormControl.Label>{requiredLabel("Name")}</FormControl.Label>
@@ -384,7 +391,15 @@ export default function CreateContact() {
                           <Ionicons name="checkmark-outline" size={16} color="#dc2626" />
                         )}
                       </ThemedView>
-                      <Text style={{ color: inputText }}>{campaign.name}</Text>
+                      <ThemedText
+                        style={{
+                          color: inputText,
+                          flexShrink: 1,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        {campaign.name}
+                      </ThemedText>
                     </TouchableOpacity>
                   );
                 })}

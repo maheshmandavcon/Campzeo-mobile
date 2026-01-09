@@ -129,6 +129,32 @@ export const createPostForCampaignApi = async (
   }
 };
 
+// Send a campaign post to contacts
+export const sendCampaignPostApi = async (
+  campaignId: number,
+  postId: number,
+  contactIds: number[], // array of contact IDs to send to
+  token: AuthToken
+) => {
+  try {
+    const response = await https.post(
+      `/campaigns/${campaignId}/posts/${postId}/send`,
+      { contactIds },
+      {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    return response.data; // { success, sent, failed }
+  } catch (error: any) {
+    console.error("Send Campaign Post API Error:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+
 // Update (Edit) a post for a specific campaign
 export const updatePostForCampaignApi = async (
   campaignId: number,
@@ -236,3 +262,64 @@ export const generateAIImageApi = async (
     throw error;
   }
 };
+
+// ---------------------- Pinterest APIs ---------------------- //
+
+export const createPinterestBoardApi = async (
+  payload: {
+    name: string;
+    description?: string;
+    privacy: "PUBLIC"
+  },
+  token: AuthToken
+) => {
+  try {
+    const response = await https.post(
+      "/socialmedia/pinterest/boards",
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Create Pinterest Board API Error:",
+      error.response || error.message
+    );
+    throw error;
+  }
+};
+
+// ---------------------- Facebook APIs ---------------------- //
+
+export interface FacebookPage {
+  id: string;
+  name: string;
+  accessToken: string;
+}
+
+export const getFacebookPagesApi = async (token: AuthToken): Promise<FacebookPage[]> => {
+  try {
+    const response = await https.get("/socialmedia/facebook/pages", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    // Backend might return an error field if account not connected
+    if (response.data.error) {
+      throw new Error(response.data.error);
+    }
+
+    return response.data.pages || [];
+  } catch (error: any) {
+    console.error("Get Facebook Pages API Error:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+
+

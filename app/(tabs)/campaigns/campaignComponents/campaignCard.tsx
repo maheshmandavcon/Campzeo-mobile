@@ -1,19 +1,21 @@
 import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { ThemedView } from "@/components/themed-view";
+import { ThemedText } from "@/components/themed-text";
 
 // Define Campaign type
 export interface Campaign {
   id: number;
   details: string;
-  dates: string; 
+  dates: string;
   description: string;
   posts: string[];
   show?: boolean;
   contactsCount?: number;
   contacts?: any[];
-  postsCount?: number; 
+  postsCount?: number;
 }
 
 interface CampaignCardProps {
@@ -100,23 +102,64 @@ export default function CampaignCard({
 
   const isExpanded = alwaysExpanded || campaign.show;
 
-  const statusStyles: Record<string, { bg: string; text: string }> = {
-    Completed: { bg: "bg-green-100", text: "text-green-700" },
-    Active: { bg: "bg-red-100", text: "text-red-700" },
-    Scheduled: { bg: "bg-yellow-100", text: "text-yellow-700" },
+  const statusStyles: Record<
+    string,
+    {
+      bg: string;
+      text: string;
+      darkBg: string;
+      darkText: string;
+      border: string;
+      darkBorder: string;
+    }
+  > = {
+    Completed: {
+      bg: "bg-green-100",
+      text: "text-green-700",
+      darkBg: "bg-green-900/30",
+      darkText: "text-green-300",
+      border: "border-green-300",
+      darkBorder: "border-green-500",
+    },
+    Active: {
+      bg: "bg-red-100",
+      text: "text-red-700",
+      darkBg: "bg-red-900/30",
+      darkText: "text-red-300",
+      border: "border-red-300",
+      darkBorder: "border-red-500",
+    },
+    Scheduled: {
+      bg: "bg-yellow-100",
+      text: "text-yellow-700",
+      darkBg: "bg-yellow-900/30",
+      darkText: "text-yellow-300",
+      border: "border-yellow-300",
+      darkBorder: "border-yellow-500",
+    },
   };
 
-  return (
-    <View className="bg-gray-200 p-4 rounded-xl mb-4 shadow">
-      {/* Title + Actions */}
-      <View className="flex-row mb-2 items-start">
-        <View className="flex-1 pr-10">
-          <Text className="font-bold text-lg" numberOfLines={1}>
-            {campaign.details ?? "Untitled Campaign"}
-          </Text>
-        </View>
 
-        <View className="flex-row items-start w-24 justify-end">
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
+  return (
+    <ThemedView className="p-4 rounded-xl mb-4"
+      style={{
+        backgroundColor: isDark ? "#161618" : "#fff",
+        borderWidth: isDark ? 1 : 1,
+        borderColor: isDark ? "#ffffff" : "#e5e7eb",
+      }}
+    >
+      {/* Title + Actions */}
+      <ThemedView className="flex-row mb-2 items-start">
+        <ThemedView className="flex-1 pr-10">
+          <ThemedText className="font-bold text-lg" numberOfLines={1}>
+            {campaign.details ?? "Untitled Campaign"}
+          </ThemedText>
+        </ThemedView>
+
+        <ThemedView className="flex-row items-start w-24 justify-end">
           {postButtonTopRight && showPostButton && (
             <TouchableOpacity
               onPress={handleAddPost}
@@ -130,7 +173,7 @@ export default function CampaignCard({
           )}
 
           {showActions && (
-            <View className="flex-row">
+            <ThemedView className="flex-row">
               <TouchableOpacity onPress={handleEdit} className="mx-1">
                 <Ionicons name="create-outline" size={22} color="#10b981" />
               </TouchableOpacity>
@@ -150,62 +193,86 @@ export default function CampaignCard({
                   color="#6b7280"
                 />
               </TouchableOpacity>
-            </View>
+            </ThemedView>
           )}
-        </View>
-      </View>
+        </ThemedView>
+      </ThemedView>
 
       {isExpanded && (
-        <View>
-          <Text className="font-bold text-gray-900 mb-1">Description</Text>
-          <Text className="text-gray-700 mb-3">
+        <ThemedView>
+          <ThemedText className="font-bold text-gray-900 mb-1">Description</ThemedText>
+          <Text className={`mb-3 ${isDark ? "text-gray-200" : "text-gray-700"}`}>
             {campaign.description ?? "No description available"}
           </Text>
 
-          <View className="mb-3">
+          <ThemedView className="mb-3">
             {/* Duration + Status */}
-            <View className="flex-row justify-between items-center mb-2">
-              <Text className="font-bold text-gray-900">Duration</Text>
-              <View className={`px-2.5 py-1 rounded-full ${statusStyles[status].bg}`}>
-                <Text className={`text-[12px] font-semibold ${statusStyles[status].text}`}>
+            <ThemedView className="flex-row justify-between items-center mb-2">
+              <ThemedText className="font-bold text-gray-900">Duration</ThemedText>
+              <View
+                className={`px-2.5 py-1 rounded-full border ${isDark
+                    ? `${statusStyles[status].darkBg} ${statusStyles[status].darkBorder}`
+                    : `${statusStyles[status].bg} ${statusStyles[status].border}`
+                  }`}
+              >
+                <Text
+                  className={`text-[12px] font-semibold ${isDark
+                    ? statusStyles[status].darkText
+                    : statusStyles[status].text
+                    }`}
+                >
                   {status}
                 </Text>
               </View>
-            </View>
+            </ThemedView>
 
-            <Text className="text-gray-700">{campaign.dates}</Text>
+            <Text className={`mb-3 ${isDark ? "text-gray-200" : "text-gray-700"}`}>{campaign.dates}</Text>
 
-            <View className="flex-row justify-between items-center mt-3">
-              <View className="flex-row items-center">
-                <Ionicons name="people-outline" size={18} color="#4b5563" />
-                <Text className="ml-1.5 text-gray-700">
+            <ThemedView className="flex-row justify-between items-center">
+              <ThemedView className="flex-row items-center">
+                <Ionicons name="people-outline" size={18} color={isDark ? "#ffffff" : "#4b5563"} />
+                <Text className={`ml-1.5 ${isDark ? "text-gray-200" : "text-gray-700"}`}>
                   {campaign.contactsCount ?? 0} Contacts
                 </Text>
-              </View>
+              </ThemedView>
 
-              <View className="flex-row items-center">
-                <Ionicons name="albums-outline" size={18} color="#4b5563" />
-                <Text className="ml-1.5 text-gray-700">
+              <ThemedView className="flex-row items-center">
+                <Ionicons name="albums-outline" size={18} color={isDark ? "#ffffff" : "#4b5563"} />
+                <Text className={`ml-1.5 ${isDark ? "text-gray-200" : "text-gray-700"}`}>
                   {totalPosts} Posts
                 </Text>
-              </View>
+              </ThemedView>
 
               {showPostButton && !postButtonTopRight && (
                 <TouchableOpacity
                   onPress={handleAddPost}
                   className="flex-row items-center px-3 py-1.5 rounded-full"
-                  style={{ backgroundColor: "rgba(59,130,246,0.18)" }}
+                  style={{
+                    backgroundColor: isDark
+                      ? "rgba(255,255,255,0.08)"   // subtle dark bg
+                      : "rgba(59,130,246,0.18)",
+                    borderWidth: 1,
+                    borderColor: isDark ? "#ffffff" : "transparent",
+                  }}
                 >
-                  <Ionicons name="add-circle-outline" size={16} color="#3b82f6" />
-                  <Text className="ml-1.5 text-[12px] text-blue-500 font-semibold">
+                  <Ionicons
+                    name="add-circle-outline"
+                    size={16}
+                    color={isDark ? "#ffffff" : "#3b82f6"}
+                  />
+
+                  <Text
+                    className="ml-1.5 text-[12px] font-semibold"
+                    style={{ color: isDark ? "#e5e7eb" : "#3b82f6" }}
+                  >
                     Post
                   </Text>
                 </TouchableOpacity>
               )}
-            </View>
-          </View>
-        </View>
+            </ThemedView>
+          </ThemedView>
+        </ThemedView>
       )}
-    </View>
+    </ThemedView>
   );
 }

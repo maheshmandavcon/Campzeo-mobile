@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
+  useColorScheme,
 } from "react-native";
 import CampaignCard, { Campaign } from "./campaignComponents/campaignCard";
 import { useAuth } from "@clerk/clerk-expo";
@@ -15,7 +16,10 @@ import {
   deletePostForCampaignApi,
   getCampaignByIdApi,
   getPostsByCampaignIdApi,
+  sendCampaignPostApi,
 } from "@/api/campaign/campaignApi";
+import { ThemedView } from "@/components/themed-view";
+import { ThemedText } from "@/components/themed-text";
 
 // Map type to icon
 const platformIcons: Record<
@@ -108,34 +112,39 @@ export default function CampaignsDetails() {
   }, [campaign, resolvedCampaignId]);
 
   // ========= FETCH POSTS =========
+  const [loadingPosts, setLoadingPosts] = useState(false);
+
   const fetchPosts = useCallback(async () => {
     if (!resolvedCampaignId) return;
+
+    setLoadingPosts(true);
     try {
-      const token = await getToken();
+      const token = await getToken(); // ✅ fine to call inside
       if (!token) throw new Error("Token missing");
 
       const res = await getPostsByCampaignIdApi(resolvedCampaignId, token);
       const apiPosts = res?.posts ?? res?.data?.posts ?? [];
 
-      // ✅ NORMALIZE POST ID HERE (IMPORTANT FIX)
       const normalizedPosts = apiPosts.map((p: any) => ({
         ...p,
-        id: p.id ?? p.postId, // backend uses numeric postId
+        id: p.id ?? p.postId,
       }));
 
       setPosts(normalizedPosts);
     } catch (error) {
       console.log("POSTS LOAD ERROR:", error);
       setPosts([]);
+    } finally {
+      setLoadingPosts(false);
     }
-  }, [resolvedCampaignId, getToken]);
+  }, [resolvedCampaignId]);
 
   // Refresh posts when coming back
-  useFocusEffect(
-    useCallback(() => {
-      fetchPosts();
-    }, [fetchPosts])
-  );
+  useEffect(() => {
+    if (!resolvedCampaignId) return;
+
+    fetchPosts();
+  }, [fetchPosts, resolvedCampaignId]);
 
   // ========= POST ACTIONS =========
   const handleDeletePost = async (postId: number) => {
@@ -170,7 +179,6 @@ export default function CampaignsDetails() {
     ]);
   };
 
-
   // ========= HANDLE CREATE / EDIT POST =========
   const handleCreatePost = (campaignId: number) => {
     router.push({
@@ -197,16 +205,38 @@ export default function CampaignsDetails() {
     });
   };
 
-  const handleSharePost = (postId: number) => {
-    console.log("Share post clicked for ID:", postId);
-  };
+  const handleSharePost = async (postId: number) => {
+    if (!resolvedCampaignId) return;
 
+    try {
+      const token = await getToken();
+      if (!token) throw new Error("Token missing");
+
+      const contactIds: number[] = campaign?.contacts?.map(c => c.id) ?? [];
+
+      if (contactIds.length === 0) {
+        Alert.alert("No contacts", "This campaign has no contacts to send to.");
+        return;
+      }
+
+      const result = await sendCampaignPostApi(resolvedCampaignId, postId, contactIds, token);
+
+      if (result.success) {
+        Alert.alert("Success", `Post sent to ${result.sent} contacts`);
+      } else {
+        Alert.alert("Failed", `Failed to send post to ${result.failed?.length || 0} contacts`);
+      }
+    } catch (error: any) {
+      console.error("Share Post Error:", error);
+      Alert.alert("Error", error.message || "Failed to share post.");
+    }
+  };
   // ========= RENDER POST =========
   const renderPostItem = ({ item }: { item: any }) => {
     const platform = platformIcons[item.type];
 
     return (
-      <View className="bg-white p-4 rounded-xl mb-4 shadow relative">
+      <View className="p-4 rounded-xl mb-4 relative">
         <View
           style={{
             position: "absolute",
@@ -219,7 +249,7 @@ export default function CampaignsDetails() {
         >
 
           <TouchableOpacity
-            onPress={() => handleSharePost(campaign!.id,)}
+            onPress={() => handleSharePost(item.id)} // pass post ID
             activeOpacity={0.6}
             style={{
               width: 44,
@@ -227,7 +257,6 @@ export default function CampaignsDetails() {
               borderRadius: 22,
               justifyContent: "center",
               alignItems: "center",
-              // backgroundColor: "#ecfdf5",
             }}
           >
             <Ionicons name="share-social-outline" size={22} color="#3b82f6" />
@@ -239,7 +268,7 @@ export default function CampaignsDetails() {
             style={{
               width: 44,
               height: 44,
-              borderRadius: 22,
+              // borderRadius: 22,
               justifyContent: "center",
               alignItems: "center",
               // backgroundColor: "#ecfdf5",
@@ -265,71 +294,86 @@ export default function CampaignsDetails() {
         </View>
 
         {item.subject ? (
-          <Text
+          <ThemedText
             className="text-lg font-bold mb-2"
             style={{ marginRight: 120 }}
             numberOfLines={1}
             ellipsizeMode="tail"
           >
             {item.subject}
-          </Text>
+          </ThemedText>
         ) : (
-          <View className="flex-row items-center mb-2">
+          <ThemedView className="flex-row items-center mb-2">
             <Ionicons
               name="information-circle-outline"
               size={18}
               color="#9ca3af"
             />
-            <Text className="ml-2 text-gray-500 italic">
+            <ThemedText className="ml-2 text-gray-500 italic">
               No subject available
-            </Text>
-          </View>
+            </ThemedText>
+          </ThemedView>
         )}
 
-        <Text className="font-semibold mb-1">Description</Text>
+        <ThemedText className="font-semibold mb-1">Description</ThemedText>
         {item.message ? (
-          <Text className="mb-2" style={{ textAlign: "justify" }}>
+          <Text
+            className="mb-2"
+            style={{
+              textAlign: "justify",
+              color: isDark ? "#e5e7eb" : "#111",
+            }}
+          >
             {item.message}
           </Text>
         ) : (
-          <View className="flex-row items-center mb-2">
+          <ThemedView className="flex-row items-center mb-2">
             <Ionicons
               name="information-circle-outline"
               size={18}
               color="#9ca3af"
             />
-            <Text className="ml-2 text-gray-500 italic">
+            <ThemedText className="ml-2 text-gray-500 italic">
               No description available
-            </Text>
-          </View>
+            </ThemedText>
+          </ThemedView>
         )}
 
-        <Text className="font-semibold mb-1">Schedule</Text>
+        <ThemedText className="font-semibold mb-1">Schedule</ThemedText>
         {item.scheduledPostTime ? (
-          <Text className="mb-2">
+          <Text
+            className="mb-2"
+            style={{
+              color: isDark ? "#e5e7eb" : "#111", // light text in dark mode, dark text in light mode
+            }}
+          >
             {new Date(item.scheduledPostTime).toLocaleString()}
           </Text>
         ) : (
-          <View className="flex-row items-center mb-2">
+          <ThemedView className="flex-row items-center mb-2">
             <Ionicons name="calendar-outline" size={18} color="#9ca3af" />
-            <Text className="ml-2 text-gray-500 italic">
+            <ThemedText className="ml-2 text-gray-500 italic">
               No schedule available
-            </Text>
-          </View>
+            </ThemedText>
+          </ThemedView>
         )}
 
-        <View className="flex-row items-center">
-          <Text className="font-semibold mr-2">Type</Text>
+        <ThemedView className="flex-row items-center">
+          <ThemedText className="font-semibold mr-2">Type</ThemedText>
           {platform ? (
             <platform.Icon
               name={platform.name}
               size={22}
-              color={platform.color}
+              color={isDark ? "#ffffff" : platform.color} // white in dark mode
             />
           ) : (
-            <Text>{item.type}</Text>
+            <Text
+              style={{ color: isDark ? "#e5e7eb" : "#111" }} // default text color in dark/light mode
+            >
+              {item.type}
+            </Text>
           )}
-        </View>
+        </ThemedView>
       </View>
     );
   };
@@ -346,9 +390,13 @@ export default function CampaignsDetails() {
     );
   }
 
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
   return (
-    <View className="flex-1 p-4 bg-gray-100">
-      <Text className="text-xl font-bold mb-3">Campaign Details</Text>
+    <ThemedView className="flex-1 p-4"
+    style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
+      <ThemedText className="text-xl font-bold mb-3">Campaign Details</ThemedText>
 
       <CampaignCard
         campaign={campaign}
@@ -364,16 +412,39 @@ export default function CampaignsDetails() {
       />
 
       {/* POSTS */}
-      <View className="mt-4 flex-1">
-        <Text className="text-xl font-bold mb-3">Created Posts</Text>
+      <ThemedView className="mt-4 flex-1"
+      style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
+        <ThemedText className="text-xl font-bold mb-3">Created Posts</ThemedText>
 
-        {posts.length === 0 ? (
-          <Text className="text-gray-500 text-center">No records found</Text>
+        {loadingPosts ? (
+          <ThemedView className="flex-1 justify-center items-center">
+            <ActivityIndicator size="large" color="#dc2626" />
+            <ThemedText className="mt-2" style={{ color: isDark ? "#e5e7eb" : "#111" }}>
+              Loading posts...
+            </ThemedText>
+          </ThemedView>
+        ) : posts.length === 0 ? (
+          <ThemedText
+            className="text-gray-500 text-center"
+            style={{ color: isDark ? "#e5e7eb" : "#6b7280" }}
+          >
+            No records found
+          </ThemedText>
         ) : (
           <FlatList
             data={visiblePosts}
             keyExtractor={(item) => String(item.id)}
-            renderItem={renderPostItem}
+            renderItem={({ item }) => (
+              <ThemedView
+                className="mb-3 rounded-xl shadow"
+                style={{
+                  borderWidth: 1,
+                  borderColor: isDark ? "#ffffff" : "#e5e7eb",
+                }}
+              >
+                {renderPostItem({ item })}
+              </ThemedView>
+            )}
             showsVerticalScrollIndicator={false}
             ListFooterComponent={
               posts.length > 5 ? (
@@ -383,21 +454,34 @@ export default function CampaignsDetails() {
                       ? () => setVisibleCount(5)
                       : () => setVisibleCount((v) => v + 5)
                   }
-                  className={`py-3 my-2 rounded-xl items-center ${isAllVisible ? "bg-red-100" : "bg-blue-100"
+                  className={`py-3 my-2 rounded-xl items-center ${isAllVisible
+                    ? isDark
+                      ? "bg-red-900/30"
+                      : "bg-red-100"
+                    : isDark
+                      ? "bg-blue-900/30"
+                      : "bg-blue-100"
                     }`}
                 >
-                  <Text
-                    className={`font-semibold ${isAllVisible ? "text-red-700" : "text-blue-700"
+                  <ThemedText
+                    className={`font-semibold ${isAllVisible
+                      ? isDark
+                        ? "text-red-300"
+                        : "text-red-700"
+                      : isDark
+                        ? "text-blue-300"
+                        : "text-blue-700"
                       }`}
                   >
                     {isAllVisible ? "Show Less" : "Load More"}
-                  </Text>
+                  </ThemedText>
                 </TouchableOpacity>
               ) : null
             }
           />
         )}
-      </View>
-    </View>
+      </ThemedView>
+
+    </ThemedView>
   );
 }
