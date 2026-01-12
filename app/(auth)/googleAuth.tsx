@@ -1,13 +1,14 @@
 import { useSSO } from "@clerk/clerk-expo";
 import * as WebBrowser from "expo-web-browser";
+import * as AuthSession from "expo-auth-session";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, Text } from "react-native";
-// import { useRouter } from "expo-router";
+import * as Linking from "expo-linking";
+import { ThemedText } from "@/components/themed-text";
 
 WebBrowser.maybeCompleteAuthSession();
 
 export default function GoogleAuth() {
-    
   const { startSSOFlow } = useSSO();
   const [loading, setLoading] = useState(false);
 
@@ -15,16 +16,19 @@ export default function GoogleAuth() {
     try {
       setLoading(true);
 
-      const { createdSessionId, setActive } =
-        await startSSOFlow({
-          strategy: "oauth_google",
-        });
+      const redirectUrl = AuthSession.makeRedirectUri({
+        scheme: "campzeo",
+        path: "auth-callback",
+      });
+
+      const { createdSessionId, setActive } = await startSSOFlow({
+        strategy: "oauth_google",
+        redirectUrl: Linking.createURL("/(tabs)/dashboard"),
+      });
 
       if (createdSessionId) {
         await setActive!({ session: createdSessionId });
       }
-            //   router.replace("/(tabs)/dashboard");
-
     } catch (err) {
       console.error("Google SSO error:", err);
     } finally {
@@ -34,23 +38,17 @@ export default function GoogleAuth() {
 
   return (
     <Pressable
-      onPress={handleGoogleSignIn}
       style={{
         height: 45,
         borderWidth: 1,
         borderColor: "#991b1b",
         borderRadius: 10,
         justifyContent: "center",
-        alignItems: "center"
+        alignItems: "center",
       }}
+      onPress={handleGoogleSignIn}
     >
-      {loading ? (
-        <ActivityIndicator color={"#dc2626"}/>
-      ) : (
-        <Text style={{ fontSize: 16, fontWeight: "600" , color:"#991b1b"}}>
-          Continue with Google
-        </Text>
-      )}
+      {loading ?<ActivityIndicator color="#ef4444" /> : <Text>Continue with Google</Text>}
     </Pressable>
   );
 }

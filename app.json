@@ -2,19 +2,18 @@
   "expo": {
     "name": "Campzeo",
     "slug": "userInterface",
-    "version": "1.0.0",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/app-images/app-logo.png",
-    "scheme": "userinterface",
+    "scheme": "campzeo",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "package": "com.campzeo.app",
-      "versionCode": 2,
+      "versionCode": 6,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/app-images/app-logo.png",
@@ -49,7 +48,7 @@
     },
     "extra": {
       "clerkPublishableKey": "pk_test_ZmFzdC1yZWRmaXNoLTUyLmNsZXJrLmFjY291bnRzLmRldiQ",
-      "apiBaseUrl": "https://campzeo-v1-oym2.vercel.app/api/",
+      "apiBaseUrl": "https://camp-zeo-testing-git-testing-mandav-consultancy.vercel.app/api/",
       "router": {},
       "eas": {
         "projectId": "b6f3a055-c353-4a33-8a68-ced60513ff03"

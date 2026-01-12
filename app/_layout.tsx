@@ -22,6 +22,9 @@ import * as SecureStore from "expo-secure-store";
 import React, { useEffect } from "react";
 import { setTokenGetter } from "@/lib/authToken";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { ThemedView } from "@/components/themed-view";
+import { ActivityIndicator } from "react-native";
+import { ThemedText } from "@/components/themed-text";
 
 // Secure token cache for Clerk
 const tokenCache = {
@@ -49,6 +52,31 @@ const tokenCache = {
   },
 };
 
+// function AuthGuard({ children }: { children: React.ReactNode }) {
+//   const { isSignedIn, isLoaded } = useAuth();
+//   const segments = useSegments();
+//   const router = useRouter();
+
+//   useEffect(() => {
+//     if (!isLoaded) return;
+
+//     const inAuthGroup = segments[0] === "(auth)";
+
+//     if (!isSignedIn && !inAuthGroup) {
+//       router.replace("/(auth)/login");
+//     } else if (isSignedIn && inAuthGroup) {
+//       router.replace("/(tabs)/dashboard");
+//     }
+//   }, [isLoaded, isSignedIn, segments]);
+
+//   // 🔑 IMPORTANT: block render while auth loads
+//   if (!isLoaded) {
+//     return null; // or loading spinner
+//   }
+
+//   return <>{children}</>;
+// }
+
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isSignedIn, isLoaded } = useAuth();
   const segments = useSegments();
@@ -61,23 +89,32 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
     if (!isSignedIn && !inAuthGroup) {
       router.replace("/(auth)/login");
-    } else if (isSignedIn && inAuthGroup) {
+    }
+
+    if (isSignedIn && inAuthGroup) {
       router.replace("/(tabs)/dashboard");
     }
   }, [isLoaded, isSignedIn, segments]);
 
-  // 🔑 IMPORTANT: block render while auth loads
   if (!isLoaded) {
-    return null; // or loading spinner
+    return (
+      <ThemedView className="flex-1 items-center justify-center">
+        <ActivityIndicator size="large" color="#dc2626" />
+        <ThemedText
+          style={{
+            marginTop: 12,
+            fontSize: 14,
+            color: "#6b7280",
+          }}
+        >
+          Loading dashboard…
+        </ThemedText>
+      </ThemedView>
+    ); // or spinner
   }
 
   return <>{children}</>;
 }
-
-
-export const unstable_settings = {
-  anchor: "(tabs)",
-};
 
 // set token getter function
 function AuthBridge() {
@@ -123,4 +160,3 @@ export default function RootLayout() {
     </ClerkProvider>
   );
 }
-
