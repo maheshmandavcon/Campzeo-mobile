@@ -2,9 +2,9 @@ import { useSSO } from "@clerk/clerk-expo";
 import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session";
 import { useState } from "react";
-import { ActivityIndicator, Pressable, Text } from "react-native";
+import { ActivityIndicator, Alert, Pressable, Text } from "react-native";
 import * as Linking from "expo-linking";
-import { ThemedText } from "@/components/themed-text";
+
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -29,8 +29,9 @@ export default function GoogleAuth() {
       if (createdSessionId) {
         await setActive!({ session: createdSessionId });
       }
-    } catch (err) {
+    } catch (err : any) {
       console.error("Google SSO error:", err);
+      Alert.alert("Google SSO error:", err)
     } finally {
       setLoading(false);
     }
