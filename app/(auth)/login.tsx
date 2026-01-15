@@ -1,5 +1,5 @@
 import { useSignIn } from "@clerk/clerk-expo";
-import { Button, Input, InputField } from "@gluestack-ui/themed";
+// import { Button, Input, InputField } from "@gluestack-ui/themed";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -14,6 +14,8 @@ import {
   View,
 } from "react-native";
 import GoogleAuth from "./googleAuth";
+import { Button } from "@/components/ui/button";
+import { Input, InputField } from "@/components/ui/input";
 
 export default function LoginScreen() {
   const { signIn, setActive, isLoaded } = useSignIn();

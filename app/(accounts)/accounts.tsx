@@ -2,21 +2,25 @@ import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    useColorScheme,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  useColorScheme,
 } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { Button, HStack, Pressable, Text, VStack } from "@gluestack-ui/themed";
+import { Button } from "@/components/ui/button";
+import { HStack } from "@/components/ui/hstack";
+import { Pressable } from "@/components/ui/pressable";
+import { Text } from "@/components/ui/text";
+import { VStack } from "@/components/ui/vstack";
 import * as WebBrowser from "expo-web-browser";
 
 import {
-    disconnectPlatform,
-    getPlatform,
-    getSocialStatus,
+  disconnectPlatform,
+  getPlatform,
+  getSocialStatus,
 } from "@/api/accountsApi";
 
 /* ----------------------------- TYPES ----------------------------- */
@@ -202,9 +206,11 @@ export default function Accounts() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* HEADER */}
         <HStack
-          alignItems="center"
-          justifyContent="space-between"
-          style={{ marginBottom: 24 }}
+          style={{
+            marginBottom: 24,
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
         >
           {/* LEFT: Back button */}
           <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
@@ -219,12 +225,12 @@ export default function Accounts() {
           <VStack style={{ flex: 1, alignItems: "center" }}>
             <ThemedText
               style={{
-            flex: 1,
-            fontSize: 24,
-            fontWeight: "700",
-            textAlign: "center",
-            lineHeight: 30,
-          }}
+                flex: 1,
+                fontSize: 24,
+                fontWeight: "700",
+                textAlign: "center",
+                lineHeight: 30,
+              }}
             >
               Accounts
             </ThemedText>

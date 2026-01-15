@@ -1,27 +1,27 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+// import {
+//     Avatar,
+//     AvatarImage,
+//     Box,
+//     Divider,
+//     HStack,
+//     Modal,
+//     ModalBackdrop,
+//     ModalContent,
+//     Pressable,
+//     VStack,
+// } from "@gluestack-ui/themed";
 import {
-    Avatar,
-    AvatarImage,
-    Box,
-    Divider,
-    HStack,
-    Modal,
-    ModalBackdrop,
-    ModalContent,
-    Pressable,
-    VStack,
-} from "@gluestack-ui/themed";
-import {
-    Briefcase,
-    LockKeyhole,
-    Mail,
-    User,
-    UserPen,
+  Briefcase,
+  LockKeyhole,
+  Mail,
+  User,
+  UserPen,
 } from "lucide-react-native";
 import { ScrollView, TouchableOpacity, useColorScheme } from "react-native";
 
-import { ModalBody, ModalCloseButton, ModalHeader } from "@gluestack-ui/themed";
+// import { ModalBody, ModalCloseButton, ModalHeader } from "@gluestack-ui/themed";
 import { useEffect, useState } from "react";
 import ChangePassword from "../(auth)/changePassword";
 import EditProfile from "../(auth)/editProfile";
@@ -30,6 +30,20 @@ import { getUser } from "@/api/dashboardApi";
 import { useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { Divider } from "@/components/ui/divider";
+import { HStack } from "@/components/ui/hstack";
+import { Pressable } from "@/components/ui/pressable";
+import { VStack } from "@/components/ui/vstack";
+import { Box } from "@/components/ui/box";
+import {
+  Modal,
+  ModalBackdrop,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalHeader,
+} from "@/components/ui/modal";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
 
 export default function UserProfile() {
   const [userData, setUserData] = useState<any>(null);
@@ -86,11 +100,13 @@ export default function UserProfile() {
             {/* <AvatarFallbackText>A</AvatarFallbackText> */}
           </Avatar>
 
-          <ThemedText style={{
-                fontSize: 23,
-                fontWeight: "700",
-                textAlign: "center",
-              }}>
+          <ThemedText
+            style={{
+              fontSize: 23,
+              fontWeight: "700",
+              textAlign: "center",
+            }}
+          >
             {user.firstName} {user.lastName}
           </ThemedText>
 
@@ -100,7 +116,7 @@ export default function UserProfile() {
         </VStack>
 
         {/* ---------- Details Card ---------- */}
-        <Box className="bg-white/10 px-4 py-5 rounded-2xl">
+        <Box className="bg-white/10 px-4 py-5 rounded-2xl border border-gray-200">
           <VStack space="md">
             {/* UserName */}
             <HStack className="items-center gap-3">
@@ -116,7 +132,10 @@ export default function UserProfile() {
               </VStack>
             </HStack>
 
-            <Divider />
+            <Divider style={{
+    backgroundColor: "#e5e7eb",
+    height: 1
+  }}/>
 
             {/* EMAIL */}
             <HStack className="items-center gap-3">
@@ -129,7 +148,10 @@ export default function UserProfile() {
               </VStack>
             </HStack>
 
-            <Divider />
+            <Divider style={{
+    backgroundColor: "#e5e7eb",
+    height: 1
+  }}/>
 
             {/* PHONE */}
             {/* <HStack className="items-center gap-3">
@@ -156,7 +178,12 @@ export default function UserProfile() {
                 </ThemedText>
               </VStack>
             </HStack>
-            <Divider />
+            <Divider
+              style={{
+                backgroundColor: "#e5e7eb",
+                height: 1
+              }}
+            />
           </VStack>
         </Box>
 

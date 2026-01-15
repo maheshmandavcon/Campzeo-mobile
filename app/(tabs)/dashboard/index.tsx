@@ -12,16 +12,18 @@ export default function Dashboard() {
 
   const [index, setIndex] = useState(0);
 
+  /* ---------------- TAB SCENES ---------------- */
+
   const FirstRoute = () => (
-    <View style={{ flex: 1 }}>
+    <ThemedView className="flex-1">
       <Insights />
-    </View>
+    </ThemedView>
   );
 
   const SecondRoute = () => (
-    <View style={{ flex: 1 }}>
+    <ThemedView className="flex-1">
       <CalendarWrapper />
-    </View>
+    </ThemedView>
   );
 
   const renderScene = SceneMap({
@@ -34,41 +36,45 @@ export default function Dashboard() {
     { key: "second", title: "Calendar" },
   ];
 
-  /* ---------------- TAB HEADER (TAB BAR) ---------------- */
+  /* ---------------- TAB HEADER ---------------- */
+
   const renderTabBar = (props: any) => (
     <TabBar
       {...props}
       style={{
-        backgroundColor: isDark ? "#020617" : "#ffffff", // header bg
-        elevation: 0,          // Android shadow
-        shadowOpacity: 0,      // iOS shadow
+        backgroundColor: isDark ? "#020617" : "#ffffff",
+        elevation: 0,
+        shadowOpacity: 0,
         borderBottomWidth: 1,
         borderBottomColor: isDark ? "#1e293b" : "#e5e7eb",
       }}
       indicatorStyle={{
-        backgroundColor: "#dc2626", // active tab underline
+        backgroundColor: "#dc2626",
         height: 3,
       }}
-      activeColor={"#dc2626"}
-      inactiveColor={isDark ? "#777777ff" : "#777777ff"}
+      activeColor="#dc2626"
+      inactiveColor="#777777ff"
       labelStyle={{
         fontSize: 14,
         fontWeight: "600",
         textTransform: "none",
-        lineHeight: 7
+        lineHeight: 16,
       }}
     />
   );
 
+  /* ---------------- ROOT WRAPPER ---------------- */
+  // 🔥 MUST be a native View (NOT ThemedView)
+
   return (
-    <ThemedView className="flex-1">
+    <View style={{ flex: 1 }}>
       <TabView
         navigationState={{ index, routes }}
         renderScene={renderScene}
         onIndexChange={setIndex}
         initialLayout={{ width: layout.width }}
-        renderTabBar={renderTabBar}  
+        renderTabBar={renderTabBar}
       />
-    </ThemedView>
+    </View>
   );
 }

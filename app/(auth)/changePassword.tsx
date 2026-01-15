@@ -1,20 +1,23 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { Input, InputField } from "@/components/ui/input";
+import { VStack } from "@/components/ui/vstack";
 import {
-    changePasswordSchema,
-    ChangePasswordSchemaType,
+  changePasswordSchema,
+  ChangePasswordSchemaType,
 } from "@/validations/profileSchema";
 import { useUser } from "@clerk/clerk-expo";
-import { Input, InputField, VStack } from "@gluestack-ui/themed";
+// import { Input, InputField, VStack } from "@gluestack-ui/themed";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock } from "lucide-react-native";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
-    ActivityIndicator,
-    Pressable,
-    ScrollView,
-    Text, ToastAndroid
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  Text,
+  ToastAndroid,
 } from "react-native";
 
 type closeCPType = {
@@ -107,8 +110,8 @@ export default function ChangePassword({ closeCP }: closeCPType) {
   };
 
   return (
-    <ThemedView className="flex-1 p-5 rounded-lg">
-      <ScrollView showsVerticalScrollIndicator={false}>
+    <ThemedView className="p-5 rounded-lg">
+      <VStack space="lg" className="mt-4">
         <ThemedText
           style={{
             fontSize: 23,
@@ -197,7 +200,7 @@ export default function ChangePassword({ closeCP }: closeCPType) {
             </Pressable>
           </VStack>
         </VStack>
-      </ScrollView>
+      </VStack>
     </ThemedView>
   );
 }

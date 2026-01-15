@@ -7,20 +7,27 @@ import {
 } from "@/api/dashboardApi";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import {
-  Box,
-  Center,
-  HStack,
-  Pressable,
-  Progress,
-  ProgressFilledTrack,
-  ScrollView,
-  Text,
-  VStack,
-} from "@gluestack-ui/themed";
+import { Box } from "@/components/ui/box";
+import { Center } from "@/components/ui/center";
+import { HStack } from "@/components/ui/hstack";
+import { Pressable } from "@/components/ui/pressable";
+import { Progress, ProgressFilledTrack } from "@/components/ui/progress";
+import { VStack } from "@/components/ui/vstack";
+// import {
+//   Box,
+//   Center,
+//   HStack,
+//   Pressable,
+//   Progress,
+//   ProgressFilledTrack,
+//   ScrollView,
+//   Text,
+//   VStack,
+// } from "@gluestack-ui/themed";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet } from "react-native";
+import { ActivityIndicator, StyleSheet, ScrollView } from "react-native";
+// import { ScrollView } from "react-native-gesture-handler";
 
 /* ================= TYPES ================= */
 
@@ -57,7 +64,6 @@ export default function Insights() {
         setCampaignData(campaigns);
         setContactsData(contacts);
         setUsageData(usage);
-       
       } catch (error) {
         console.error("Dashboard fetch error:", error);
       } finally {
@@ -96,11 +102,10 @@ export default function Insights() {
   const planName =
     userData?.organisation?.subscriptions?.[0]?.plan?.name ?? "FREE TRIAL";
 
-  const isApproved =
-    userData?.organisation?.isApproved ?? null;
+  const isApproved = userData?.organisation?.isApproved ?? null;
 
-    // console.log("isapp check",isApproved);
-    
+  // console.log("isapp check",isApproved);
+
   // const trialEndDate = userData?.organisation?.trialEndDate
   //   ? new Date(userData.organisation.trialEndDate).toLocaleDateString()
   //   : "N/A";
@@ -123,7 +128,7 @@ export default function Insights() {
 
     return (
       <VStack style={{ marginBottom: 16 }}>
-        <HStack justifyContent="space-between">
+        <HStack style={{ justifyContent: "space-between" }}>
           <ThemedText>{label}</ThemedText>
           <ThemedText>
             {current}/{limit}
@@ -152,9 +157,11 @@ export default function Insights() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* PLAN CARD */}
         <Box style={styles.planCard}>
-          <HStack justifyContent="space-between" alignItems="center">
+          <HStack
+            style={{ justifyContent: "space-between", alignItems: "center" }}
+          >
             <VStack>
-              <Text style={styles.planLabel}>Current Plan</Text>
+              <ThemedText style={styles.planLabel}>Current Plan</ThemedText>
               <ThemedText style={styles.planName}>{planName}</ThemedText>
             </VStack>
 
@@ -162,11 +169,11 @@ export default function Insights() {
               style={styles.trialBadge}
               onPress={() => routePage.push("/(billing)/billingPage")}
             >
-              <Text style={styles.trialText}>Manage Billing</Text>
+              <ThemedText style={styles.trialText}>Manage Billing</ThemedText>
             </Pressable>
           </HStack>
 
-          <Text
+          <ThemedText
             style={[
               styles.trialDate,
               {
@@ -182,14 +189,14 @@ export default function Insights() {
             {isApproved === true && "Your subscription is active."}
             {isApproved === false && "You don't have any active subscription."}
             {isApproved === null && "-"}
-          </Text>
+          </ThemedText>
         </Box>
 
         {/* ================= STATS ================= */}
         <VStack style={styles.section}>
           <HStack style={styles.statsRow}>
             <Box style={styles.statCard}>
-              <Text style={styles.statLabel}>Total Campaigns</Text>
+              <ThemedText style={styles.statLabel}>Total Campaigns</ThemedText>
               <ThemedText style={styles.statValue}>{totalCampaigns}</ThemedText>
               <ThemedText style={styles.statSubtext}>
                 Total Active Campaigns
@@ -197,7 +204,7 @@ export default function Insights() {
             </Box>
 
             <Box style={styles.statCard}>
-              <Text style={styles.statLabel}>Total Contacts</Text>
+              <ThemedText style={styles.statLabel}>Total Contacts</ThemedText>
               <ThemedText style={styles.statValue}>{totalContacts}</ThemedText>
               <ThemedText style={styles.statSubtext}>
                 Audience Reached
@@ -206,7 +213,7 @@ export default function Insights() {
           </HStack>
 
           <Box style={[styles.statCard, styles.statCardFull]}>
-            <Text style={styles.statLabel}>Team Size</Text>
+            <ThemedText style={styles.statLabel}>Team Size</ThemedText>
             <ThemedText style={styles.statValue}>{teamSize}</ThemedText>
             <ThemedText style={styles.statSubtext}>
               Active team members
@@ -232,7 +239,9 @@ export default function Insights() {
         <Box style={styles.usageCard}>
           <ThemedText style={styles.usageName}>Team Members</ThemedText>
 
-          <HStack justifyContent="space-between" alignItems="center">
+          <HStack
+            style={{ justifyContent: "space-between", alignItems: "center" }}
+          >
             <VStack>
               <ThemedText>
                 {userData?.firstName} {userData?.lastName}
@@ -241,7 +250,7 @@ export default function Insights() {
             </VStack>
 
             <Box style={styles.roleBadge}>
-              <Text style={styles.badgeText}>{userData?.role}</Text>
+              <ThemedText style={styles.badgeText}>{userData?.role}</ThemedText>
             </Box>
           </HStack>
         </Box>
@@ -392,7 +401,7 @@ const styles = StyleSheet.create({
   usageName: {
     fontSize: 18,
     fontWeight: "600",
-    marginBottom: 9
+    marginBottom: 9,
   },
   usageLabel: {
     fontSize: 14,

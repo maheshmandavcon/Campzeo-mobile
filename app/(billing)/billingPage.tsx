@@ -1,45 +1,66 @@
 import {
-    cancelSubscription,
-    getCurrentSubscription,
-    getPayments,
-    getPlans,
-    getUsage,
-    updateAutoRenew,
+  cancelSubscription,
+  getCurrentSubscription,
+  getPayments,
+  getPlans,
+  getUsage,
+  updateAutoRenew,
 } from "@/api/billingApi";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { CancelFormValues, cancelSchema } from "@/validations/billingSchema";
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
-import {
-    Center,
-    Divider,
-    HStack,
-    Modal,
-    ModalBackdrop,
-    ModalBody,
-    ModalContent,
-    ModalFooter,
-    ModalHeader,
-    Progress,
-    ProgressFilledTrack,
-    Radio,
-    RadioGroup,
-    RadioIcon,
-    RadioIndicator,
-    Switch,
-    Textarea,
-    TextareaInput,
-    VStack,
-} from "@gluestack-ui/themed";
+// import {
+//     Center,
+//     Divider,
+//     HStack,
+//     Modal,
+//     ModalBackdrop,
+//     ModalBody,
+//     ModalContent,
+//     ModalFooter,
+//     ModalHeader,
+//     Progress,
+//     ProgressFilledTrack,
+//     Radio,
+//     RadioGroup,
+//     RadioIcon,
+//     RadioIndicator,
+//     Switch,
+//     Textarea,
+//     TextareaInput,
+//     VStack,
+// } from "@gluestack-ui/themed";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
 import { AlertTriangle } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Alert, Pressable, useColorScheme } from "react-native";
-import { ScrollView } from "react-native-gesture-handler";
+import { Alert, Pressable, useColorScheme, ScrollView } from "react-native";
+// import { ScrollView } from "react-native-gesture-handler";
 import PaymentHistoryCard from "./billingComponents/paymentHistoryCard";
+import { HStack } from "@/components/ui/hstack";
+import { VStack } from "@/components/ui/vstack";
+import { Center } from "@/components/ui/center";
+import { Progress, ProgressFilledTrack } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
+import {
+  Modal,
+  ModalBackdrop,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+} from "@/components/ui/modal";
+import {
+  Radio,
+  RadioGroup,
+  RadioIcon,
+  RadioIndicator,
+} from "@/components/ui/radio";
+import { Divider } from "@/components/ui/divider";
+import { Textarea, TextareaInput } from "@/components/ui/textarea";
 
 const ACCENT = "#dc2626";
 const MUTED = "#6b7280";
@@ -164,7 +185,7 @@ export default function BillingPage() {
   return (
     <ThemedView className="flex-1 px-3 pt-16">
       {/* HEADER */}
-      <HStack alignItems="center" style={{ marginBottom: 24 }}>
+      <HStack style={{ marginBottom: 24, alignItems: "center" }}>
         <Pressable onPress={() => router.back()}>
           <Ionicons
             name="arrow-back-outline"

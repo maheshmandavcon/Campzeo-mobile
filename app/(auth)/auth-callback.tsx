@@ -26,10 +26,11 @@
 
 
 import { useEffect } from "react";
-import { View, ActivityIndicator } from "react-native";
+import { ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "@clerk/clerk-expo";
 import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
 
 export default function AuthCallback() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -44,9 +45,9 @@ export default function AuthCallback() {
   }, [isLoaded, isSignedIn]);
 
   return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-    <ThemedText>Acbkpage</ThemedText>  <ActivityIndicator />
-    </View>
+    <ThemedView style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+    <ThemedText>Auth callback page</ThemedText>  <ActivityIndicator />
+    </ThemedView>
   );
 }
 

@@ -1,81 +1,53 @@
+import "react-native-gesture-handler"; // 🔥 MUST BE FIRST
+import "react-native-reanimated";
 import "../global.css";
 
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from "@react-navigation/native";
+import React, { useEffect } from "react";
+import { ActivityIndicator } from "react-native";
+
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import "react-native-reanimated";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
-import { useColorScheme } from "@/hooks/use-color-scheme";
-
-import { config } from "@gluestack-ui/config";
-import { GluestackUIProvider } from "@gluestack-ui/themed";
+import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 
 import { ClerkLoaded, ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
-import React, { useEffect } from "react";
+
 import { setTokenGetter } from "@/lib/authToken";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { ThemedView } from "@/components/themed-view";
-import { ActivityIndicator } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 
-// Secure token cache for Clerk
+import { GluestackUIProvider } from "@gluestack-ui/themed";
+import { config } from "@gluestack-ui/config";
+
+/* -------------------------------------------------------------------------- */
+/*                               Clerk Token Cache                             */
+/* -------------------------------------------------------------------------- */
+
 const tokenCache = {
-  async getToken(key: string): Promise<string | null> {
+  async getToken(key: string) {
     try {
       return await SecureStore.getItemAsync(key);
-    } catch (err) {
-      console.error("SecureStore getToken error:", err);
+    } catch {
       return null;
     }
   },
-  async saveToken(key: string, value: string): Promise<void> {
-    try {
-      await SecureStore.setItemAsync(key, value);
-    } catch (err) {
-      console.error("SecureStore saveToken error:", err);
-    }
+  async saveToken(key: string, value: string) {
+    await SecureStore.setItemAsync(key, value);
   },
-  async clearToken(key: string): Promise<void> {
-    try {
-      await SecureStore.deleteItemAsync(key);
-    } catch (err) {
-      console.error("SecureStore clearToken error:", err);
-    }
+  async clearToken(key: string) {
+    await SecureStore.deleteItemAsync(key);
   },
 };
 
-// function AuthGuard({ children }: { children: React.ReactNode }) {
-//   const { isSignedIn, isLoaded } = useAuth();
-//   const segments = useSegments();
-//   const router = useRouter();
-
-//   useEffect(() => {
-//     if (!isLoaded) return;
-
-//     const inAuthGroup = segments[0] === "(auth)";
-
-//     if (!isSignedIn && !inAuthGroup) {
-//       router.replace("/(auth)/login");
-//     } else if (isSignedIn && inAuthGroup) {
-//       router.replace("/(tabs)/dashboard");
-//     }
-//   }, [isLoaded, isSignedIn, segments]);
-
-//   // 🔑 IMPORTANT: block render while auth loads
-//   if (!isLoaded) {
-//     return null; // or loading spinner
-//   }
-
-//   return <>{children}</>;
-// }
+/* -------------------------------------------------------------------------- */
+/*                                   Guards                                    */
+/* -------------------------------------------------------------------------- */
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isSignedIn, isLoaded } = useAuth();
@@ -100,23 +72,20 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     return (
       <ThemedView className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color="#dc2626" />
-        <ThemedText
-          style={{
-            marginTop: 12,
-            fontSize: 14,
-            color: "#6b7280",
-          }}
-        >
+        <ThemedText style={{ marginTop: 12, fontSize: 14 }}>
           Loading dashboard…
         </ThemedText>
       </ThemedView>
-    ); // or spinner
+    );
   }
 
   return <>{children}</>;
 }
 
-// set token getter function
+/* -------------------------------------------------------------------------- */
+/*                                Token Bridge                                 */
+/* -------------------------------------------------------------------------- */
+
 function AuthBridge() {
   const { getToken } = useAuth();
 
@@ -127,9 +96,13 @@ function AuthBridge() {
   return null;
 }
 
+/* -------------------------------------------------------------------------- */
+/*                                 Root Layout                                 */
+/* -------------------------------------------------------------------------- */
+
 export default function RootLayout() {
   const publishableKey = Constants.expoConfig?.extra?.clerkPublishableKey;
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme(); // "light" | "dark"
   const queryClient = new QueryClient();
 
   return (
@@ -137,25 +110,28 @@ export default function RootLayout() {
       <ClerkLoaded>
         <AuthBridge />
 
-        <AuthGuard>
-          <GluestackUIProvider config={config}>
-            <SafeAreaProvider>
-              <ThemeProvider
-                value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-              >
-                <GestureHandlerRootView style={{ flex: 1 }}>
-                  <QueryClientProvider client={queryClient}>
+        <GluestackUIProvider
+          config={config}
+          colorMode={colorScheme === "dark" ? "dark" : "light"}
+        >
+          <SafeAreaProvider>
+            <ThemeProvider
+              value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+            >
+              <GestureHandlerRootView style={{ flex: 1 }}>
+                <QueryClientProvider client={queryClient}>
+                  <AuthGuard>
                     <Stack screenOptions={{ headerShown: false }}>
                       <Stack.Screen name="(auth)" />
                       <Stack.Screen name="(tabs)" />
                     </Stack>
-                    <StatusBar style="auto" />
-                  </QueryClientProvider>
-                </GestureHandlerRootView>
-              </ThemeProvider>
-            </SafeAreaProvider>
-          </GluestackUIProvider>
-        </AuthGuard>
+                  </AuthGuard>
+                  <StatusBar style="auto" />
+                </QueryClientProvider>
+              </GestureHandlerRootView>
+            </ThemeProvider>
+          </SafeAreaProvider>
+        </GluestackUIProvider>
       </ClerkLoaded>
     </ClerkProvider>
   );

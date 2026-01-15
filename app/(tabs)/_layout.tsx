@@ -24,7 +24,7 @@ export default function TabLayout() {
   // ✅ HOOK 2 — always runs
   useEffect(() => {
     if (isApproved === false) {
-      Linking.openURL("https://www.campzeo.com");
+      Linking.openURL("https://camp-zeo-testing-git-testing-mandav-consultancy.vercel.app");
     }
   }, [isApproved]);
 
