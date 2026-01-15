@@ -16,6 +16,7 @@ export interface Campaign {
   contactsCount?: number;
   contacts?: any[];
   postsCount?: number;
+  status?: "Scheduled" | "Active" | "Completed"; // <-- add this
 }
 
 interface CampaignCardProps {
@@ -138,7 +139,6 @@ export default function CampaignCard({
       darkBorder: "border-yellow-500",
     },
   };
-
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";

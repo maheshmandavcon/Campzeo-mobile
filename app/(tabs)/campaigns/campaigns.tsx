@@ -20,6 +20,7 @@ import CampaignCard, { Campaign } from "./campaignComponents/campaignCard";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { useColorScheme } from "react-native";
+import * as Clipboard from "expo-clipboard";
 
 export default function Campaigns() {
   const [search, setSearch] = useState("");
@@ -60,10 +61,19 @@ export default function Campaigns() {
           else status = "Active";
         }
 
+        const formatDate = (dateString?: string) => {
+          if (!dateString) return "";
+          const date = new Date(dateString);
+          const day = String(date.getDate()).padStart(2, "0");     // day
+          const month = String(date.getMonth() + 1).padStart(2, "0"); // month (0-indexed)
+          const year = date.getFullYear();                         // year
+          return `${day}/${month}/${year}`;
+        };
+
         return {
           id: item.id,
           details: item.name ?? "Untitled Campaign",
-          dates: `${item.startDate?.split("T")[0]} - ${item.endDate?.split("T")[0]}`,
+          dates: `${formatDate(item.startDate)} - ${formatDate(item.endDate)}`,
           description: item.description ?? "No description available",
           posts: [],
           postsCount: item._count?.posts ?? 0,
@@ -125,8 +135,16 @@ export default function Campaigns() {
     ]);
   };
 
-  const handleCopy = (c: Campaign) => {
-    // disabled for now
+  const handleCopy = async (c: Campaign) => {
+    const campaignData = `
+Details: ${c.details}
+Description: ${c.description}
+Dates: ${c.dates}
+Posts Count: ${c.postsCount ?? c.posts?.length ?? 0}
+Contacts Count: ${c.contactsCount ?? 0}
+  `;
+    await Clipboard.setStringAsync(campaignData);
+    Alert.alert("Copied!", "Campaign details copied to clipboard.");
   };
 
   const handleToggleShow = (c: Campaign) =>
@@ -213,7 +231,7 @@ export default function Campaigns() {
             style={{
               marginLeft: 8,
               fontWeight: "600",
-              color: isDark ? "#ffffff" : "#2563eb",
+              color: isDark ? "#ffffff" : "#0284c7",
             }}
           >
             New

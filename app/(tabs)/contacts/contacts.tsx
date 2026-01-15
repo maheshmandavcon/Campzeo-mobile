@@ -24,6 +24,7 @@ import { useAuth } from "@clerk/clerk-expo";
 import { useFocusEffect } from "@react-navigation/native";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
+import * as Clipboard from 'expo-clipboard';
 
 export default function Contacts() {
   const [visibleCount, setVisibleCount] = useState(10);
@@ -95,6 +96,22 @@ export default function Contacts() {
         contactId: String(record.id),
         record: JSON.stringify(record),
       },
+    });
+  };
+
+  const handleCopy = (record: ContactsRecord) => {
+    const textToCopy = `
+Name: ${record.name}
+Email: ${record.email || "-"}
+Mobile: ${record.mobile || "-"}
+WhatsApp: ${record.whatsapp || "-"}
+  `;
+
+    Clipboard.setStringAsync(textToCopy).then(() => {
+      Alert.alert("Copied!", "Contact details copied to clipboard.");
+    }).catch((err) => {
+      console.error("Clipboard error:", err);
+      Alert.alert("Error", "Failed to copy contact details.");
     });
   };
 
@@ -227,7 +244,7 @@ export default function Contacts() {
               style={{
                 marginLeft: 8,
                 fontWeight: "600",
-                color: isDark ? DARK_TEXT : "#1e40af",
+                color: isDark ? DARK_TEXT : "#0284c7",
               }}
             >
               New
@@ -286,7 +303,11 @@ export default function Contacts() {
               onPress={handleExportAll}
               className="flex-row items-center px-4 py-3"
             >
-              <Ionicons name="download-outline" size={18} color={DARK_TEXT} />
+              <Ionicons
+                name="download-outline"
+                size={18}
+                color={isDark ? "#ffffff" : "#111827"}
+              />
               <ThemedText className="ml-3 font-medium text-white">Export All</ThemedText>
             </TouchableOpacity>
 
@@ -294,7 +315,11 @@ export default function Contacts() {
               onPress={toggleSortOrder}
               className="flex-row items-center px-4 py-3"
             >
-              <Ionicons name="funnel-outline" size={18} color={DARK_TEXT} />
+              <Ionicons
+                name="funnel-outline"
+                size={18}
+                color={isDark ? "#ffffff" : "#111827"}
+              />
               <ThemedText className="ml-3 font-medium text-white">
                 {sortOrder === "asc"
                   ? "Sort Z → A"
@@ -315,8 +340,8 @@ export default function Contacts() {
               record={item}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onCopy={handleCopy}
               onToggleShow={toggleShow}
-              onCopy={() => { }}
             />
           )}
           ListFooterComponent={

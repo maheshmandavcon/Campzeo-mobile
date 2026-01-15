@@ -12,6 +12,7 @@ import { useNavigation } from "@react-navigation/native";
 import {
   getNotificationsApi,
   deleteNotificationApi,
+  markAllNotificationsReadApi,
 } from "@/api/notification/notificationApi";
 import { useAuth } from "@clerk/clerk-expo";
 import { ThemedView } from "@/components/themed-view";
@@ -26,6 +27,7 @@ export default function AllNotifications() {
 
   const [notifications, setNotifications] = useState<any[]>([]);
   const [tab, setTab] = useState<"All" | "Unread">("All");
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [visibleCount, setVisibleCount] = useState(5);
   const [searchText, setSearchText] = useState("");
@@ -33,14 +35,17 @@ export default function AllNotifications() {
   // const colorMode = useColorMode();
 
   // ---------------- FORMAT API DATA ----------------
-  const formatNotification = (item: any, existingReadStatus?: boolean) => {
+  const formatNotification = (item: any) => {
     const dateObj = new Date(item.createdAt);
     return {
       id: item.id,
       title: item.platform || "Notification",
       desc: item.message,
-      read: existingReadStatus !== undefined ? existingReadStatus : item.isRead,
-      time: dateObj.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      read: item.isRead, // ✅ ALWAYS TRUST SERVER
+      time: dateObj.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
       date: dateObj.toDateString(),
     };
   };
@@ -52,7 +57,7 @@ export default function AllNotifications() {
       const token = await getToken();
       if (!token) return;
 
-      const res = await getNotificationsApi(token, 1, 50);
+      const res = await getNotificationsApi(token, 1, 99);
       const notificationsArray =
         res?.data?.notifications && Array.isArray(res.data.notifications)
           ? res.data.notifications
@@ -60,7 +65,7 @@ export default function AllNotifications() {
 
       const formatted = notificationsArray.map((item: any) => {
         const existing = notifications.find((n) => n.id === item.id);
-        return formatNotification(item, existing?.read);
+        return formatNotification(item);
       });
 
       setNotifications(formatted);
@@ -92,14 +97,32 @@ export default function AllNotifications() {
   const unreadCount = notifications.filter((n) => !n.read).length;
   const hasNotifications = visibleNotifications.length > 0;
 
+  const displayCount = (count: number) => {
+    if (count > 99) return "99+";
+    return count.toString();
+  };
+
   // ---------------- MARK AS READ ----------------
-  const markAsRead = (id: number) =>
+  const markAsRead = (id: number) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+  };
 
-  const markAllAsRead = () =>
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const markAllAsRead = async () => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+
+      const res = await markAllNotificationsReadApi(token);
+      console.log("MARK ALL RESPONSE:", res); // 👈
+
+      await fetchNotifications();
+      setTab("All");
+    } catch (err) {
+      console.log("Mark all read error", err);
+    }
+  };
 
   // ---------------- DELETE NOTIFICATION ----------------
   const deleteNotification = async (id: number) => {
@@ -117,7 +140,10 @@ export default function AllNotifications() {
             style: "destructive",
             onPress: async () => {
               try {
+                setDeletingId(id);
+
                 await deleteNotificationApi(token, id);
+
                 setNotifications((prev) =>
                   prev.filter((n) => n.id !== id)
                 );
@@ -128,11 +154,12 @@ export default function AllNotifications() {
                 );
                 Alert.alert(
                   "Error",
-                  error.response?.data?.message ||
-                  "Failed to delete notification"
+                  error.response?.data?.message || "Failed to delete notification"
                 );
+              } finally {
+                setDeletingId(null);
               }
-            },
+            }
           },
         ]
       );
@@ -143,12 +170,6 @@ export default function AllNotifications() {
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-
-  const CARD_BG = isDark ? "#0f172a" : "#ffffff";
-  const CARD_BORDER = isDark ? "#1e293b" : "#e5e7eb";
-  const TEXT_SECONDARY = isDark ? "#94a3b8" : "#6b7280";
-  const TEXT_MUTED = isDark ? "#64748b" : "#9ca3af";
-  const SCREEN_BG = isDark ? "#020617" : "#EEF2FF";
 
   // ---------------- GROUP BY DATE ----------------
   const grouped: Record<string, any[]> = {};
@@ -193,10 +214,12 @@ export default function AllNotifications() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: SCREEN_BG }}>
-      <ThemedView className="flex-1 px-4 pt-4">
+    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#020617" : "#EEF2FF" }}>
+      <ThemedView className="flex-1 px-4 pt-4"
+        style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
         {/* HEADER */}
-        <ThemedView className="flex-row items-center justify-between my-5">
+        <ThemedView className="flex-row items-center justify-between my-5"
+          style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 8 }}>
             <Ionicons name="arrow-back" size={24} color={isDark ? "#e5e7eb" : "#333"} />
           </TouchableOpacity>
@@ -209,7 +232,8 @@ export default function AllNotifications() {
         </ThemedView>
 
         {/* SEARCH + REFRESH */}
-        <ThemedView className="flex-row items-center mb-3">
+        <ThemedView className="flex-row items-center mb-3"
+          style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
           <ThemedView className="flex-1 flex-row items-center rounded-full px-4 border shadow-sm"
             style={{
               backgroundColor: isDark ? "#161618" : "#fff",
@@ -235,9 +259,11 @@ export default function AllNotifications() {
         </ThemedView>
 
         {/* TABS */}
-        <ThemedView className="flex-row items-center justify-between mb-3">
+        <ThemedView className="flex-row items-center justify-between mb-3"
+          style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
           {/* TABS */}
-          <ThemedView className="flex-row space-x-4">
+          <ThemedView className="flex-row space-x-4"
+            style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
             <TouchableOpacity
               onPress={() => setTab("All")}
               style={{
@@ -261,7 +287,7 @@ export default function AllNotifications() {
                       : "#374151",
                 }}
               >
-                All ({notifications.length})
+                All ({displayCount(notifications.length)})
               </ThemedText>
             </TouchableOpacity>
 
@@ -288,7 +314,7 @@ export default function AllNotifications() {
                       : "#374151",
                 }}
               >
-                Unread ({unreadCount})
+                Unread ({displayCount(unreadCount)})
               </ThemedText>
             </TouchableOpacity>
           </ThemedView>
@@ -308,16 +334,31 @@ export default function AllNotifications() {
 
         {/* LOADING */}
         {loading && (
-          <ThemedView className="mt-10 items-center">
+          <ThemedView
+            className="mt-10 items-center justify-center p-4 rounded-lg"
+            style={{
+              backgroundColor: isDark ? "#161618" : "#f3f4f6",
+            }}
+          >
             <ActivityIndicator size="large" color="#dc2626" />
+            <ThemedText
+              style={{
+                color: isDark ? "#ffffff" : "#000000",
+                marginTop: 8,
+                fontWeight: "bold",
+              }}
+            >
+              Loading, please wait...
+            </ThemedText>
           </ThemedView>
         )}
 
         {/* EMPTY STATE */}
         {!loading && !hasNotifications && (
-          <ThemedView className="flex-1 items-center justify-center mt-10">
+          <ThemedView className="flex-1 items-center justify-center mt-10"
+            style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
             <Ionicons name="notifications-off-outline" size={70} color="#9AA6FF" />
-            <ThemedText style={{ color: TEXT_SECONDARY, marginTop: 12 }}>
+            <ThemedText style={{ color: isDark ? "#94a3b8" : "#6b7280", backgroundColor: isDark ? "#161618" : "#f3f4f6", marginTop: 12 }}>
               Looks like there’s nothing here
             </ThemedText>
           </ThemedView>
@@ -333,16 +374,18 @@ export default function AllNotifications() {
               <ThemedText
                 style={{
                   fontWeight: "bold",
-                  color: TEXT_SECONDARY,
+                  color: isDark ? "#94a3b8" : "#6b7280",
+                  backgroundColor: isDark ? "#161618" : "#f3f4f6",
                   marginTop: 16,
                   marginBottom: 4,
                 }}
+              // style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
               >
                 {section.title}
               </ThemedText>
             )}
             renderItem={({ item }) => (
-              <ThemedView style={{ marginBottom: 12 }}>
+              <ThemedView style={{ marginBottom: 12, backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
                 <TouchableOpacity
                   onPress={() => markAsRead(item.id)} // tap marks as read
                   onLongPress={() => deleteNotification(item.id)} // long press deletes
@@ -367,13 +410,13 @@ export default function AllNotifications() {
                       {item.title}
                     </ThemedText>
 
-                    <ThemedText style={{ color: TEXT_SECONDARY, marginTop: 4 }}>
+                    <ThemedText style={{ color: isDark ? "#94a3b8" : "#6b7280", marginTop: 4 }}>
                       {item.desc}
                     </ThemedText>
 
                     <ThemedText
                       style={{
-                        color: TEXT_MUTED,
+                        color: isDark ? "#64748b" : "#9ca3af",
                         fontSize: 12,
                         marginTop: 4,
                       }}
@@ -382,27 +425,35 @@ export default function AllNotifications() {
                     </ThemedText>
                   </ThemedView>
 
-                  {!item.read && (
-                    <ThemedView
-                      style={{
-                        backgroundColor: "#dc2626",
-                        borderRadius: 4,
-                        paddingHorizontal: 6,
-                        paddingVertical: 2,
-                        alignSelf: "flex-start",
-                        marginLeft: 8,
-                      }}
-                    >
-                      <ThemedText
+                  {deletingId === item.id ? (
+                    <ActivityIndicator
+                      size="small"
+                      color="#dc2626"
+                      style={{ marginLeft: 8 }}
+                    />
+                  ) : (
+                    !item.read && (
+                      <ThemedView
                         style={{
-                          color: "#fff",
-                          fontSize: 10,
-                          fontWeight: "bold",
+                          backgroundColor: "#dc2626",
+                          borderRadius: 4,
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          alignSelf: "flex-start",
+                          marginLeft: 8,
                         }}
                       >
-                        NEW
-                      </ThemedText>
-                    </ThemedView>
+                        <ThemedText
+                          style={{
+                            color: "#fff",
+                            fontSize: 10,
+                            fontWeight: "bold",
+                          }}
+                        >
+                          NEW
+                        </ThemedText>
+                      </ThemedView>
+                    )
                   )}
                 </TouchableOpacity>
               </ThemedView>

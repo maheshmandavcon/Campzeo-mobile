@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  useColorScheme,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Input, InputField, FormControl } from "@gluestack-ui/themed";
@@ -47,6 +48,9 @@ export default function CreateCampaign() {
   const campaignId = id ? Number(id) : undefined;
   const isEditMode = !!campaignId;
 
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
   const [loadingCampaign, setLoadingCampaign] = useState(false);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
@@ -70,7 +74,6 @@ export default function CreateCampaign() {
       description: "",
       contactIds: [],
     },
-    mode: "onChange",
   });
 
   const selectedContactIds = watch("contactIds") || [];
@@ -83,10 +86,10 @@ export default function CreateCampaign() {
       try {
         setLoadingCampaign(true);
         const token = await getToken();
-        if (!token) throw new Error("Authentication token not found");
+        if (!token) throw new Error("Token missing");
 
-        const response = await getCampaignByIdApi(campaignId, token);
-        const campaign = response.campaign;
+        const res = await getCampaignByIdApi(campaignId, token);
+        const campaign = res.campaign;
 
         reset({
           name: campaign.name ?? "",
@@ -96,10 +99,11 @@ export default function CreateCampaign() {
           contactIds: campaign.contacts?.map((c: any) => c.id) ?? [],
         });
 
-        if (campaign.startDate) setStartDateObj(new Date(campaign.startDate));
-      } catch (error) {
-        console.error("Fetch Campaign Error:", error);
-        Alert.alert("Error", "Failed to load campaign data");
+        if (campaign.startDate) {
+          setStartDateObj(new Date(campaign.startDate));
+        }
+      } catch (err) {
+        Alert.alert("Error", "Failed to load campaign");
         router.back();
       } finally {
         setLoadingCampaign(false);
@@ -109,7 +113,7 @@ export default function CreateCampaign() {
     fetchCampaign();
   }, [isEditMode, campaignId]);
 
-  // Fetch all contacts
+  /* ---------------- FETCH CONTACTS ---------------- */
   useEffect(() => {
     const fetchContacts = async () => {
       try {
@@ -118,118 +122,141 @@ export default function CreateCampaign() {
         if (!token) throw new Error("Token missing");
 
         const res = await getContactsApi(token);
-        // Map API fields to name/email
-        const mappedContacts = (res.contacts ?? []).map((c: any) => ({
-          id: c.id,
-          name: c.contactName ?? "No Name",
-          email: c.contactEmail ?? "No Email",
-        }));
-        setContacts(mappedContacts);
-      } catch (err) {
-        console.error("Failed to fetch contacts:", err);
+        setContacts(
+          (res.contacts ?? []).map((c: any) => ({
+            id: c.id,
+            name: c.contactName ?? "No Name",
+            email: c.contactEmail ?? "No Email",
+          }))
+        );
+      } catch {
         Alert.alert("Error", "Failed to load contacts");
       } finally {
         setLoadingContacts(false);
       }
     };
+
     fetchContacts();
   }, []);
 
   const onSubmit: SubmitHandler<CampaignFormValues> = async (data) => {
     try {
       const token = await getToken();
-      if (!token) throw new Error("Authentication token not found");
+      if (!token) throw new Error("Token missing");
 
-      if (isEditMode && campaignId) {
-        await updateCampaignApi(campaignId, data, token);
-      } else {
-        await createCampaignApi(data, token);
-      }
+      isEditMode && campaignId
+        ? await updateCampaignApi(campaignId, data, token)
+        : await createCampaignApi(data, token);
 
       router.back();
-    } catch (error: any) {
-      console.error("Campaign Submit Error:", error);
-      Alert.alert("Error", error.message || "Something went wrong");
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Something went wrong");
     }
   };
 
-  const toggleContact = (contactId: number) => {
-    const newSelection = selectedContactIds.includes(contactId)
-      ? selectedContactIds.filter((id) => id !== contactId)
-      : [...selectedContactIds, contactId];
-    setValue("contactIds", newSelection);
+  const toggleContact = (id: number) => {
+    setValue(
+      "contactIds",
+      selectedContactIds.includes(id)
+        ? selectedContactIds.filter((x) => x !== id)
+        : [...selectedContactIds, id]
+    );
   };
 
   const requiredLabel = (label: string) => (
-    <Text style={{ fontSize: 16, fontWeight: "600", marginTop: 12, color: "#374151" }}>
-      {label} <Text style={{ color: "red" }}>*</Text>
+    <Text className="mt-3 text-base font-semibold text-gray-700 dark:text-gray-300">
+      {label} <Text className="text-red-500">*</Text>
     </Text>
   );
 
   if (loadingCampaign) {
     return (
-      <ThemedView style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f9fafb" }}>
+      <View className="flex-1 items-center justify-center bg-gray-50 dark:bg-[#161618]">
         <ActivityIndicator size="large" color="#0284c7" />
-      </ThemedView>
+      </View>
     );
   }
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={{ flex: 1, backgroundColor: "#f9fafb" }}
+      className="flex-1 bg-gray-100 dark:bg-[#161618]"
     >
       <ScrollView
-        style={{ flex: 1, paddingHorizontal: 24, paddingVertical: 24 }}
-        keyboardShouldPersistTaps="handled"
+        className="flex-1 px-6 py-6"
         contentContainerStyle={{ paddingBottom: 20 }}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Close Button */}
+        {/* Close */}
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={{ position: "absolute", right: 10, zIndex: 10, padding: 8 }}
+          className="absolute right-2 z-10 p-2"
         >
-          <Ionicons name="close" size={24} color="#334155" />
+          <Ionicons
+            name="close"
+            size={24}
+            color={isDark ? "#cbd5f5" : "#334155"}
+          />
         </TouchableOpacity>
 
         {/* Header */}
-        <ThemedView style={{ flexDirection: "row", alignItems: "center", marginBottom: 24 }}>
-          <ThemedView style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: "#0284c7", alignItems: "center", justifyContent: "center" }}>
+        <View className="mb-2 flex-row items-center">
+          <View className="h-14 w-14 items-center justify-center rounded-2xl bg-sky-600">
             <Ionicons name="megaphone" size={28} color="#fff" />
-          </ThemedView>
-          <ThemedView style={{ marginLeft: 16 }}>
-            <ThemedText style={{ fontSize: 22, fontWeight: "700", color: "#111827" }}>
-              {isEditMode ? "Update Campaign" : "Create Campaign"}
-            </ThemedText>
-            <ThemedText style={{ fontSize: 14, color: "#6b7280" }}>
-              {isEditMode ? "Update campaign details" : "Add all campaign details"}
-            </ThemedText>
-          </ThemedView>
-        </ThemedView>
+          </View>
 
-        {/* Form Fields */}
-        <ThemedView style={{ marginBottom: 20 }}>
-          {/* Name */}
+          <View className="ml-4">
+            <Text className="text-[22px] font-bold text-gray-900 dark:text-white">
+              {isEditMode ? "Update Campaign" : "Create Campaign"}
+            </Text>
+            <Text className="text-sm text-gray-500">
+              {isEditMode
+                ? "Update campaign details"
+                : "Add all campaign details"}
+            </Text>
+          </View>
+        </View>
+
+        {/* Divider */}
+        <View className="my-3 h-px bg-black dark:bg-white" />
+
+        {/* FORM */}
+        <View className="mb-5">
+          {/* NAME */}
           <FormControl isInvalid={!!errors.name}>
-            <FormControl.Label>{requiredLabel("Name")}</FormControl.Label>
+            <FormControl.Label
+              style={{
+                marginLeft: 8, 
+              }}
+            >
+              {requiredLabel("Name")}
+            </FormControl.Label>
             <Controller
               control={control}
               name="name"
               rules={{ required: "Name is required" }}
-              render={({ field: { onChange, value } }) => (
-                <Input style={{ borderColor: "#d1d5db", borderWidth: 1, borderRadius: 12 }}>
+              render={({ field }) => (
+                <Input
+                  style={{
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: "#d1d5db",
+                  }}
+                >
                   <InputField
-                    value={value}
                     placeholder="Enter Name"
-                    onChangeText={onChange}
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    style={{ color: isDark ? "#f9fafb" : "#111827" }}
+                    placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
                   />
                 </Input>
               )}
             />
           </FormControl>
 
-          {/* Start Date */}
+          {/* START DATE */}
           <FormControl isInvalid={!!errors.startDate}>
             <FormControl.Label>{requiredLabel("Start Date")}</FormControl.Label>
             <Controller
@@ -243,6 +270,7 @@ export default function CreateCampaign() {
                       <InputField value={value} placeholder="YYYY-MM-DD" editable={false} />
                     </Input>
                   </TouchableOpacity>
+
                   <DateTimePickerModal
                     isVisible={showStartPicker}
                     mode="date"
@@ -260,7 +288,7 @@ export default function CreateCampaign() {
             />
           </FormControl>
 
-          {/* End Date */}
+          {/* END DATE */}
           <FormControl isInvalid={!!errors.endDate}>
             <FormControl.Label>{requiredLabel("End Date")}</FormControl.Label>
             <Controller
@@ -274,6 +302,7 @@ export default function CreateCampaign() {
                       <InputField value={value} placeholder="YYYY-MM-DD" editable={false} />
                     </Input>
                   </TouchableOpacity>
+
                   <DateTimePickerModal
                     isVisible={showEndPicker}
                     mode="date"
@@ -289,98 +318,157 @@ export default function CreateCampaign() {
             />
           </FormControl>
 
-          {/* Description */}
+          {/* DESCRIPTION */}
           <FormControl isInvalid={!!errors.description}>
-            <FormControl.Label>{requiredLabel("Description")}</FormControl.Label>
+            <FormControl.Label style={{ marginLeft: 8 }}>
+              {requiredLabel("Description")}
+            </FormControl.Label>
             <Controller
               control={control}
               name="description"
-              rules={{ required: "Description is required" }}
-              render={({ field: { onChange, value } }) => (
-                <Input style={{ borderColor: "#d1d5db", borderWidth: 1, borderRadius: 12, height: 90 }}>
+              render={({ field }) => (
+                <Input
+                  style={{
+                    height: 96,
+                    borderRadius: 24,
+                    borderWidth: 1,
+                    borderColor: "#d1d5db",
+                    paddingTop: 12,
+                  }}
+                >
                   <InputField
                     multiline
-                    value={value}
                     placeholder="Enter Description"
-                    onChangeText={onChange}
-                    style={{ textAlignVertical: "top" }}
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    style={{
+                      textAlignVertical: "top",
+                      color: isDark ? "#f9fafb" : "#111827",
+                    }}
+                    placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
                   />
                 </Input>
               )}
             />
           </FormControl>
 
-          {/* Select Contacts */}
-          <FormControl>
-            <FormControl.Label>
-              <ThemedText style={{ fontSize: 16, fontWeight: "600", marginTop: 12, color: "#374151" }}>
-                Select Contacts
-              </ThemedText>
-            </FormControl.Label>
+          {/* CONTACTS */}
+          <Text
+            style={{
+              marginTop: 16,
+              marginLeft: 8, // ← added for heading shift
+              fontSize: 16,
+              fontWeight: "600",
+              color: isDark ? "#e5e7eb" : "#374151",
+            }}
+          >
+            Select Contacts
+          </Text>
 
-            {loadingContacts ? (
-              <ActivityIndicator size="small" color="#0284c7" />
-            ) : contacts.length === 0 ? (
-              <ThemedText>No contacts available</ThemedText>
-            ) : (
-              <ThemedView style={{ borderColor: "#d1d5db", borderWidth: 1, borderRadius: 12, padding: 12 }}>
-                {contacts.map((contact) => {
-                  const checked = selectedContactIds.includes(contact.id);
-                  return (
-                    <TouchableOpacity
-                      key={contact.id}
-                      onPress={() => toggleContact(contact.id)}
-                      style={{ flexDirection: "row", alignItems: "center", marginVertical: 6 }}
+          {loadingContacts ? (
+            <ActivityIndicator size="small" color="#0284c7" />
+          ) : (
+            <View
+              style={{
+                marginTop: 8,
+                borderRadius: 24,
+                borderWidth: 1,
+                borderColor: "#d1d5db",
+                padding: 12,
+              }}
+            >
+              {contacts.map((c) => {
+                const checked = selectedContactIds.includes(c.id);
+
+                return (
+                  <TouchableOpacity
+                    key={c.id}
+                    onPress={() => toggleContact(c.id)}
+                    style={{
+                      marginVertical: 4,
+                      flexDirection: "row",
+                      alignItems: "center",
+                    }}
+                  >
+                    <View
+                      style={{
+                        marginRight: 12,
+                        height: 20,
+                        width: 20,
+                        borderRadius: 6,
+                        borderWidth: 1,
+                        borderColor: "#d1d5db",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
                     >
-                      {/* Checkbox */}
-                      <ThemedView
+                      {checked && (
+                        <Ionicons
+                          name="checkmark-outline"
+                          size={16}
+                          color="#0284c7"
+                        />
+                      )}
+                    </View>
+
+                    <View
+                      style={{
+                        flex: 1,
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <Text
                         style={{
-                          width: 20,
-                          height: 20,
-                          marginRight: 12,
-                          borderColor: "#d1d5db",
-                          borderWidth: 1,
-                          borderRadius: 4,
-                          justifyContent: "center",
-                          alignItems: "center",
+                          fontWeight: "500",
+                          color: isDark ? "#f3f4f6" : "#374151",
                         }}
                       >
-                        {checked && <Ionicons name="checkmark-outline" size={16} color="#0284c7" />}
-                      </ThemedView>
+                        {c.name}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: isDark ? "#9ca3af" : "#6b7280",
+                        }}
+                      >
+                        {c.email}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </View>
 
-                      {/* Name + Email Row */}
-                      <ThemedView style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                        <ThemedText style={{ color: "#374151", fontWeight: "500" }}>{contact.name}</ThemedText>
-                        <ThemedText style={{ color: "#6b7280", fontSize: 14 }}>{contact.email}</ThemedText>
-                      </ThemedView>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ThemedView>
-
-            )}
-          </FormControl>
-        </ThemedView>
-
-        {/* Submit Button */}
+        {/* SUBMIT */}
         <TouchableOpacity
+          disabled={isSubmitting}
           onPress={handleSubmit(onSubmit)}
+          className="w-full mt-5 mb-10 rounded-xl items-center justify-center py-4 bg-sky-600"
           style={{
-            width: "100%",
-            marginTop: 40,
-            borderRadius: 12,
-            alignItems: "center",
-            justifyContent: "center",
+            // backgroundColor: "#dc2626",
             paddingVertical: 16,
-            backgroundColor: "#0284c7",
+            shadowColor: "#000",
+            shadowOpacity: 0.18,
+            shadowOffset: { width: 0, height: 6 },
+            shadowRadius: 12,
+            elevation: 6,
           }}
-          disabled={isSubmitting || loadingCampaign}
         >
-          <ThemedText style={{ color: "#fff", fontWeight: "600", fontSize: 18 }}>
-            {isSubmitting ? (isEditMode ? "Updating..." : "Creating...") : isEditMode ? "Update Campaign" : "Create Campaign"}
-          </ThemedText>
+          <Text className="text-lg font-semibold text-white">
+            {isSubmitting
+              ? isEditMode
+                ? "Updating..."
+                : "Creating..."
+              : isEditMode
+                ? "Update Campaign"
+                : "Create Campaign"}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
+
   );
 }

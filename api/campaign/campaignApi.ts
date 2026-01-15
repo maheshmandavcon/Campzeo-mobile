@@ -18,6 +18,13 @@ export interface CampaignPostData {
   type: string;
   mediaUrls?: string[];
   scheduledPostTime: string;
+  pinterestBoard?: string;
+  destinationLink?: string;
+  metadata?: {
+    boardId?: string;
+    boardName?: string;
+    link?: string;
+  };
 }
 
 // ---------------------- Campaign APIs ---------------------- //
@@ -122,6 +129,10 @@ export const createPostForCampaignApi = async (
     const response = await https.post(`/campaigns/${campaignId}/posts`, data, {
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     });
+
+    console.log("Create Post API Response:", response);
+
+  
     return response.data;
   } catch (error: any) {
     console.error("Create Post API Error:", error.response || error.message);
@@ -129,11 +140,11 @@ export const createPostForCampaignApi = async (
   }
 };
 
-// Send a campaign post to contacts
-export const sendCampaignPostApi = async (
+// Share a campaign post
+export const shareCampaignPostApi = async (
   campaignId: number,
   postId: number,
-  contactIds: number[], // array of contact IDs to send to
+  contactIds: number[], 
   token: AuthToken
 ) => {
   try {
@@ -147,13 +158,15 @@ export const sendCampaignPostApi = async (
         },
       }
     );
-    return response.data; // { success, sent, failed }
+
+    console.log("Share Post API Response:", response);
+
+    return response.data; 
   } catch (error: any) {
     console.error("Send Campaign Post API Error:", error.response?.data || error.message);
     throw error;
   }
 };
-
 
 // Update (Edit) a post for a specific campaign
 export const updatePostForCampaignApi = async (
@@ -195,10 +208,10 @@ export const deletePostForCampaignApi = async (
 export interface AIContentRequest {
   prompt: string;
   context: {
-    platform: string; // e.g., WHATSAPP, FACEBOOK
+    platform: string; 
     existingContent: string;
   };
-  mode: string; // e.g., "generate"
+  mode: string; 
 }
 
 export interface AIVariation {
@@ -265,6 +278,8 @@ export const generateAIImageApi = async (
 
 // ---------------------- Pinterest APIs ---------------------- //
 
+// Create Pinterest Boards
+
 export const createPinterestBoardApi = async (
   payload: {
     name: string;
@@ -293,6 +308,21 @@ export const createPinterestBoardApi = async (
   }
 };
 
+// Get Pinterest Boards
+
+export const getPinterestBoardsApi = async (token: string) => {
+  try {
+    const res = await https.get("/socialmedia/pinterest/boards", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    // Assuming the response looks like { boards: [{ id, name, description, privacy }, ...] }
+    return res.data.boards || [];
+  } catch (error: any) {
+    console.error("Get Pinterest Boards API Error:", error.response || error.message);
+    return [];
+  }
+};
+
 // ---------------------- Facebook APIs ---------------------- //
 
 export interface FacebookPage {
@@ -309,17 +339,53 @@ export const getFacebookPagesApi = async (token: AuthToken): Promise<FacebookPag
       },
     });
 
-    // Backend might return an error field if account not connected
     if (response.data.error) {
       throw new Error(response.data.error);
     }
 
     return response.data.pages || [];
+    
   } catch (error: any) {
     console.error("Get Facebook Pages API Error:", error.response?.data || error.message);
     throw error;
   }
 };
 
+// ---------------------- Upload API ---------------------- //
 
+export const uploadMediaApi = async (
+  attachment: { uri: string; name: string; type: string },
+  token: string
+): Promise<string> => {
+  try {
+    const payload = {
+      type: "blob.generate-client-token",
+      payload: {
+        pathname: attachment.name,
+        clientPayload: null,
+        multipart: false,
+      },
+    };
 
+    const response = await https.post(
+      "/upload", // ✅ FIXED
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const clientToken = response.data?.clientToken;
+    if (!clientToken) {
+      throw new Error("Upload failed: no clientToken returned");
+    }
+
+    return clientToken;
+  } catch (error: any) {
+    console.error("Upload Media API Error:", error.response || error.message);
+    throw error;
+  }
+};

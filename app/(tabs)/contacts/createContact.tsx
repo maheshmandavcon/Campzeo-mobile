@@ -81,7 +81,7 @@ export default function CreateContact() {
       mobile: editingContact.mobile ?? "",
       whatsapp: editingContact.whatsapp ?? "",
       campaignIds: editingContact.campaigns
-        ? editingContact.campaigns.map(c => c.id)
+        ? editingContact.campaigns.map((c) => c.id)
         : editingContact.campaignIds ?? [],
     });
 
@@ -132,105 +132,106 @@ export default function CreateContact() {
   };
 
   const requiredLabel = (label: string) => (
-    <Text
-      className="text-base mt-3 font-semibold"
-      style={{ color: isDark ? "#f3f4f6" : "#111" }}
+    <ThemedText
+      style={{
+        fontSize: 14,
+        fontWeight: "600",
+        marginTop: 12,
+        color: isDark ? "#e5e7eb" : "#111",
+      }}
     >
-      {label} <Text className="text-red-500">*</Text>
-    </Text>
+      {label} <ThemedText style={{ color: "#ef4444" }}>*</ThemedText>
+    </ThemedText>
   );
 
   // ✅ Dynamic colors for light/dark
-  const inputBg = isDark ? "#161618" : "#fff";
-  const inputBorder = isDark ? "#4b5563" : "#d1d5db";
+  const inputBg = isDark ? "#161618" : "#f3f4f6";
+  const inputBorder = isDark ? "#fff" : "#d1d5db";
   const inputText = isDark ? "#fff" : "#111";
   const labelText = isDark ? "#f3f4f6" : "#111";
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={{ flex: 1, backgroundColor: isDark ? "#161618" : "#fff" }}
+      style={{ flex: 1, backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
     >
-      <ScrollView
-        className="flex-1 px-6 py-6"
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView className="flex-1 px-6 py-6" keyboardShouldPersistTaps="handled">
         <TouchableOpacity
           onPress={() => router.back()}
           style={{ position: "absolute", right: 10, zIndex: 10, padding: 8 }}
         >
-          <Ionicons
-            name="close"
-            size={24}
-            color={isDark ? "#fff" : "#111"}
-          />
+          <Ionicons name="close" size={24} color={isDark ? "#fff" : "#111"} />
         </TouchableOpacity>
 
-        <ThemedView className="flex-row items-center"
-          style={{
-            backgroundColor: isDark ? "#161618" : "#fff",
-          }}>
+        {/* Header */}
+        <ThemedView
+          className="flex-row items-center"
+          style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
+        >
           <ThemedView
             className="w-14 h-14 rounded-lg border-transparent items-center justify-center"
-            style={{ backgroundColor: "#dc2626" }} // red icon background
+            style={{ backgroundColor: "#dc2626" }}
           >
-            <Ionicons
-              name={isEdit ? "person" : "person-add"}
-              size={28}
-              color="#fff"
-            />
+            <Ionicons name={isEdit ? "person" : "person-add"} size={28} color="#fff" />
           </ThemedView>
 
           <ThemedView
             className="ml-4 p-4 rounded-lg"
-            style={{
-              backgroundColor: isDark ? "#161618" : "#fff",
-            }}
+            style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
           >
             <ThemedText
-              className="text-2xl font-bold"
-              style={{ color: isDark ? "#f3f4f6" : "#111" }}
+              style={{
+                fontSize: 22,
+                fontWeight: "700",
+                color: isDark ? "#f3f4f6" : "#111",
+                marginLeft: 8,
+              }}
             >
               {isEdit ? "Edit Contact" : "Create Contact"}
             </ThemedText>
             <ThemedText
               className="text-sm mt-1"
-              style={{ color: isDark ? "#d1d5db" : "#6b7280" }}
+              style={{ color: isDark ? "#d1d5db" : "#6b7280", marginLeft: 8 }}
             >
-              {isEdit
-                ? "Update the contact details"
-                : "Add a new contact to your list"}
+              {isEdit ? "Update the contact details" : "Add a new contact to your list"}
             </ThemedText>
           </ThemedView>
         </ThemedView>
 
+        {/* Divider */}
         <ThemedView
           style={{
-            height: 1, // thickness of the line
-            backgroundColor: isDark ? "#ffffff" : "#fff", // white in dark mode
-            marginVertical: 12, // space above and below
+            height: 1,
+            backgroundColor: isDark ? "#ffffff" : "#000",
+            marginVertical: 12,
           }}
         />
-        <ThemedView className="space-y-6"
-          style={{
-            backgroundColor: isDark ? "#161618" : "#fff",
-          }}>
+
+        {/* Form Fields */}
+        <ThemedView className="space-y-6" style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
           {/* Name */}
           <FormControl isInvalid={!!errors.name}>
-            <FormControl.Label>{requiredLabel("Name")}</FormControl.Label>
+            <FormControl.Label style={{ marginLeft: 8 }}>
+              {requiredLabel("Name")}
+            </FormControl.Label>
             <Controller
               control={control}
               name="name"
               rules={{
                 required: "Name is required",
                 minLength: { value: 3, message: "Minimum 3 letters" },
-                pattern: {
-                  value: /^[A-Za-z\s]+$/i,
-                  message: "Only letters allowed",
-                },
+                pattern: { value: /^[A-Za-z\s]+$/i, message: "Only letters allowed" },
               }}
               render={({ field: { onChange, value } }) => (
-                <Input style={{ backgroundColor: inputBg, borderColor: inputBorder }}>
+                <Input
+                  size="md"
+                  style={{
+                    backgroundColor: inputBg,
+                    borderColor: inputBorder,
+                    borderWidth: 1,
+                    borderRadius: 999,
+                  }}
+                >
                   <InputField
                     placeholder="Enter Name"
                     value={value}
@@ -242,27 +243,31 @@ export default function CreateContact() {
               )}
             />
             {errors.name && (
-              <Text className="text-red-500 text-xs mt-1">
-                {errors.name.message}
-              </Text>
+              <Text className="text-red-500 text-xs mt-1">{errors.name.message}</Text>
             )}
           </FormControl>
 
           {/* Email */}
           <FormControl isInvalid={!!errors.email}>
-            <FormControl.Label>{requiredLabel("Email")}</FormControl.Label>
+            <FormControl.Label style={{ marginLeft: 8 }}>
+              {requiredLabel("Email")}
+            </FormControl.Label>
             <Controller
               control={control}
               name="email"
               rules={{
                 required: "Email is required",
-                pattern: {
-                  value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                  message: "Invalid email",
-                },
+                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Invalid email" },
               }}
               render={({ field: { onChange, value } }) => (
-                <Input style={{ backgroundColor: inputBg, borderColor: inputBorder }}>
+                <Input
+                  style={{
+                    backgroundColor: inputBg,
+                    borderColor: inputBorder,
+                    borderWidth: 1,
+                    borderRadius: 999,
+                  }}
+                >
                   <InputField
                     placeholder="Enter Email"
                     value={value}
@@ -276,27 +281,31 @@ export default function CreateContact() {
               )}
             />
             {errors.email && (
-              <Text className="text-red-500 text-xs mt-1">
-                {errors.email.message}
-              </Text>
+              <Text className="text-red-500 text-xs mt-1">{errors.email.message}</Text>
             )}
           </FormControl>
 
           {/* Mobile */}
           <FormControl isInvalid={!!errors.mobile}>
-            <FormControl.Label>{requiredLabel("Mobile")}</FormControl.Label>
+            <FormControl.Label style={{ marginLeft: 8 }}>
+              {requiredLabel("Mobile")}
+            </FormControl.Label>
             <Controller
               control={control}
               name="mobile"
               rules={{
                 required: "Mobile is required",
-                pattern: {
-                  value: /^\d{7,15}$/,
-                  message: "Not a valid number",
-                },
+                pattern: { value: /^\d{7,15}$/, message: "Not a valid number" },
               }}
               render={({ field: { onChange, value } }) => (
-                <Input style={{ backgroundColor: inputBg, borderColor: inputBorder }}>
+                <Input
+                  style={{
+                    backgroundColor: inputBg,
+                    borderColor: inputBorder,
+                    borderWidth: 1,
+                    borderRadius: 999,
+                  }}
+                >
                   <InputField
                     placeholder="Enter Mobile"
                     value={value}
@@ -309,27 +318,31 @@ export default function CreateContact() {
               )}
             />
             {errors.mobile && (
-              <Text className="text-red-500 text-xs mt-1">
-                {errors.mobile.message}
-              </Text>
+              <Text className="text-red-500 text-xs mt-1">{errors.mobile.message}</Text>
             )}
           </FormControl>
 
           {/* WhatsApp */}
           <FormControl isInvalid={!!errors.whatsapp}>
-            <FormControl.Label>{requiredLabel("WhatsApp")}</FormControl.Label>
+            <FormControl.Label style={{ marginLeft: 8 }}>
+              {requiredLabel("WhatsApp")}
+            </FormControl.Label>
             <Controller
               control={control}
               name="whatsapp"
               rules={{
                 required: "WhatsApp is required",
-                pattern: {
-                  value: /^\d{10,15}$/,
-                  message: "Not a valid number",
-                },
+                pattern: { value: /^\d{10,15}$/, message: "Not a valid number" },
               }}
               render={({ field: { onChange, value } }) => (
-                <Input style={{ backgroundColor: inputBg, borderColor: inputBorder }}>
+                <Input
+                  style={{
+                    backgroundColor: inputBg,
+                    borderColor: inputBorder,
+                    borderWidth: 1,
+                    borderRadius: 999,
+                  }}
+                >
                   <InputField
                     placeholder="Enter WhatsApp"
                     value={value}
@@ -342,16 +355,17 @@ export default function CreateContact() {
               )}
             />
             {errors.whatsapp && (
-              <Text className="text-red-500 text-xs mt-1">
-                {errors.whatsapp.message}
-              </Text>
+              <Text className="text-red-500 text-xs mt-1">{errors.whatsapp.message}</Text>
             )}
           </FormControl>
 
           {/* Associate with Campaigns */}
           <FormControl>
             <FormControl.Label>
-              <Text className="text-base mt-3 font-semibold" style={{ color: labelText }}>
+              <Text
+                className="text-base mt-3 font-semibold"
+                style={{ color: labelText, marginLeft: 8 }}
+              >
                 Associate with Campaigns
               </Text>
             </FormControl.Label>
@@ -359,11 +373,15 @@ export default function CreateContact() {
             {loadingCampaigns ? (
               <ActivityIndicator size="small" color="#dc2626" />
             ) : campaignOptions.length === 0 ? (
-              <Text style={{ color: labelText }}>No campaigns available</Text>
+              <Text style={{ color: labelText, marginLeft: 8 }}>No campaigns available</Text>
             ) : (
               <ThemedView
-                className="border rounded-lg p-4"
-                style={{ borderColor: inputBorder, backgroundColor: inputBg }}
+                className="border p-4"
+                style={{
+                  borderColor: inputBorder,
+                  backgroundColor: isDark ? "#161618" : "#f3f4f6",
+                  borderRadius: 24, 
+                }}
               >
                 {campaignOptions.map((campaign) => {
                   const checked = selectedCampaigns.includes(campaign.id);
@@ -384,28 +402,40 @@ export default function CreateContact() {
                       className="flex-row items-center my-2"
                     >
                       <ThemedView
-                        className="w-5 h-5 mr-3 border rounded items-center justify-center"
-                        style={{ borderColor: inputBorder }}
+                        style={{
+                        marginRight: 12,
+                        height: 20,
+                        width: 20,
+                        borderRadius: 6,
+                        borderWidth: 1,
+                        borderColor: "#d1d5db",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: inputBg,
+                      }}
                       >
                         {checked && (
                           <Ionicons name="checkmark-outline" size={16} color="#dc2626" />
                         )}
                       </ThemedView>
-                      <ThemedText
+                      <Text
                         style={{
                           color: inputText,
                           flexShrink: 1,
                           flexWrap: "wrap",
                         }}
                       >
-                        {campaign.name}
-                      </ThemedText>
+                        <Text className="font-medium text-gray-700 dark:text-gray-200">
+                          {campaign.name}
+                        </Text>
+                      </Text>
                     </TouchableOpacity>
                   );
                 })}
               </ThemedView>
             )}
           </FormControl>
+
         </ThemedView>
 
         {/* Submit Button */}

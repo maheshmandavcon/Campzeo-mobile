@@ -1,235 +1,71 @@
-import { useState, useEffect } from "react";
+import React from "react";
 import {
+  View,
+  Text,
   TextInput,
   TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
-  Modal,
-  FlatList,
   Image,
-  View as RNView,
-  useColorScheme
+  FlatList,
+  Modal,
+  ActivityIndicator,
 } from "react-native";
-import { ThemedView } from "@/components/themed-view";
-import { ThemedText } from "@/components/themed-text";
-import { Text, Button, View } from "@gluestack-ui/themed";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import * as DocumentPicker from "expo-document-picker";
-import { router } from "expo-router";
-import { useAuth } from "@clerk/clerk-expo";
-import * as ImagePicker from 'expo-image-picker';
-import {
-  createPostForCampaignApi,
-  updatePostForCampaignApi,
-  generateAIContentApi,
-  generateAIImageApi,
-  createPinterestBoardApi,
-  getFacebookPagesApi,
-} from "@/api/campaign/campaignApi";
 import { Ionicons } from "@expo/vector-icons";
-import { ActivityIndicator } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Button } from "@gluestack-ui/themed";
+import { useColorScheme } from "react-native";
+import { useCampaignPostForm } from "@/hooks/useCampaignPostForm";
 
-// ================= TYPES =================
-interface CampaignPostData {
-  senderEmail?: string;
-  subject: string;
-  message: string;
-  scheduledPostTime: string;
-  type: string;
-  attachments?: { uri: string; name: string; type: string }[];
+// ---------- Define Props Interface ----------
+interface CampaignPostFormProps {
+  platform: "EMAIL" | "SMS" | "INSTAGRAM" | "WHATSAPP" | "FACEBOOK" | "YOUTUBE" | "LINKEDIN" | "PINTEREST";
+  existingPost?: any;
+  campaignId?: string;
+  onClose?: () => void;
 }
 
-interface Attachment {
-  uri: string;
-  name: string;
-  type: string;
-}
-
-interface AIVariation {
-  subject: string;
-  content: string;
-}
-
-// ================= COMPONENT =================
-export default function CampaignPostForm({
+const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
   platform,
+  existingPost = null,
   campaignId,
   onClose,
-  onCreatedNavigate,
-  existingPost,
-}: {
-  platform: string;
-  campaignId?: string;
-  onClose?: (newPost?: any) => void;
-  onCreatedNavigate?: () => void;
-  existingPost?: any;
-}) {
-  const { getToken } = useAuth();
+}) => {
+  const isDark = useColorScheme() === "dark";
 
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  // console.log("Existing Post:", existingPost);
 
-  const [senderEmail, setSenderEmail] = useState(existingPost?.senderEmail || "");
-  const [subject, setSubject] = useState(existingPost?.subject || "");
-  const [message, setMessage] = useState(existingPost?.message || "");
-  const [postDate, setPostDate] = useState(
-    existingPost?.scheduledPostTime ? new Date(existingPost.scheduledPostTime) : null
-  );
-  const [attachments, setAttachments] = useState<Attachment[]>(
-    existingPost?.attachments || []
-  );
+  const {
+    // state
+    platform: platformState, senderEmail, subject, message, attachments, postDate, loading,
 
-  // AI text states
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [loadingAI, setLoadingAI] = useState(false);
-  const [aiResults, setAiResults] = useState<AIVariation[]>([]);
-  const [aiModalVisible, setAiModalVisible] = useState(false);
+    aiModalVisible, aiPrompt, aiResults, loadingAI,
 
-  // AI image states
-  const [imagePrompt, setImagePrompt] = useState("");
-  const [loadingImage, setLoadingImage] = useState(false);
-  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
-  const [selectedImage, setSelectedImage] = useState<string | undefined>(existingPost?.image || undefined);
-  const [imageModalVisible, setImageModalVisible] = useState(false);
+    imageModalVisible, imagePrompt, generatedImages, loadingImage,
 
-  // Date picker
-  const [showPicker, setShowPicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
+    facebookPages, selectedFacebookPage, facebookContentType, isFacebookPageLoading,
 
-  // const showWhatsAppContent = platform === "WHATSAPP";
+    youTubeContentType, youTubeTags, youTubeStatus, showStatusDropdown, isCreatingPlaylist,
 
-  const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
+    pinterestBoard, destinationLink, isCreatingPinterestBoard, pinterestModalVisible, newPinterestBoard, pinterestDescription, isPinterestBoardLoading, allPinterestBoards, loadingBoards,
 
-  const [pinterestBoard, setPinterestBoard] = useState<string>(""); // selected board
-  const [pinterestModalVisible, setPinterestModalVisible] = useState(false);
-  const [newPinterestBoard, setNewPinterestBoard] = useState("");
-  const [pinterestDescription, setPinterestDescription] = useState("");
+    showPicker, showTimePicker,
 
-  const [isCreatingPinterestBoard, setIsCreatingPinterestBoard] = useState(false); // UI
-  const [isPinterestBoardLoading, setIsPinterestBoardLoading] = useState(false);
-  const [destinationLink, setDestinationLink] = useState<string>("");
+    // setters
+    setSenderEmail, setSubject, setMessage, setPostDate, setAiModalVisible, setAiPrompt, setImageModalVisible, setImagePrompt, setAttachments, setFacebookContentType, setYouTubeContentType, setYouTubeTags, setYouTubeStatus, setShowStatusDropdown, setIsCreatingPlaylist, setIsCreatingPinterestBoard, setPinterestBoard, setPinterestModalVisible, setNewPinterestBoard, setPinterestDescription, setDestinationLink, setShowPicker, setShowTimePicker,
 
-  const [facebookContentType, setFacebookContentType] = useState<string>(
-    existingPost?.facebookContentType || "STANDARD"
-  );
-  const [facebookPages, setFacebookPages] = useState<any[]>([]);
-  // const [selectedFacebookPage, setSelectedFacebookPage] = useState<string | null>(null);
-  const [isFacebookPageLoading, setIsFacebookPageLoading] = useState(false);
-  // const [facebookPages, setFacebookPages] = useState<FacebookPage[]>([]);
-  const [facebookError, setFacebookError] = useState("");
-  const [selectedFacebookPage, setSelectedFacebookPage] = useState<string | null>(null);
-
-  const [coverImage, setCoverImage] = useState<string | null>(
-    existingPost?.coverImage || null
-  );
-
-
-  // ================= EFFECT =================
-  useEffect(() => {
-    if (generatedImages.length > 0 && !selectedImage) {
-      setSelectedImage(generatedImages[0]);
-    }
-  }, [generatedImages]);
-
-
-  // ================= HANDLE ATTACHMENTS =================
-  const handleAddAttachment = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: "*/*",
-        multiple: false,
-      });
-
-      if (result.canceled) return;
-
-      const file = result.assets?.[0];
-      if (!file) return;
-
-      setAttachments((prev) => [
-        ...prev,
-        {
-          uri: file.uri,
-          name: file.name ?? "attachment",
-          type: file.mimeType ?? "application/octet-stream",
-        },
-      ]);
-    } catch (error) {
-      console.error("Document picker error:", error);
-    }
-  };
-
-  const handleRemoveAttachment = (index: number) => {
-    setAttachments((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  // ================= CREATE OR EDIT POST =================
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async () => {
-    // Start loading
-    setLoading(true);
-
-    try {
-      if (!subject || !message || !postDate || (platform === "EMAIL" && !senderEmail)) {
-        Alert.alert("⚠️ Please fill in all fields.");
-        return;
-      }
-
-      if (!campaignId) {
-        Alert.alert("Campaign ID missing");
-        return;
-      }
-
-      const postData: CampaignPostData = {
-        senderEmail: senderEmail || undefined,
-        subject,
-        message,
-        scheduledPostTime: postDate.toISOString(),
-        type: platform,
-        attachments,
-      };
-
-      const token = await getToken();
-      if (!token) throw new Error("Authentication token missing");
-
-      let response;
-      if (existingPost?.id) {
-        response = await updatePostForCampaignApi(
-          Number(campaignId),
-          Number(existingPost.id),
-          postData,
-          token
-        );
-      } else {
-        response = await createPostForCampaignApi(Number(campaignId), postData, token);
-      }
-
-      onClose?.(response);
-
-      if (!existingPost) {
-        setSenderEmail("");
-        setSubject("");
-        setMessage("");
-        setAiPrompt("");
-        setPostDate(null);
-        setImagePrompt("");
-        setGeneratedImages([]);
-        setSelectedImage(undefined);
-      }
-
-      onCreatedNavigate ? onCreatedNavigate() : router.back();
-    } catch (error: any) {
-      Alert.alert("Error", error?.message || "Something went wrong");
-    } finally {
-      // Stop loading
-      setLoading(false);
-    }
-  };
+    // handlers
+    handleSubmit, handleAddAttachment, handleRemoveAttachment, handleGenerateAIText, handleGenerateAIImage, handleCoverImageUpload, handleCustomThumbnailUpload, handleCreatePinterestBoard,
+  } = useCampaignPostForm({
+    platform,
+    campaignId,
+    existingPost,
+    onClose,
+  });
 
   // ================= RENDER ATTACHMENTS =================
-  const renderAttachmentItem = ({ item, index }: { item: Attachment; index: number }) => (
+  const renderAttachmentItem = ({ item, index }: any) => (
     <View className="flex-row items-center bg-gray-200 rounded-lg px-2 py-1 mr-2 mb-2">
       {item.type.startsWith("image/") && (
         <Image
@@ -246,229 +82,22 @@ export default function CampaignPostForm({
     </View>
   );
 
-  // ================= AI TEXT =================
-  const handleGenerateAIText = async () => {
-    if (!aiPrompt.trim()) {
-      Alert.alert("Enter instruction like: add emoji, make promotional");
-      return;
-    }
-    if (loadingAI) return;
-
-    setLoadingAI(true);
-
-    try {
-      const token = await getToken();
-      if (!token) throw new Error("Authentication token missing");
-
-      const payload = {
-        prompt: aiPrompt,
-        context: { platform, existingContent: message || "" },
-        mode: "generate-multiple",
-      };
-
-      const response = await generateAIContentApi(payload, token);
-
-      if (!response?.variations || response.variations.length === 0) {
-        throw new Error("No AI suggestions returned");
-      }
-
-      // ✅ Store both subject and content
-      setAiResults(
-        response.variations.slice(0, 3).map((v: any) => ({
-          subject: v.subject,
-          content: v.content,
-        }))
-      );
-
-    } catch (error: any) {
-      Alert.alert("AI Error", error?.message || "Failed to generate content");
-    } finally {
-      setLoadingAI(false);
-    }
-  };
-
-  // ================= AI IMAGE =================
-  const handleGenerateAIImage = async () => {
-    if (!imagePrompt.trim()) {
-      Alert.alert("Enter prompt to generate image");
-      return;
-    }
-    if (loadingImage) return;
-
-    setLoadingImage(true);
-
-    try {
-      const token = await getToken();
-      if (!token) throw new Error("Authentication token missing");
-
-      const response = await generateAIImageApi({ prompt: imagePrompt }, token);
-
-      console.log("AI Image API Response:", response);
-
-      // Use 'images' array or fallback to 'imagePrompt'
-      const imageUrl = response?.images?.[0] || response?.imagePrompt || "https://picsum.photos/200";
-      setGeneratedImages([imageUrl]);
-      setSelectedImage(imageUrl);
-    } catch (error: any) {
-      Alert.alert("Image Generation Error", error?.message || "Failed to generate image");
-    } finally {
-      setLoadingImage(false);
-    }
-  };
-
-
-  const [youTubeContentType, setYouTubeContentType] = useState<string>("Standard Video");
-  const [youTubeTags, setYouTubeTags] = useState<string>("");
-  const [youTubeStatus, setYouTubeStatus] = useState<string>("");
-  const [showStatusDropdown, setShowStatusDropdown] = useState<boolean>(false);
-  const [customThumbnail, setCustomThumbnail] = useState<string | null>(null);
-
-  const handleCreatePinterestBoard = async () => {
-    if (!newPinterestBoard.trim()) {
-      Alert.alert("Board name cannot be empty");
-      return;
-    }
-
-    if (isPinterestBoardLoading) return;
-
-    try {
-      setIsPinterestBoardLoading(true);
-
-      const token = await getToken();
-      if (!token) {
-        throw new Error("Authentication token missing");
-      }
-
-      const response = await createPinterestBoardApi(
-        {
-          name: newPinterestBoard.trim(),
-          description: pinterestDescription?.trim() || "",
-          privacy: "PUBLIC",
-        },
-        token
-      );
-
-      // ✅ success
-      setPinterestBoard(response?.data?.name || newPinterestBoard.trim());
-      setNewPinterestBoard("");
-      setPinterestDescription("");
-      setPinterestModalVisible(false);
-    } catch (error: any) {
-      console.log("CREATE BOARD ERROR:", error?.response?.data || error);
-
-      // ✅ handle backend error properly
-      if (error?.response?.data?.error === "Pinterest not connected") {
-        Alert.alert(
-          "Pinterest Not Connected",
-          "Please connect your Pinterest account before creating a board."
-        );
-      } else {
-        Alert.alert(
-          "Error",
-          error?.response?.data?.message || "Failed to create board"
-        );
-      }
-    } finally {
-      // ✅ THIS IS THE MOST IMPORTANT LINE
-      setIsPinterestBoardLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (platform === "FACEBOOK") {
-      fetchFacebookPages();
-    }
-  }, [platform]);
-
-  const fetchFacebookPages = async () => {
-    setIsFacebookPageLoading(true); // start loading
-    try {
-      const token = await getToken();
-      if (!token) throw new Error("Authentication token missing");
-
-      const pages = await getFacebookPagesApi(token); // your API
-
-      if (!pages || pages.length === 0) {
-        setFacebookPages([]);
-        setFacebookError(
-          "No Facebook Pages found. Make sure you've connected your account and granted permissions."
-        );
-        setSelectedFacebookPage(null); // clear selection
-      } else {
-        setFacebookPages(pages);
-        setFacebookError("");
-        setSelectedFacebookPage(pages[0].name); // auto-select first page
-      }
-    } catch (err: any) {
-      setFacebookPages([]);
-      setSelectedFacebookPage(null);
-      setFacebookError(
-        err.message === "Facebook not connected"
-          ? "No Facebook Pages found. Make sure you've connected your account and granted permissions."
-          : "Failed to fetch Facebook Pages"
-      );
-    } finally {
-      setIsFacebookPageLoading(false); // stop loading
-    }
-  };
-
-  const handleCustomThumbnailUpload = async () => {
-    // Ask permission
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
-      alert("Permission to access gallery is required!");
-      return;
-    }
-
-    // Open image picker
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images, // ✅ only images
-      allowsEditing: true, // optional: allow cropping
-      aspect: [16, 9], // optional: crop aspect ratio
-      quality: 1, // image quality
-    });
-
-    // If user didn't cancel, set thumbnail
-    if (!result.canceled) {
-      setCustomThumbnail(result.assets[0].uri); // Expo SDK 48+ uses result.assets
-    }
-  };
-
-  // const [coverImage, setCoverImage] = useState<string | null>(
-  //   existingPost?.coverImage || null
-  // );
-
-  const handleCoverImageUpload = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      alert('Permission to access gallery is required!');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [9, 16],
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      setCoverImage(result.assets[0].uri);
-    }
-  };
-
-
   return (
     <KeyboardAvoidingView
       className="flex-1"
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
     >
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+      <ScrollView
+        // keyboardShouldPersistTaps="never"
+        // showsVerticalScrollIndicator={false}
+        // contentContainerStyle={{ paddingBottom: 120 }}
+        style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
+      >
         <View className="flex-1"
           style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
 
-          {platform === "EMAIL" && (
+          {platformState === "EMAIL" && (
             <>
               <Text style={{
                 color: isDark ? "#ffffff" : "#000000",
@@ -499,7 +128,7 @@ export default function CampaignPostForm({
           )}
 
           {/* SUBJECT */}
-          {platform !== "SMS" && (
+          {platformState !== "SMS" && (
             <>
               <Text
                 style={{
@@ -509,12 +138,12 @@ export default function CampaignPostForm({
                   marginLeft: 4,
                 }}
               >
-                {platform === "EMAIL" ? "Subject" : "Title"}
+                {platformState === "EMAIL" ? "Subject" : "Title"}
               </Text>
 
               <TextInput
                 placeholder={
-                  platform === "EMAIL"
+                  platformState === "EMAIL"
                     ? "Enter subject"
                     : "Enter title"
                 }
@@ -524,13 +153,13 @@ export default function CampaignPostForm({
                 className="border border-gray-300 rounded-full px-3 h-12 mb-2 bg-white"
                 style={{
                   borderWidth: 1,
-                  borderColor: isDark ? "#374151" : "#d1d5db", // white in dark mode, gray-300 in light mode
-                  borderRadius: 9999, // fully rounded
+                  borderColor: isDark ? "#374151" : "#d1d5db",
+                  borderRadius: 9999,
                   paddingHorizontal: 12,
                   height: 48,
                   marginBottom: 16,
-                  backgroundColor: isDark ? "#161618" : "#ffffff", // dark/light bg
-                  color: isDark ? "#e5e7eb" : "#111111", // text color
+                  backgroundColor: isDark ? "#161618" : "#ffffff",
+                  color: isDark ? "#e5e7eb" : "#111111",
                 }}
               />
             </>
@@ -564,7 +193,7 @@ export default function CampaignPostForm({
             marginLeft: 4,
           }}>Message</Text>
           <TextInput
-            placeholder={`Enter your ${platform} content here...`}
+            placeholder={`Enter your ${platformState} content here...`}
             placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
             value={message}
             onChangeText={setMessage}
@@ -585,8 +214,7 @@ export default function CampaignPostForm({
           />
 
           {/* AI IMAGE BUTTON */}
-
-          {platform !== "SMS" && (
+          {platformState !== "SMS" && (
             <TouchableOpacity
               onPress={() => setImageModalVisible(true)}
               style={{
@@ -674,7 +302,6 @@ export default function CampaignPostForm({
                   </TouchableOpacity>
                 </View>
 
-
                 {loadingAI ? (
                   <View
                     style={{
@@ -718,7 +345,6 @@ export default function CampaignPostForm({
                     No AI suggestions yet. Enter a prompt and tap Generate.
                   </Text>
                 )}
-
 
                 <Button onPress={() => setAiModalVisible(false)} style={{ backgroundColor: "#dc2626", marginTop: 12 }}>
                   <Text style={{ color: "#fff", fontWeight: "bold" }}>Close</Text>
@@ -782,7 +408,6 @@ export default function CampaignPostForm({
                   </TouchableOpacity>
                 </View>
 
-
                 {/* AI GENERATED IMAGES */}
                 {loadingImage ? (
                   <View
@@ -814,7 +439,7 @@ export default function CampaignPostForm({
                               type: "image/jpeg",
                             },
                           ]);
-                          setImageModalVisible(false); // optional: close modal
+                          setImageModalVisible(false);
                         }}
                       >
                         <Image
@@ -830,7 +455,6 @@ export default function CampaignPostForm({
                   <Text style={{ color: "#555", marginVertical: 8 }}>No images yet. Enter a prompt and generate.</Text>
                 )}
 
-
                 <Button onPress={() => setImageModalVisible(false)} style={{ backgroundColor: "#dc2626", marginTop: 12 }}>
                   <Text style={{ color: "#fff", fontWeight: "bold" }}>Close</Text>
                 </Button>
@@ -838,38 +462,56 @@ export default function CampaignPostForm({
             </View>
           </Modal>
 
-          {/* ATTACHMENTS */}
-          <Text style={{
-            color: isDark ? "#ffffff" : "#000000",
-            fontWeight: "bold",
-            marginBottom: 8,
-            marginLeft: 4,
-          }}>
-            Attachments
+          {/* MEDIA */}
+          <Text
+            style={{
+              color: isDark ? "#ffffff" : "#000000",
+              fontWeight: "bold",
+              marginBottom: 8,
+              marginLeft: 4,
+            }}
+          >
+            {platformState === "YOUTUBE" ? "Media (Videos)" : "Media (Photos / Videos)"}
           </Text>
+
           <FlatList
-            data={attachments}
+            data={attachments} // you can rename state to `media` if you like
             horizontal
+            showsHorizontalScrollIndicator={false}
             keyExtractor={(_, index) => String(index)}
             renderItem={renderAttachmentItem}
             ListHeaderComponent={
               <TouchableOpacity
                 onPress={handleAddAttachment}
-                className="flex-row items-center justify-center bg-blue-100 rounded-lg px-4 py-2 mr-2 mb-2"
+                disabled={loading}
+                style={{
+                  width: 70,
+                  height: 70,
+                  borderRadius: 8,
+                  backgroundColor: "#dbeafe",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginRight: 8,
+                  marginBottom: 8,
+                }}
               >
-                <Ionicons name="add" size={24} color="#2563eb" />
+                {loading ? (
+                  <ActivityIndicator size="small" color="#2563eb" />
+                ) : (
+                  <Ionicons name="add" size={28} color="#2563eb" />
+                )}
               </TouchableOpacity>
             }
           />
 
-          {platform === "FACEBOOK" && (
+          {platformState === "FACEBOOK" && (
             <View
               style={{
                 borderWidth: 1,
-                borderColor: isDark ? "#374151" : "#d1d5db", // gray-700 / gray-300
+                borderColor: isDark ? "#374151" : "#d1d5db",
                 borderRadius: 12,
                 padding: 14,
-                marginTop: 12,
+                // marginTop: 12,
                 marginBottom: 12,
                 backgroundColor: isDark ? "#161618" : "#ffffff", // gray-900 / white
               }}
@@ -907,7 +549,7 @@ export default function CampaignPostForm({
                 <Text
                   style={{
                     fontSize: 14,
-                    color: isDark ? "#e5e7eb" : "#000000", // gray-200 / black
+                    color: isDark ? "#e5e7eb" : "#000000",
                   }}
                 >
                   {selectedFacebookPage || facebookPages[0].name}
@@ -916,7 +558,7 @@ export default function CampaignPostForm({
                 <Text
                   style={{
                     fontSize: 12,
-                    color: "#f87171", // red-400 (better visibility in dark)
+                    color: "#f87171",
                   }}
                 >
                   No Facebook Pages found. Make sure you've connected your account and granted permissions.
@@ -928,7 +570,7 @@ export default function CampaignPostForm({
                 style={{
                   marginTop: 6,
                   fontSize: 11,
-                  color: isDark ? "#9ca3af" : "#6b7280", // gray-400 / gray-500
+                  color: isDark ? "#9ca3af" : "#6b7280",
                 }}
               >
                 Posts will be published to the selected page.
@@ -936,9 +578,8 @@ export default function CampaignPostForm({
             </View>
           )}
 
-
           {/* FACEBOOK CONTENT TYPE */}
-          {(platform === "FACEBOOK" || platform === "INSTAGRAM") && (
+          {(platformState === "FACEBOOK" || platformState === "INSTAGRAM") && (
             <View
               style={{
                 borderWidth: 1,
@@ -970,14 +611,12 @@ export default function CampaignPostForm({
                     marginRight: 6,
                     borderRadius: 8,
                     borderWidth: 1,
-
                     borderColor:
                       facebookContentType === "STANDARD"
                         ? "#3b82f6" // blue-500
                         : isDark
                           ? "#374151" // gray-700
                           : "#d1d5db", // gray-300
-
                     backgroundColor:
                       facebookContentType === "STANDARD"
                         ? isDark
@@ -986,7 +625,6 @@ export default function CampaignPostForm({
                         : isDark
                           ? "#161618" // dark surface
                           : "#ffffff",
-
                     alignItems: "center",
                   }}
                 >
@@ -998,16 +636,15 @@ export default function CampaignPostForm({
                         facebookContentType === "STANDARD"
                           ? isDark
                             ? "#fff"
-                            : "#2563eb"           // ✅ white when selected
+                            : "#2563eb"
                           : isDark
-                            ? "#ffffff"           // ✅ white when dark mode
+                            ? "#ffffff"
                             : "#000000",
                     }}
                   >
                     Standard Post
                   </Text>
                 </TouchableOpacity>
-
 
                 {/* Reel / Short Video */}
                 <TouchableOpacity
@@ -1018,14 +655,12 @@ export default function CampaignPostForm({
                     marginLeft: 6,
                     borderRadius: 8,
                     borderWidth: 1,
-
                     borderColor:
                       facebookContentType === "REEL"
                         ? "#3b82f6" // blue-500
                         : isDark
                           ? "#374151" // gray-700
                           : "#d1d5db", // gray-300
-
                     backgroundColor:
                       facebookContentType === "REEL"
                         ? isDark
@@ -1034,7 +669,6 @@ export default function CampaignPostForm({
                         : isDark
                           ? "#161618" // dark bg
                           : "#ffffff",
-
                     alignItems: "center",
                   }}
                 >
@@ -1055,7 +689,6 @@ export default function CampaignPostForm({
                     Reel / Short Video
                   </Text>
                 </TouchableOpacity>
-
               </View>
 
               {/* ---------- New section for Reel / Short Video ---------- */}
@@ -1108,12 +741,10 @@ export default function CampaignPostForm({
                   </Text>
                 </View>
               )}
-
             </View>
           )}
 
-
-          {platform === "YOUTUBE" && (
+          {platformState === "YOUTUBE" && (
             <View
               style={{
                 backgroundColor: isDark ? "#161618" : "#f3f4f6", // gray-900 / gray-100
@@ -1187,10 +818,10 @@ export default function CampaignPostForm({
                               color: selected
                                 ? isDark
                                   ? "#fff"
-                                  : "#2563eb"           // ✅ white when selected
+                                  : "#2563eb"
                                 : isDark
-                                  ? "#ffffff"           // ✅ white when dark mode
-                                  : "#000000",          // black in light mode
+                                  ? "#ffffff"
+                                  : "#000000",
                             }}
                             numberOfLines={1}
                           >
@@ -1219,10 +850,10 @@ export default function CampaignPostForm({
                       <Text
                         style={{
                           color: isDark
-                            ? "#ffffff"          // ✅ always white in dark mode
+                            ? "#ffffff"
                             : isCreatingPlaylist
-                              ? "#2563eb"          // blue when selected in light mode
-                              : "#000000",        // black when not selected in light mode
+                              ? "#2563eb"
+                              : "#000000",
                           fontWeight: "bold",
                           fontSize: 12,
                         }}
@@ -1276,7 +907,7 @@ export default function CampaignPostForm({
                 }}
               >
                 <Text style={{ color: isDark ? "#e5e7eb" : "#000" }}>
-                  {youTubeStatus || "Select status"}
+                  {youTubeStatus || "Public"}
                 </Text>
                 <Ionicons
                   name={showStatusDropdown ? "chevron-up" : "chevron-down"}
@@ -1337,7 +968,7 @@ export default function CampaignPostForm({
             </View>
           )}
 
-          {platform === "PINTEREST" && (
+          {platformState === "PINTEREST" && (
             <View style={{ borderRadius: 8 }}>
               {/* Pinterest Settings Heading */}
               <Text style={{ fontWeight: "bold", marginBottom: 8, fontSize: 16, color: isDark ? "#ffffff" : "#000000" }}>
@@ -1348,18 +979,22 @@ export default function CampaignPostForm({
               <View
                 style={{
                   borderWidth: 1,
-                  borderColor: isDark ? "#374151" : "#d1d5db", // dark/light border
+                  borderColor: isDark ? "#374151" : "#d1d5db",
                   borderRadius: 8,
                   padding: 12,
                   marginBottom: 16,
                 }}
               >
+
+
+                {/* setIsCreatingPinterestBoard */}
                 {/* Select Board */}
                 <Text style={{ fontWeight: "600", marginBottom: 8, color: isDark ? "#ffffff" : "#000000" }}>
                   Select Board
                 </Text>
+                {/* Select Board Button */}
                 <TouchableOpacity
-                  onPress={() => setIsCreatingPinterestBoard(true)}
+                  onPress={() => setPinterestModalVisible(true)}
                   style={{
                     borderWidth: 1,
                     borderColor: isDark ? "#374151" : "#d1d5db",
@@ -1369,28 +1004,133 @@ export default function CampaignPostForm({
                     marginBottom: 8,
                   }}
                 >
-                  <Text style={{ color: isDark ? "#9ca3af" : "#000000" }}>{pinterestBoard || "Select a board"}</Text>
+                  <Text style={{ color: isDark ? "#9ca3af" : "#000000" }}>
+                    {pinterestBoard || "Select a board"}
+                  </Text>
                 </TouchableOpacity>
 
-                {/* + Create New Board */}
-                {isCreatingPinterestBoard && (
-                  <TouchableOpacity
-                    onPress={() => setPinterestModalVisible(true)}
+                {/* Pinterest Modal */}
+                <Modal
+                  visible={pinterestModalVisible}
+                  animationType="slide"
+                  transparent
+                  onRequestClose={() => setPinterestModalVisible(false)}
+                >
+                  <View
                     style={{
-                      borderWidth: 1,
-                      borderColor: isDark ? "#374151" : "#d1d5db",
-                      borderRadius: 9999,
-                      paddingVertical: 10,
-                      paddingHorizontal: 12,
-                      marginBottom: 8,
-                      alignItems: "center",
+                      flex: 1,
+                      backgroundColor: "rgba(0,0,0,0.5)",
+                      justifyContent: "center",
+                      padding: 20,
                     }}
                   >
-                    <Text style={{ color: "#2563eb", fontWeight: "bold", fontSize: 12 }}>
-                      + Create New Board
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                    <View
+                      style={{
+                        backgroundColor: isDark ? "#1f2937" : "#fff",
+                        borderRadius: 12,
+                        maxHeight: "80%",
+                        padding: 16,
+                      }}
+                    >
+                      {/* + Create New Board */}
+                      <TouchableOpacity
+                        onPress={() => setIsCreatingPinterestBoard(true)}
+                        style={{
+                          paddingVertical: 12,
+                          paddingHorizontal: 16,
+                          marginBottom: 12,
+                          backgroundColor: isDark ? "#111827" : "#f3f4f6",
+                          borderRadius: 8,
+                        }}
+                      >
+                        <Text style={{ color: "#2563eb", fontWeight: "bold" }}>
+                          + Create New Board
+                        </Text>
+                      </TouchableOpacity>
+
+                      {/* Create Board Form */}
+                      {isCreatingPinterestBoard && (
+                        <View style={{ marginBottom: 16 }}>
+                          <TextInput
+                            value={newPinterestBoard}
+                            onChangeText={setNewPinterestBoard}
+                            placeholder="Board Name"
+                            placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+                            style={{
+                              borderWidth: 1,
+                              borderColor: isDark ? "#374151" : "#d1d5db",
+                              borderRadius: 8,
+                              padding: 10,
+                              marginBottom: 8,
+                              color: isDark ? "#e5e7eb" : "#000000",
+                            }}
+                          />
+                          <TextInput
+                            value={pinterestDescription}
+                            onChangeText={setPinterestDescription}
+                            placeholder="Description (optional)"
+                            placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+                            style={{
+                              borderWidth: 1,
+                              borderColor: isDark ? "#374151" : "#d1d5db",
+                              borderRadius: 8,
+                              padding: 10,
+                              marginBottom: 8,
+                              color: isDark ? "#e5e7eb" : "#000000",
+                            }}
+                          />
+                          <TouchableOpacity
+                            onPress={handleCreatePinterestBoard}
+                            style={{
+                              backgroundColor: "#2563eb",
+                              paddingVertical: 12,
+                              borderRadius: 8,
+                              alignItems: "center",
+                            }}
+                          >
+                            <Text style={{ color: "#fff", fontWeight: "bold" }}>Create</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+
+                      {/* Existing Boards List */}
+                      <View style={{ maxHeight: 250 }}>
+                        {loadingBoards ? (
+                          <ActivityIndicator size="small" color="#2563eb" style={{ margin: 20 }} />
+                        ) : allPinterestBoards.length === 0 ? (
+                          <Text style={{ color: isDark ? "#e5e7eb" : "#000", margin: 12 }}>
+                            No boards found
+                          </Text>
+                        ) : (
+                          <FlatList
+                            data={allPinterestBoards}
+                            keyExtractor={(item) => item}
+                            style={{ flexGrow: 0 }}
+                            nestedScrollEnabled
+                            renderItem={({ item }) => (
+                              <TouchableOpacity
+                                onPress={() => {
+                                  setPinterestBoard(item);
+                                  setIsCreatingPinterestBoard(false);
+                                  setPinterestModalVisible(false);
+                                }}
+                                style={{
+                                  paddingVertical: 10,
+                                  paddingHorizontal: 12,
+                                  borderRadius: 8,
+                                  marginBottom: 6,
+                                  backgroundColor: isDark ? "#111827" : "#f3f4f6",
+                                }}
+                              >
+                                <Text style={{ color: isDark ? "#e5e7eb" : "#000000" }}>{item}</Text>
+                              </TouchableOpacity>
+                            )}
+                          />
+                        )}
+                      </View>
+                    </View>
+                  </View>
+                </Modal>
 
                 {/* Destination Link */}
                 <Text style={{ fontWeight: "600", marginBottom: 8, color: isDark ? "#ffffff" : "#000000" }}>
@@ -1517,7 +1257,6 @@ export default function CampaignPostForm({
             </View>
           )}
 
-
           {/* DATE TIME */}
           <TouchableOpacity
             onPress={() => setShowPicker(true)}
@@ -1590,27 +1329,29 @@ export default function CampaignPostForm({
             />
           )}
 
-          <Button
-            onPress={handleSubmit}
-            className="rounded-full mb-8 px-4 py-3 flex-row justify-center items-center"
-            style={{ backgroundColor: "#dc2626", borderRadius: 50 }}
-            disabled={loading}
-          >
-            <View className="flex-row justify-center items-center">
-              {loading && (
-                <ActivityIndicator
-                  size="small"
-                  color="#fff"
-                  style={{ marginRight: 8 }} // space between spinner and text
-                />
-              )}
-              <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                {existingPost ? "Update Campaign Post" : "Create Campaign Post"}
-              </Text>
-            </View>
-          </Button>
         </View>
+        <Button
+          onPress={handleSubmit}
+          className="rounded-full mb-8 px-4 py-3 flex-row justify-center items-center"
+          style={{ backgroundColor: "#dc2626", borderRadius: 50, height: 48 }}
+          disabled={loading}
+        >
+          <View className="flex-row justify-center items-center">
+            {loading && (
+              <ActivityIndicator
+                size="small"
+                color="#fff"
+                style={{ marginRight: 8 }}
+              />
+            )}
+            <Text style={{ color: "#fff", fontWeight: "bold" }}>
+              {existingPost ? "Update Campaign Post" : "Create Campaign Post"}
+            </Text>
+          </View>
+        </Button>
       </ScrollView>
     </KeyboardAvoidingView>
   );
-}
+};
+
+export default CampaignPostForm;
