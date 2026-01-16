@@ -43,7 +43,7 @@ import PaymentHistoryCard from "./billingComponents/paymentHistoryCard";
 import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
 import { Center } from "@/components/ui/center";
-import { Progress, ProgressFilledTrack } from "@/components/ui/progress";
+// import { Progress, ProgressFilledTrack } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import {
   Modal,
@@ -61,6 +61,7 @@ import {
 } from "@/components/ui/radio";
 import { Divider } from "@/components/ui/divider";
 import { Textarea, TextareaInput } from "@/components/ui/textarea";
+import { Progress, ProgressFilledTrack } from "@gluestack-ui/themed";
 
 const ACCENT = "#dc2626";
 const MUTED = "#6b7280";

@@ -2,6 +2,8 @@ import "react-native-gesture-handler"; // 🔥 MUST BE FIRST
 import "react-native-reanimated";
 import "../global.css";
 
+// import { OverlayProvider } from "@gluestack-ui/core/overlay";
+
 import React, { useEffect } from "react";
 import { ActivityIndicator } from "react-native";
 
@@ -24,6 +26,7 @@ import { ThemedText } from "@/components/themed-text";
 
 import { GluestackUIProvider } from "@gluestack-ui/themed";
 import { config } from "@gluestack-ui/config";
+import { OverlayProvider } from "@gluestack-ui/core/overlay/creator";
 
 /* -------------------------------------------------------------------------- */
 /*                               Clerk Token Cache                             */
@@ -111,27 +114,30 @@ export default function RootLayout() {
         <AuthBridge />
 
         <GluestackUIProvider
-          config={config}
-          colorMode={colorScheme === "dark" ? "dark" : "light"}
-        >
-          <SafeAreaProvider>
-            <ThemeProvider
-              value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-            >
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <QueryClientProvider client={queryClient}>
-                  <AuthGuard>
-                    <Stack screenOptions={{ headerShown: false }}>
-                      <Stack.Screen name="(auth)" />
-                      <Stack.Screen name="(tabs)" />
-                    </Stack>
-                  </AuthGuard>
-                  <StatusBar style="auto" />
-                </QueryClientProvider>
-              </GestureHandlerRootView>
-            </ThemeProvider>
-          </SafeAreaProvider>
-        </GluestackUIProvider>
+  config={config}
+  colorMode={colorScheme === "dark" ? "dark" : "light"}
+>
+  <OverlayProvider>
+    <SafeAreaProvider>
+      <ThemeProvider
+        value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+      >
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <QueryClientProvider client={queryClient}>
+            <AuthGuard>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(tabs)" />
+              </Stack>
+            </AuthGuard>
+            <StatusBar style="auto" />
+          </QueryClientProvider>
+        </GestureHandlerRootView>
+      </ThemeProvider>
+    </SafeAreaProvider>
+  </OverlayProvider>
+</GluestackUIProvider>
+
       </ClerkLoaded>
     </ClerkProvider>
   );
