@@ -5,19 +5,22 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-  ActivityIndicator,
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
   Text,
   View,
+  ActivityIndicator,
+  Pressable
 } from "react-native";
 import GoogleAuth from "./googleAuth";
 import { Button } from "@/components/ui/button";
 import { Input, InputField } from "@/components/ui/input";
 
 export default function LoginScreen() {
+  console.log("[Login] Component rendering");
   const { signIn, setActive, isLoaded } = useSignIn();
   const router = useRouter();
 
@@ -27,13 +30,18 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
 
   const onSignInPress = async () => {
-    if (!isLoaded) return;
+    if (!isLoaded) {
+      console.log("[Login] Clerk useSignIn not loaded yet");
+      return;
+    }
 
     if (!email || !password) {
+      console.log("[Login] Missing email or password");
       setError("Email and password are required");
       return;
     }
 
+    console.log("[Login] Starting sign-in attempt for:", email);
     setLoading(true);
     setError("");
 
@@ -43,14 +51,32 @@ export default function LoginScreen() {
         password,
       });
 
+      console.log("[Login] Sign-in result:", {
+        status: result.status,
+        createdSessionId: result.createdSessionId,
+        firstFactorVerification: result.firstFactorVerification?.status,
+      });
+
       if (result.status === "complete") {
+        console.log("[Login] Sign-in complete, setting active session");
         await setActive({ session: result.createdSessionId });
-        router.replace("/(tabs)/dashboard");
+        console.log("[Login] Active session set successfully");
+      } else {
+        console.log("[Login] Sign-in incomplete. Status:", result.status);
+        setError("Sign in not complete. Please check your email for verification.");
       }
     } catch (err: any) {
-      setError(err?.errors?.[0]?.message || "Invalid email or password");
+      console.error("[Login] Sign-in error:", JSON.stringify(err, null, 2));
+      if (err.errors?.[0]?.code === "form_password_incorrect") {
+        setError("Incorrect password. Please try again.");
+      } else if (err.errors?.[0]?.code === "form_identifier_not_found") {
+        setError("Account not found. Please sign up first.");
+      } else {
+        setError(err?.errors?.[0]?.message || "Invalid email or password");
+      }
     } finally {
       setLoading(false);
+      console.log("[Login] Sign-in flow finished");
     }
   };
 
@@ -108,23 +134,27 @@ export default function LoginScreen() {
           )}
 
           {/* Sign In Button */}
-          <Button
+          <Pressable
             onPress={onSignInPress}
-            isDisabled={loading}
-            style={styles.signInButton}
+            disabled={loading}
+            style={({ pressed }) => [
+              styles.signInButton,
+              { opacity: pressed || loading ? 0.8 : 1 }
+            ]}
           >
             {loading ? (
-              <ActivityIndicator color="#ffffff" />
+              <ActivityIndicator color="#ff0000ff" />
             ) : (
               <Text style={styles.signInText}>Sign In</Text>
             )}
-          </Button>
+          </Pressable>
 
           {/* Divider */}
           <View style={styles.divider} />
 
           {/* Google Auth */}
           <GoogleAuth />
+
         </BlurView>
       </LinearGradient>
     </KeyboardAvoidingView>
@@ -196,12 +226,13 @@ const styles = StyleSheet.create({
   },
 
   signInButton: {
-            height: 45,
+    height: 45,
     backgroundColor: "#dc2626",
     borderRadius: 14,
     marginTop: 6,
-lineHeight: 22,
-},
+    justifyContent: "center",
+    alignItems: "center",
+  },
 
   signInText: {
     color: "#ffffff",
