@@ -23,59 +23,36 @@ import React, { useEffect } from "react";
 import { setTokenGetter } from "@/lib/authToken";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ThemedView } from "@/components/themed-view";
-import { ActivityIndicator } from "react-native";
-import { ThemedText } from "@/components/themed-text";
+import * as Linking from "expo-linking";
+import { ActivityIndicator, Image } from "react-native";
 
-// Secure token cache for Clerk
+
 const tokenCache = {
-  async getToken(key: string): Promise<string | null> {
+  async getToken(key: string) {
     try {
-      return await SecureStore.getItemAsync(key);
+      const item = await SecureStore.getItemAsync(key);
+      if (item) {
+        console.log(`[TokenCache] Token found for key: ${key}`);
+      } else {
+        console.log(`[TokenCache] No token found for key: ${key}`);
+      }
+      return item;
     } catch (err) {
-      console.error("SecureStore getToken error:", err);
+      console.error(`[TokenCache] Error getting token for key: ${key}`, err);
       return null;
     }
   },
-  async saveToken(key: string, value: string): Promise<void> {
+  async saveToken(key: string, value: string) {
     try {
+      console.log(`[TokenCache] ATTEMPTING SAVE for key: ${key}`);
       await SecureStore.setItemAsync(key, value);
+      console.log(`[TokenCache] SAVE SUCCESS for key: ${key}`);
     } catch (err) {
-      console.error("SecureStore saveToken error:", err);
-    }
-  },
-  async clearToken(key: string): Promise<void> {
-    try {
-      await SecureStore.deleteItemAsync(key);
-    } catch (err) {
-      console.error("SecureStore clearToken error:", err);
+      console.error(`[TokenCache] SAVE FAILED for key: ${key}`, err);
+      return;
     }
   },
 };
-
-// function AuthGuard({ children }: { children: React.ReactNode }) {
-//   const { isSignedIn, isLoaded } = useAuth();
-//   const segments = useSegments();
-//   const router = useRouter();
-
-//   useEffect(() => {
-//     if (!isLoaded) return;
-
-//     const inAuthGroup = segments[0] === "(auth)";
-
-//     if (!isSignedIn && !inAuthGroup) {
-//       router.replace("/(auth)/login");
-//     } else if (isSignedIn && inAuthGroup) {
-//       router.replace("/(tabs)/dashboard");
-//     }
-//   }, [isLoaded, isSignedIn, segments]);
-
-//   // 🔑 IMPORTANT: block render while auth loads
-//   if (!isLoaded) {
-//     return null; // or loading spinner
-//   }
-
-//   return <>{children}</>;
-// }
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isSignedIn, isLoaded } = useAuth();
@@ -83,40 +60,35 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
+    console.log("[AuthGuard] State Change:", { isLoaded, isSignedIn, segments });
     if (!isLoaded) return;
 
     const inAuthGroup = segments[0] === "(auth)";
 
-    if (!isSignedIn && !inAuthGroup) {
+    if (isSignedIn && inAuthGroup) {
+      console.log("[AuthGuard] Redirecting to Dashboard (Signed In)");
+      router.replace("/(tabs)/dashboard");
+    } else if (!isSignedIn && !inAuthGroup) {
+      console.log("[AuthGuard] Redirecting to Login (Not Signed In)");
       router.replace("/(auth)/login");
     }
-
-    if (isSignedIn && inAuthGroup) {
-      router.replace("/(tabs)/dashboard");
-    }
-  }, [isLoaded, isSignedIn, segments]);
+  }, [isSignedIn, isLoaded, segments]);
 
   if (!isLoaded) {
     return (
-      <ThemedView className="flex-1 items-center justify-center">
+      <ThemedView className="flex-1 items-center justify-center" style={{ backgroundColor: "#ffffff" }}>
+        <Image
+          source={require("../assets/app-images/camp-logo.png")}
+          style={{ width: 200, height: 80, resizeMode: "contain", marginBottom: 20 }}
+        />
         <ActivityIndicator size="large" color="#dc2626" />
-        <ThemedText
-          style={{
-            marginTop: 12,
-            fontSize: 14,
-            color: "#6b7280",
-          }}
-        >
-          Loading dashboard…
-        </ThemedText>
       </ThemedView>
-    ); // or spinner
+    );
   }
 
   return <>{children}</>;
 }
 
-// set token getter function
 function AuthBridge() {
   const { getToken } = useAuth();
 
@@ -127,17 +99,42 @@ function AuthBridge() {
   return null;
 }
 
+function GlobalLinkingHandler() {
+  useEffect(() => {
+    const handleDeepLink = (event: { url: string }) => {
+      console.log("[Linking] URL received:", event.url);
+    };
+
+    const subscription = Linking.addEventListener("url", handleDeepLink);
+
+    Linking.getInitialURL().then((url) => {
+      console.log("[Linking] Initial URL:", url);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  return null;
+}
+
 export default function RootLayout() {
   const publishableKey = Constants.expoConfig?.extra?.clerkPublishableKey;
   const colorScheme = useColorScheme();
   const queryClient = new QueryClient();
 
+  if (!publishableKey) {
+    throw new Error("Missing Clerk Publishable Key");
+  }
+
   return (
-    <ClerkProvider publishableKey={publishableKey!} tokenCache={tokenCache}>
+    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <ClerkLoaded>
         <AuthBridge />
 
         <AuthGuard>
+          <GlobalLinkingHandler />
           <GluestackUIProvider config={config}>
             <SafeAreaProvider>
               <ThemeProvider

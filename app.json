@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Campzeo",
-    "slug": "userInterface",
+    "slug": "developer-surya",
     "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/app-images/app-logo.png",
@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.campzeo.app"
     },
     "android": {
       "package": "com.campzeo.app",
@@ -21,7 +22,20 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "launchMode": "singleTask",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "campzeo"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "output": "static",
@@ -51,8 +65,10 @@
       "apiBaseUrl": "https://camp-zeo-testing-git-testing-mandav-consultancy.vercel.app/api/",
       "router": {},
       "eas": {
-        "projectId": "b6f3a055-c353-4a33-8a68-ced60513ff03"
-      }
-    }
+        "projectId": "0f9838cc-9a46-44d8-8907-94b43c383b78"
+      },
+      "mobileApiKey": "YEKa-f39c7b12e84d56a1c92f0b4c77e9d3"
+    },
+    "owner": "suryads53"
   }
 }
