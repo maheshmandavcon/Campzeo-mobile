@@ -86,7 +86,7 @@ export default function GoogleAuth() {
         style={{
           height: 45,
           borderWidth: 1,
-          borderColor: "#991b1b",
+          borderColor: "#dc2626",
           borderRadius: 10,
           justifyContent: "center",
           alignItems: "center",
@@ -97,7 +97,7 @@ export default function GoogleAuth() {
         }}
         disabled={loading}
       >
-        {loading ? <ActivityIndicator color="#ef4444" /> : <Text>Continue with Google</Text>}
+        {loading ? <ActivityIndicator color="#ef4444" /> : <Text className="color-[#dc2626]">Continue with Google</Text>}
       </Pressable>
     </View>
   );

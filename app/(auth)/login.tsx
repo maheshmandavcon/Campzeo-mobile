@@ -137,6 +137,8 @@ export default function LoginScreen() {
           <Pressable
             onPress={onSignInPress}
             disabled={loading}
+                        className="bg-[#dc2626] rounded-2xl py-3"
+
             style={({ pressed }) => [
               styles.signInButton,
               { opacity: pressed || loading ? 0.8 : 1 }
