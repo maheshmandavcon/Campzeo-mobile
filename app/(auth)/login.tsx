@@ -59,6 +59,7 @@ export default function LoginScreen() {
 
       if (result.status === "complete") {
         console.log("[Login] Sign-in complete, setting active session");
+        // signIn
         await setActive({ session: result.createdSessionId });
         console.log("[Login] Active session set successfully");
       } else {

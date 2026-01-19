@@ -25,8 +25,7 @@ import * as Linking from "expo-linking";
 import { ActivityIndicator, Image } from "react-native";
 import { GluestackUIProvider } from "@gluestack-ui/themed";
 import { config } from "@gluestack-ui/config";
-import { OverlayProvider } from "@gluestack-ui/core/overlay/creator";
-import { ThemedText } from "@/components/themed-text";
+
 
 const tokenCache = {
   async getToken(key: string) {

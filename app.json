@@ -33,7 +33,10 @@
               "scheme": "campzeo"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -64,11 +67,11 @@
       "clerkPublishableKey": "pk_test_ZmFzdC1yZWRmaXNoLTUyLmNsZXJrLmFjY291bnRzLmRldiQ",
       "apiBaseUrl": "https://camp-zeo-testing-git-testing-mandav-consultancy.vercel.app/api/",
       "router": {},
+      "mobileApiKey": "YEKa-f39c7b12e84d56a1c92f0b4c77e9d3",
       "eas": {
-        "projectId": "0f9838cc-9a46-44d8-8907-94b43c383b78"
-      },
-      "mobileApiKey": "YEKa-f39c7b12e84d56a1c92f0b4c77e9d3"
+        "projectId": "bacc1a4c-7323-4b1b-bcd8-737b5ba417a5"
+      }
     },
-    "owner": "suryads53"
+    "owner": "amit339"
   }
 }
