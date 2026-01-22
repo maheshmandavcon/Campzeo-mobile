@@ -30,7 +30,6 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "launchMode": "singleTask",
       "intentFilters": [
         {
           "action": "VIEW",
@@ -53,6 +52,7 @@
     },
     "plugins": [
       "expo-router",
+        "expo-font",
       [
         "expo-splash-screen",
         {
@@ -79,6 +79,12 @@
         "projectId": "bacc1a4c-7323-4b1b-bcd8-737b5ba417a5"
       }
     },
-    "owner": "amit339"
+    "owner": "amit339",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/bacc1a4c-7323-4b1b-bcd8-737b5ba417a5"
+    }
   }
 }

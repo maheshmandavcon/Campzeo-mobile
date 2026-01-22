@@ -2,11 +2,9 @@ import "react-native-gesture-handler"; // 🔥 MUST BE FIRST
 import "react-native-reanimated";
 import "../global.css";
 
-// import { OverlayProvider } from "@gluestack-ui/core/overlay";
-
 import React, { useEffect } from "react";
 
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack, usePathname, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -26,16 +24,17 @@ import { ActivityIndicator, Image } from "react-native";
 import { GluestackUIProvider } from "@gluestack-ui/themed";
 import { config } from "@gluestack-ui/config";
 
+/* ---------------- TOKEN CACHE ---------------- */
 
 const tokenCache = {
   async getToken(key: string) {
     try {
       const item = await SecureStore.getItemAsync(key);
-      if (item) {
-        console.log(`[TokenCache] Token found for key: ${key}`);
-      } else {
-        console.log(`[TokenCache] No token found for key: ${key}`);
-      }
+      console.log(
+        item
+          ? `[TokenCache] Token found for key: ${key}`
+          : `[TokenCache] No token found for key: ${key}`
+      );
       return item;
     } catch (err) {
       console.error(`[TokenCache] Error getting token for key: ${key}`, err);
@@ -44,39 +43,55 @@ const tokenCache = {
   },
   async saveToken(key: string, value: string) {
     try {
-      console.log(`[TokenCache] ATTEMPTING SAVE for key: ${key}`);
       await SecureStore.setItemAsync(key, value);
       console.log(`[TokenCache] SAVE SUCCESS for key: ${key}`);
     } catch (err) {
       console.error(`[TokenCache] SAVE FAILED for key: ${key}`, err);
-      return;
     }
   },
 };
 
+/* ---------------- AUTH GUARD ---------------- */
+
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isSignedIn, isLoaded } = useAuth();
-  const segments = useSegments();
+  const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
-    console.log("[AuthGuard] State Change:", { isLoaded, isSignedIn, segments });
-    if (!isLoaded) return;
+    if (!isLoaded || !pathname) return;
 
-    const inAuthGroup = segments[0] === "(auth)";
+    console.log("[AuthGuard]", { isSignedIn, pathname });
 
-    if (isSignedIn && inAuthGroup) {
-      console.log("[AuthGuard] Redirecting to Dashboard (Signed In)");
-      router.replace("/(tabs)/dashboard");
-    } else if (!isSignedIn && !inAuthGroup) {
-      console.log("[AuthGuard] Redirecting to Login (Not Signed In)");
-      router.replace("/(auth)/login");
+    const inAuth = pathname.startsWith("/(auth)");
+    const inTabs = pathname.startsWith("/(tabs)");
+
+    // 🛑 Special case: login screen
+    if (pathname === "/(auth)/login") {
+      if (isSignedIn) {
+        router.replace("/(tabs)/dashboard");
+      }
+      return;
     }
-  }, [isSignedIn, isLoaded, segments]);
+
+    // 🔐 Signed out → force login
+    if (!isSignedIn && !inAuth) {
+      router.replace("/(auth)/login");
+      return;
+    }
+
+    // ✅ Signed in but not inside tabs (cold start / +not-found)
+    if (isSignedIn && !inTabs) {
+      router.replace("/(tabs)/dashboard");
+    }
+  }, [isLoaded, isSignedIn, pathname]);
 
   if (!isLoaded) {
     return (
-      <ThemedView className="flex-1 items-center justify-center" style={{ backgroundColor: "#ffffff" }}>
+      <ThemedView
+        className="flex-1 items-center justify-center"
+        style={{ backgroundColor: "#ffffff" }}
+      >
         <Image
           source={require("../assets/app-images/camp-logo.png")}
           style={{ width: 200, height: 80, resizeMode: "contain", marginBottom: 20 }}
@@ -89,6 +104,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/* ---------------- AUTH BRIDGE ---------------- */
+
 function AuthBridge() {
   const { getToken } = useAuth();
 
@@ -98,6 +115,8 @@ function AuthBridge() {
 
   return null;
 }
+
+/* ---------------- LINKING DEBUG ---------------- */
 
 function GlobalLinkingHandler() {
   useEffect(() => {
@@ -119,9 +138,11 @@ function GlobalLinkingHandler() {
   return null;
 }
 
+/* ---------------- ROOT LAYOUT ---------------- */
+
 export default function RootLayout() {
   const publishableKey = Constants.expoConfig?.extra?.clerkPublishableKey;
-  const colorScheme = useColorScheme(); // "light" | "dark"
+  const colorScheme = useColorScheme();
   const queryClient = new QueryClient();
 
   if (!publishableKey) {
@@ -135,6 +156,7 @@ export default function RootLayout() {
 
         <AuthGuard>
           <GlobalLinkingHandler />
+
           <GluestackUIProvider config={config}>
             <SafeAreaProvider>
               <ThemeProvider

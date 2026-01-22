@@ -1,26 +1,18 @@
 import { useSSO } from "@clerk/clerk-expo";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Platform, Pressable, Text, View } from "react-native";
-
-export const useWarmUpBrowser = () => {
-  useEffect(() => {
-    if (Platform.OS !== "web") {
-      void WebBrowser.warmUpAsync();
-    }
-    return () => {
-      if (Platform.OS !== "web") {
-        void WebBrowser.coolDownAsync();
-      }
-    };
-  }, []);
-};
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  Text,
+  View,
+} from "react-native";
 
 WebBrowser.maybeCompleteAuthSession();
 
 export default function GoogleAuth() {
-  useWarmUpBrowser();
   console.log("[GoogleAuth] Component rendering");
   const { startSSOFlow } = useSSO();
   const [loading, setLoading] = useState(false);
@@ -30,53 +22,66 @@ export default function GoogleAuth() {
       console.log("[GoogleAuth] Starting Google Sign-In flow (useSSO)");
       setLoading(true);
 
-      const redirectUrl = Linking.createURL("auth-callback", { scheme: "campzeo" });
+      const redirectUrl = Linking.createURL("auth-callback", {
+        scheme: "campzeo",
+      });
       console.log("[GoogleAuth] Using redirectUrl:", redirectUrl);
 
-      try {
-        const result = await startSSOFlow({
-          strategy: "oauth_google",
-          redirectUrl,
-        });
+      const result = await startSSOFlow({
+        strategy: "oauth_google",
+        redirectUrl,
+      });
 
-        console.log("[GoogleAuth] startSSOFlow resolved successfully");
+      console.log("[GoogleAuth] startSSOFlow resolved successfully");
 
-        const { createdSessionId, setActive, signIn, signUp } = result;
+      const { createdSessionId, setActive, signIn, signUp } = result;
 
-        if (createdSessionId && setActive) {
-          console.log("[GoogleAuth] Session created, setting active:", createdSessionId);
-          await setActive({ session: createdSessionId });
-          console.log("[GoogleAuth] setActive completed");
-        } else if (signIn?.status === "needs_new_password") {
-          console.log("[GoogleAuth] User needs to set a password");
-          Alert.alert(
-            "Password Required",
-            "Your account requires a password to be set. Please sign in via our website to complete your profile setup.",
-            [{ text: "OK" }]
-          );
-        } else {
-          console.log("[GoogleAuth] No session created immediately. Result status:", {
+      if (createdSessionId && setActive) {
+        console.log(
+          "[GoogleAuth] Session created, setting active:",
+          createdSessionId
+        );
+        await setActive({ session: createdSessionId });
+        console.log("[GoogleAuth] setActive completed");
+      } else if (signIn?.status === "needs_new_password") {
+        console.log("[GoogleAuth] User needs to set a password");
+        Alert.alert(
+          "Password Required",
+          "Your account requires a password to be set. Please sign in via our website to complete your profile setup.",
+          [{ text: "OK" }]
+        );
+      } else {
+        console.log(
+          "[GoogleAuth] No session created immediately. Result status:",
+          {
             signInStatus: signIn?.status,
-            signUpStatus: signUp?.status
-          });
-          Alert.alert("Sign In Incomplete", `Status: ${signIn?.status || 'Unknown'}`);
-        }
-      } catch (innerErr: any) {
-        console.error("[GoogleAuth] startSSOFlow Error Details:", {
-          message: innerErr.message,
-          code: innerErr.code,
-          errors: innerErr.errors ? JSON.stringify(innerErr.errors) : "None"
-        });
-        throw innerErr;
+            signUpStatus: signUp?.status,
+          }
+        );
+        Alert.alert(
+          "Sign In Incomplete",
+          `Status: ${signIn?.status || "Unknown"}`
+        );
       }
     } catch (err: any) {
-      console.error("[GoogleAuth] Catch-all error:", err.message || "Unknown error");
-      if (err.code !== "ERR_CANCELED_AUTH_SESSION" && !err.message?.includes("cancelled")) {
-        Alert.alert("Authentication Error", err.message || "An error occurred during sign in");
+      console.error(
+        "[GoogleAuth] Catch-all error:",
+        err.message || "Unknown error"
+      );
+      if (
+        err.code !== "ERR_CANCELED_AUTH_SESSION" &&
+        !err.message?.includes("cancelled")
+      ) {
+        Alert.alert(
+          "Authentication Error",
+          err.message || "An error occurred during sign in"
+        );
       }
     } finally {
       setLoading(false);
-      console.log("[GoogleAuth] Google Sign-In flow finished (loading set to false)");
+      console.log(
+        "[GoogleAuth] Google Sign-In flow finished (loading set to false)"
+      );
     }
   };
 
@@ -97,7 +102,11 @@ export default function GoogleAuth() {
         }}
         disabled={loading}
       >
-        {loading ? <ActivityIndicator color="#ef4444" /> : <Text className="color-[#dc2626]">Continue with Google</Text>}
+        {loading ? (
+          <ActivityIndicator color="#ef4444" />
+        ) : (
+          <Text className="color-[#dc2626]">Continue with Google</Text>
+        )}
       </Pressable>
     </View>
   );

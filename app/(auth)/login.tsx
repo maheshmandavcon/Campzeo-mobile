@@ -5,7 +5,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -13,10 +12,9 @@ import {
   Text,
   View,
   ActivityIndicator,
-  Pressable
+  Pressable,
 } from "react-native";
 import GoogleAuth from "./googleAuth";
-import { Button } from "@/components/ui/button";
 import { Input, InputField } from "@/components/ui/input";
 
 export default function LoginScreen() {
@@ -64,7 +62,9 @@ export default function LoginScreen() {
         console.log("[Login] Active session set successfully");
       } else {
         console.log("[Login] Sign-in incomplete. Status:", result.status);
-        setError("Sign in not complete. Please check your email for verification.");
+        setError(
+          "Sign in not complete. Please check your email for verification.",
+        );
       }
     } catch (err: any) {
       console.error("[Login] Sign-in error:", JSON.stringify(err, null, 2));
@@ -130,19 +130,16 @@ export default function LoginScreen() {
           </Input>
 
           {/* Error */}
-          {error !== "" && (
-            <Text style={styles.errorText}>{error}</Text>
-          )}
+          {error !== "" && <Text style={styles.errorText}>{error}</Text>}
 
           {/* Sign In Button */}
           <Pressable
             onPress={onSignInPress}
             disabled={loading}
-                        className="bg-[#dc2626] rounded-2xl py-3"
-
+            className="bg-[#dc2626] rounded-2xl py-3"
             style={({ pressed }) => [
               styles.signInButton,
-              { opacity: pressed || loading ? 0.8 : 1 }
+              { opacity: pressed || loading ? 0.8 : 1 },
             ]}
           >
             {loading ? (
@@ -157,7 +154,6 @@ export default function LoginScreen() {
 
           {/* Google Auth */}
           <GoogleAuth />
-
         </BlurView>
       </LinearGradient>
     </KeyboardAvoidingView>

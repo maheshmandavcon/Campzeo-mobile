@@ -19,10 +19,8 @@ import { VStack } from "@/components/ui/vstack";
 import { Divider } from "@/components/ui/divider";
 import { Pressable } from "@/components/ui/pressable";
 import { Button, ButtonText } from "@/components/ui/button";
-// import { View } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
-import { View } from "@gluestack-ui/themed";
-import { Text } from "@gluestack-ui/themed";
+import { View, Text } from "@gluestack-ui/themed";
 
 export default function Sidebar() {
   const sidebarOpen = useSidebarStore((state) => state.sidebarOpen);
@@ -34,8 +32,19 @@ export default function Sidebar() {
 
   if (!user) return null;
 
+  /**
+   * IMPORTANT:
+   * The type below makes this function compatible with `typedRoutes: true`
+   * and prevents invalid routes at compile time.
+   */
+  const navigate = (pathname: Parameters<typeof router.push>[0]) => {
+    closeSidebar();
+    router.push(pathname);
+  };
+
   const handleLogout = async () => {
     try {
+      closeSidebar();
       await signOut();
       router.replace("/(auth)/login");
     } catch (error) {
@@ -43,7 +52,6 @@ export default function Sidebar() {
     }
   };
 
-  // HARD OVERRIDE — ALWAYS BLACK
   const TEXT_COLOR = "#000000";
 
   return (
@@ -82,10 +90,7 @@ export default function Sidebar() {
           <View style={styles.menuContainer}>
             <Pressable
               style={styles.menuItem}
-              onPress={() => {
-                closeSidebar();
-                router.push("/(profile)/userProfile");
-              }}
+              onPress={() => navigate("/(profile)/userProfile")}
             >
               <User size={24} color={TEXT_COLOR} />
               <Text style={styles.menuText}>My Profile</Text>
@@ -93,10 +98,7 @@ export default function Sidebar() {
 
             <Pressable
               style={styles.menuItem}
-              onPress={() => {
-                closeSidebar();
-                router.push("/(accounts)/accounts");
-              }}
+              onPress={() => navigate("/(accounts)/accounts")}
             >
               <Notebook size={24} color={TEXT_COLOR} />
               <Text style={styles.menuText}>Accounts</Text>
@@ -104,10 +106,7 @@ export default function Sidebar() {
 
             <Pressable
               style={styles.menuItem}
-              onPress={() => {
-                closeSidebar();
-                router.push("/(calendar)/calendarPage");
-              }}
+              onPress={() => navigate("/(calendar)/calendarPage")}
             >
               <Calendar size={24} color={TEXT_COLOR} />
               <Text style={styles.menuText}>Calendar</Text>
@@ -115,10 +114,7 @@ export default function Sidebar() {
 
             <Pressable
               style={styles.menuItem}
-              onPress={() => {
-                closeSidebar();
-                router.push("/(billing)/billingPage");
-              }}
+              onPress={() => navigate("/(billing)/billingPage")}
             >
               <Wallet size={24} color={TEXT_COLOR} />
               <Text style={styles.menuText}>Billing</Text>
@@ -132,13 +128,12 @@ export default function Sidebar() {
             style={styles.logoutButton}
             variant="outline"
             action="secondary"
-            onPress={() => {
-              closeSidebar();
-              handleLogout();
-            }}
+            onPress={handleLogout}
           >
             <LogOut size={20} color={TEXT_COLOR} />
-            <ButtonText style={{ color: TEXT_COLOR }}>Logout</ButtonText>
+            <ButtonText style={{ color: TEXT_COLOR }}>
+              Logout
+            </ButtonText>
           </Button>
         </DrawerFooter>
       </DrawerContent>
