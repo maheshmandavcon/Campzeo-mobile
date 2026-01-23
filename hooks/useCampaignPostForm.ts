@@ -1,28 +1,27 @@
-import { useRef } from "react";
-import { useState, useEffect } from "react";
-import { Alert, useColorScheme } from "react-native";
-import { router } from "expo-router";
 import { useAuth } from "@clerk/clerk-expo";
-import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
+import { router } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import { Alert, useColorScheme } from "react-native";
 
+import type { CampaignPostData } from "@/api/campaign/campaignApi";
 import {
+  createPinterestBoardApi,
   createPostForCampaignApi,
-  updatePostForCampaignApi,
   generateAIContentApi,
   generateAIImageApi,
-  createPinterestBoardApi,
   getFacebookPagesApi,
-  uploadMediaApi,
   getPinterestBoardsApi,
+  updatePostForCampaignApi,
+  uploadMediaApi,
 } from "@/api/campaign/campaignApi";
-import type { CampaignPostData } from "@/api/campaign/campaignApi";
 
 export interface Attachment {
   uri: string;
+  uploadedUrl?: string;
   name: string;
   type: string;
-  uploading?: boolean; 
+  uploading: boolean;
 }
 
 export interface AIVariation {
@@ -68,8 +67,11 @@ export function useCampaignPostForm({
   const [imagePrompt, setImagePrompt] = useState("");
   const [loadingImage, setLoadingImage] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [imageLoadingMap, setImageLoadingMap] = useState<
+    Record<string, boolean>
+  >({});
   const [selectedImage, setSelectedImage] = useState<string | undefined>(
-    existingPost?.image || undefined
+    existingPost?.image || undefined,
   );
   const [imageModalVisible, setImageModalVisible] = useState(false);
 
@@ -88,6 +90,9 @@ export function useCampaignPostForm({
 
   // ================= PINTEREST =================
   const [pinterestBoard, setPinterestBoard] = useState("");
+  const [PinterestBoardId, setPinterestBoardId] = useState<string | undefined>(
+    undefined,
+  );
   const [allPinterestBoards, setAllPinterestBoards] = useState<string[]>([]);
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [loadingBoards, setLoadingBoards] = useState(false);
@@ -116,101 +121,239 @@ export function useCampaignPostForm({
 
   // ================= LOADING =================
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+
+  function inferMediaType(uri: string) {
+    if (!uri) return "application/octet-stream";
+    const ext = uri.split(".").pop()?.toLowerCase();
+    if (!ext) return "application/octet-stream";
+
+    if (["jpg", "jpeg"].includes(ext)) return "image/jpeg";
+    if (ext === "png") return "image/png";
+    if (ext === "gif") return "image/gif";
+    if (ext === "mp4") return "video/mp4";
+    if (ext === "mov") return "video/quicktime";
+    return "application/octet-stream";
+  }
+
+  // AI IMAGE LOADING
+  useEffect(() => {
+    if (!generatedImages.length) return;
+
+    const map: Record<string, boolean> = {};
+    generatedImages.forEach((url) => {
+      map[url] = true;
+    });
+
+    setImageLoadingMap(map);
+  }, [generatedImages]);
 
   // ================= PREFILL =================
   useEffect(() => {
-  if (!existingPost) return;
-  if (hasPrefilledRef.current) return;
+    if (!existingPost || hasPrefilledRef.current) return;
 
-  hasPrefilledRef.current = true;
+    hasPrefilledRef.current = true;
 
-  let prefilledAttachments: Attachment[] = [];
-
-  if (
-    Array.isArray(existingPost.mediaUrls) &&
-    existingPost.mediaUrls.length > 0
-  ) {
-    prefilledAttachments = existingPost.mediaUrls.map(
-      (url: string, index: number) => ({
-        uri: url,
-        name: `image-${index + 1}.jpg`,
-        type: "image/jpeg",
-      })
+    // ✅ BASIC FIELDS
+    setSenderEmail(existingPost.senderEmail || "");
+    setSubject(existingPost.subject || "");
+    setMessage(existingPost.message || "");
+    setPostDate(
+      existingPost.scheduledPostTime
+        ? new Date(existingPost.scheduledPostTime)
+        : null,
     );
-  }
 
-  if (
-    Array.isArray(existingPost.attachments) &&
-    existingPost.attachments.length > 0
-  ) {
-    prefilledAttachments = existingPost.attachments.map((file: any) => ({
-      uri: file.fileUrl || file.uri,
-      name: file.fileName || file.name || "attachment",
-      type: file.mimeType || file.type || "application/octet-stream",
-    }));
-  }
+    setDestinationLink(existingPost.destinationLink || "");
 
-  setAttachments(prefilledAttachments);
-}, [existingPost]);
+    // ✅ YOUTUBE TAGS (ONLY VALID SOURCE)
+    const tags = Array.isArray(existingPost.metadata?.tags)
+      ? existingPost.metadata.tags
+      : [];
 
+    setYouTubeTags(tags.join(", "));
+
+    // PINTEREST BOARD
+    setPinterestBoardId(existingPost.metadata?.boardId);
+    setPinterestBoard("");
+    setMetadata({ ...existingPost.metadata });
+
+    // ================= ATTACHMENTS =================
+    const prefilledAttachments: Attachment[] = [];
+
+    if (Array.isArray(existingPost.attachments)) {
+      prefilledAttachments.push(
+        ...existingPost.attachments.map((file: any, index: number) => ({
+          uri: file.uploadedUrl || file.fileUrl || file.uri,
+          uploadedUrl: file.uploadedUrl || file.fileUrl || file.uri,
+          name: file.fileName || file.name || `attachment-${index + 1}`,
+          type:
+            file.mimeType ||
+            file.type ||
+            inferMediaType(file.fileUrl || file.uri),
+          uploading: false,
+        })),
+      );
+    }
+
+    if (Array.isArray(existingPost.mediaUrls)) {
+      prefilledAttachments.push(
+        ...existingPost.mediaUrls.map((url: string, index: number) => ({
+          uri: url,
+          uploadedUrl: url,
+          name: `media-${index + 1}`,
+          type: inferMediaType(url),
+          uploading: false,
+        })),
+      );
+    }
+
+    setAttachments(prefilledAttachments);
+  }, [existingPost]);
 
   // ================= ATTACHMENTS =================
-  const handleAddAttachment = async () => {
-  try {
-    const isYouTube = platform === "YOUTUBE";
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: isYouTube
-        ? ImagePicker.MediaTypeOptions.Videos
-        : ImagePicker.MediaTypeOptions.All,
-      quality: 0.8,
-    });
+  // async function handleAddAttachment() {
+  //   try {
+  //     const isYouTube = platform === "YOUTUBE";
 
-    if (result.canceled) return;
+  //     const result = await ImagePicker.launchImageLibraryAsync({
+  //       mediaTypes:
+  //         platform === "YOUTUBE"
+  //           ? ImagePicker.MediaTypeOptions.Videos
+  //           : ImagePicker.MediaTypeOptions.All,
+  //       quality: 0.8,
+  //     });
 
-    const asset = result.assets[0];
-    const isVideo = asset.type === "video";
+  //     if (result.canceled) return;
 
-    const tempAttachment: Attachment = {
-      uri: asset.uri, // ✅ local preview
-      name:
-        asset.fileName ??
-        `${isVideo ? "video" : "image"}-${Date.now()}.${
-          isVideo ? "mp4" : "jpg"
-        }`,
-      type: isVideo ? "video/mp4" : "image/jpeg",
-      uploading: true,
-    };
+  //     const asset = result.assets[0];
+  //     const isVideo = asset.type === "video";
 
-    // ✅ show preview immediately
-    setAttachments((prev) => [...prev, tempAttachment]);
+  //     const tempAttachment: Attachment = {
+  //       uri: asset.uri,
+  //       name:
+  //         asset.fileName ??
+  //         `${isVideo ? "video" : "image"}-${Date.now()}.${
+  //           isVideo ? "mp4" : "jpg"
+  //         }`,
+  //       type: isVideo ? "video/mp4" : "image/jpeg",
+  //       uploading: true,
+  //     };
 
-    const token = await getToken();
-    if (!token) throw new Error("Token missing");
+  //     setAttachments((prev) => [...prev, tempAttachment]);
 
-    const uploadedUrl = await uploadMediaApi(
-      {
+  //     // ⬇️ upload
+  //     const finalUrl = await uploadMediaApi({
+  //       uri: asset.uri,
+  //       name: tempAttachment.name,
+  //       type: tempAttachment.type,
+  //     });
+
+  //     if (finalUrl == null) {
+  //       throw new Error("Upload failed: no Url returned");
+  //     }
+
+  //     setAttachments((prev) =>
+  //       prev.map((a) =>
+  //         a.uri === asset.uri ? { ...a, uri: finalUrl, uploading: false } : a,
+  //       ),
+  //     );
+  //   } catch (error) {
+  //     console.error(error);
+  //     Alert.alert("Upload failed", "Media upload failed");
+  //     setAttachments((prev) => prev.filter((a) => !a.uploading));
+  //   }
+  // }
+
+  async function handleAddAttachment() {
+    try {
+      const isYouTube = platform === "YOUTUBE";
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: isYouTube ? ["videos"] : ["images", "videos"],
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+      const isVideo = asset.type === "video";
+
+      // ✅ Validate media limit (max 10 files)
+      if (attachments.length + 1 > 10) {
+        Alert.alert(
+          "Upload limit",
+          "You can upload a maximum of 10 media files",
+        );
+        return;
+      }
+
+      const tempAttachment: Attachment = {
         uri: asset.uri,
-        name: tempAttachment.name,
-        type: tempAttachment.type,
-      },
-      token
-    );
+        name:
+          asset.fileName ??
+          `${isVideo ? "video" : "image"}-${Date.now()}.${
+            isVideo ? "mp4" : "jpg"
+          }`,
+        type: isVideo ? "video/mp4" : "image/jpeg",
+        uploading: true,
+      };
 
-    // ✅ replace local preview with uploaded URL
-    setAttachments((prev) =>
-      prev.map((a) =>
-        a.uri === asset.uri
-          ? { ...a, uri: uploadedUrl, uploading: false }
-          : a
-      )
-    );
-  } catch (error) {
-    Alert.alert("Upload failed", "Media upload failed");
-    setAttachments((prev) => prev.filter((a) => !a.uploading));
+      setAttachments((prev) => [...prev, tempAttachment]);
+      setUploadingMedia(true);
+      setUploadProgress(0);
+
+      // ⬇️ Upload with token using new backend endpoint
+      const token = await getToken();
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
+
+      const finalUrl = await uploadMediaApi(
+        {
+          uri: asset.uri,
+          name: tempAttachment.name,
+          type: tempAttachment.type,
+        },
+        token,
+        // (progress) => setUploadProgress(progress),
+      );
+
+      if (finalUrl == null || typeof finalUrl !== "string") {
+        throw new Error("Upload failed: no Url returned");
+      }
+
+      setAttachments((prev) =>
+        prev.map((a) =>
+          a.uri === asset.uri
+            ? { ...a, uri: finalUrl, uploadedUrl: finalUrl, uploading: false }
+            : a,
+        ),
+      );
+
+      // ✅ Auto-detect Content Type for Instagram/Facebook
+      if (platform === "INSTAGRAM" || platform === "FACEBOOK") {
+        if (isVideo) {
+          setFacebookContentType("REEL");
+          Alert.alert("Success", "Video detected: Switched to Reel/Video mode");
+        } else if (attachments.length === 0 && !isVideo) {
+          // Only switch to STANDARD if it's the first upload and it's an image
+          setFacebookContentType("STANDARD");
+        }
+      }
+
+      Alert.alert("Success", "File uploaded successfully");
+    } catch (error: any) {
+      console.error("Attachment upload error:", error);
+      Alert.alert("Upload failed", error?.message || "Media upload failed");
+      setAttachments((prev) => prev.filter((a) => !a.uploading));
+    } finally {
+      setUploadingMedia(false);
+      setUploadProgress(0);
+    }
   }
-};
-
   const handleRemoveAttachment = (index: number) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
@@ -244,9 +387,9 @@ export function useCampaignPostForm({
       // ✅ Store both subject and content
       setAiResults(
         response.variations.slice(0, 3).map((v: any) => ({
-          subject: v.subject,
+          subject: platform === "SMS" ? "" : (v.subject ?? ""),
           content: v.content,
-        }))
+        })),
       );
     } catch (error: any) {
       Alert.alert("AI Error", error?.message || "Failed to generate content");
@@ -277,12 +420,13 @@ export function useCampaignPostForm({
         response?.images?.[0] ||
         response?.imagePrompt ||
         "https://picsum.photos/200";
+
       setGeneratedImages([imageUrl]);
       setSelectedImage(imageUrl);
     } catch (error: any) {
       Alert.alert(
         "Image Generation Error",
-        error?.message || "Failed to generate image"
+        error?.message || "Failed to generate image",
       );
     } finally {
       setLoadingImage(false);
@@ -297,23 +441,23 @@ export function useCampaignPostForm({
   }, [platform]);
 
   const fetchFacebookPages = async () => {
-    setIsFacebookPageLoading(true); // start loading
+    setIsFacebookPageLoading(true);
     try {
       const token = await getToken();
       if (!token) throw new Error("Authentication token missing");
 
-      const pages = await getFacebookPagesApi(token); // your API
+      const pages = await getFacebookPagesApi(token);
 
       if (!pages || pages.length === 0) {
         setFacebookPages([]);
         setFacebookError(
-          "No Facebook Pages found. Make sure you've connected your account and granted permissions."
+          "No Facebook Pages found. Make sure you've connected your account and granted permissions.",
         );
-        setSelectedFacebookPage(null); // clear selection
+        setSelectedFacebookPage(null);
       } else {
         setFacebookPages(pages);
         setFacebookError("");
-        setSelectedFacebookPage(pages[0].name); // auto-select first page
+        setSelectedFacebookPage(pages[0].name);
       }
     } catch (err: any) {
       setFacebookPages([]);
@@ -321,10 +465,10 @@ export function useCampaignPostForm({
       setFacebookError(
         err.message === "Facebook not connected"
           ? "No Facebook Pages found. Make sure you've connected your account and granted permissions."
-          : "Failed to fetch Facebook Pages"
+          : "Failed to fetch Facebook Pages",
       );
     } finally {
-      setIsFacebookPageLoading(false); 
+      setIsFacebookPageLoading(false);
     }
   };
 
@@ -333,7 +477,7 @@ export function useCampaignPostForm({
     setLoadingBoards(true);
     try {
       const token = await getToken();
-      if (!token) return;
+      if (!token) throw new Error("Authentication token missing");
 
       const boards = await getPinterestBoardsApi(token);
       setAllPinterestBoards(boards.map((b: any) => b.name));
@@ -370,7 +514,7 @@ export function useCampaignPostForm({
           description: pinterestDescription?.trim() || "",
           privacy: "PUBLIC",
         },
-        token
+        token,
       );
 
       // ✅ success
@@ -389,17 +533,17 @@ export function useCampaignPostForm({
       if (errorMessage?.includes("You already have a board with this name")) {
         Alert.alert(
           "Board Already Exists",
-          "You already have a board with this name. Please choose a different name."
+          "You already have a board with this name. Please choose a different name.",
         );
       } else if (errorMessage === "Pinterest not connected") {
         Alert.alert(
           "Pinterest Not Connected",
-          "Please connect your Pinterest account before creating a board."
+          "Please connect your Pinterest account before creating a board.",
         );
       } else {
         Alert.alert(
           "Error",
-          error?.response?.data?.message || "Failed to create board"
+          error?.response?.data?.message || "Failed to create board",
         );
       }
     } finally {
@@ -409,43 +553,82 @@ export function useCampaignPostForm({
 
   // ================= MEDIA UPLOADS =================
   const handleCustomThumbnailUpload = async () => {
-    // Ask permission
-    const permissionResult =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
-      alert("Permission to access gallery is required!");
-      return;
-    }
-
-    // Open image picker
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images, // ✅ only images
+      mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [16, 9],
       quality: 1,
     });
 
-    if (!result.canceled) {
-      setCustomThumbnail(result.assets[0].uri);
+    if (result.canceled) return;
+
+    const asset = result.assets[0];
+
+    try {
+      const token = await getToken();
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
+
+      const uploadedUrl = await uploadMediaApi(
+        {
+          uri: asset.uri,
+          name: `thumbnail-${Date.now()}.jpg`,
+          type: "image/jpeg",
+        },
+        token,
+      );
+
+      if (uploadedUrl && typeof uploadedUrl === "string") {
+        setCustomThumbnail(uploadedUrl);
+      } else {
+        throw new Error("Failed to upload thumbnail: no URL returned");
+      }
+    } catch (error: any) {
+      Alert.alert(
+        "Upload failed",
+        error?.message || "Failed to upload thumbnail",
+      );
     }
   };
 
   const handleCoverImageUpload = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      alert("Permission to access gallery is required!");
-      return;
-    }
-
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [9, 16],
       quality: 1,
     });
 
-    if (!result.canceled) {
-      setCoverImage(result.assets[0].uri);
+    if (result.canceled) return;
+
+    const asset = result.assets[0];
+
+    try {
+      const token = await getToken();
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
+
+      const uploadedUrl = await uploadMediaApi(
+        {
+          uri: asset.uri,
+          name: `cover-${Date.now()}.jpg`,
+          type: "image/jpeg",
+        },
+        token,
+      );
+
+      if (uploadedUrl && typeof uploadedUrl === "string") {
+        setCoverImage(uploadedUrl);
+      } else {
+        throw new Error("Failed to upload cover image: no URL returned");
+      }
+    } catch (error: any) {
+      Alert.alert(
+        "Upload failed",
+        error?.message || "Failed to upload cover image",
+      );
     }
   };
 
@@ -477,15 +660,28 @@ export function useCampaignPostForm({
         return;
       }
 
+      const parsedTags = youTubeTags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0);
+
       const postData: CampaignPostData = {
+        senderEmail,
         subject,
         message,
         type: platform,
-        mediaUrls: attachments.map((a) => a.uri),
+        mediaUrls: attachments.map((a) => a.uploadedUrl || a.uri),
         scheduledPostTime: postDate?.toISOString() || "",
-        pinterestBoard: pinterestBoard,
-        destinationLink: destinationLink,
-        metadata,
+        pinterestBoard,
+        destinationLink,
+
+        // ✅ TAGS GO HERE
+        metadata: {
+          ...metadata,
+          tags: parsedTags,
+          boardId: metadata.boardId,
+          boardName: pinterestBoard,
+        },
       };
 
       const token = await getToken();
@@ -498,14 +694,14 @@ export function useCampaignPostForm({
           Number(campaignIdToUse),
           Number(existingPost.id),
           postData,
-          token
+          token,
         );
       } else {
         // ✅ Create new post
         response = await createPostForCampaignApi(
           Number(campaignIdToUse),
           postData,
-          token
+          token,
         );
       }
 
@@ -534,7 +730,6 @@ export function useCampaignPostForm({
   // ================= RETURN =================
   return {
     isDark,
-
     // state
     platform,
     senderEmail,
@@ -545,10 +740,12 @@ export function useCampaignPostForm({
     aiPrompt,
     aiResults,
     aiModalVisible,
+    imageLoadingMap,
     imagePrompt,
     generatedImages,
     imageModalVisible,
     facebookPages,
+    coverImage,
     facebookContentType,
     selectedFacebookPage,
     pinterestBoard,
@@ -558,6 +755,7 @@ export function useCampaignPostForm({
     youTubeContentType,
     youTubeTags,
     youTubeStatus,
+    customThumbnail,
     showStatusDropdown,
     isCreatingPlaylist,
     showPicker,
@@ -573,6 +771,8 @@ export function useCampaignPostForm({
     pinterestDescription,
     isFacebookPageLoading,
     existingPost,
+    uploadProgress,
+    uploadingMedia,
 
     // setters
     setSenderEmail,
@@ -582,6 +782,7 @@ export function useCampaignPostForm({
     setAttachments,
     setAiPrompt,
     setAiModalVisible,
+    setImageLoadingMap,
     setImagePrompt,
     setImageModalVisible,
     setFacebookContentType,
@@ -600,6 +801,8 @@ export function useCampaignPostForm({
     setPinterestDescription,
     setShowPicker,
     setShowTimePicker,
+    setUploadProgress,
+    setUploadingMedia,
 
     // actions
     handleAddAttachment,

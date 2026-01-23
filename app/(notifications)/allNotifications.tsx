@@ -115,7 +115,7 @@ export default function AllNotifications() {
       if (!token) return;
 
       const res = await markAllNotificationsReadApi(token);
-      console.log("MARK ALL RESPONSE:", res); // 👈
+      console.log("MARK ALL RESPONSE:", res); 
 
       await fetchNotifications();
       setTab("All");

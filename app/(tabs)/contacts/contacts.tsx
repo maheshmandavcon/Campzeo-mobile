@@ -51,7 +51,7 @@ export default function Contacts() {
       const token = await getToken();
       if (!token) throw new Error("Authentication token not found");
 
-      const res = await getContactsApi(token, 1, 50, search);
+      const res = await getContactsApi(1, 50, search);
       const contactsArray = res?.contacts ?? [];
 
       const mapped: ContactsRecord[] = contactsArray.map((item: any) => ({
@@ -127,7 +127,7 @@ WhatsApp: ${record.whatsapp || "-"}
             const token = await getToken();
             if (!token) return;
 
-            await deleteContactApi([record.id], token);
+            await deleteContactApi([record.id]);
             setRecords((prev) => prev.filter((r) => r.id !== record.id));
           } catch (e: any) {
             Alert.alert("Error", e.message || "Failed to delete");
@@ -147,7 +147,7 @@ WhatsApp: ${record.whatsapp || "-"}
       const token = await getToken();
       if (!token) throw new Error("Token missing");
 
-      const arrayBuffer = await exportContactsApi(token);
+      const arrayBuffer = await exportContactsApi();
       const binary = new Uint8Array(arrayBuffer);
       let binaryString = "";
       binary.forEach((b) => (binaryString += String.fromCharCode(b)));

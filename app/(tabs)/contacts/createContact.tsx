@@ -96,7 +96,7 @@ export default function CreateContact() {
         const token = await getToken();
         if (!token) throw new Error("Token missing");
 
-        const data = await getCampaignsApi(token, 1, 50);
+        const data = await getCampaignsApi(1, 50);
         const options =
           data?.campaigns?.map((c: any) => ({ id: c.id, name: c.name })) ?? [];
         setCampaignOptions(options);
@@ -117,10 +117,10 @@ export default function CreateContact() {
       if (!token) throw new Error("Authentication token not found");
 
       if (isEdit) {
-        await updateContactApi(Number(contactId), data, token);
+        await updateContactApi(Number(contactId), data);
         Alert.alert("Success", "Contact updated successfully");
       } else {
-        await createContactApi(data, token);
+        await createContactApi(data);
         Alert.alert("Success", "Contact created successfully");
       }
 

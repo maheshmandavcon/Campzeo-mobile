@@ -88,7 +88,7 @@ export default function CreateCampaign() {
         const token = await getToken();
         if (!token) throw new Error("Token missing");
 
-        const res = await getCampaignByIdApi(campaignId, token);
+        const res = await getCampaignByIdApi(campaignId);
         const campaign = res.campaign;
 
         reset({
@@ -121,7 +121,7 @@ export default function CreateCampaign() {
         const token = await getToken();
         if (!token) throw new Error("Token missing");
 
-        const res = await getContactsApi(token);
+        const res = await getContactsApi();
         setContacts(
           (res.contacts ?? []).map((c: any) => ({
             id: c.id,
@@ -145,8 +145,8 @@ export default function CreateCampaign() {
       if (!token) throw new Error("Token missing");
 
       isEditMode && campaignId
-        ? await updateCampaignApi(campaignId, data, token)
-        : await createCampaignApi(data, token);
+        ? await updateCampaignApi(campaignId, data)
+        : await createCampaignApi(data);
 
       router.back();
     } catch (err: any) {

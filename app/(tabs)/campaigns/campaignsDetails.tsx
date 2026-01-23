@@ -4,12 +4,10 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   Alert,
   FlatList,
-  Text,
   TouchableOpacity,
   View,
   ActivityIndicator,
   useColorScheme,
-  ScrollView
 } from "react-native";
 import CampaignCard, { Campaign } from "./campaignComponents/campaignCard";
 import { useAuth } from "@clerk/clerk-expo";
@@ -18,13 +16,11 @@ import {
   getCampaignByIdApi,
   getPostsByCampaignIdApi,
   shareCampaignPostApi,
-  uploadMediaApi
 } from "@/api/campaign/campaignApi";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { getContactsApi } from "@/api/contact/contactApi";
 import { ContactsRecord } from "../contacts/contactComponents/contactCard";
-import { Image } from "react-native";
 import ShareCampaignPost from "./campaignComponents/shareCampaignPost";
 
 
@@ -40,11 +36,7 @@ const platformIcons: Record<
   LINKEDIN: { Icon: FontAwesome, name: "linkedin-square", color: "#0A66C2" },
   PINTEREST: { Icon: FontAwesome, name: "pinterest", color: "#E60023" },
   EMAIL: { Icon: Ionicons, name: "mail", color: "#F59E0B" },
-  SMS: {
-    Icon: Ionicons,
-    name: "chatbubble-ellipses-outline",
-    color: "#10B981",
-  },
+  SMS: { Icon: Ionicons, name: "chatbubble-ellipses-outline", color: "#10B981" },
 };
 
 export default function CampaignsDetails() {
@@ -74,7 +66,7 @@ export default function CampaignsDetails() {
   const [publishing, setPublishing] = useState(false);
 
   const refreshCallback =
-  typeof params.refreshCallback === "string";
+    typeof params.refreshCallback === "string";
 
   const [loadingCampaign, setLoadingCampaign] = useState(false);
 
@@ -96,10 +88,7 @@ export default function CampaignsDetails() {
 
       setLoadingCampaign(true);
       try {
-        const token = await getToken();
-        if (!token) throw new Error("Token missing");
-
-        const data = await getCampaignByIdApi(resolvedCampaignId, token);
+        const data = await getCampaignByIdApi(resolvedCampaignId);
         if (!data) return;
 
         const mapped: Campaign = {
@@ -131,10 +120,7 @@ export default function CampaignsDetails() {
 
     setLoadingPosts(true);
     try {
-      const token = await getToken();
-      if (!token) throw new Error("Token missing");
-
-      const res = await getPostsByCampaignIdApi(resolvedCampaignId, token);
+      const res = await getPostsByCampaignIdApi(resolvedCampaignId);
       const apiPosts = res?.posts ?? res?.data?.posts ?? [];
 
       const normalizedPosts = apiPosts.map((p: any) => ({
@@ -158,10 +144,10 @@ export default function CampaignsDetails() {
   );
 
   useEffect(() => {
-  if (refreshCallback) {
-    fetchPosts();
-  }
-}, [refreshCallback]);
+    if (refreshCallback) {
+      fetchPosts();
+    }
+  }, [refreshCallback]);
 
   // ========= POST ACTIONS =========
   const handleDeletePost = async (postId: number) => {
@@ -173,10 +159,7 @@ export default function CampaignsDetails() {
         style: "destructive",
         onPress: async () => {
           try {
-            const token = await getToken();
-            if (!token) throw new Error("Token missing");
-
-            await deletePostForCampaignApi(resolvedCampaignId, postId, token);
+            await deletePostForCampaignApi(resolvedCampaignId, postId);
             const updatedPosts = posts.filter((p) => p.id !== postId);
             setPosts(updatedPosts);
 
@@ -221,10 +204,7 @@ export default function CampaignsDetails() {
   const fetchContactsForShare = async () => {
     try {
       setLoadingContacts(true);
-      const token = await getToken();
-      if (!token) throw new Error("Token missing");
-
-      const res = await getContactsApi(token, 1, 100, "");
+      const res = await getContactsApi(1, 100, "");
       const mapped: ContactsRecord[] = (res.contacts ?? []).map((c: any) => ({
         id: c.id,
         name: c.contactName,
@@ -283,18 +263,11 @@ export default function CampaignsDetails() {
     }
 
     try {
-      setPublishing(true); // ✅ start spinner
-      const token = await getToken();
-      if (!token) throw new Error("Token missing");
-
-      // Optional: upload media here if needed
-      // const mediaUrls = ...
-
+      setPublishing(true);
       const result = await shareCampaignPostApi(
         resolvedCampaignId,
         currentSharePostId,
         contactsToSend,
-        token
       );
 
       if (result.success) {
@@ -316,10 +289,9 @@ export default function CampaignsDetails() {
       console.error("Send error", error);
       Alert.alert("Error", error.message || "Failed to send post");
     } finally {
-      setPublishing(false); // ✅ stop spinner
+      setPublishing(false);
     }
   };
-
 
   // ========= RENDER POST ITEM =========
   const renderPostItem = ({ item }: { item: any }) => {
@@ -492,7 +464,7 @@ export default function CampaignsDetails() {
           onDelete={() => { }}
           onCopy={() => { }}
           onToggleShow={() => { }}
-          onPressPost={() => handleCreatePost(campaign.id)} 
+          onPressPost={() => handleCreatePost(campaign.id)}
         />
       )}
 

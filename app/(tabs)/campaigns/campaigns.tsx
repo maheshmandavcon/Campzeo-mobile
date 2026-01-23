@@ -39,7 +39,7 @@ export default function Campaigns() {
       const token = await getToken();
       if (!token) throw new Error("Authentication token not found");
 
-      const res = await getCampaignsApi(token, 1, 50, search);
+      const res = await getCampaignsApi(1, 50, search);
       const campaignsArray = res?.campaigns ?? [];
 
       if (!campaignsArray.length) {
@@ -121,7 +121,7 @@ export default function Campaigns() {
             const token = await getToken();
             if (!token) throw new Error("Authentication token missing");
 
-            await deleteCampaignApi(c.id, token);
+            await deleteCampaignApi(c.id);
             setCampaigns((prev) => prev.filter((x) => x.id !== c.id));
           } catch (error: any) {
             console.error("Error deleting campaign:", error);

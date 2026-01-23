@@ -34,26 +34,24 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 }) => {
   const isDark = useColorScheme() === "dark";
 
-  // console.log("Existing Post:", existingPost);
-
   const {
     // state
     platform: platformState, senderEmail, subject, message, attachments, postDate, loading,
 
-    aiModalVisible, aiPrompt, aiResults, loadingAI,
+    aiModalVisible, aiPrompt, aiResults, loadingAI, imageLoadingMap,
 
     imageModalVisible, imagePrompt, generatedImages, loadingImage,
 
-    facebookPages, selectedFacebookPage, facebookContentType, isFacebookPageLoading,
+    facebookPages, selectedFacebookPage, facebookContentType, isFacebookPageLoading, coverImage,
 
-    youTubeContentType, youTubeTags, youTubeStatus, showStatusDropdown, isCreatingPlaylist,
+    youTubeContentType, youTubeTags, youTubeStatus, showStatusDropdown, isCreatingPlaylist, customThumbnail,
 
     pinterestBoard, destinationLink, isCreatingPinterestBoard, pinterestModalVisible, newPinterestBoard, pinterestDescription, isPinterestBoardLoading, allPinterestBoards, loadingBoards,
 
     showPicker, showTimePicker,
 
     // setters
-    setSenderEmail, setSubject, setMessage, setPostDate, setAiModalVisible, setAiPrompt, setImageModalVisible, setImagePrompt, setAttachments, setFacebookContentType, setYouTubeContentType, setYouTubeTags, setYouTubeStatus, setShowStatusDropdown, setIsCreatingPlaylist, setIsCreatingPinterestBoard, setPinterestBoard, setPinterestModalVisible, setNewPinterestBoard, setPinterestDescription, setDestinationLink, setShowPicker, setShowTimePicker,
+    setSenderEmail, setSubject, setMessage, setPostDate, setAiModalVisible, setAiPrompt, setImageModalVisible, setImagePrompt, setAttachments, setFacebookContentType, setYouTubeContentType, setYouTubeTags, setYouTubeStatus, setShowStatusDropdown, setIsCreatingPlaylist, setIsCreatingPinterestBoard, setPinterestBoard, setPinterestModalVisible, setNewPinterestBoard, setPinterestDescription, setDestinationLink, setShowPicker, setShowTimePicker, setImageLoadingMap,
 
     // handlers
     handleSubmit, handleAddAttachment, handleRemoveAttachment, handleGenerateAIText, handleGenerateAIImage, handleCoverImageUpload, handleCustomThumbnailUpload, handleCreatePinterestBoard,
@@ -108,15 +106,15 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 Sender Email</Text>
               <TextInput
                 placeholder="sender@eg.com"
-                placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"} // gray-400 in dark, gray-500 in light
+                placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"} 
                 value={senderEmail}
                 onChangeText={setSenderEmail}
                 keyboardType="email-address"
                 className="border border-gray-300 rounded-full px-3 h-12 mb-4 bg-white"
                 style={{
                   borderWidth: 1,
-                  borderColor: isDark ? "#374151" : "#d1d5db", // white in dark mode, gray-300 in light mode
-                  borderRadius: 9999, // fully rounded
+                  borderColor: isDark ? "#374151" : "#d1d5db",
+                  borderRadius: 9999,
                   paddingHorizontal: 12,
                   height: 48,
                   marginBottom: 16,
@@ -147,7 +145,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     ? "Enter subject"
                     : "Enter title"
                 }
-                placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"} // gray-400 in dark, gray-500 in light
+                placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"} 
                 value={subject}
                 onChangeText={setSubject}
                 className="border border-gray-300 rounded-full px-3 h-12 mb-2 bg-white"
@@ -437,17 +435,59 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                               uri: item,
                               name: "ai-image.jpg",
                               type: "image/jpeg",
+                              uploading: false,
                             },
                           ]);
                           setImageModalVisible(false);
                         }}
                       >
-                        <Image
-                          source={{ uri: item }}
-                          style={{ width: 100, height: 100, marginRight: 8, borderRadius: 8 }}
-                          resizeMode="cover"
-                          onError={() => console.log("Image failed to load", item)}
-                        />
+                        <View
+                          style={{
+                            width: 100,
+                            height: 100,
+                            marginRight: 8,
+                            borderRadius: 8,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            borderWidth: imageLoadingMap[item] ? 2 : 0,
+                            borderColor: isDark ? "#3b82f6" : "#2563eb",
+                            backgroundColor: isDark ? "#1f2933" : "#f1f5f9",
+                          }}
+                        >
+                          {/* Spinner */}
+                          {imageLoadingMap[item] && (
+                            <ActivityIndicator
+                              size="small"
+                              color={isDark ? "#60a5fa" : "#2563eb"}
+                              style={{ position: "absolute", zIndex: 10 }}
+                            />
+                          )}
+
+                          <Image
+                            source={{ uri: item }}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              borderRadius: 6,
+                              opacity: imageLoadingMap[item] ? 0 : 1,
+                            }}
+                            resizeMode="cover"
+                            onLoadEnd={() =>
+                              setImageLoadingMap((prev: Record<string, boolean>) => ({
+                                ...prev,
+                                [item]: false,
+                              }))
+                            }
+                            onError={() => {
+                              console.log("Image failed to load", item);
+                              setImageLoadingMap((prev: Record<string, boolean>) => ({
+                                ...prev,
+                                [item]: false,
+                              }));
+                            }}
+                          />
+                        </View>
+
                       </TouchableOpacity>
                     )}
                   />
@@ -475,7 +515,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           </Text>
 
           <FlatList
-            data={attachments} // you can rename state to `media` if you like
+            data={attachments}
             horizontal
             showsHorizontalScrollIndicator={false}
             keyExtractor={(_, index) => String(index)}
@@ -485,8 +525,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 onPress={handleAddAttachment}
                 disabled={loading}
                 style={{
-                  width: 70,
-                  height: 70,
+                  width: 60,
+                  height: 60,
                   borderRadius: 8,
                   backgroundColor: "#dbeafe",
                   justifyContent: "center",
@@ -511,9 +551,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 borderColor: isDark ? "#374151" : "#d1d5db",
                 borderRadius: 12,
                 padding: 14,
-                // marginTop: 12,
                 marginBottom: 12,
-                backgroundColor: isDark ? "#161618" : "#ffffff", // gray-900 / white
+                backgroundColor: isDark ? "#161618" : "#f3f4f6"
               }}
             >
               {/* 🔵 Header */}
@@ -613,17 +652,17 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     borderWidth: 1,
                     borderColor:
                       facebookContentType === "STANDARD"
-                        ? "#3b82f6" // blue-500
+                        ? "#3b82f6" 
                         : isDark
-                          ? "#374151" // gray-700
-                          : "#d1d5db", // gray-300
+                          ? "#374151" 
+                          : "#d1d5db", 
                     backgroundColor:
                       facebookContentType === "STANDARD"
                         ? isDark
-                          ? "#1e3a8a" // dark blue bg
-                          : "#eff6ff" // light blue bg
+                          ? "#1e3a8a"
+                          : "#eff6ff" 
                         : isDark
-                          ? "#161618" // dark surface
+                          ? "#161618" 
                           : "#ffffff",
                     alignItems: "center",
                   }}
@@ -657,17 +696,17 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     borderWidth: 1,
                     borderColor:
                       facebookContentType === "REEL"
-                        ? "#3b82f6" // blue-500
+                        ? "#3b82f6" 
                         : isDark
-                          ? "#374151" // gray-700
-                          : "#d1d5db", // gray-300
+                          ? "#374151" 
+                          : "#d1d5db", 
                     backgroundColor:
                       facebookContentType === "REEL"
                         ? isDark
-                          ? "#1e3a8a" // dark blue selected
-                          : "#eff6ff" // light blue selected
+                          ? "#1e3a8a"
+                          : "#eff6ff" 
                         : isDark
-                          ? "#161618" // dark bg
+                          ? "#161618" 
                           : "#ffffff",
                     alignItems: "center",
                   }}
@@ -680,9 +719,9 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                         facebookContentType === "REEL"
                           ? isDark
                             ? "#fff"
-                            : "#2563eb"           // ✅ white when selected
+                            : "#2563eb"           
                           : isDark
-                            ? "#ffffff"           // ✅ white when dark mode
+                            ? "#ffffff"           
                             : "#000000",
                     }}
                   >
@@ -709,7 +748,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   <TouchableOpacity
                     onPress={handleCoverImageUpload}
                     style={{
-                      backgroundColor: isDark ? "#1e3a8a" : "#eff6ff", // dark blue / light blue
+                      backgroundColor: isDark ? "#1e3a8a" : "#eff6ff", 
                       paddingVertical: 10,
                       paddingHorizontal: 16,
                       borderRadius: 8,
@@ -730,11 +769,27 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     </Text>
                   </TouchableOpacity>
 
+                  {/* Preview */}
+                  {coverImage && (
+                    <Image
+                      source={{ uri: coverImage }}
+                      style={{
+                        width: 100,
+                        height: 100,
+                        borderRadius: 8,
+                        marginTop: 8,
+                        borderWidth: 1,
+                        borderColor: isDark ? "#fff" : "#000",
+                      }}
+                      resizeMode="cover"
+                    />
+                  )}
+
                   {/* Helper Text */}
                   <Text
                     style={{
-                      fontSize: 10,
-                      color: isDark ? "#9ca3af" : "#6b7280", // gray-400 / gray-500
+                      fontSize: 10, marginTop: 8,
+                      color: isDark ? "#9ca3af" : "#6b7280",
                     }}
                   >
                     Recommended for vertical videos (9:16) under 90 seconds
@@ -747,9 +802,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           {platformState === "YOUTUBE" && (
             <View
               style={{
-                backgroundColor: isDark ? "#161618" : "#f3f4f6", // gray-900 / gray-100
+                backgroundColor: isDark ? "#161618" : "#f3f4f6", 
                 borderRadius: 12,
-                // padding: 12,
               }}
             >
               {/* ---------- YouTube Settings Heading ---------- */}
@@ -768,7 +822,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               <View
                 style={{
                   borderWidth: 1,
-                  borderColor: isDark ? "#374151" : "#d1d5db", // gray-700 / gray-300
+                  borderColor: isDark ? "#374151" : "#d1d5db", 
                   borderRadius: 8,
                   padding: 12,
                   marginBottom: 16,
@@ -942,9 +996,16 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               )}
 
               {/* ---------- Thumbnail ---------- */}
-              <Text style={{ color: isDark ? "#ffffff" : "#000", fontWeight: "bold", marginBottom: 8 }}>
+              <Text
+                style={{
+                  color: isDark ? "#ffffff" : "#000",
+                  fontWeight: "bold",
+                  marginBottom: 8,
+                }}
+              >
                 Custom Thumbnail
               </Text>
+
               <TouchableOpacity
                 onPress={handleCustomThumbnailUpload}
                 style={{
@@ -952,7 +1013,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   paddingVertical: 12,
                   borderRadius: 9999,
                   alignItems: "center",
-                  marginBottom: 16,
+                  marginBottom: 8,
                 }}
               >
                 <Text
@@ -963,8 +1024,24 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 >
                   Upload Thumbnail
                 </Text>
-
               </TouchableOpacity>
+
+              {/* ---------- Show Preview ---------- */}
+              {customThumbnail && (
+                <Image
+                  source={{ uri: customThumbnail }}
+                  style={{
+                    width: 100,
+                    height: 100,
+                    borderRadius: 8,
+                    marginBottom: 16,
+                    resizeMode: "cover",
+                    borderWidth: 1,
+                    borderColor: isDark ? "#ffffff" : "#000",
+                  }}
+                />
+              )}
+
             </View>
           )}
 
@@ -986,8 +1063,6 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 }}
               >
 
-
-                {/* setIsCreatingPinterestBoard */}
                 {/* Select Board */}
                 <Text style={{ fontWeight: "600", marginBottom: 8, color: isDark ? "#ffffff" : "#000000" }}>
                   Select Board
