@@ -90,7 +90,7 @@ export default function Sidebar() {
           <View style={styles.menuContainer}>
             <Pressable
               style={styles.menuItem}
-              onPress={() => navigate("/(profile)/userProfile")}
+              onPress={() => navigate("/userProfile")}
             >
               <User size={24} color={TEXT_COLOR} />
               <Text style={styles.menuText}>My Profile</Text>
@@ -98,7 +98,7 @@ export default function Sidebar() {
 
             <Pressable
               style={styles.menuItem}
-              onPress={() => navigate("/(accounts)/accounts")}
+              onPress={() => navigate("/accounts")}
             >
               <Notebook size={24} color={TEXT_COLOR} />
               <Text style={styles.menuText}>Accounts</Text>
@@ -106,7 +106,7 @@ export default function Sidebar() {
 
             <Pressable
               style={styles.menuItem}
-              onPress={() => navigate("/(calendar)/calendarPage")}
+              onPress={() => navigate("/calendarPage")}
             >
               <Calendar size={24} color={TEXT_COLOR} />
               <Text style={styles.menuText}>Calendar</Text>
@@ -114,7 +114,7 @@ export default function Sidebar() {
 
             <Pressable
               style={styles.menuItem}
-              onPress={() => navigate("/(billing)/billingPage")}
+              onPress={() => navigate("/billingPage")}
             >
               <Wallet size={24} color={TEXT_COLOR} />
               <Text style={styles.menuText}>Billing</Text>

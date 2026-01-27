@@ -80,11 +80,18 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // ✅ Signed in but not inside tabs (cold start / +not-found)
-    if (isSignedIn && !inTabs) {
+    // ✅ Signed in but trying to access auth pages (other than login) - redirect to dashboard
+    if (isSignedIn && inAuth) {
       router.replace("/(tabs)/dashboard");
+      return;
     }
-  }, [isLoaded, isSignedIn, pathname]);
+
+    // ✅ Signed in but accessing root or non-tabs pages - redirect to dashboard
+    if (isSignedIn && !inTabs && !inAuth) {
+      router.replace("/(tabs)/dashboard");
+      return;
+    }
+  }, [isLoaded, isSignedIn, pathname, router]);
 
   if (!isLoaded) {
     return (
