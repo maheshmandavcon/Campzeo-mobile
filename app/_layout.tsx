@@ -63,35 +63,19 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
     console.log("[AuthGuard]", { isSignedIn, pathname });
 
-    const inAuth = pathname.startsWith("/(auth)");
-    const inTabs = pathname.startsWith("/(tabs)");
-
-    // 🛑 Special case: login screen
-    if (pathname === "/(auth)/login") {
+    if (pathname === "/login") {
       if (isSignedIn) {
+        console.log("1",isSignedIn,pathname);
         router.replace("/(tabs)/dashboard");
       }
       return;
     }
 
-    // 🔐 Signed out → force login
-    if (!isSignedIn && !inAuth) {
-      router.replace("/(auth)/login");
-      return;
+    if (!isSignedIn) {
+      router.replace("/(auth)/login")
     }
 
-    // ✅ Signed in but trying to access auth pages (other than login) - redirect to dashboard
-    if (isSignedIn && inAuth) {
-      router.replace("/(tabs)/dashboard");
-      return;
-    }
-
-    // ✅ Signed in but accessing root or non-tabs pages - redirect to dashboard
-    if (isSignedIn && !inTabs && !inAuth) {
-      router.replace("/(tabs)/dashboard");
-      return;
-    }
-  }, [isLoaded, isSignedIn, pathname, router]);
+  }, [isLoaded, isSignedIn, router]);
 
   if (!isLoaded) {
     return (
