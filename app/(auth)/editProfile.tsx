@@ -1,11 +1,12 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { Input, InputField } from "@/components/ui/input";
+import { VStack } from "@/components/ui/vstack";
 import {
-    editProfileSchema,
-    EditProfileSchemaType,
+  editProfileSchema,
+  EditProfileSchemaType,
 } from "@/validations/profileSchema";
 import { useUser } from "@clerk/clerk-expo";
-import { Input, InputField, VStack } from "@gluestack-ui/themed";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as ImagePicker from "expo-image-picker";
 import { Controller, useForm } from "react-hook-form";
@@ -88,8 +89,8 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
   ];
 
   return (
-    <ThemedView className="flex-1 p-5 rounded-lg">
-      <ScrollView showsVerticalScrollIndicator={false}>
+    <ThemedView className="p-5 rounded-lg">
+      <VStack space="lg" className="my-5">
         <ThemedText
           style={{
             fontSize: 23,
@@ -138,7 +139,6 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
                         placeholder={field.placeholder}
                         value={value}
                         onChangeText={onChange}
-                        
                       />
                     </Input>
 
@@ -181,7 +181,7 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
             </Pressable>
           </VStack>
         </VStack>
-      </ScrollView>
+      </VStack>
     </ThemedView>
   );
 }

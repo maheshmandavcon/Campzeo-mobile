@@ -2,10 +2,10 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { CalendarEvent } from "@/types/types";
 import React from "react";
-import { StyleSheet, useColorScheme, View } from "react-native";
-import { ScrollView } from "react-native-gesture-handler";
+import { StyleSheet, useColorScheme, View, ScrollView } from "react-native";
+// import { ScrollView } from "react-native-gesture-handler";
 import { formatReadableTime, getDateLabel } from "../../../utils/dateHelpers";
-import { Center } from "@gluestack-ui/themed";
+// import { Center } from "@gluestack-ui/themed";
 
 interface UpcomingPostsListProps {
   groupedEvents: Record<string, CalendarEvent[]>;
@@ -22,9 +22,7 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
   const futureGroupedEvents: Record<string, CalendarEvent[]> = {};
 
   Object.entries(groupedEvents).forEach(([dateKey, events]) => {
-    const futureEvents = events.filter(
-      (event) => new Date(event.start) > now
-    );
+    const futureEvents = events.filter((event) => new Date(event.start) > now);
 
     if (futureEvents.length > 0) {
       futureGroupedEvents[dateKey] = futureEvents;
@@ -37,7 +35,9 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
   if (futureDateKeys.length === 0) {
     return (
       <ThemedView>
-        <ThemedText className="text-center  my-7">No upcoming posts.</ThemedText>
+        <ThemedText className="text-center  my-7">
+          No upcoming posts.
+        </ThemedText>
       </ThemedView>
     );
   }
@@ -108,7 +108,6 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
     </ScrollView>
   );
 };
-
 
 export default UpcomingPostsList;
 const styles = StyleSheet.create({

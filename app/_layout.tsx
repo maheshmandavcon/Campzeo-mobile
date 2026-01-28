@@ -1,41 +1,40 @@
+import "react-native-gesture-handler"; // 🔥 MUST BE FIRST
+import "react-native-reanimated";
 import "../global.css";
 
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from "@react-navigation/native";
-import { Stack, useRouter, useSegments } from "expo-router";
+import React, { useEffect } from "react";
+
+import { Stack, usePathname, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import "react-native-reanimated";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
-import { useColorScheme } from "@/hooks/use-color-scheme";
-
-import { config } from "@gluestack-ui/config";
-import { GluestackUIProvider } from "@gluestack-ui/themed";
+import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 
 import { ClerkLoaded, ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
-import React, { useEffect } from "react";
+
 import { setTokenGetter } from "@/lib/authToken";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { ThemedView } from "@/components/themed-view";
 import * as Linking from "expo-linking";
 import { ActivityIndicator, Image } from "react-native";
+import { GluestackUIProvider } from "@gluestack-ui/themed";
+import { config } from "@gluestack-ui/config";
 
+/* ---------------- TOKEN CACHE ---------------- */
 
 const tokenCache = {
   async getToken(key: string) {
     try {
       const item = await SecureStore.getItemAsync(key);
-      if (item) {
-        console.log(`[TokenCache] Token found for key: ${key}`);
-      } else {
-        console.log(`[TokenCache] No token found for key: ${key}`);
-      }
+      console.log(
+        item
+          ? `[TokenCache] Token found for key: ${key}`
+          : `[TokenCache] No token found for key: ${key}`
+      );
       return item;
     } catch (err) {
       console.error(`[TokenCache] Error getting token for key: ${key}`, err);
@@ -44,39 +43,46 @@ const tokenCache = {
   },
   async saveToken(key: string, value: string) {
     try {
-      console.log(`[TokenCache] ATTEMPTING SAVE for key: ${key}`);
       await SecureStore.setItemAsync(key, value);
       console.log(`[TokenCache] SAVE SUCCESS for key: ${key}`);
     } catch (err) {
       console.error(`[TokenCache] SAVE FAILED for key: ${key}`, err);
-      return;
     }
   },
 };
 
+/* ---------------- AUTH GUARD ---------------- */
+
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isSignedIn, isLoaded } = useAuth();
-  const segments = useSegments();
+  const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
-    console.log("[AuthGuard] State Change:", { isLoaded, isSignedIn, segments });
-    if (!isLoaded) return;
+    if (!isLoaded || !pathname) return;
 
-    const inAuthGroup = segments[0] === "(auth)";
+    console.log("[AuthGuard]", { isSignedIn, pathname });
 
-    if (isSignedIn && inAuthGroup) {
-      console.log("[AuthGuard] Redirecting to Dashboard (Signed In)");
-      router.replace("/(tabs)/dashboard");
-    } else if (!isSignedIn && !inAuthGroup) {
-      console.log("[AuthGuard] Redirecting to Login (Not Signed In)");
-      router.replace("/(auth)/login");
+    if (pathname === "/login") {
+      if (isSignedIn) {
+        console.log("1",isSignedIn,pathname);
+        router.replace("/(tabs)/dashboard");
+      }
+      return;
     }
-  }, [isSignedIn, isLoaded, segments]);
+
+    if (!isSignedIn) {
+      router.replace("/(auth)/login")
+    }
+
+  }, [isLoaded, isSignedIn, router]);
 
   if (!isLoaded) {
     return (
-      <ThemedView className="flex-1 items-center justify-center" style={{ backgroundColor: "#ffffff" }}>
+      <ThemedView
+        className="flex-1 items-center justify-center"
+        style={{ backgroundColor: "#ffffff" }}
+      >
         <Image
           source={require("../assets/app-images/camp-logo.png")}
           style={{ width: 200, height: 80, resizeMode: "contain", marginBottom: 20 }}
@@ -89,6 +95,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/* ---------------- AUTH BRIDGE ---------------- */
+
 function AuthBridge() {
   const { getToken } = useAuth();
 
@@ -98,6 +106,8 @@ function AuthBridge() {
 
   return null;
 }
+
+/* ---------------- LINKING DEBUG ---------------- */
 
 function GlobalLinkingHandler() {
   useEffect(() => {
@@ -119,6 +129,8 @@ function GlobalLinkingHandler() {
   return null;
 }
 
+/* ---------------- ROOT LAYOUT ---------------- */
+
 export default function RootLayout() {
   const publishableKey = Constants.expoConfig?.extra?.clerkPublishableKey;
   const colorScheme = useColorScheme();
@@ -135,6 +147,7 @@ export default function RootLayout() {
 
         <AuthGuard>
           <GlobalLinkingHandler />
+
           <GluestackUIProvider config={config}>
             <SafeAreaProvider>
               <ThemeProvider

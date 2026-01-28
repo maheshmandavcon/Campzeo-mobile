@@ -2,8 +2,14 @@ import { getLogs } from "@/api/logsApi";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
-import { HStack, Text, View, VStack } from "@gluestack-ui/themed";
+// import { ThemedView } from "@/components/themed-view";
+// import { ThemedText } from "@/components/themed-text";
+// import { ThemedView } from "@/components/themed-view";
+// import { FontAwesome, Ionicons } from "@expo/vector-icons";
+// import { HStack, Text, View, VStack } from "@gluestack-ui/themed";
 import { useState } from "react";
+// import { HStack } from '@/components/ui/hstack';
+
 import {
   ActivityIndicator,
   FlatList,
@@ -15,8 +21,11 @@ import {
 // import DatePicker from "react-native-date-picker";
 
 import DateTimePicker from "react-native-modal-datetime-picker";
-
 import LogsCard from "./logs-Components/logsCards";
+import { HStack } from "@/components/ui/hstack";
+import { VStack } from "@/components/ui/vstack";
+
+// import LogsCard from "./logs-Components/logsCards";
 
 export default function Logs() {
   const [selected, setSelected] = useState<string | null>(null);
@@ -229,7 +238,8 @@ export default function Logs() {
         {/* DATE FIELDS */}
         <HStack space="md">
           {/* FROM */}
-          <VStack flex={1}>
+          {/*  flex={1} */}
+          <VStack style={{flex:1}}>
             <ThemedText
               style={{
                 fontSize: 11,
@@ -250,7 +260,7 @@ export default function Logs() {
                 paddingVertical: 10,
               }}
             >
-              <HStack alignItems="center" justifyContent="space-between">
+              <HStack style={{ alignItems:"center" , justifyContent:"space-between"}}>
                 <ThemedText
                   style={{
                     fontSize: 13,
@@ -265,7 +275,7 @@ export default function Logs() {
           </VStack>
 
           {/* TO */}
-          <VStack flex={1}>
+          <VStack style = {{flex:1}}>
             <ThemedText
               style={{
                 fontSize: 11,
@@ -286,7 +296,7 @@ export default function Logs() {
                 paddingVertical: 10,
               }}
             >
-              <HStack alignItems="center" justifyContent="space-between">
+              <HStack style={{alignItems:"center", justifyContent:"space-between"}} >
                 <ThemedText
                   style={{
                     fontSize: 13,
@@ -302,7 +312,7 @@ export default function Logs() {
         </HStack>
 
         {/* ACTION BUTTONS */}
-        <HStack space="md" marginTop={14}>
+        <HStack space="md"  style={{marginTop:14}}>
           <TouchableOpacity
             style={{
               flex: 1,
@@ -478,12 +488,12 @@ export default function Logs() {
   // Empty state
   if (selected && !loading && logs.length === 0) {
     return (
-      <View className="flex-1 p-3">
+      <ThemedView className="flex-1 p-3">
         {renderHeader()}
-        <View className="items-center mt-10">
-          <Text>No logs found for this platform</Text>
-        </View>
-      </View>
+        <ThemedView className="items-center mt-10">
+          <ThemedText>No logs found for this platform</ThemedText>
+        </ThemedView>
+      </ThemedView>
     );
   }
 

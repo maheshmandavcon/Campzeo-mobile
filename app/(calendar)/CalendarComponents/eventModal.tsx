@@ -1,20 +1,24 @@
-import {
-    Button,
-    ButtonText,
-    Heading,
-    Modal,
-    ModalBackdrop,
-    ModalBody,
-    ModalCloseButton,
-    ModalContent,
-    ModalFooter,
-    ModalHeader,
-    Text
-} from "@gluestack-ui/themed";
+// import {
+//     Button,
+//     ButtonText,
+//     Heading,
+//     Modal,
+//     ModalBackdrop,
+//     ModalBody,
+//     ModalCloseButton,
+//     ModalContent,
+//     ModalFooter,
+//     ModalHeader,
+//     Text
+// } from "@gluestack-ui/themed";
 import React from "react";
 
 import { CalendarEvent } from "@/types/types";
 import { formatReadableDate, formatReadableTime } from "../../../utils/dateHelpers";
+import { Modal, ModalBackdrop, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader } from "@/components/ui/modal";
+import { Heading } from "@/components/ui/heading";
+import { Text } from "@/components/ui/text";
+import { Button, ButtonText } from "@/components/ui/button";
 
 interface EventModalProps {
   event: CalendarEvent | null;

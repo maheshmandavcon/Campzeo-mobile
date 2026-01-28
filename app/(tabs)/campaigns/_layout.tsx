@@ -6,7 +6,6 @@ export default function CampaignsLayout() {
       <Stack.Screen
         name="CampaignsDetails"
         options={{ title: "Back to campaign list", headerShown: true }}
-        // Campaign Details
       />
       <Stack.Screen
         name="CampaignPost"

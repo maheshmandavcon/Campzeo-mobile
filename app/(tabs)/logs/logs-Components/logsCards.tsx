@@ -9,11 +9,14 @@ import { BlurView } from "expo-blur";
 import Carousel from "react-native-reanimated-carousel";
 import { useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { VStack } from "@gluestack-ui/themed";
-import { ThemedView } from "@/components/themed-view";
-import { ThemedText } from "@/components/themed-text";
+// import { VStack } from "@gluestack-ui/themed";
+// import { ThemedView } from "@/components/themed-view";
+// import { ThemedText } from "@/components/themed-text";
 import { getRefreshLog } from "@/api/logsApi";
 import { useRouter } from "expo-router";
+import { ThemedView } from "@/components/themed-view";
+import { ThemedText } from "@/components/themed-text";
+import { VStack } from "@/components/ui/vstack";
 
 const { width } = Dimensions.get("window");
 
@@ -182,7 +185,7 @@ export default function LogsCard({ record, platformLabel }: LogsCardProps) {
           { label: "Comments", value: record.insight?.comments },
           { label: "Engagement", value: record.insight?.engagementRate },
         ].map((item) => (
-          <VStack key={item.label} alignItems="center">
+          <VStack key={item.label} style={{ alignItems:"center"}}>
             <ThemedText style={{ fontSize: 13, fontWeight: "600" }}>
               {isDeleted ? "-" : item.value ?? "-"}
             </ThemedText>
@@ -215,7 +218,7 @@ export default function LogsCard({ record, platformLabel }: LogsCardProps) {
         }}
       >
         {/* Refresh */}
-        <VStack alignItems="center">
+        <VStack style={{ alignItems:"center"}}>
           <TouchableOpacity
             disabled={isDeleted}
             onPress={handleRefreshClick}
@@ -238,7 +241,7 @@ export default function LogsCard({ record, platformLabel }: LogsCardProps) {
         </VStack>
 
         {/* Analytics */}
-        <VStack alignItems="center">
+        <VStack style={{ alignItems:"center"}}>
           <TouchableOpacity
             onPress={() =>
               router.push({
