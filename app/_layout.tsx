@@ -23,6 +23,7 @@ import * as Linking from "expo-linking";
 import { ActivityIndicator, Image } from "react-native";
 import { GluestackUIProvider } from "@gluestack-ui/themed";
 import { config } from "@gluestack-ui/config";
+import { NetworkGate } from "./(common)/(network)/networkGate";
 
 /* ---------------- TOKEN CACHE ---------------- */
 
@@ -63,19 +64,17 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
     console.log("[AuthGuard]", { isSignedIn, pathname });
 
-    if (pathname === "/login") {
-      if (isSignedIn) {
-        console.log("1",isSignedIn,pathname);
-        router.replace("/(tabs)/dashboard");
-      }
-      return;
+    const authRoutes = ["/", "/login", "/changePassword", "/editProfile"];
+
+    if (!isSignedIn && !authRoutes.includes(pathname) && pathname !== "/auth-callback") {
+      router.replace("/(auth)/login");
     }
 
-    if (!isSignedIn) {
-      router.replace("/(auth)/login")
+    if (isSignedIn && authRoutes.includes(pathname)) {
+      router.replace("/(tabs)/dashboard");
     }
 
-  }, [isLoaded, isSignedIn, router]);
+  }, [isLoaded, isSignedIn, router, pathname]);
 
   if (!isLoaded) {
     return (
@@ -141,13 +140,13 @@ export default function RootLayout() {
   }
 
   return (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <ClerkLoaded>
-        <AuthBridge />
+  <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+    <ClerkLoaded>
+      <AuthBridge />
 
+      <NetworkGate>
         <AuthGuard>
           <GlobalLinkingHandler />
-
           <GluestackUIProvider config={config}>
             <SafeAreaProvider>
               <ThemeProvider
@@ -158,6 +157,7 @@ export default function RootLayout() {
                     <Stack screenOptions={{ headerShown: false }}>
                       <Stack.Screen name="(auth)" />
                       <Stack.Screen name="(tabs)" />
+                      <Stack.Screen name="auth-callback" />
                     </Stack>
                     <StatusBar style="auto" />
                   </QueryClientProvider>
@@ -166,7 +166,10 @@ export default function RootLayout() {
             </SafeAreaProvider>
           </GluestackUIProvider>
         </AuthGuard>
-      </ClerkLoaded>
-    </ClerkProvider>
-  );
+      </NetworkGate>
+
+    </ClerkLoaded>
+  </ClerkProvider>
+);
+
 }

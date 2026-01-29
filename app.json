@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/app-images/app-logo.png",
     "scheme": "campzeo",
+    "jsEngine": "hermes",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
