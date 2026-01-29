@@ -11,7 +11,7 @@ export interface ContactData {
 // ---------------------- Contacts API ---------------------- //
 
 // CREATE CONTACT
-export const createContactApi = async (data: ContactData, token: string) => {
+export const createContactApi = async (data: ContactData) => {
   try {
     const payload = {
       contactName: data.name,
@@ -21,10 +21,7 @@ export const createContactApi = async (data: ContactData, token: string) => {
       campaignIds: data.campaignIds,
     };
 
-    const res = await https.post("/contacts", payload, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
+    const res = await https.post("/contacts", payload);
     return res.data;
   } catch (error: any) {
     console.error("Create contact error:", error.response || error.message);
@@ -36,7 +33,6 @@ export const createContactApi = async (data: ContactData, token: string) => {
 
 // GET CONTACTS
 export const getContactsApi = async (
-  token: string,
   page = 1,
   limit = 20,
   search = "",
@@ -48,11 +44,7 @@ export const getContactsApi = async (
     const params: any = { page, limit, search, sortBy, sortOrder };
     if (campaignId) params.campaignId = campaignId;
 
-    const res = await https.get("/contacts", {
-      headers: { Authorization: `Bearer ${token}` },
-      params,
-    });
-
+    const res = await https.get("/contacts", { params });
     return res.data;
   } catch (error: any) {
     console.error("Get contacts error:", error.response || error.message);
@@ -63,11 +55,7 @@ export const getContactsApi = async (
 };
 
 // UPDATE CONTACT
-export const updateContactApi = async (
-  contactId: number,
-  data: ContactData,
-  token: string
-) => {
+export const updateContactApi = async (contactId: number, data: ContactData) => {
   try {
     const payload = {
       contactName: data.name,
@@ -77,10 +65,7 @@ export const updateContactApi = async (
       campaignIds: data.campaignIds,
     };
 
-    const res = await https.patch(`/contacts/${contactId}`, payload, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
+    const res = await https.patch(`/contacts/${contactId}`, payload);
     console.log("Update response:", res.data); // Optional debug log
     return res.data;
   } catch (error: any) {
@@ -92,10 +77,10 @@ export const updateContactApi = async (
 };
 
 // DELETE CONTACTS
-export const deleteContactApi = async (contactIds: number[], token: string) => {
+export const deleteContactApi = async (contactIds: number[]) => {
   try {
     const res = await https.delete("/contacts", {
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       data: { contactIds },
     });
 
@@ -109,10 +94,9 @@ export const deleteContactApi = async (contactIds: number[], token: string) => {
 };
 
 // EXPORT CONTACTS
-export const exportContactsApi = async (token: string) => {
+export const exportContactsApi = async () => {
   try {
     const res = await https.get("/contacts/export", {
-      headers: { Authorization: `Bearer ${token}` },
       responseType: "arraybuffer", // Important for file downloads
     });
 

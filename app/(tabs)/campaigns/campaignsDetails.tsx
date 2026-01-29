@@ -4,10 +4,10 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   Alert,
   FlatList,
-  Text,
   TouchableOpacity,
   View,
   ActivityIndicator,
+  useColorScheme,
 } from "react-native";
 import CampaignCard, { Campaign } from "./campaignComponents/campaignCard";
 import { useAuth } from "@clerk/clerk-expo";
@@ -15,7 +15,14 @@ import {
   deletePostForCampaignApi,
   getCampaignByIdApi,
   getPostsByCampaignIdApi,
+  shareCampaignPostApi,
 } from "@/api/campaign/campaignApi";
+import { ThemedView } from "@/components/themed-view";
+import { ThemedText } from "@/components/themed-text";
+import { getContactsApi } from "@/api/contact/contactApi";
+import { ContactsRecord } from "../contacts/contactComponents/contactCard";
+import ShareCampaignPost from "./campaignComponents/shareCampaignPost";
+
 
 // Map type to icon
 const platformIcons: Record<
@@ -29,11 +36,7 @@ const platformIcons: Record<
   LINKEDIN: { Icon: FontAwesome, name: "linkedin-square", color: "#0A66C2" },
   PINTEREST: { Icon: FontAwesome, name: "pinterest", color: "#E60023" },
   EMAIL: { Icon: Ionicons, name: "mail", color: "#F59E0B" },
-  SMS: {
-    Icon: Ionicons,
-    name: "chatbubble-ellipses-outline",
-    color: "#10B981",
-  },
+  SMS: { Icon: Ionicons, name: "chatbubble-ellipses-outline", color: "#10B981" },
 };
 
 export default function CampaignsDetails() {
@@ -60,6 +63,11 @@ export default function CampaignsDetails() {
   const [campaign, setCampaign] = useState<Campaign | null>(initialCampaign);
   const [posts, setPosts] = useState<any[]>([]);
   const [visibleCount, setVisibleCount] = useState(5);
+  const [publishing, setPublishing] = useState(false);
+
+  const refreshCallback =
+    typeof params.refreshCallback === "string";
+
   const [loadingCampaign, setLoadingCampaign] = useState(false);
 
   /** Determine final campaignId */
@@ -80,10 +88,7 @@ export default function CampaignsDetails() {
 
       setLoadingCampaign(true);
       try {
-        const token = await getToken();
-        if (!token) throw new Error("Token missing");
-
-        const data = await getCampaignByIdApi(resolvedCampaignId, token);
+        const data = await getCampaignByIdApi(resolvedCampaignId);
         if (!data) return;
 
         const mapped: Campaign = {
@@ -108,34 +113,41 @@ export default function CampaignsDetails() {
   }, [campaign, resolvedCampaignId]);
 
   // ========= FETCH POSTS =========
+  const [loadingPosts, setLoadingPosts] = useState(false);
+
   const fetchPosts = useCallback(async () => {
     if (!resolvedCampaignId) return;
-    try {
-      const token = await getToken();
-      if (!token) throw new Error("Token missing");
 
-      const res = await getPostsByCampaignIdApi(resolvedCampaignId, token);
+    setLoadingPosts(true);
+    try {
+      const res = await getPostsByCampaignIdApi(resolvedCampaignId);
       const apiPosts = res?.posts ?? res?.data?.posts ?? [];
 
-      // ✅ NORMALIZE POST ID HERE (IMPORTANT FIX)
       const normalizedPosts = apiPosts.map((p: any) => ({
         ...p,
-        id: p.id ?? p.postId, // backend uses numeric postId
+        id: p.id ?? p.postId,
       }));
 
       setPosts(normalizedPosts);
     } catch (error) {
       console.log("POSTS LOAD ERROR:", error);
       setPosts([]);
+    } finally {
+      setLoadingPosts(false);
     }
-  }, [resolvedCampaignId, getToken]);
+  }, [resolvedCampaignId]);
 
-  // Refresh posts when coming back
   useFocusEffect(
     useCallback(() => {
       fetchPosts();
     }, [fetchPosts])
   );
+
+  useEffect(() => {
+    if (refreshCallback) {
+      fetchPosts();
+    }
+  }, [refreshCallback]);
 
   // ========= POST ACTIONS =========
   const handleDeletePost = async (postId: number) => {
@@ -147,20 +159,11 @@ export default function CampaignsDetails() {
         style: "destructive",
         onPress: async () => {
           try {
-            const token = await getToken();
-            if (!token) throw new Error("Token missing");
-
-            // Call the DELETE API
-            await deletePostForCampaignApi(resolvedCampaignId, postId, token);
-
-            // Update local state to remove the post
+            await deletePostForCampaignApi(resolvedCampaignId, postId);
             const updatedPosts = posts.filter((p) => p.id !== postId);
             setPosts(updatedPosts);
 
-            // Adjust visible count if needed
             if (visibleCount > updatedPosts.length) setVisibleCount(updatedPosts.length);
-
-            console.log(`Post ${postId} deleted successfully`);
           } catch (error) {
             console.error("Failed to delete post:", error);
             Alert.alert("Error", "Failed to delete post. Please try again.");
@@ -170,43 +173,132 @@ export default function CampaignsDetails() {
     ]);
   };
 
-
   // ========= HANDLE CREATE / EDIT POST =========
   const handleCreatePost = (campaignId: number) => {
     router.push({
       pathname: "/campaigns/campaignComponents/campaignPost",
-      params: {
-        campaignId: String(campaignId),
-      },
+      params: { campaignId: String(campaignId), refreshCallback: "true" },
     });
   };
 
   const handleEditPost = (campaignId: number, post: any) => {
-    if (!post?.id || !post?.type) {
-      console.error("Post id or type missing", post);
-      return;
-    }
+    if (!post?.id || !post?.type) return;
 
     router.push({
       pathname: "/campaigns/campaignComponents/campaignPost",
       params: {
         campaignId: String(campaignId),
         postId: String(post.id),
-        type: post.type, // 🔥 THIS IS THE KEY
+        type: post.type,
       },
     });
   };
 
-  const handleSharePost = (postId: number) => {
-    console.log("Share post clicked for ID:", postId);
+  // ========= SHARE POST MODAL =========
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [contacts, setContacts] = useState<ContactsRecord[]>([]);
+  const [selectedContacts, setSelectedContacts] = useState<number[]>([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [currentSharePostId, setCurrentSharePostId] = useState<number | null>(null);
+
+  const fetchContactsForShare = async () => {
+    try {
+      setLoadingContacts(true);
+      const res = await getContactsApi(1, 100, "");
+      const mapped: ContactsRecord[] = (res.contacts ?? []).map((c: any) => ({
+        id: c.id,
+        name: c.contactName,
+        email: c.contactEmail,
+        mobile: c.contactMobile,
+        whatsapp: c.contactWhatsApp,
+        show: true,
+        campaigns: c.campaigns ?? [],
+      }));
+      setContacts(mapped);
+    } catch (e) {
+      console.error("Failed to fetch contacts", e);
+      setContacts([]);
+    } finally {
+      setLoadingContacts(false);
+    }
   };
 
-  // ========= RENDER POST =========
+  const handleOpenShareModal = async (postId: number) => {
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+
+    setCurrentSharePostId(postId);
+
+    if (["SMS", "EMAIL", "WHATSAPP"].includes(post.type)) {
+      setSelectedContacts([]);
+      await fetchContactsForShare();
+      setShareModalVisible(true);
+    } else {
+      setShareModalVisible(true);
+    }
+  };
+
+  const toggleContactSelection = (contactId: number) => {
+    if (selectedContacts.includes(contactId)) {
+      setSelectedContacts(selectedContacts.filter((id) => id !== contactId));
+    } else {
+      setSelectedContacts([...selectedContacts, contactId]);
+    }
+  };
+
+  const sharePost = async () => {
+    if (!resolvedCampaignId || !currentSharePostId) return;
+
+    const post = posts.find((p) => p.id === currentSharePostId);
+    if (!post) return;
+
+    let contactsToSend: number[] = [];
+
+    if (["SMS", "EMAIL", "WHATSAPP"].includes(post.type)) {
+      if (selectedContacts.length === 0) {
+        Alert.alert("Select contacts", "Please select at least one contact.");
+        return;
+      }
+      contactsToSend = selectedContacts;
+    }
+
+    try {
+      setPublishing(true);
+      const result = await shareCampaignPostApi(
+        resolvedCampaignId,
+        currentSharePostId,
+        contactsToSend,
+      );
+
+      if (result.success) {
+        Alert.alert(
+          "Success",
+          contactsToSend.length > 0
+            ? `Post sent to ${contactsToSend.length} contacts`
+            : "Post sent Successfully"
+        );
+      } else {
+        Alert.alert(
+          "Failed",
+          `Failed to send post to ${result.failed?.length || 0} contacts`
+        );
+      }
+
+      setShareModalVisible(false);
+    } catch (error: any) {
+      console.error("Send error", error);
+      Alert.alert("Error", error.message || "Failed to send post");
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  // ========= RENDER POST ITEM =========
   const renderPostItem = ({ item }: { item: any }) => {
     const platform = platformIcons[item.type];
 
     return (
-      <View className="bg-white p-4 rounded-xl mb-4 shadow relative">
+      <View className="p-4 rounded-xl mb-4 relative">
         <View
           style={{
             position: "absolute",
@@ -217,9 +309,8 @@ export default function CampaignsDetails() {
             elevation: 10,
           }}
         >
-
           <TouchableOpacity
-            onPress={() => handleSharePost(campaign!.id,)}
+            onPress={() => handleOpenShareModal(item.id)}
             activeOpacity={0.6}
             style={{
               width: 44,
@@ -227,7 +318,6 @@ export default function CampaignsDetails() {
               borderRadius: 22,
               justifyContent: "center",
               alignItems: "center",
-              // backgroundColor: "#ecfdf5",
             }}
           >
             <Ionicons name="share-social-outline" size={22} color="#3b82f6" />
@@ -239,10 +329,8 @@ export default function CampaignsDetails() {
             style={{
               width: 44,
               height: 44,
-              borderRadius: 22,
               justifyContent: "center",
               alignItems: "center",
-              // backgroundColor: "#ecfdf5",
             }}
           >
             <Ionicons name="create-outline" size={22} color="#10b981" />
@@ -257,7 +345,6 @@ export default function CampaignsDetails() {
               borderRadius: 22,
               justifyContent: "center",
               alignItems: "center",
-              // backgroundColor: "#fee2e2",
             }}
           >
             <Ionicons name="trash-outline" size={22} color="#ef4444" />
@@ -265,71 +352,86 @@ export default function CampaignsDetails() {
         </View>
 
         {item.subject ? (
-          <Text
+          <ThemedText
             className="text-lg font-bold mb-2"
             style={{ marginRight: 120 }}
             numberOfLines={1}
             ellipsizeMode="tail"
           >
             {item.subject}
-          </Text>
+          </ThemedText>
         ) : (
-          <View className="flex-row items-center mb-2">
+          <ThemedView className="flex-row items-center mb-2">
             <Ionicons
               name="information-circle-outline"
               size={18}
               color="#9ca3af"
             />
-            <Text className="ml-2 text-gray-500 italic">
+            <ThemedText className="ml-2 text-gray-500 italic">
               No subject available
-            </Text>
-          </View>
+            </ThemedText>
+          </ThemedView>
         )}
 
-        <Text className="font-semibold mb-1">Description</Text>
+        <ThemedText className="font-semibold mb-1">Description</ThemedText>
         {item.message ? (
-          <Text className="mb-2" style={{ textAlign: "justify" }}>
+          <ThemedText
+            className="mb-2"
+            style={{
+              textAlign: "justify",
+              color: isDark ? "#e5e7eb" : "#111",
+            }}
+          >
             {item.message}
-          </Text>
+          </ThemedText>
         ) : (
-          <View className="flex-row items-center mb-2">
+          <ThemedView className="flex-row items-center mb-2">
             <Ionicons
               name="information-circle-outline"
               size={18}
               color="#9ca3af"
             />
-            <Text className="ml-2 text-gray-500 italic">
+            <ThemedText className="ml-2 text-gray-500 italic">
               No description available
-            </Text>
-          </View>
+            </ThemedText>
+          </ThemedView>
         )}
 
-        <Text className="font-semibold mb-1">Schedule</Text>
+        <ThemedText className="font-semibold mb-1">Schedule</ThemedText>
         {item.scheduledPostTime ? (
-          <Text className="mb-2">
+          <ThemedText
+            className="mb-2"
+            style={{
+              color: isDark ? "#e5e7eb" : "#111",
+            }}
+          >
             {new Date(item.scheduledPostTime).toLocaleString()}
-          </Text>
+          </ThemedText>
         ) : (
-          <View className="flex-row items-center mb-2">
+          <ThemedView className="flex-row items-center mb-2">
             <Ionicons name="calendar-outline" size={18} color="#9ca3af" />
-            <Text className="ml-2 text-gray-500 italic">
+            <ThemedText className="ml-2 text-gray-500 italic">
               No schedule available
-            </Text>
-          </View>
+            </ThemedText>
+          </ThemedView>
         )}
 
-        <View className="flex-row items-center">
-          <Text className="font-semibold mr-2">Type</Text>
+        <ThemedView className="flex-row items-center">
+          <ThemedText className="font-semibold mr-2">Type</ThemedText>
           {platform ? (
             <platform.Icon
               name={platform.name}
               size={22}
-              color={platform.color}
+              color={isDark ? "#ffffff" : platform.color}
             />
           ) : (
-            <Text>{item.type}</Text>
+            <ThemedText
+              style={{ color: isDark ? "#e5e7eb" : "#111" }}
+            >
+              {item.type}
+            </ThemedText>
           )}
-        </View>
+        </ThemedView>
       </View>
     );
   };
@@ -337,67 +439,91 @@ export default function CampaignsDetails() {
   const visiblePosts = posts.slice(0, visibleCount);
   const isAllVisible = visibleCount >= posts.length;
 
-  if (!campaign) {
-    return (
-      <View className="flex-1 items-center justify-center bg-gray-100">
-        <ActivityIndicator size="large" />
-        <Text className="mt-3">Loading campaign...</Text>
-      </View>
-    );
-  }
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   return (
-    <View className="flex-1 p-4 bg-gray-100">
-      <Text className="text-xl font-bold mb-3">Campaign Details</Text>
+    <ThemedView className="flex-1 p-4" style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
+      <ThemedText
+        style={{
+          fontSize: 18,
+          fontWeight: "bold",
+        }}
+        className="mb-3"
+      >
+        Campaign Details
+      </ThemedText>
 
-      <CampaignCard
-        campaign={campaign}
-        // postsCount={posts.length}
-        showActions={false}
-        alwaysExpanded={true}
-        postButtonTopRight={true}
-        hidePostsHeading={true}
-        onDelete={() => { }}
-        onCopy={() => { }}
-        onToggleShow={() => { }}
-        onPressPost={() => handleCreatePost(campaign.id)}
-      />
+      {campaign && (
+        <CampaignCard
+          campaign={campaign}
+          showActions={false}
+          alwaysExpanded={true}
+          postButtonTopRight={true}
+          hidePostsHeading={true}
+          onDelete={() => { }}
+          onCopy={() => { }}
+          onToggleShow={() => { }}
+          onPressPost={() => handleCreatePost(campaign.id)}
+        />
+      )}
 
       {/* POSTS */}
-      <View className="mt-4 flex-1">
-        <Text className="text-xl font-bold mb-3">Created Posts</Text>
+      <ThemedView className="flex-1" style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
+        <ThemedText className="text-xl font-bold mb-3"
+          style={{
+            fontSize: 18,
+            fontWeight: "bold",
+          }}>Created Posts</ThemedText>
 
-        {posts.length === 0 ? (
-          <Text className="text-gray-500 text-center">No records found</Text>
+        {loadingPosts ? (
+          <ThemedView className="flex-1 justify-center items-center">
+            <ActivityIndicator size="large" color="#dc2626" />
+            <ThemedText className="mt-2" style={{ color: isDark ? "#e5e7eb" : "#111" }}>
+              Loading posts...
+            </ThemedText>
+          </ThemedView>
+        ) : posts.length === 0 ? (
+          <ThemedText className="text-gray-500 text-center" style={{ color: isDark ? "#e5e7eb" : "#6b7280" }}>
+            No records found
+          </ThemedText>
         ) : (
           <FlatList
             data={visiblePosts}
             keyExtractor={(item) => String(item.id)}
-            renderItem={renderPostItem}
+            renderItem={({ item }) => (
+              <ThemedView className="mb-3 rounded-xl shadow" style={{ borderWidth: 1, borderColor: isDark ? "#ffffff" : "#e5e7eb" }}>
+                {renderPostItem({ item })}
+              </ThemedView>
+            )}
             showsVerticalScrollIndicator={false}
             ListFooterComponent={
               posts.length > 5 ? (
                 <TouchableOpacity
-                  onPress={
-                    isAllVisible
-                      ? () => setVisibleCount(5)
-                      : () => setVisibleCount((v) => v + 5)
-                  }
-                  className={`py-3 my-2 rounded-xl items-center ${isAllVisible ? "bg-red-100" : "bg-blue-100"
-                    }`}
+                  onPress={isAllVisible ? () => setVisibleCount(5) : () => setVisibleCount((v) => v + 5)}
+                  className={`py-3 my-2 rounded-xl items-center ${isAllVisible ? isDark ? "bg-red-900/30" : "bg-red-100" : isDark ? "bg-blue-900/30" : "bg-blue-100"}`}
                 >
-                  <Text
-                    className={`font-semibold ${isAllVisible ? "text-red-700" : "text-blue-700"
-                      }`}
-                  >
+                  <ThemedText className={`font-semibold ${isAllVisible ? isDark ? "text-red-300" : "text-red-700" : isDark ? "text-blue-300" : "text-blue-700"}`}>
                     {isAllVisible ? "Show Less" : "Load More"}
-                  </Text>
+                  </ThemedText>
                 </TouchableOpacity>
               ) : null
             }
           />
         )}
-      </View>
-    </View>
+      </ThemedView>
+      <ShareCampaignPost
+        visible={shareModalVisible}
+        isDark={isDark}
+        post={posts.find(p => p.id === currentSharePostId) ?? null}
+        contacts={contacts}
+        selectedContacts={selectedContacts}
+        loadingContacts={loadingContacts}
+        publishing={publishing}
+        onClose={() => setShareModalVisible(false)}
+        onToggleContact={toggleContactSelection}
+        onPublish={sharePost}
+      />
+    </ThemedView>
   );
 }

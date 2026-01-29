@@ -6,6 +6,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  useColorScheme,
+  ActivityIndicator
 } from "react-native";
 import { View, Text } from "@gluestack-ui/themed";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
@@ -13,10 +15,23 @@ import CampaignPostForm from "./campaignPostForm";
 import { useRoute } from "@react-navigation/native";
 import { useAuth } from "@clerk/clerk-expo";
 import axios from "axios";
+import { ThemedView } from "@/components/themed-view";
+import { ThemedText } from "@/components/themed-text";
 
 export default function CampaignPost() {
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<
+    | "EMAIL"
+    | "SMS"
+    | "INSTAGRAM"
+    | "WHATSAPP"
+    | "FACEBOOK"
+    | "YOUTUBE"
+    | "LINKEDIN"
+    | "PINTEREST"
+    | null
+  >(null);
   const [existingPost, setExistingPost] = useState<any>(null);
+  const [loadingPost, setLoadingPost] = useState(false);
 
   const route = useRoute();
   const { campaignId, postId, type } = route.params as {
@@ -32,6 +47,7 @@ export default function CampaignPost() {
     if (!campaignId || !postId) return;
 
     let isMounted = true;
+    setLoadingPost(true); // start loading
 
     const fetchPostDetails = async () => {
       try {
@@ -58,25 +74,31 @@ export default function CampaignPost() {
         } else {
           console.error("Unexpected error:", error);
         }
+      } finally {
+        setLoadingPost(false); // stop loading once data is fetched
       }
     };
 
     fetchPostDetails();
 
-    return () => { isMounted = false };
+    return () => {
+      isMounted = false;
+    };
   }, [campaignId, postId]);
 
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   // ---------- SOCIAL MEDIA ICONS ----------
   const icons = [
-    { name: "mail", label: "EMAIL", library: Ionicons, color: "#f59e0b" },
-    { name: "chatbubble-ellipses-outline", label: "SMS", library: Ionicons, color: "#10b981" },
-    { name: "instagram", label: "INSTAGRAM", library: FontAwesome, color: "#c13584" },
-    { name: "logo-whatsapp", label: "WHATSAPP", library: Ionicons, color: "#25D366" },
-    { name: "facebook-square", label: "FACEBOOK", library: FontAwesome, color: "#1877F2" },
-    { name: "youtube-play", label: "YOUTUBE", library: FontAwesome, color: "#FF0000" },
-    { name: "linkedin-square", label: "LINKEDIN", library: FontAwesome, color: "#0A66C2" },
-    { name: "pinterest", label: "PINTEREST", library: FontAwesome, color: "#E60023" },
+    { name: "mail", label: "EMAIL" as const, library: Ionicons, color: "#f59e0b" },
+    { name: "chatbubble-ellipses-outline", label: "SMS" as const, library: Ionicons, color: "#10b981" },
+    { name: "instagram", label: "INSTAGRAM" as const, library: FontAwesome, color: "#c13584" },
+    { name: "logo-whatsapp", label: "WHATSAPP" as const, library: Ionicons, color: "#25D366" },
+    { name: "facebook-square", label: "FACEBOOK" as const, library: FontAwesome, color: "#1877F2" },
+    { name: "youtube-play", label: "YOUTUBE" as const, library: FontAwesome, color: "#FF0000" },
+    { name: "linkedin-square", label: "LINKEDIN" as const, library: FontAwesome, color: "#0A66C2" },
+    { name: "pinterest", label: "PINTEREST" as const, library: FontAwesome, color: "#E60023" },
   ];
 
   return (
@@ -86,30 +108,33 @@ export default function CampaignPost() {
       keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
     >
       <ScrollView
-        className="flex-1 bg-gray-100 p-4"
+        className="flex-1 p-4"
+        style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: 150 }}
         showsVerticalScrollIndicator={false}
       >
-        <Text
+        <ThemedText
           style={{
             fontSize: 18,
             fontWeight: "bold",
             marginBottom: 12,
-            color: "black",
+            color: isDark ? "#fff" : "#000",
           }}
         >
           {postId ? "Edit Campaign Post" : "Create Campaign Post"}
-        </Text>
+        </ThemedText>
 
         {/* ---------- ICON SECTION ---------- */}
-        <View className="flex-row flex-wrap justify-between mb-4">
+        <ThemedView className="flex-row flex-wrap justify-between mb-4"
+          style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
           {icons.map((icon, index) => {
             const IconComponent = icon.library;
             const isSelected = selected === icon.label;
 
             return (
-              <View key={index} className="w-1/4 mb-6 items-center">
+              <ThemedView key={index} className="w-1/4 mb-6 items-center"
+                style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
                 <RNView
                   style={{
                     width: 64,
@@ -134,18 +159,18 @@ export default function CampaignPost() {
                       justifyContent: "center",
                       borderWidth: 2,
                       borderColor: isSelected ? icon.color : "#d1d5db",
-                      backgroundColor: "#ffffff",
+                      backgroundColor: isDark ? "#161618" : "#ffffff",
                     }}
                   >
                     <IconComponent
                       name={icon.name as any}
                       size={28}
-                      color={icon.color}
+                      color={isDark ? "#ffffff" : icon.color}
                     />
                   </TouchableOpacity>
                 </RNView>
 
-                <Text
+                <ThemedText
                   style={{
                     marginTop: 8,
                     textAlign: "center",
@@ -154,17 +179,32 @@ export default function CampaignPost() {
                   }}
                 >
                   {icon.label}
-                </Text>
-              </View>
+                </ThemedText>
+              </ThemedView>
             );
           })}
-        </View>
+        </ThemedView>
 
-        {/* ---------- FORM ---------- */}
-        {selected && (
-          <View style={{ marginTop: 0, marginBottom: 5 }}>
+        {/* ---------- FORM OR LOADING ---------- */}
+        {loadingPost ? (
+          <ThemedView
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              minHeight: 200,
+              backgroundColor: isDark ? "#161618" : "#f3f4f6"
+            }}
+          >
+            <ActivityIndicator size="large" color="#10b981" />
+            <ThemedText style={{ marginTop: 10, color: isDark ? "#fff" : "#000", fontWeight: "bold" }}>
+              Loading...
+            </ThemedText>
+          </ThemedView>
+        ) : selected ? (
+          <ThemedView style={{ marginTop: 0, marginBottom: 5 }}>
             <CampaignPostForm
-              key={selected} // ✅ this forces remount on platform change
+              key={selected} // remount when platform changes
               platform={selected}
               campaignId={campaignId.toString()}
               existingPost={existingPost}
@@ -173,8 +213,8 @@ export default function CampaignPost() {
                 setExistingPost(null);
               }}
             />
-          </View>
-        )}
+          </ThemedView>
+        ) : null}
 
       </ScrollView>
     </KeyboardAvoidingView>
