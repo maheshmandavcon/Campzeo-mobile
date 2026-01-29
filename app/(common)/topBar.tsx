@@ -1,12 +1,13 @@
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { router, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Image, TouchableOpacity } from "react-native";
+import { Image, TouchableOpacity, useColorScheme } from "react-native";
 
 import { getNotificationsApi } from "@/api/notification/notificationApi";
 import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useSidebarStore } from "../../store/sidebarStore";
+import { Text } from "@gluestack-ui/themed";
 import { ThemedText } from "@/components/themed-text";
 import { useColorMode } from "@gluestack-style/react";
 
@@ -23,8 +24,10 @@ export default function TopBar() {
 
   const [unreadCount, setUnreadCount] = useState<number>(0);
 
-  const colorMode = useColorMode();
-  const iconColor = colorMode === "dark" ? "#ffffff" : "#000000";
+  // ✅ Use React Native's useColorScheme for reactive updates
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const iconColor = isDark ? "#fff" : "#000";
 
   // ---------------- FETCH UNREAD COUNT ----------------
   const fetchUnreadCount = async () => {
@@ -84,7 +87,7 @@ export default function TopBar() {
           <IconSymbol
             name="notifications"
             size={25}
-            color={iconColor}
+            color={iconColor} // reacts instantly to theme changes
           />
 
           {unreadCount > 0 && (

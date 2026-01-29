@@ -1,207 +1,83 @@
-import { useState, useEffect } from "react";
+import React from "react";
 import {
+  View,
+  Text,
   TextInput,
   TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
-  Modal,
-  FlatList,
   Image,
-  View as RNView,
+  FlatList,
+  Modal,
+  ActivityIndicator,
 } from "react-native";
-import { Text, Button, View } from "@gluestack-ui/themed";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import * as DocumentPicker from "expo-document-picker";
-import { router } from "expo-router";
-import { useAuth } from "@clerk/clerk-expo";
-import {
-  createPostForCampaignApi,
-  updatePostForCampaignApi,
-  generateAIContentApi,
-  generateAIImageApi,
-} from "@/api/campaign/campaignApi";
 import { Ionicons } from "@expo/vector-icons";
-import { ActivityIndicator } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Button } from "@gluestack-ui/themed";
+import { useColorScheme } from "react-native";
+import { useCampaignPostForm } from "@/hooks/useCampaignPostForm";
 
-// ================= TYPES =================
-interface CampaignPostData {
-  senderEmail?: string;
-  subject: string;
-  message: string;
-  scheduledPostTime: string;
-  type: string;
-  attachments?: { uri: string; name: string; type: string }[];
+// ---------- Define Props Interface ----------
+interface CampaignPostFormProps {
+  platform: "EMAIL" | "SMS" | "INSTAGRAM" | "WHATSAPP" | "FACEBOOK" | "YOUTUBE" | "LINKEDIN" | "PINTEREST";
+  existingPost?: any;
+  campaignId?: string;
+  onClose?: () => void;
 }
 
-interface Attachment {
-  uri: string;
-  name: string;
-  type: string;
-}
-
-interface AIVariation {
-  subject: string;
-  content: string;
-}
-
-// ================= COMPONENT =================
-export default function CampaignPostForm({
+const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
   platform,
+  existingPost = null,
   campaignId,
   onClose,
-  onCreatedNavigate,
-  existingPost,
-}: {
-  platform: string;
-  campaignId?: string;
-  onClose?: (newPost?: any) => void;
-  onCreatedNavigate?: () => void;
-  existingPost?: any;
-}) {
-  const { getToken } = useAuth();
+}) => {
+  const isDark = useColorScheme() === "dark";
 
-  const [senderEmail, setSenderEmail] = useState(existingPost?.senderEmail || "");
-  const [subject, setSubject] = useState(existingPost?.subject || "");
-  const [message, setMessage] = useState(existingPost?.message || "");
-  const [postDate, setPostDate] = useState(
-    existingPost?.scheduledPostTime ? new Date(existingPost.scheduledPostTime) : null
-  );
-  const [attachments, setAttachments] = useState<Attachment[]>(
-    existingPost?.attachments || []
-  );
+  const {
+    // state
+    platform: platformState, senderEmail, subject, message, attachments, postDate, loading,
 
-  // AI text states
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [loadingAI, setLoadingAI] = useState(false);
-  const [aiResults, setAiResults] = useState<AIVariation[]>([]);
-  const [aiModalVisible, setAiModalVisible] = useState(false);
+    aiModalVisible, aiPrompt, aiResults, loadingAI, imageLoadingMap,
 
-  // AI image states
-  const [imagePrompt, setImagePrompt] = useState("");
-  const [loadingImage, setLoadingImage] = useState(false);
-  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
-  const [selectedImage, setSelectedImage] = useState<string | undefined>(existingPost?.image || undefined);
-  const [imageModalVisible, setImageModalVisible] = useState(false);
+    imageModalVisible, imagePrompt, generatedImages, loadingImage,
 
-  // Date picker
-  const [showPicker, setShowPicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
+    facebookPages, selectedFacebookPage, facebookContentType, isFacebookPageLoading, coverImage,
 
-  // const showWhatsAppContent = platform === "WHATSAPP";
+    youTubeContentType, youTubeTags, youTubeStatus, showStatusDropdown, isCreatingPlaylist, customThumbnail, playlistId, playlistTitle,
+    playlists,
+    showPlaylistDropdown,
+    selectedPlaylist,
+    newPlaylistName,
+    setShowPlaylistDropdown,
+    setSelectedPlaylist,
+    setNewPlaylistName,
 
-  const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
+    pinterestBoard, destinationLink, isCreatingPinterestBoard, pinterestModalVisible, newPinterestBoard, pinterestDescription, isPinterestBoardLoading, allPinterestBoards, loadingBoards,
 
-  const [pinterestBoard, setPinterestBoard] = useState<string>(""); // selected board
-  const [isCreatingPinterestBoard, setIsCreatingPinterestBoard] = useState(false);
-  const [destinationLink, setDestinationLink] = useState<string>("");
+    showPicker, showTimePicker,
 
-  const [facebookContentType, setFacebookContentType] = useState<string>(
-  existingPost?.facebookContentType || "STANDARD"
-);
+    // setters
+    setSenderEmail, setSubject, setMessage, setPostDate, setAiModalVisible, setAiPrompt, setImageModalVisible, setImagePrompt, setAttachments, setFacebookContentType, setYouTubeContentType, setYouTubeTags, setYouTubeStatus, setShowStatusDropdown, setIsCreatingPlaylist, setPlaylistId,
+    setPlaylistTitle, setIsCreatingPinterestBoard, setPinterestBoard, setPinterestModalVisible, setNewPinterestBoard, setPinterestDescription, setDestinationLink, setShowPicker, setShowTimePicker, setImageLoadingMap,
 
-const [coverImage, setCoverImage] = useState<string | null>(
-  existingPost?.coverImage || null
-);
+    // handlers
+    handleSubmit, handleAddAttachment, handleRemoveAttachment, handleGenerateAIText, handleGenerateAIImage, handleCoverImageUpload, handleCustomThumbnailUpload, handleCreatePinterestBoard,
+  } = useCampaignPostForm({
+    platform,
+    campaignId,
+    existingPost,
+    onClose,
+  });
 
-
-  // ================= EFFECT =================
-  useEffect(() => {
-    if (generatedImages.length > 0 && !selectedImage) {
-      setSelectedImage(generatedImages[0]);
-    }
-  }, [generatedImages]);
-
-
-  // ================= HANDLE ATTACHMENTS =================
-  const handleAddAttachment = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: "*/*",
-        multiple: false,
-      });
-
-      if (result.canceled) return;
-
-      const file = result.assets?.[0];
-      if (!file) return;
-
-      setAttachments((prev) => [
-        ...prev,
-        {
-          uri: file.uri,
-          name: file.name ?? "attachment",
-          type: file.mimeType ?? "application/octet-stream",
-        },
-      ]);
-    } catch (error) {
-      console.error("Document picker error:", error);
-    }
-  };
-
-  const handleRemoveAttachment = (index: number) => {
-    setAttachments((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  // ================= CREATE OR EDIT POST =================
-  const handleSubmit = async () => {
-    if (!subject || !message || !postDate || (platform === "EMAIL" && !senderEmail)) {
-      Alert.alert("⚠️ Please fill in all fields.");
-      return;
-    }
-
-    if (!campaignId) {
-      Alert.alert("Campaign ID missing");
-      return;
-    }
-
-    const postData: CampaignPostData = {
-      senderEmail: senderEmail || undefined,
-      subject,
-      message,
-      scheduledPostTime: postDate.toISOString(),
-      type: platform,
-      attachments,
-    };
-
-    try {
-      const token = await getToken();
-      if (!token) throw new Error("Authentication token missing");
-
-      let response;
-      if (existingPost?.id) {
-        response = await updatePostForCampaignApi(
-          Number(campaignId),
-          Number(existingPost.id),
-          postData,
-          token
-        );
-      } else {
-        response = await createPostForCampaignApi(Number(campaignId), postData, token);
-      }
-
-      onClose?.(response);
-
-      if (!existingPost) {
-        setSenderEmail("");
-        setSubject("");
-        setMessage("");
-        setAiPrompt("");
-        setPostDate(null);
-        setImagePrompt("");
-        setGeneratedImages([]);
-        setSelectedImage(undefined);
-      }
-
-      onCreatedNavigate ? onCreatedNavigate() : router.back();
-    } catch (error: any) {
-      Alert.alert("Error", error?.message || "Something went wrong");
-    }
-  };
+  const YOUTUBE_TYPES = [
+    { label: "Standard Video", value: "VIDEO" },
+    { label: "YouTube Short", value: "SHORT" },
+    { label: "Playlist", value: "PLAYLIST" },
+  ] as const;
 
   // ================= RENDER ATTACHMENTS =================
-  const renderAttachmentItem = ({ item, index }: { item: Attachment; index: number }) => (
+  const renderAttachmentItem = ({ item, index }: any) => (
     <View className="flex-row items-center bg-gray-200 rounded-lg px-2 py-1 mr-2 mb-2">
       {item.type.startsWith("image/") && (
         <Image
@@ -218,114 +94,25 @@ const [coverImage, setCoverImage] = useState<string | null>(
     </View>
   );
 
-  // ================= AI TEXT =================
-  const handleGenerateAIText = async () => {
-    if (!aiPrompt.trim()) {
-      Alert.alert("Enter instruction like: add emoji, make promotional");
-      return;
-    }
-    if (loadingAI) return;
-
-    setLoadingAI(true);
-
-    try {
-      const token = await getToken();
-      if (!token) throw new Error("Authentication token missing");
-
-      const payload = {
-        prompt: aiPrompt,
-        context: { platform, existingContent: message || "" },
-        mode: "generate-multiple",
-      };
-
-      const response = await generateAIContentApi(payload, token);
-
-      if (!response?.variations || response.variations.length === 0) {
-        throw new Error("No AI suggestions returned");
-      }
-
-      // ✅ Store both subject and content
-      setAiResults(
-        response.variations.slice(0, 3).map((v: any) => ({
-          subject: v.subject,
-          content: v.content,
-        }))
-      );
-
-    } catch (error: any) {
-      Alert.alert("AI Error", error?.message || "Failed to generate content");
-    } finally {
-      setLoadingAI(false);
-    }
-  };
-
-  // ================= AI IMAGE =================
-  const handleGenerateAIImage = async () => {
-    if (!imagePrompt.trim()) {
-      Alert.alert("Enter prompt to generate image");
-      return;
-    }
-    if (loadingImage) return;
-
-    setLoadingImage(true);
-
-    try {
-      const token = await getToken();
-      if (!token) throw new Error("Authentication token missing");
-
-      const response = await generateAIImageApi({ prompt: imagePrompt }, token);
-
-      console.log("AI Image API Response:", response);
-
-      // Use 'images' array or fallback to 'imagePrompt'
-      const imageUrl = response?.images?.[0] || response?.imagePrompt || "https://picsum.photos/200";
-      setGeneratedImages([imageUrl]);
-      setSelectedImage(imageUrl);
-    } catch (error: any) {
-      Alert.alert("Image Generation Error", error?.message || "Failed to generate image");
-    } finally {
-      setLoadingImage(false);
-    }
-  };
-
-
-  const [youTubeContentType, setYouTubeContentType] = useState<string>("Standard Video");
-  const [youTubeTags, setYouTubeTags] = useState<string>("");
-  const [youTubeStatus, setYouTubeStatus] = useState<string>("");
-  const [showStatusDropdown, setShowStatusDropdown] = useState<boolean>(false);
-  const [customThumbnail, setCustomThumbnail] = useState<string | null>(null);
-
-  const handleCustomThumbnailUpload = async () => {
-    // try {
-    //   const result = await DocumentPicker.getDocumentAsync({
-    //     type: "image/*",
-    //     multiple: false,
-    //   });
-
-    //   // result.type is either 'success' or 'cancel'
-    //   if (result.type === "cancel") return;
-
-    //   // TypeScript knows that if not canceled, result is the success type
-    //   setCustomThumbnail(result.uri);
-    // } catch (error) {
-    //   console.error("Thumbnail upload error:", error);
-    // }
-  };
-
-
   return (
     <KeyboardAvoidingView
       className="flex-1"
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
     >
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <View className="flex-1 bg-gray-100">
+      <ScrollView
+        // keyboardShouldPersistTaps="never"
+        // showsVerticalScrollIndicator={false}
+        // contentContainerStyle={{ paddingBottom: 120 }}
+        style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
+      >
+        <View className="flex-1"
+          style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
 
-          {platform === "EMAIL" && (
+          {platformState === "EMAIL" && (
             <>
               <Text style={{
-                color: "#000",
+                color: isDark ? "#ffffff" : "#000000",
                 fontWeight: "bold",
                 marginBottom: 8,
                 marginLeft: 4,
@@ -333,35 +120,66 @@ const [coverImage, setCoverImage] = useState<string | null>(
                 Sender Email</Text>
               <TextInput
                 placeholder="sender@eg.com"
+                placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
                 value={senderEmail}
                 onChangeText={setSenderEmail}
                 keyboardType="email-address"
                 className="border border-gray-300 rounded-full px-3 h-12 mb-4 bg-white"
+                style={{
+                  borderWidth: 1,
+                  borderColor: isDark ? "#374151" : "#d1d5db",
+                  borderRadius: 9999,
+                  paddingHorizontal: 12,
+                  height: 48,
+                  marginBottom: 16,
+                  backgroundColor: isDark ? "#161618" : "#ffffff", // dark/light bg
+                  color: isDark ? "#e5e7eb" : "#111111", // text color
+                }}
               />
             </>
           )}
 
           {/* SUBJECT */}
-          <Text
-            style={{
-              color: "#000",
-              fontWeight: "bold",
-              marginBottom: 8,
-              marginLeft: 4,
-            }}
-          >
-            {platform === "EMAIL" ? "Subject" : "Title"}
-          </Text>
-          <TextInput
-            placeholder={platform === "EMAIL" ? "Enter subject/title" : "Enter title"}
-            value={subject}
-            onChangeText={setSubject}
-            className="border border-gray-300 rounded-full px-3 h-12 mb-2 bg-white"
-          />
+          {platformState !== "SMS" && (
+            <>
+              <Text
+                style={{
+                  color: isDark ? "#ffffff" : "#000000",
+                  fontWeight: "bold",
+                  marginBottom: 8,
+                  marginLeft: 4,
+                }}
+              >
+                {platformState === "EMAIL" ? "Subject" : "Title"}
+              </Text>
+
+              <TextInput
+                placeholder={
+                  platformState === "EMAIL"
+                    ? "Enter subject"
+                    : "Enter title"
+                }
+                placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+                value={subject}
+                onChangeText={setSubject}
+                className="border border-gray-300 rounded-full px-3 h-12 mb-2 bg-white"
+                style={{
+                  borderWidth: 1,
+                  borderColor: isDark ? "#374151" : "#d1d5db",
+                  borderRadius: 9999,
+                  paddingHorizontal: 12,
+                  height: 48,
+                  marginBottom: 16,
+                  backgroundColor: isDark ? "#161618" : "#ffffff",
+                  color: isDark ? "#e5e7eb" : "#111111",
+                }}
+              />
+            </>
+          )}
 
           {/* AI TEXT BUTTON FOR ALL PLATFORMS */}
           <TouchableOpacity
-            onPress={() => setAiModalVisible(true)} // or setImageModalVisible(true)
+            onPress={() => setAiModalVisible(true)}
             style={{
               flexDirection: "row",
               alignItems: "center",
@@ -371,7 +189,6 @@ const [coverImage, setCoverImage] = useState<string | null>(
               paddingHorizontal: 16,
               borderRadius: 25,
               marginBottom: 8,
-              marginTop: 8,
             }}
           >
             <Ionicons name="sparkles" size={20} color="#fff" style={{ marginRight: 12 }} />
@@ -382,68 +199,118 @@ const [coverImage, setCoverImage] = useState<string | null>(
 
           {/* MESSAGE */}
           <Text style={{
-            color: "#000",
+            color: isDark ? "#ffffff" : "#000000",
             fontWeight: "bold",
             marginBottom: 8,
             marginLeft: 4,
           }}>Message</Text>
           <TextInput
-            placeholder={`Enter your ${platform} content here...`}
+            placeholder={`Enter your ${platformState} content here...`}
+            placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
             value={message}
             onChangeText={setMessage}
             multiline
             numberOfLines={4}
             textAlignVertical="top"
             className="border border-gray-300 rounded-lg p-3 mb-2 min-h-[120px] bg-white"
+            style={{
+              borderWidth: 1,
+              borderColor: isDark ? "#374151" : "#d1d5db",
+              borderRadius: 12,
+              padding: 12,
+              marginBottom: 8,
+              minHeight: 120,
+              backgroundColor: isDark ? "#161618" : "#ffffff",
+              color: isDark ? "#e5e7eb" : "#111111", // text color
+            }}
           />
 
           {/* AI IMAGE BUTTON */}
-
-          <TouchableOpacity
-            onPress={() => setImageModalVisible(true)}
-            style={{
-              flexDirection: "row",    // icon above text
-              alignItems: "center",       // center horizontally
-              justifyContent: "center",   // center vertically
-              backgroundColor: "#2563eb",
-              paddingVertical: 10,
-              paddingHorizontal: 16,
-              borderRadius: 25,
-              marginBottom: 8,
-              marginTop: 8,
-            }}
-          >
-            <Ionicons name="sparkles" size={24} color="#fff" style={{ marginRight: 12 }} />
-            <Text style={{ color: "#fff", fontWeight: "bold", textAlign: "center", marginTop: 4 }}>
-              Image Generate AI Assistant
-            </Text>
-          </TouchableOpacity>
+          {platformState !== "SMS" && (
+            <TouchableOpacity
+              onPress={() => setImageModalVisible(true)}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "#2563eb",
+                paddingVertical: 10,
+                paddingHorizontal: 16,
+                borderRadius: 25,
+                marginBottom: 8,
+                marginTop: 8,
+              }}
+            >
+              <Ionicons
+                name="sparkles"
+                size={24}
+                color="#fff"
+                style={{ marginRight: 12 }}
+              />
+              <Text
+                style={{
+                  color: "#fff",
+                  fontWeight: "bold",
+                  textAlign: "center",
+                }}
+              >
+                Image Generate AI Assistant
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {/* AI TEXT MODAL */}
           <Modal visible={aiModalVisible} transparent animationType="slide">
             <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 20 }}>
-              <View style={{ backgroundColor: "#fff", borderRadius: 12, padding: 16, maxHeight: "70%" }}>
-                <View className="flex-row items-center mb-4">
+              <View
+                style={{
+                  backgroundColor: isDark ? "#161618" : "#ffffff", // dark/light background
+                  borderRadius: 12,
+                  padding: 16,
+                  maxHeight: "70%",
+                  borderWidth: 1,
+                  borderColor: isDark ? "#ffffff" : "#d1d5db", // white border in dark, gray in light
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
+                  {/* AI Prompt Input */}
                   <TextInput
                     value={aiPrompt}
                     onChangeText={setAiPrompt}
                     placeholder="e.g. add emoji, make promotional"
-                    className="flex-1 border border-gray-300 border-r-0 rounded-l-full px-3 h-12 bg-white"
+                    placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"} // gray placeholder
+                    style={{
+                      flex: 1,
+                      borderWidth: 1,
+                      borderColor: isDark ? "#4b5563" : "#d1d5db",
+                      borderRightWidth: 0, // remove right border to connect with button
+                      borderTopLeftRadius: 25,
+                      borderBottomLeftRadius: 25,
+                      paddingHorizontal: 16,
+                      height: 48,
+                      backgroundColor: isDark ? "#161618" : "#ffffff",
+                      color: isDark ? "#ffffff" : "#000000",
+                    }}
                   />
+
+                  {/* Generate Button */}
                   <TouchableOpacity
                     disabled={loadingAI}
                     onPress={handleGenerateAIText}
                     style={{
-                      backgroundColor: loadingAI ? "#aaa" : "#dc2626",
-                      height: 43,
+                      backgroundColor: loadingAI ? "#6b7280" : "#dc2626",
+                      borderWidth: 1,
+                      borderColor: isDark ? "#4b5563" : "#d1d5db",
+                      borderLeftWidth: 0, // remove left border to connect with input
+                      borderTopRightRadius: 25,
+                      borderBottomRightRadius: 25,
+                      height: 48,
                       paddingHorizontal: 16,
                       justifyContent: "center",
                       alignItems: "center",
-                      borderTopRightRadius: 25,
-                      borderBottomRightRadius: 25,
                     }}
                   >
-                    <Ionicons name="sparkles" size={24} color={loadingAI ? "#fff" : "#fff"} />
+                    <Ionicons name="sparkles" size={24} color="#ffffff" />
                   </TouchableOpacity>
                 </View>
 
@@ -491,7 +358,6 @@ const [coverImage, setCoverImage] = useState<string | null>(
                   </Text>
                 )}
 
-
                 <Button onPress={() => setAiModalVisible(false)} style={{ backgroundColor: "#dc2626", marginTop: 12 }}>
                   <Text style={{ color: "#fff", fontWeight: "bold" }}>Close</Text>
                 </Button>
@@ -502,28 +368,55 @@ const [coverImage, setCoverImage] = useState<string | null>(
           {/* AI IMAGE MODAL */}
           <Modal visible={imageModalVisible} transparent animationType="slide">
             <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 20 }}>
-              <View style={{ backgroundColor: "#fff", borderRadius: 12, padding: 16, maxHeight: "70%" }}>
-                <View className="flex-row items-center mb-4">
+              <View style={{
+                backgroundColor: isDark ? "#161618" : "#ffffff", // dark/light background
+                borderRadius: 12,
+                padding: 16,
+                maxHeight: "70%",
+                borderWidth: 1,
+                borderColor: isDark ? "#ffffff" : "#d1d5db", // white border in dark, gray in light
+              }}>
+                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
+                  {/* AI Image Prompt Input */}
                   <TextInput
                     value={imagePrompt}
                     onChangeText={setImagePrompt}
                     placeholder="Enter prompt to generate image"
-                    className="flex-1 border border-gray-300 border-r-0 rounded-l-full px-3 h-12 bg-white"
+                    placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"} // gray placeholder
+                    style={{
+                      flex: 1,
+                      borderWidth: 1,
+                      borderColor: isDark ? "#4b5563" : "#d1d5db", // dark/light border
+                      borderRightWidth: 0, // connect with button
+                      borderTopLeftRadius: 25,
+                      borderBottomLeftRadius: 25,
+                      paddingHorizontal: 16,
+                      height: 48,
+                      backgroundColor: isDark ? "#161618" : "#ffffff", // dark/light background
+                      color: isDark ? "#ffffff" : "#000000", // text color
+                    }}
                   />
+
+                  {/* Generate Image Button */}
                   <TouchableOpacity
                     disabled={loadingImage}
                     onPress={handleGenerateAIImage}
                     style={{
-                      backgroundColor: loadingImage ? "#aaa" : "#2563eb",
-                      height: 43,
+                      backgroundColor: loadingImage
+                        ? isDark ? "#4b5563" : "#aaa" // gray in dark mode when loading
+                        : isDark ? "#1e40af" : "#2563eb", // dark blue in dark, blue in light
+                      height: 48,
                       paddingHorizontal: 16,
                       justifyContent: "center",
                       alignItems: "center",
                       borderTopRightRadius: 25,
                       borderBottomRightRadius: 25,
+                      borderWidth: 1,
+                      borderLeftWidth: 0,
+                      borderColor: isDark ? "#4b5563" : "#d1d5db",
                     }}
                   >
-                    <Ionicons name="sparkles" size={24} color={loadingImage ? "#fff" : "#fff"} />
+                    <Ionicons name="sparkles" size={24} color="#ffffff" />
                   </TouchableOpacity>
                 </View>
 
@@ -556,24 +449,65 @@ const [coverImage, setCoverImage] = useState<string | null>(
                               uri: item,
                               name: "ai-image.jpg",
                               type: "image/jpeg",
+                              uploading: false,
                             },
                           ]);
-                          setImageModalVisible(false); // optional: close modal
+                          setImageModalVisible(false);
                         }}
                       >
-                        <Image
-                          source={{ uri: item }}
-                          style={{ width: 100, height: 100, marginRight: 8, borderRadius: 8 }}
-                          resizeMode="cover"
-                          onError={() => console.log("Image failed to load", item)}
-                        />
+                        <View
+                          style={{
+                            width: 100,
+                            height: 100,
+                            marginRight: 8,
+                            borderRadius: 8,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            borderWidth: imageLoadingMap[item] ? 2 : 0,
+                            borderColor: isDark ? "#3b82f6" : "#2563eb",
+                            backgroundColor: isDark ? "#1f2933" : "#f1f5f9",
+                          }}
+                        >
+                          {/* Spinner */}
+                          {imageLoadingMap[item] && (
+                            <ActivityIndicator
+                              size="small"
+                              color={isDark ? "#60a5fa" : "#2563eb"}
+                              style={{ position: "absolute", zIndex: 10 }}
+                            />
+                          )}
+
+                          <Image
+                            source={{ uri: item }}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              borderRadius: 6,
+                              opacity: imageLoadingMap[item] ? 0 : 1,
+                            }}
+                            resizeMode="cover"
+                            onLoadEnd={() =>
+                              setImageLoadingMap((prev: Record<string, boolean>) => ({
+                                ...prev,
+                                [item]: false,
+                              }))
+                            }
+                            onError={() => {
+                              console.log("Image failed to load", item);
+                              setImageLoadingMap((prev: Record<string, boolean>) => ({
+                                ...prev,
+                                [item]: false,
+                              }));
+                            }}
+                          />
+                        </View>
+
                       </TouchableOpacity>
                     )}
                   />
                 ) : (
                   <Text style={{ color: "#555", marginVertical: 8 }}>No images yet. Enter a prompt and generate.</Text>
                 )}
-
 
                 <Button onPress={() => setImageModalVisible(false)} style={{ backgroundColor: "#dc2626", marginTop: 12 }}>
                   <Text style={{ color: "#fff", fontWeight: "bold" }}>Close</Text>
@@ -582,36 +516,127 @@ const [coverImage, setCoverImage] = useState<string | null>(
             </View>
           </Modal>
 
-          {/* ATTACHMENTS */}
-          <Text style={{
-            color: "#000",
-            fontWeight: "bold",
-            marginBottom: 8,
-            marginLeft: 4,
-          }}>
-            Attachments
+          {/* MEDIA */}
+          <Text
+            style={{
+              color: isDark ? "#ffffff" : "#000000",
+              fontWeight: "bold",
+              marginBottom: 8,
+              marginLeft: 4,
+            }}
+          >
+            {platformState === "YOUTUBE" ? "Media (Videos)" : "Media (Photos / Videos)"}
           </Text>
+
           <FlatList
             data={attachments}
             horizontal
+            showsHorizontalScrollIndicator={false}
             keyExtractor={(_, index) => String(index)}
             renderItem={renderAttachmentItem}
             ListHeaderComponent={
               <TouchableOpacity
                 onPress={handleAddAttachment}
-                className="flex-row items-center justify-center bg-blue-100 rounded-lg px-4 py-2 mr-2 mb-2"
+                disabled={loading}
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: 8,
+                  backgroundColor: "#dbeafe",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginRight: 8,
+                  marginBottom: 8,
+                }}
               >
-                <Ionicons name="add" size={24} color="#2563eb" />
+                {loading ? (
+                  <ActivityIndicator size="small" color="#2563eb" />
+                ) : (
+                  <Ionicons name="add" size={28} color="#2563eb" />
+                )}
               </TouchableOpacity>
             }
           />
 
-          {/* FACEBOOK CONTENT TYPE */}
-          {platform === "FACEBOOK" && (
+          {platformState === "FACEBOOK" && (
             <View
               style={{
-                borderWidth: 2,
-                borderColor: "#d1d5db",
+                borderWidth: 1,
+                borderColor: isDark ? "#374151" : "#d1d5db",
+                borderRadius: 12,
+                padding: 14,
+                marginBottom: 12,
+                backgroundColor: isDark ? "#161618" : "#f3f4f6"
+              }}
+            >
+              {/* 🔵 Header */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginBottom: 12,
+                }}
+              >
+                <Ionicons
+                  name="logo-facebook"
+                  size={22}
+                  color="#1877F2"
+                  style={{ marginRight: 6 }}
+                />
+                <Text
+                  style={{
+                    marginLeft: 8,
+                    fontSize: 16,
+                    fontWeight: "bold",
+                    color: isDark ? "#ffffff" : "#000000",
+                  }}
+                >
+                  Select Facebook Page
+                </Text>
+              </View>
+
+              {/* 🔄 Loading / Pages / Error */}
+              {isFacebookPageLoading ? (
+                <ActivityIndicator size="small" color="#1877F2" />
+              ) : facebookPages.length > 0 ? (
+                <Text
+                  style={{
+                    fontSize: 14,
+                    color: isDark ? "#e5e7eb" : "#000000",
+                  }}
+                >
+                  {selectedFacebookPage || facebookPages[0].name}
+                </Text>
+              ) : (
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: "#f87171",
+                  }}
+                >
+                  No Facebook Pages found. Make sure you've connected your account and granted permissions.
+                </Text>
+              )}
+
+              {/* ℹ️ Helper Text */}
+              <Text
+                style={{
+                  marginTop: 6,
+                  fontSize: 11,
+                  color: isDark ? "#9ca3af" : "#6b7280",
+                }}
+              >
+                Posts will be published to the selected page.
+              </Text>
+            </View>
+          )}
+
+          {/* FACEBOOK CONTENT TYPE */}
+          {(platformState === "FACEBOOK" || platformState === "INSTAGRAM") && (
+            <View
+              style={{
+                borderWidth: 1,
+                borderColor: isDark ? "#374151" : "#d1d5db",
                 borderRadius: 10,
                 padding: 12,
                 marginTop: 10,
@@ -621,7 +646,7 @@ const [coverImage, setCoverImage] = useState<string | null>(
               {/* Heading inside border */}
               <Text
                 style={{
-                  color: "#000",
+                  color: isDark ? "#ffffff" : "#000000",
                   fontWeight: "bold",
                   marginBottom: 12,
                 }}
@@ -638,11 +663,21 @@ const [coverImage, setCoverImage] = useState<string | null>(
                     paddingVertical: 12,
                     marginRight: 6,
                     borderRadius: 8,
-                    borderWidth: 2,
+                    borderWidth: 1,
                     borderColor:
-                      facebookContentType === "STANDARD" ? "#2563eb" : "#d1d5db",
+                      facebookContentType === "STANDARD"
+                        ? "#3b82f6"
+                        : isDark
+                          ? "#374151"
+                          : "#d1d5db",
                     backgroundColor:
-                      facebookContentType === "STANDARD" ? "#eff6ff" : "#fff",
+                      facebookContentType === "STANDARD"
+                        ? isDark
+                          ? "#1e3a8a"
+                          : "#eff6ff"
+                        : isDark
+                          ? "#161618"
+                          : "#ffffff",
                     alignItems: "center",
                   }}
                 >
@@ -651,7 +686,13 @@ const [coverImage, setCoverImage] = useState<string | null>(
                       fontWeight: "bold",
                       fontSize: 12,
                       color:
-                        facebookContentType === "STANDARD" ? "#2563eb" : "#000",
+                        facebookContentType === "STANDARD"
+                          ? isDark
+                            ? "#fff"
+                            : "#2563eb"
+                          : isDark
+                            ? "#ffffff"
+                            : "#000000",
                     }}
                   >
                     Standard Post
@@ -666,11 +707,21 @@ const [coverImage, setCoverImage] = useState<string | null>(
                     paddingVertical: 12,
                     marginLeft: 6,
                     borderRadius: 8,
-                    borderWidth: 2,
+                    borderWidth: 1,
                     borderColor:
-                      facebookContentType === "REEL" ? "#2563eb" : "#d1d5db",
+                      facebookContentType === "REEL"
+                        ? "#3b82f6"
+                        : isDark
+                          ? "#374151"
+                          : "#d1d5db",
                     backgroundColor:
-                      facebookContentType === "REEL" ? "#eff6ff" : "#fff",
+                      facebookContentType === "REEL"
+                        ? isDark
+                          ? "#1e3a8a"
+                          : "#eff6ff"
+                        : isDark
+                          ? "#161618"
+                          : "#ffffff",
                     alignItems: "center",
                   }}
                 >
@@ -679,144 +730,360 @@ const [coverImage, setCoverImage] = useState<string | null>(
                       fontWeight: "bold",
                       fontSize: 12,
                       color:
-                        facebookContentType === "REEL" ? "#2563eb" : "#000",
+                        facebookContentType === "REEL"
+                          ? isDark
+                            ? "#fff"
+                            : "#2563eb"
+                          : isDark
+                            ? "#ffffff"
+                            : "#000000",
                     }}
                   >
                     Reel / Short Video
                   </Text>
                 </TouchableOpacity>
               </View>
+
+              {/* ---------- New section for Reel / Short Video ---------- */}
+              {facebookContentType === "REEL" && (
+                <View style={{ marginTop: 12 }}>
+                  {/* Title */}
+                  <Text
+                    style={{
+                      color: isDark ? "#ffffff" : "#000000",
+                      fontWeight: "bold",
+                      marginBottom: 8,
+                    }}
+                  >
+                    Cover Image (Optional)
+                  </Text>
+
+                  {/* Upload Button */}
+                  <TouchableOpacity
+                    onPress={handleCoverImageUpload}
+                    style={{
+                      backgroundColor: isDark ? "#1e3a8a" : "#eff6ff",
+                      paddingVertical: 10,
+                      paddingHorizontal: 16,
+                      borderRadius: 8,
+                      alignItems: "center",
+                      marginBottom: 6,
+                      borderWidth: 1,
+                      borderColor: isDark ? "#3b82f6" : "#2563eb",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: isDark ? "#fff" : "#2563eb",
+                        fontWeight: "bold",
+                        fontSize: 12,
+                      }}
+                    >
+                      Upload Cover
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Preview */}
+                  {coverImage && (
+                    <Image
+                      source={{ uri: coverImage }}
+                      style={{
+                        width: 100,
+                        height: 100,
+                        borderRadius: 8,
+                        marginTop: 8,
+                        borderWidth: 1,
+                        borderColor: isDark ? "#fff" : "#000",
+                      }}
+                      resizeMode="cover"
+                    />
+                  )}
+
+                  {/* Helper Text */}
+                  <Text
+                    style={{
+                      fontSize: 10, marginTop: 8,
+                      color: isDark ? "#9ca3af" : "#6b7280",
+                    }}
+                  >
+                    Recommended for vertical videos (9:16) under 90 seconds
+                  </Text>
+                </View>
+              )}
             </View>
           )}
 
-          {platform === "YOUTUBE" && (
-            <View className="bg-gray-100 rounded-lg shadow-md">
-
+          {platformState === "YOUTUBE" && (
+            <View
+              style={{
+                backgroundColor: isDark ? "#161618" : "#f3f4f6",
+                borderRadius: 12,
+              }}
+            >
               {/* ---------- YouTube Settings Heading ---------- */}
-              <Text style={{
-                color: "#000",
-                fontWeight: "bold",
-                marginBottom: 8,
-                marginLeft: 4,
-              }}>
-                YouTube Settings</Text>
+              <Text
+                style={{
+                  color: isDark ? "#ffffff" : "#000000",
+                  fontWeight: "bold",
+                  marginBottom: 8,
+                  marginLeft: 4,
+                }}
+              >
+                YouTube Settings
+              </Text>
 
               {/* ---------- Content Type ---------- */}
               <View
                 style={{
-                  borderWidth: 2,
-                  borderColor: "#d1d5db",
+                  borderWidth: 1,
+                  borderColor: isDark ? "#374151" : "#d1d5db",
                   borderRadius: 8,
                   padding: 12,
                   marginBottom: 16,
+                  backgroundColor: isDark ? "#161618" : "#f3f4f6",
                 }}
               >
-                {/* Heading */}
-                <Text style={{
-                  color: "#000",
-                  fontWeight: "bold",
-                  marginBottom: 8,
-                  marginLeft: 4,
-                }}>
+                <Text
+                  style={{
+                    color: isDark ? "#ffffff" : "#000000",
+                    fontWeight: "bold",
+                    marginBottom: 8,
+                    marginLeft: 4,
+                  }}
+                >
                   Content Type
                 </Text>
 
-                {/* Buttons */}
-                <View style={{ marginBottom: 16 }}>
-                  {/* Content Type Buttons */}
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
-                    {["Standard Video", "YouTube Short", "Playlist"].map((type) => (
-                      <TouchableOpacity
-                        key={type}
-                        onPress={() => setYouTubeContentType(type)}
-                        style={{
-                          flex: 1,
-                          paddingVertical: 10,
-                          marginHorizontal: 4,
-                          borderRadius: 8,
-                          backgroundColor: "#f3f3f3",
-                          borderWidth: 2,
-                          borderColor: youTubeContentType === type ? "#2563eb" : "#d1d5db",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexDirection: "row",
-                        }}
-                      >
-                        <Text
+                <View style={{ marginBottom: 10 }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                    {YOUTUBE_TYPES.map(({ label, value }) => {
+                      const selected = youTubeContentType === value;
+
+                      return (
+                        <TouchableOpacity
+                          key={value}
+                          onPress={() => setYouTubeContentType(value)}
                           style={{
-                            color: "#000",
-                            fontWeight: "bold",
-                            fontSize: 12, // small font
+                            flex: 1,
+                            paddingVertical: 10,
+                            marginHorizontal: 4,
+                            borderRadius: 8,
+                            borderWidth: 1,
+                            borderColor: selected
+                              ? "#2563eb"
+                              : isDark
+                                ? "#374151"
+                                : "#d1d5db",
+                            backgroundColor: selected
+                              ? isDark
+                                ? "#1e3a8a"
+                                : "#eff6ff"
+                              : isDark
+                                ? "#161618"
+                                : "#fff",
+                            alignItems: "center",
                           }}
-                          numberOfLines={1}
                         >
-                          {type}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                          <Text
+                            style={{
+                              fontWeight: "bold",
+                              fontSize: 12,
+                              color: selected
+                                ? isDark
+                                  ? "#fff"
+                                  : "#2563eb"
+                                : isDark
+                                  ? "#ffffff"
+                                  : "#000000",
+                            }}
+                            numberOfLines={1}
+                          >
+                            {label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
 
-                  {/* Show this button only if "Playlist" is selected */}
-                  {youTubeContentType === "Playlist" && (
-                    <TouchableOpacity
-                      onPress={() => setIsCreatingPlaylist(true)} // mark as clicked
-                      style={{
-                        paddingVertical: 10,
-                        borderRadius: 8,
-                        borderWidth: 2,
-                        borderColor: isCreatingPlaylist ? "#2563eb" : "#d1d5db", // blue if clicked, gray otherwise
-                        backgroundColor: "#fff",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        marginHorizontal: 4,
-                      }}
-                    >
-                      <Text
+                  {/* Playlist Button */}
+                  {youTubeContentType === "PLAYLIST" && (
+                    <View style={{ marginTop: 12 }}>
+                      {/* Dropdown Button */}
+                      <TouchableOpacity
+                        onPress={() => setShowPlaylistDropdown(!showPlaylistDropdown)}
                         style={{
-                          color: isCreatingPlaylist ? "#2563eb" : "#000",
-                          fontWeight: "bold",
-                          fontSize: 12,
+                          borderWidth: 1,
+                          borderColor: isDark ? "#374151" : "#d1d5db",
+                          borderRadius: 8,
+                          paddingHorizontal: 12,
+                          paddingVertical: 10,
+                          backgroundColor: isDark ? "#111827" : "#ffffff",
                         }}
                       >
-                        + Create New Playlist
-                      </Text>
-                    </TouchableOpacity>
+                        <Text style={{ color: selectedPlaylist || isCreatingPlaylist ? (isDark ? "#ffffff" : "#000") : "#9ca3af" }}>
+                          {isCreatingPlaylist
+                            ? "Creating New Playlist..."
+                            : selectedPlaylist
+                              ? selectedPlaylist.name
+                              : "Select a playlist"}
+                        </Text>
+                      </TouchableOpacity>
+
+                      {/* Dropdown List */}
+                      {showPlaylistDropdown && !isCreatingPlaylist && (
+                        <View
+                          style={{
+                            marginTop: 8,
+                            borderWidth: 1,
+                            borderColor: isDark ? "#374151" : "#d1d5db",
+                            borderRadius: 8,
+                            backgroundColor: isDark ? "#1f2933" : "#f3f4f6",
+                          }}
+                        >
+                          {/* + Create New Playlist Button */}
+                          <TouchableOpacity
+                            onPress={() => {
+                              setIsCreatingPlaylist(true);
+                              setShowPlaylistDropdown(false); // hide dropdown
+                            }}
+                            style={{
+                              paddingVertical: 10,
+                              paddingHorizontal: 12,
+                              borderBottomWidth: 1,
+                              borderBottomColor: isDark ? "#374151" : "#d1d5db",
+                              backgroundColor: isDark ? "#111827" : "#ffffff",
+                            }}
+                          >
+                            <Text style={{ color: "#2563eb", fontWeight: "bold" }}>+ Create New Playlist</Text>
+                          </TouchableOpacity>
+
+                          {/* Existing Playlists */}
+                          {playlists.map((playlist) => (
+                            <TouchableOpacity
+                              key={playlist.id}
+                              onPress={() => {
+                                setSelectedPlaylist(playlist);
+                                setShowPlaylistDropdown(false);
+                                setIsCreatingPlaylist(false);
+                              }}
+                              style={{
+                                paddingVertical: 10,
+                                paddingHorizontal: 12,
+                                borderBottomWidth: 1,
+                                borderBottomColor: isDark ? "#374151" : "#d1d5db",
+                              }}
+                            >
+                              <Text style={{ color: isDark ? "#ffffff" : "#000000" }}>{playlist.name}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
+
+                      {/* New Playlist Input */}
+                      {isCreatingPlaylist && (
+                        <View style={{ marginTop: 12 }}>
+                          <TextInput
+                            placeholder="Enter playlist name"
+                            placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+                            value={newPlaylistName}
+                            onChangeText={setNewPlaylistName}
+                            style={{
+                              borderWidth: 1,
+                              borderColor: isDark ? "#374151" : "#d1d5db",
+                              borderRadius: 8,
+                              paddingHorizontal: 12,
+                              paddingVertical: 10,
+                              backgroundColor: isDark ? "#111827" : "#ffffff",
+                              color: isDark ? "#ffffff" : "#000000",
+                              marginBottom: 8,
+                            }}
+                          />
+                          {/* <TouchableOpacity
+          onPress={() => {
+            // call your create playlist handler here
+            handleCreatePlaylist?.();
+            setIsCreatingPlaylist(false);
+            setNewPlaylistName("");
+          }}
+          style={{
+            paddingVertical: 10,
+            paddingHorizontal: 12,
+            backgroundColor: "#2563eb",
+            borderRadius: 8,
+          }}
+        >
+          <Text style={{ color: "#fff", fontWeight: "bold", textAlign: "center" }}>
+            Create Playlist
+          </Text>
+        </TouchableOpacity> */}
+                        </View>
+                      )}
+                    </View>
                   )}
+
                 </View>
               </View>
 
-              {/* ---------- Tags Input ---------- */}
-              <Text style={{
-                color: "#000",
-                fontWeight: "bold",
-                marginBottom: 8,
-                marginLeft: 4,
-              }}>
-                Tags</Text>
+              {/* ---------- Tags ---------- */}
+              <Text style={{ color: isDark ? "#ffffff" : "#000", fontWeight: "bold", marginBottom: 8 }}>
+                Tags
+              </Text>
               <TextInput
                 placeholder="Enter tags separated by commas"
+                placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
                 value={youTubeTags}
                 onChangeText={setYouTubeTags}
-                className="border border-gray-300 rounded-full px-3 h-12 mb-4 bg-white"
+                style={{
+                  borderWidth: 1,
+                  borderColor: isDark ? "#374151" : "#d1d5db",
+                  borderRadius: 9999,
+                  paddingHorizontal: 12,
+                  height: 48,
+                  marginBottom: 16,
+                  backgroundColor: isDark ? "#111827" : "#ffffff",
+                  color: isDark ? "#e5e7eb" : "#000000",
+                }}
               />
 
-              {/* ---------- Status Dropdown ---------- */}
-              <Text style={{
-                color: "#000",
-                fontWeight: "bold",
-                marginBottom: 8,
-                marginLeft: 4,
-              }}>
-                Status</Text>
+              {/* ---------- Status ---------- */}
+              <Text style={{ color: isDark ? "#ffffff" : "#000", fontWeight: "bold", marginBottom: 8 }}>
+                Status
+              </Text>
               <TouchableOpacity
                 onPress={() => setShowStatusDropdown(!showStatusDropdown)}
-                className="border border-gray-300 rounded-full px-3 h-12 mb-4 bg-white flex-row justify-between items-center"
+                style={{
+                  borderWidth: 1,
+                  borderColor: isDark ? "#374151" : "#d1d5db",
+                  borderRadius: 9999,
+                  paddingHorizontal: 12,
+                  height: 48,
+                  backgroundColor: isDark ? "#111827" : "#ffffff",
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 8,
+                }}
               >
-                <Text>{youTubeStatus || "Select status"}</Text>
-                <Ionicons name={showStatusDropdown ? "chevron-up" : "chevron-down"} size={20} color="#000" />
+                <Text style={{ color: isDark ? "#e5e7eb" : "#000" }}>
+                  {youTubeStatus || "Public"}
+                </Text>
+                <Ionicons
+                  name={showStatusDropdown ? "chevron-up" : "chevron-down"}
+                  size={20}
+                  color={isDark ? "#e5e7eb" : "#000"}
+                />
               </TouchableOpacity>
+
               {showStatusDropdown && (
-                <View className="bg-white border border-gray-300 rounded-lg mb-4">
+                <View
+                  style={{
+                    backgroundColor: isDark ? "#111827" : "#ffffff",
+                    borderWidth: 1,
+                    borderColor: isDark ? "#374151" : "#d1d5db",
+                    borderRadius: 8,
+                    marginBottom: 16,
+                  }}
+                >
                   {["Public", "Private", "Unlisted"].map((status) => (
                     <TouchableOpacity
                       key={status}
@@ -824,107 +1091,385 @@ const [coverImage, setCoverImage] = useState<string | null>(
                         setYouTubeStatus(status);
                         setShowStatusDropdown(false);
                       }}
-                      className="px-4 py-2"
+                      style={{ padding: 10 }}
                     >
-                      <Text>{status}</Text>
+                      <Text style={{ color: isDark ? "#e5e7eb" : "#000" }}>{status}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               )}
 
-              {/* ---------- Custom Thumbnail ---------- */}
-              <Text style={{
-                color: "#000",
-                fontWeight: "bold",
-                marginBottom: 8,
-                marginLeft: 4,
-              }}>
-                Custom Thumbnail</Text>
+              {/* ---------- Thumbnail ---------- */}
+              <Text
+                style={{
+                  color: isDark ? "#ffffff" : "#000",
+                  fontWeight: "bold",
+                  marginBottom: 8,
+                }}
+              >
+                Custom Thumbnail
+              </Text>
+
               <TouchableOpacity
                 onPress={handleCustomThumbnailUpload}
-                className="bg-blue-100 px-4 py-3 rounded-lg items-center mb-4"
+                style={{
+                  backgroundColor: isDark ? "#1e3a8a" : "#dbeafe",
+                  paddingVertical: 12,
+                  borderRadius: 9999,
+                  alignItems: "center",
+                  marginBottom: 8,
+                }}
               >
-                <Text style={{ color: "#2563eb", fontWeight: "bold" }}>Upload Thumbnail</Text>
+                <Text
+                  style={{
+                    color: isDark ? "#ffffff" : "#2563eb",
+                    fontWeight: "bold",
+                  }}
+                >
+                  Upload Thumbnail
+                </Text>
               </TouchableOpacity>
 
-              {/* ---------- Optional: Show selected thumbnail ---------- */}
+              {/* ---------- Show Preview ---------- */}
               {customThumbnail && (
                 <Image
                   source={{ uri: customThumbnail }}
-                  style={{ width: 120, height: 70, borderRadius: 8 }}
-                  resizeMode="cover"
+                  style={{
+                    width: 100,
+                    height: 100,
+                    borderRadius: 8,
+                    marginBottom: 16,
+                    resizeMode: "cover",
+                    borderWidth: 1,
+                    borderColor: isDark ? "#ffffff" : "#000",
+                  }}
                 />
               )}
+
             </View>
           )}
 
-          {platform === "PINTEREST" && (
-            <View style={{ marginTop: 16, padding: 12, borderWidth: 1, borderColor: "#d1d5db", borderRadius: 8 }}>
+          {platformState === "PINTEREST" && (
+            <View style={{ borderRadius: 8 }}>
               {/* Pinterest Settings Heading */}
-              <Text style={{ fontWeight: "bold", marginBottom: 8 }}>Pinterest Settings</Text>
+              <Text style={{ fontWeight: "bold", marginBottom: 8, fontSize: 16, color: isDark ? "#ffffff" : "#000000" }}>
+                Pinterest Settings
+              </Text>
 
-              {/* Select Board */}
-              <Text style={{ fontWeight: "600", marginBottom: 4 }}>Select Board</Text>
-              <TouchableOpacity
-                onPress={() => setIsCreatingPinterestBoard(true)}
+              {/* ---------- Select Board + Destination Link Section with Border ---------- */}
+              <View
                 style={{
                   borderWidth: 1,
-                  borderColor: "#d1d5db",
+                  borderColor: isDark ? "#374151" : "#d1d5db",
                   borderRadius: 8,
-                  paddingVertical: 10,
-                  paddingHorizontal: 12,
-                  marginBottom: 8,
+                  padding: 12,
+                  marginBottom: 16,
                 }}
               >
-                <Text>{pinterestBoard || "Select a board"}</Text>
-              </TouchableOpacity>
 
-              {/* + Create New Board */}
-              {isCreatingPinterestBoard && (
+                {/* Select Board */}
+                <Text style={{ fontWeight: "600", marginBottom: 8, color: isDark ? "#ffffff" : "#000000" }}>
+                  Select Board
+                </Text>
+                {/* Select Board Button */}
                 <TouchableOpacity
-                  onPress={() => {
-                    // open modal or input for new board creation
-                  }}
+                  onPress={() => setPinterestModalVisible(true)}
                   style={{
                     borderWidth: 1,
-                    borderColor: "#d1d5db",
-                    borderRadius: 8,
+                    borderColor: isDark ? "#374151" : "#d1d5db",
+                    borderRadius: 9999,
                     paddingVertical: 10,
                     paddingHorizontal: 12,
                     marginBottom: 8,
-                    alignItems: "center",
                   }}
                 >
-                  <Text style={{ color: "#2563eb", fontWeight: "bold", fontSize: 12 }}>
-                    + Create New Board
+                  <Text style={{ color: isDark ? "#9ca3af" : "#000000" }}>
+                    {pinterestBoard || "Select a board"}
                   </Text>
                 </TouchableOpacity>
-              )}
 
-              {/* Destination Link */}
-              <Text style={{ fontWeight: "600", marginBottom: 4 }}>Destination Link (Optional)</Text>
-              <TextInput
-                placeholder="Enter destination link"
-                value={destinationLink}
-                onChangeText={setDestinationLink}
-                style={{
-                  borderWidth: 1,
-                  borderColor: "#d1d5db",
-                  borderRadius: 8,
-                  paddingVertical: 10,
-                  paddingHorizontal: 12,
-                  marginBottom: 8,
-                }}
-              />
+                {/* Pinterest Modal */}
+                <Modal
+                  visible={pinterestModalVisible}
+                  animationType="slide"
+                  transparent
+                  onRequestClose={() => setPinterestModalVisible(false)}
+                >
+                  <View
+                    style={{
+                      flex: 1,
+                      backgroundColor: "rgba(0,0,0,0.5)",
+                      justifyContent: "center",
+                      padding: 20,
+                    }}
+                  >
+                    <View
+                      style={{
+                        backgroundColor: isDark ? "#1f2937" : "#fff",
+                        borderRadius: 12,
+                        maxHeight: "80%",
+                        padding: 16,
+                      }}
+                    >
+                      {/* + Create New Board */}
+                      <TouchableOpacity
+                        onPress={() => setIsCreatingPinterestBoard(true)}
+                        style={{
+                          paddingVertical: 12,
+                          paddingHorizontal: 16,
+                          marginBottom: 12,
+                          backgroundColor: isDark ? "#111827" : "#f3f4f6",
+                          borderRadius: 8,
+                        }}
+                      >
+                        <Text style={{ color: "#2563eb", fontWeight: "bold" }}>
+                          + Create New Board
+                        </Text>
+                      </TouchableOpacity>
+
+                      {/* Create Board Form */}
+                      {isCreatingPinterestBoard && (
+                        <View style={{ marginBottom: 16 }}>
+                          <TextInput
+                            value={newPinterestBoard}
+                            onChangeText={setNewPinterestBoard}
+                            placeholder="Board Name"
+                            placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+                            style={{
+                              borderWidth: 1,
+                              borderColor: isDark ? "#374151" : "#d1d5db",
+                              borderRadius: 8,
+                              padding: 10,
+                              marginBottom: 8,
+                              color: isDark ? "#e5e7eb" : "#000000",
+                            }}
+                          />
+                          <TextInput
+                            value={pinterestDescription}
+                            onChangeText={setPinterestDescription}
+                            placeholder="Description (optional)"
+                            placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+                            style={{
+                              borderWidth: 1,
+                              borderColor: isDark ? "#374151" : "#d1d5db",
+                              borderRadius: 8,
+                              padding: 10,
+                              marginBottom: 8,
+                              color: isDark ? "#e5e7eb" : "#000000",
+                            }}
+                          />
+                          <TouchableOpacity
+                            onPress={handleCreatePinterestBoard}
+                            style={{
+                              backgroundColor: "#2563eb",
+                              paddingVertical: 12,
+                              borderRadius: 8,
+                              alignItems: "center",
+                            }}
+                          >
+                            <Text style={{ color: "#fff", fontWeight: "bold" }}>Create</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+
+                      {/* Existing Boards List */}
+                      <View style={{ maxHeight: 250 }}>
+                        {loadingBoards ? (
+                          <ActivityIndicator size="small" color="#2563eb" style={{ margin: 20 }} />
+                        ) : allPinterestBoards.length === 0 ? (
+                          <Text style={{ color: isDark ? "#e5e7eb" : "#000", margin: 12 }}>
+                            No boards found
+                          </Text>
+                        ) : (
+                          <FlatList
+                            data={allPinterestBoards}
+                            keyExtractor={(item) => item}
+                            style={{ flexGrow: 0 }}
+                            nestedScrollEnabled
+                            renderItem={({ item }) => (
+                              <TouchableOpacity
+                                onPress={() => {
+                                  setPinterestBoard(item);
+                                  setIsCreatingPinterestBoard(false);
+                                  setPinterestModalVisible(false);
+                                }}
+                                style={{
+                                  paddingVertical: 10,
+                                  paddingHorizontal: 12,
+                                  borderRadius: 8,
+                                  marginBottom: 6,
+                                  backgroundColor: isDark ? "#111827" : "#f3f4f6",
+                                }}
+                              >
+                                <Text style={{ color: isDark ? "#e5e7eb" : "#000000" }}>{item}</Text>
+                              </TouchableOpacity>
+                            )}
+                          />
+                        )}
+                      </View>
+                    </View>
+                  </View>
+                </Modal>
+
+                {/* Destination Link */}
+                <Text style={{ fontWeight: "600", marginBottom: 8, color: isDark ? "#ffffff" : "#000000" }}>
+                  Destination Link (Optional)
+                </Text>
+                <TextInput
+                  placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+                  value={destinationLink}
+                  onChangeText={setDestinationLink}
+                  placeholder="Enter destination link"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: isDark ? "#374151" : "#d1d5db",
+                    borderRadius: 9999,
+                    paddingVertical: 10,
+                    paddingHorizontal: 12,
+                    marginBottom: 8,
+                    color: isDark ? "#ffffff" : "#000000",
+                  }}
+                />
+              </View>
+
+              {/* ---------- Modal ---------- */}
+              {isCreatingPinterestBoard && (
+                <Modal
+                  visible={pinterestModalVisible}
+                  transparent
+                  animationType="fade"
+                  onRequestClose={() => setPinterestModalVisible(false)}
+                >
+                  <View
+                    style={{
+                      flex: 1,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      backgroundColor: "rgba(0,0,0,0.5)",
+                      padding: 20,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: "100%",
+                        backgroundColor: isDark ? "#161618" : "#fff",
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: isDark ? "#fff" : "#d1d5db",
+                        padding: 16,
+                      }}
+                    >
+                      {/* Heading */}
+                      <Text style={{ fontWeight: "bold", fontSize: 20, color: isDark ? "#ffffff" : "#000000" }}>
+                        Create New Pinterest Board
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: isDark ? "#9ca3af" : "#6b7280",
+                          marginBottom: 16,
+                        }}
+                      >
+                        Create a new board to organize your pins
+                      </Text>
+
+                      {/* Board Name */}
+                      <Text style={{ fontWeight: "bold", fontSize: 16, marginBottom: 8, color: isDark ? "#ffffff" : "#000000" }}>
+                        Board Name
+                      </Text>
+                      <TextInput
+                        placeholder="Enter board name"
+                        placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+                        value={newPinterestBoard}
+                        onChangeText={setNewPinterestBoard}
+                        style={{
+                          borderWidth: 1,
+                          borderColor: isDark ? "#374151" : "#d1d5db",
+                          borderRadius: 9999,
+                          padding: 10,
+                          marginBottom: 16,
+                          color: isDark ? "#ffffff" : "#000000",
+                        }}
+                      />
+
+                      {/* Description */}
+                      <Text style={{ fontWeight: "bold", fontSize: 16, marginBottom: 8, color: isDark ? "#ffffff" : "#000000" }}>
+                        Description (Optional)
+                      </Text>
+                      <TextInput
+                        placeholder="What's this board about?"
+                        placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+                        value={pinterestDescription}
+                        onChangeText={setPinterestDescription}
+                        multiline
+                        numberOfLines={4}
+                        textAlignVertical="top"
+                        style={{
+                          borderWidth: 1,
+                          borderColor: isDark ? "#374151" : "#d1d5db",
+                          borderRadius: 8,
+                          padding: 10,
+                          marginBottom: 16,
+                          minHeight: 80,
+                          color: isDark ? "#ffffff" : "#000000",
+                        }}
+                      />
+
+                      {/* Actions */}
+                      <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
+                        <TouchableOpacity onPress={() => setPinterestModalVisible(false)} style={{ marginRight: 16 }}>
+                          <Text style={{ color: isDark ? "#9ca3af" : "#6b7280", fontWeight: "bold" }}>Cancel</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity onPress={handleCreatePinterestBoard} disabled={isPinterestBoardLoading}>
+                          {isPinterestBoardLoading ? (
+                            <ActivityIndicator size="small" color="#2563eb" />
+                          ) : (
+                            <Text style={{ color: "#2563eb", fontWeight: "bold" }}>Create board</Text>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                </Modal>
+              )}
             </View>
           )}
 
           {/* DATE TIME */}
           <TouchableOpacity
             onPress={() => setShowPicker(true)}
-            className="border border-gray-300 rounded-full px-3 py-3 bg-white mb-4"
+            style={{
+              borderWidth: 1,
+              borderColor: isDark ? "#374151" : "#d1d5db",
+              borderRadius: 9999,
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              marginBottom: 16,
+              backgroundColor: isDark ? "#161618" : "#ffffff",
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
           >
-            <Text>{postDate ? postDate.toLocaleString() : "Select Date & Time"}</Text>
+            {/* Date Text */}
+            <Text style={{ color: isDark ? "#9ca3af" : "#6b7280" }}>
+              {postDate ? postDate.toLocaleString() : "Select Date & Time"}
+            </Text>
+
+            {/* Close / Clear Button */}
+            {postDate && (
+              <TouchableOpacity
+                onPress={() => setPostDate(null)}
+                hitSlop={10}
+              >
+                <Ionicons
+                  name="close-circle"
+                  size={20}
+                  color={isDark ? "#ffffff" : "#6b7280"}
+                />
+              </TouchableOpacity>
+            )}
           </TouchableOpacity>
 
           {showPicker && (
@@ -963,17 +1508,29 @@ const [coverImage, setCoverImage] = useState<string | null>(
             />
           )}
 
-          <Button
-            onPress={handleSubmit}
-            className="rounded-full mb-8"
-            style={{ backgroundColor: "#dc2626", borderRadius: 50 }}
-          >
+        </View>
+        <Button
+          onPress={handleSubmit}
+          className="rounded-full mb-8 px-4 py-3 flex-row justify-center items-center"
+          style={{ backgroundColor: "#dc2626", borderRadius: 50, height: 48 }}
+          disabled={loading}
+        >
+          <View className="flex-row justify-center items-center">
+            {loading && (
+              <ActivityIndicator
+                size="small"
+                color="#fff"
+                style={{ marginRight: 8 }}
+              />
+            )}
             <Text style={{ color: "#fff", fontWeight: "bold" }}>
               {existingPost ? "Update Campaign Post" : "Create Campaign Post"}
             </Text>
-          </Button>
-        </View>
+          </View>
+        </Button>
       </ScrollView>
     </KeyboardAvoidingView>
   );
-}
+};
+
+export default CampaignPostForm;

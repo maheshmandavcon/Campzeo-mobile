@@ -40,7 +40,7 @@ export default function ContactCard({
   const isDark = useColorScheme() === "dark";
   const iconColor = isDark ? "#ffffff" : "#000000";
   // 🔥 Dark mode constants
-  const DARK_BG = "#000000";
+  const DARK_BG = "#161618";
   const DARK_BORDER = "#ffffff";
   const DARK_TEXT = "#ffffff";
   const DARK_SUBTEXT = "#d1d5db";

@@ -1,6 +1,6 @@
 import {
-    deleteCampaignApi,
-    getCampaignsApi,
+  deleteCampaignApi,
+  getCampaignsApi,
 } from "@/api/campaign/campaignApi";
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
@@ -9,14 +9,20 @@ import { Text, View } from "@gluestack-ui/themed";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Share,
-    TextInput,
-    TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Share,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import CampaignCard, { Campaign } from "./campaignComponents/campaignCard";
+import { ThemedView } from "@/components/themed-view";
+import { ThemedText } from "@/components/themed-text";
+import { useColorScheme } from "react-native";
+import * as Clipboard from "expo-clipboard";
 
 export default function Campaigns() {
   const [search, setSearch] = useState("");
@@ -35,7 +41,7 @@ export default function Campaigns() {
       const token = await getToken();
       if (!token) throw new Error("Authentication token not found");
 
-      const res = await getCampaignsApi(token, 1, 50, search);
+      const res = await getCampaignsApi(1, 50, search);
       const campaignsArray = res?.campaigns ?? [];
 
       if (!campaignsArray.length) {
@@ -57,10 +63,19 @@ export default function Campaigns() {
           else status = "Active";
         }
 
+        const formatDate = (dateString?: string) => {
+          if (!dateString) return "";
+          const date = new Date(dateString);
+          const day = String(date.getDate()).padStart(2, "0");     // day
+          const month = String(date.getMonth() + 1).padStart(2, "0"); // month (0-indexed)
+          const year = date.getFullYear();                         // year
+          return `${day}/${month}/${year}`;
+        };
+
         return {
           id: item.id,
           details: item.name ?? "Untitled Campaign",
-          dates: `${item.startDate?.split("T")[0]} - ${item.endDate?.split("T")[0]}`,
+          dates: `${formatDate(item.startDate)} - ${formatDate(item.endDate)}`,
           description: item.description ?? "No description available",
           posts: [],
           postsCount: item._count?.posts ?? 0,
@@ -108,7 +123,7 @@ export default function Campaigns() {
             const token = await getToken();
             if (!token) throw new Error("Authentication token missing");
 
-            await deleteCampaignApi(c.id, token);
+            await deleteCampaignApi(c.id);
             setCampaigns((prev) => prev.filter((x) => x.id !== c.id));
           } catch (error: any) {
             console.error("Error deleting campaign:", error);
@@ -122,8 +137,16 @@ export default function Campaigns() {
     ]);
   };
 
-  const handleCopy = (c: Campaign) => {
-    // disabled for now
+  const handleCopy = async (c: Campaign) => {
+    const campaignData = `
+Details: ${c.details}
+Description: ${c.description}
+Dates: ${c.dates}
+Posts Count: ${c.postsCount ?? c.posts?.length ?? 0}
+Contacts Count: ${c.contactsCount ?? 0}
+  `;
+    await Clipboard.setStringAsync(campaignData);
+    Alert.alert("Copied!", "Campaign details copied to clipboard.");
   };
 
   const handleToggleShow = (c: Campaign) =>
@@ -158,23 +181,63 @@ export default function Campaigns() {
   const handleLoadMore = () => setVisibleCount((prev) => prev + 5);
   const handleShowLess = () => setVisibleCount(5);
 
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
   return (
-    <View className="flex-1 p-4 bg-gray-100">
+    <View className="flex-1 p-4"
+      style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
       {loading && (
-        <View className="absolute inset-0 justify-center items-center bg-black/10 z-10">
-          <ActivityIndicator color={"#dc2626"} size="large" />
-        </View>
+        <ThemedView className="absolute inset-0 justify-center items-center bg-black/10 z-10">
+          <ActivityIndicator color={isDark ? "#ffffff" : "#dc2626"} size="large" />
+          <ThemedText
+            style={{
+              marginTop: 12,
+              color: isDark ? "#fff" : "#111",
+              fontWeight: "600",
+              fontSize: 16,
+            }}
+          >
+            Loading campaigns...
+          </ThemedText>
+        </ThemedView>
       )}
 
       {/* Top Controls */}
-      <View className="flex-row items-center mb-4 relative">
+      <View className="flex-row items-center mb-4 relative"
+        style={{ backgroundColor: "transparent" }}>
         {/* New Campaign Button */}
         <TouchableOpacity
           onPress={() => router.push("/campaigns/createCampaign")}
-          className="flex-row items-center justify-center px-3 py-2 rounded-full bg-blue-100 mr-2"
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 9999,
+            marginRight: 8,
+
+            backgroundColor: isDark ? "#161618" : "#dbeafe", // dark / blue-100
+            borderWidth: isDark ? 1 : 0,
+            borderColor: isDark ? "#ffffff" : "transparent",
+          }}
         >
-          <Ionicons name="add-circle-outline" size={20} color="#0284c7" />
-          <Text className="ml-2 font-semibold text-blue-500">New</Text>
+          <Ionicons
+            name="add-circle-outline"
+            size={20}
+            color={isDark ? "#ffffff" : "#0284c7"}
+          />
+
+          <Text
+            style={{
+              marginLeft: 8,
+              fontWeight: "600",
+              color: isDark ? "#ffffff" : "#0284c7",
+            }}
+          >
+            New
+          </Text>
         </TouchableOpacity>
 
         {/* Search Bar */}
@@ -185,7 +248,19 @@ export default function Campaigns() {
             setVisibleCount(5);
           }}
           placeholder="Search campaigns..."
-          className="flex-1 px-3 py-2 rounded-full border border-gray-300 bg-white"
+          placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"} // gray-400 / gray-500
+          style={{
+            flex: 1,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 9999,
+
+            backgroundColor: isDark ? "#161618" : "#ffffff",
+            borderWidth: 1,
+            borderColor: isDark ? "#ffffff" : "#d1d5db",
+
+            color: isDark ? "#ffffff" : "#111827",
+          }}
         />
 
         {/* 3-dot Menu */}
@@ -193,12 +268,16 @@ export default function Campaigns() {
           onPress={() => setMenuVisible((prev) => !prev)}
           className="ml-2 rounded-full"
         >
-          <MaterialIcons name="more-vert" size={24} color="black" />
+          <MaterialIcons
+            name="more-vert"
+            size={24}
+            color={isDark ? "#ffffff" : "#000000"}
+          />
         </TouchableOpacity>
 
         {/* Dropdown Menu */}
         {menuVisible && (
-          <View
+          <ThemedView
             className="absolute top-12 right-2 w-40 bg-white rounded-md shadow-md z-50"
             style={{ elevation: 10 }}
           >
@@ -210,7 +289,7 @@ export default function Campaigns() {
               className="flex-row items-center px-4 py-3 border-b border-gray-200"
             >
               <Ionicons name="share-social-outline" size={20} color="#16a34a" />
-              <Text className="ml-2 text-gray-800 font-semibold">Share</Text>
+              <ThemedText className="ml-2 text-gray-800 font-semibold">Share</ThemedText>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -221,11 +300,11 @@ export default function Campaigns() {
               className="flex-row items-center px-4 py-3"
             >
               <Ionicons name="funnel-outline" size={20} color="#f59e0b" />
-              <Text className="ml-2 text-gray-800 font-semibold">
+              <ThemedText className="ml-2 text-gray-800 font-semibold">
                 {filter === "all" ? "All" : filter === "show" ? "Show" : "Hide"}
-              </Text>
+              </ThemedText>
             </TouchableOpacity>
-          </View>
+          </ThemedView>
         )}
       </View>
 
@@ -249,26 +328,24 @@ export default function Campaigns() {
         )}
         ListEmptyComponent={
           loading ? null : (
-            <Text style={{ textAlign: "center", marginTop: 20 }}>
+            <ThemedText style={{ textAlign: "center", marginTop: 20 }}>
               No Campaigns Found
-            </Text>
+            </ThemedText>
           )
         }
         ListFooterComponent={
           filtered.length > 5 ? (
             <TouchableOpacity
               onPress={isAllVisible ? handleShowLess : handleLoadMore}
-              className={`py-3 my-2 rounded-xl items-center ${
-                isAllVisible ? "bg-red-100" : "bg-blue-100"
-              }`}
-            >
-              <Text
-                className={`font-semibold ${
-                  isAllVisible ? "text-red-700" : "text-blue-700"
+              className={`py-3 my-2 rounded-xl items-center ${isAllVisible ? "bg-red-100" : "bg-blue-100"
                 }`}
+            >
+              <ThemedText
+                className={`font-semibold ${isAllVisible ? "text-red-700" : "text-blue-700"
+                  }`}
               >
                 {isAllVisible ? "Show Less" : "Load More"}
-              </Text>
+              </ThemedText>
             </TouchableOpacity>
           ) : null
         }
