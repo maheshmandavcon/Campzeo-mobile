@@ -29,9 +29,9 @@ const CalendarHeader: React.FC<CalendarHeaderProps> = ({
 
   const ACTIVE_COLOR = "#dc2626";
 
-  const INACTIVE_COLOR = isDark
-    ? "#E5E7EB" // visible on dark background
-    : "#374151"; // visible on light background
+  // const INACTIVE_COLOR = isDark
+  //   ? "#E5E7EB" 
+  //   : "#374151"; 
 
   /* ------------------------- FORMAT LABEL ------------------------- */
 
@@ -56,8 +56,8 @@ const CalendarHeader: React.FC<CalendarHeaderProps> = ({
   const getViewModeStyle = (mode: "month" | "week" | "day"): TextStyle => ({
     fontSize: 16,
     fontWeight: viewMode === mode ? "700" : "400",
-    color: viewMode === mode ? ACTIVE_COLOR : INACTIVE_COLOR,
-    opacity: viewMode === mode ? 1 : 0.75,
+    color:  ACTIVE_COLOR,
+    // opacity: viewMode === mode ? 1 : 0.75,
   });
 
   /* ------------------------------ UI ------------------------------ */

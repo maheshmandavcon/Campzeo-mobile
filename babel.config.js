@@ -1,8 +1,24 @@
 module.exports = function (api) {
   api.cache(true);
-  const nativeWindPlugin = require("nativewind/babel");
+
   return {
-    presets: ["babel-preset-expo"],
-    plugins: [...nativeWindPlugin().plugins].filter(Boolean), // ✅ Correct way to use NativeWind plugin
+    presets: [["babel-preset-expo"], "nativewind/babel"],
+
+    plugins: [
+      [
+        "module-resolver",
+        {
+          root: ["./"],
+
+          alias: {
+            "@": "./",
+            "tailwind.config": "./tailwind.config.js",
+          },
+        },
+      ],
+      // 'react-native-worklets/plugin' --test
+      "react-native-reanimated/plugin",
+    ],
   };
 };
+

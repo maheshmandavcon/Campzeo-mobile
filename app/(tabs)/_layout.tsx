@@ -1,53 +1,78 @@
+import { Tabs } from "expo-router";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { HapticTab } from "@/components/haptic-tab";
+// import TopBar from "@/components/TopBar";
+// import Sidebar from "@/components/Sidebar";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useEffect } from "react";
-import { Linking } from "react-native";
-
-import BottomBar from "../(common)/bottomBar";
-import Sidebar from "../(common)/sideBar";
 import TopBar from "../(common)/topBar";
+import Sidebar from "../(common)/sideBar";
 
-import { useApprovalStore } from "@/store/useApprovalStore";
-import { ThemedView } from "@/components/themed-view";
-import { Image } from "react-native";
-
-export default function TabLayout() {
-  const { isApproved, isChecking, checkApproval } = useApprovalStore();
-
-  // 🔁 Check approval once
-  useEffect(() => {
-    if (isApproved === null) {
-      checkApproval();
-    }
-  }, [isApproved]);
-
-  // ⏳ While checking approval
-  if (isChecking || isApproved === null) {
-    return (
-      <ThemedView
-        style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-      >
-        <Image
-          source={require("../../assets/app-images/camp-logo.png")}
-          style={{ width: 330, height: 170, borderRadius: 6 }}
-          resizeMode="contain"
-          alt="CampZeo logo"
-        />
-      </ThemedView>
-    );
-  }
-
-  // Not approved → redirect to website
-  if (isApproved === false) {
-    Linking.openURL("https://www.campzeo.com");
-    return null;
-  }
-
-  // Approved → render app UI
+export default function TabsLayout() {
   return (
     <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
+      {/* UI overlays */}
       <TopBar />
-      <BottomBar />
       <Sidebar />
+
+      {/* REAL bottom tab navigator */}
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: "#dc2626",
+          tabBarInactiveTintColor: "#777777ff",
+          tabBarButton: HapticTab,
+          tabBarStyle: {
+            paddingTop: 5,
+            height: 75,
+          },
+        }}
+      >
+        <Tabs.Screen
+          name="dashboard"
+          options={{
+            title: "Dashboard",
+            tabBarIcon: ({ color }) => (
+              <IconSymbol size={29} name="chart.bar" color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="logs"
+          options={{
+            title: "Logs",
+            tabBarIcon: ({ color }) => (
+              <IconSymbol size={29} name="doc.text" color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="campaigns"
+          options={{
+            title: "Campaigns",
+            tabBarIcon: ({ color }) => (
+              <IconSymbol size={29} name="map" color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="contacts"
+          options={{
+            title: "Contacts",
+            tabBarIcon: ({ color }) => (
+              <IconSymbol size={29} name="envelope" color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="invoices"
+          options={{
+            title: "Invoices",
+            tabBarIcon: ({ color }) => (
+              <IconSymbol size={29} name="receipt" color={color} />
+            ),
+          }}
+        />
+      </Tabs>
     </SafeAreaView>
   );
 }

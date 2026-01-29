@@ -43,8 +43,8 @@ export default function BottomBar() {
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarStyle: {
-          paddingTop: 5, // 👈 vertical padding
-          height: 75, // 👈 IMPORTANT: increase height
+          paddingTop: 5,    
+          height: 75, 
         },
       }}
     >

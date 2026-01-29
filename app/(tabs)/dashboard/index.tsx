@@ -1,74 +1,118 @@
-import CalendarWrapper from "@/app/(common)/calendarWrapper";
-import { ThemedView } from "@/components/themed-view";
-import { useState } from "react";
-import { View, useColorScheme, useWindowDimensions } from "react-native";
-import { SceneMap, TabBar, TabView } from "react-native-tab-view";
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  SafeAreaView,
+  StyleSheet,
+} from "react-native";
 import Insights from "./dashboardComponents/insights";
+import CalendarWrapper from "@/app/(common)/calendarWrapper";
 
-export default function Dashboard() {
-  const layout = useWindowDimensions();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-
-  const [index, setIndex] = useState(0);
-
-  const FirstRoute = () => (
-    <View style={{ flex: 1 }}>
-      <Insights />
-    </View>
-  );
-
-  const SecondRoute = () => (
-    <View style={{ flex: 1 }}>
-      <CalendarWrapper />
-    </View>
-  );
-
-  const renderScene = SceneMap({
-    first: FirstRoute,
-    second: SecondRoute,
-  });
-
-  const routes = [
-    { key: "first", title: "Dashboard" },
-    { key: "second", title: "Calendar" },
-  ];
-
-  /* ---------------- TAB HEADER (TAB BAR) ---------------- */
-  const renderTabBar = (props: any) => (
-    <TabBar
-      {...props}
-      style={{
-        backgroundColor: isDark ? "#020617" : "#ffffff", // header bg
-        elevation: 0,          // Android shadow
-        shadowOpacity: 0,      // iOS shadow
-        borderBottomWidth: 1,
-        borderBottomColor: isDark ? "#1e293b" : "#e5e7eb",
-      }}
-      indicatorStyle={{
-        backgroundColor: "#dc2626", // active tab underline
-        height: 3,
-      }}
-      activeColor={"#dc2626"}
-      inactiveColor={isDark ? "#777777ff" : "#777777ff"}
-      labelStyle={{
-        fontSize: 14,
-        fontWeight: "600",
-        textTransform: "none",
-        lineHeight: 7
-      }}
-    />
-  );
+const DashboardTabs = () => {
+  const [activeTab, setActiveTab] = useState("dashboard");
 
   return (
-    <ThemedView className="flex-1">
-      <TabView
-        navigationState={{ index, routes }}
-        renderScene={renderScene}
-        onIndexChange={setIndex}
-        initialLayout={{ width: layout.width }}
-        renderTabBar={renderTabBar}  
-      />
-    </ThemedView>
+    <SafeAreaView style={styles.container}>
+      {/* TOP TABS */}
+      <View style={styles.tabsContainer}>
+        {/* DASHBOARD TAB */}
+        <TouchableOpacity
+          style={styles.tab}
+          onPress={() => setActiveTab("dashboard")}
+          activeOpacity={0.7}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "dashboard" && styles.activeTabText,
+            ]}
+          >
+            Dashboard
+          </Text>
+
+          {activeTab === "dashboard" && <View style={styles.activeIndicator} />}
+        </TouchableOpacity>
+
+        {/* CALENDAR TAB */}
+        <TouchableOpacity
+          style={styles.tab}
+          onPress={() => setActiveTab("calendar")}
+          activeOpacity={0.7}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "calendar" && styles.activeTabText,
+            ]}
+          >
+            Calendar
+          </Text>
+
+          {activeTab === "calendar" && <View style={styles.activeIndicator} />}
+        </TouchableOpacity>
+      </View>
+
+      {/* TAB CONTENT */}
+      <View style={styles.content}>
+        {activeTab === "dashboard" ? (
+          <Insights />
+        ) : (
+          <CalendarWrapper />
+        )}
+      </View>
+    </SafeAreaView>
   );
-}
+};
+
+export default DashboardTabs;
+
+/* ---------------- STYLES ---------------- */
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+
+  tabsContainer: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+
+  tab: {
+    flex: 1,
+    alignItems: "center",
+    // paddingVertical: 14,
+  },
+
+  tabText: {
+    fontSize: 16,
+    color: "#6B7280",
+    fontWeight: "400",
+    paddingVertical: 10,
+  },
+
+  activeTabText: {
+    color: "#dc2626",
+    fontWeight: "600",
+  },
+
+  activeIndicator: {
+    // marginTop: 6,
+    height: 2,
+    width: "100%",
+    backgroundColor: "#dc2626",
+    borderRadius: 2,
+  },
+
+  content: {
+    flex: 1,
+  },
+
+  contentText: {
+    fontSize: 16,
+    color: "#111827",
+  },
+});

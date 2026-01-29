@@ -1,6 +1,6 @@
 import { getAnalytics } from "@/api/logsApi";
 import { Ionicons } from "@expo/vector-icons";
-import { HStack, Pressable, VStack } from "@gluestack-ui/themed";
+// import { HStack, Pressable, VStack } from "@gluestack-ui/themed";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -15,10 +15,14 @@ import Carousel from "react-native-reanimated-carousel";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { View } from "@gluestack-ui/themed";
+// import { View } from "@gluestack-ui/themed";
 import { TrendingUp } from "lucide-react-native";
-import { ScrollView } from "react-native-gesture-handler";
+// import { ScrollView } from "react-native-gesture-handler";
+import { ScrollView } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
+import { HStack } from "@/components/ui/hstack";
+import { Pressable } from "@/components/ui/pressable";
+import { VStack } from "@/components/ui/vstack";
 
 const { width } = Dimensions.get("window");
 
@@ -135,18 +139,18 @@ export default function PostAnalytics() {
           {/* CENTER: Title */}
           <ThemedText
             style={{
-            flex: 1,
-            fontSize: 24,
-            fontWeight: "700",
-            textAlign: "center",
-            lineHeight: 30,
-          }}
+              flex: 1,
+              fontSize: 24,
+              fontWeight: "700",
+              textAlign: "center",
+              lineHeight: 30,
+            }}
           >
             Post Insights
           </ThemedText>
 
           {/* RIGHT: Spacer */}
-          <View style={{ width: 34 }} />
+          {/* <View style={{ width: 34 }} /> */}
         </HStack>
 
         {/* ---------- POST INFO CARD ---------- */}
@@ -231,14 +235,14 @@ export default function PostAnalytics() {
             marginBottom: 20,
           }}
         >
-          <HStack justifyContent="space-between">
+          <HStack style={{ justifyContent: "space-between" }}>
             {[
               { label: "Likes", value: insight?.likes },
               { label: "Comments", value: insight?.comments },
               { label: "Impressions", value: insight?.impressions },
               { label: "Reach", value: insight?.reach },
             ].map((item) => (
-              <VStack key={item.label} alignItems="center">
+              <VStack key={item.label} style={{ alignItems: "center" }}>
                 <ThemedText style={{ fontSize: 16, fontWeight: "600" }}>
                   {item.value ?? 0}
                 </ThemedText>
@@ -253,7 +257,7 @@ export default function PostAnalytics() {
               </VStack>
             ))}
 
-            <VStack alignItems="center">
+            <VStack style={{ alignItems: "center" }}>
               <TouchableOpacity onPress={handleRefreshClick}>
                 <Ionicons
                   name="refresh"
@@ -278,7 +282,7 @@ export default function PostAnalytics() {
             padding: 16,
             borderRadius: 16,
             backgroundColor: isDark ? "#1f2937" : "#ffffff",
-            overflow:"hidden"
+            overflow: "hidden",
           }}
         >
           <ThemedText
@@ -331,15 +335,15 @@ export default function PostAnalytics() {
           )}
 
           {/* Legend */}
-          <HStack justifyContent="center" space="xl" mt="$4">
-            <HStack alignItems="center" space="sm">
+          <HStack style={{ justifyContent: "center", marginTop: 4 }} space="xl">
+            <HStack style={{ alignItems: "center" }} space="sm">
               <TrendingUp size={22} strokeWidth={2} color="#2563eb" />
               <ThemedText style={{ color: "#2563eb", fontWeight: "600" }}>
                 Likes
               </ThemedText>
             </HStack>
 
-            <HStack alignItems="center" space="sm">
+            <HStack style={{ alignItems: "center" }} space="sm">
               <TrendingUp size={22} strokeWidth={2} color="#16a34a" />
               <ThemedText style={{ color: "#16a34a", fontWeight: "600" }}>
                 Comments

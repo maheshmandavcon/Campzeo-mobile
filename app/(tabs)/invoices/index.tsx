@@ -1,8 +1,13 @@
 import { fetchInvoices } from "@/api/invoicesApi";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
+import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 import { Invoice } from "@/types/types";
 import { useUser } from "@clerk/clerk-expo";
+import { HStack } from "@gluestack-ui/themed";
+import { View } from "@gluestack-ui/themed";
+import { VStack } from "@gluestack-ui/themed";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, Text } from "react-native";
 
@@ -28,20 +33,47 @@ export default function Invoices() {
     loadInvoices();
   }, [isLoaded, user]);
 
+  const renderInvoiceShimmerCard = () => (
+    <ThemedView className="bg-gray-50 rounded-xl p-4 mb-4 border border-gray-200">
+      <VStack space="sm">
+        {/* Top row: Invoice ID + Status */}
+        <HStack justifyContent="space-between" alignItems="center">
+          <ShimmerSkeleton height={18} width={140} />
+          <ShimmerSkeleton height={18} width={70} borderRadius={6} />
+        </HStack>
+
+        {/* Date */}
+        <ShimmerSkeleton height={14} width={180} />
+
+        {/* Description */}
+        <ShimmerSkeleton height={14} width="100%" />
+
+        {/* Amount */}
+        <ShimmerSkeleton height={20} width={120} />
+      </VStack>
+    </ThemedView>
+  );
+
   if (loading) {
     return (
-      <ThemedView className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#dc2626" />
-        <ThemedText
-          style={{
-            marginTop: 12,
-            fontSize: 14,
-            color: "#6b7280",
-          }}
-        >
-          Loading Invoices…
-        </ThemedText>
-      </ThemedView>
+      // <ThemedView className="flex-1 items-center justify-center">
+      //   <ActivityIndicator size="large" color="#dc2626" />
+      //   <ThemedText
+      //     style={{
+      //       marginTop: 12,
+      //       fontSize: 14,
+      //       color: "#6b7280",
+      //     }}
+      //   >
+      //     Loading Invoices…
+      //   </ThemedText>
+      // </ThemedView>
+
+      <ScrollView className="flex-1 px-4 py-4">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <View key={index}>{renderInvoiceShimmerCard()}</View>
+        ))}
+      </ScrollView>
     );
   }
 

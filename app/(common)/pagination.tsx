@@ -1,5 +1,8 @@
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { Pressable } from "@/components/ui/pressable";
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, Text, View } from "@gluestack-ui/themed";
+// import { Pressable, Text, View } from "@gluestack-ui/themed";
 
 interface Props {
   currentPage: number;
@@ -17,7 +20,7 @@ export default function Pagination({
   const pagesArray = Array.from({ length: totalPages }, (_, i) => i + 1);
 
   return (
-    <View
+    <ThemedView
       style={{
         flexDirection: "row",
         justifyContent: "center",
@@ -43,7 +46,7 @@ export default function Pagination({
       </Pressable>
 
       {/* Page Numbers */}
-      <View
+      <ThemedView
         style={{
           flexDirection: "row",
           alignItems: "center",
@@ -68,13 +71,13 @@ export default function Pagination({
               }}
             >
              
-              <Text style={{ color: isActive ? "white" : "black" }}>
+              <ThemedText style={{ color: isActive ? "white" : "black" }}>
                 {page}
-              </Text>
+              </ThemedText>
             </Pressable>
           );
         })}
-      </View>
+      </ThemedView>
 
       {/* Next */}
       <Pressable
@@ -94,6 +97,6 @@ export default function Pagination({
         
         <Ionicons name="chevron-forward" size={20} color="black" />
       </Pressable>
-    </View>
+    </ThemedView>
   );
 }

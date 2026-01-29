@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { View, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "@clerk/clerk-expo";
+import { ThemedText } from "@/components/themed-text";
+
 
 export default function AuthCallback() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -13,13 +15,16 @@ export default function AuthCallback() {
     if (isSignedIn) {
       router.replace("/(tabs)/dashboard");
     } else {
-      router.replace("/login");
+      router.replace("/(auth)/login");
     }
   }, [isLoaded, isSignedIn]);
 
   return (
-    <View style={{ flex: 1, justifyContent: "center" }}>
-      <ActivityIndicator />
+    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <ThemedText>Verifying session...</ThemedText>
+      <ActivityIndicator size="large" style={{ marginTop: 20 }} />
     </View>
   );
 }
+
+

@@ -2,22 +2,28 @@ import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    useColorScheme,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  useColorScheme,
 } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { Button, HStack, Pressable, Text, VStack } from "@gluestack-ui/themed";
+import { Button } from "@/components/ui/button";
+import { HStack } from "@/components/ui/hstack";
+import { Pressable } from "@/components/ui/pressable";
+import { Text } from "@/components/ui/text";
+import { VStack } from "@/components/ui/vstack";
 import * as WebBrowser from "expo-web-browser";
 
 import {
-    disconnectPlatform,
-    getPlatform,
-    getSocialStatus,
+  disconnectPlatform,
+  getPlatform,
+  getSocialStatus,
 } from "@/api/accountsApi";
+import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
+import { View } from "@gluestack-ui/themed";
 
 /* ----------------------------- TYPES ----------------------------- */
 
@@ -176,21 +182,98 @@ export default function Accounts() {
     }
   };
 
+  /* ================= SKELETON HELPERS ================= */
+
+  const renderHeader = ({ loading }: { loading: boolean }) => (
+    <HStack
+      style={{
+        marginBottom: 24,
+        justifyContent: "space-between",
+        alignItems: "center",
+      }}
+    >
+      {/* LEFT: Back button */}
+      <Pressable
+        disabled={loading}
+        onPress={() => router.back()}
+        style={{ padding: 8 }}
+      >
+        <Ionicons
+          name="arrow-back-outline"
+          size={22}
+          color={colorScheme === "dark" ? "#ffffff" : "#020617"}
+        />
+      </Pressable>
+
+      {/* CENTER: Title */}
+      <VStack style={{ flex: 1, alignItems: "center" }}>
+        <>
+          <ThemedText
+            style={{
+              fontSize: 24,
+              fontWeight: "700",
+              textAlign: "center",
+              lineHeight: 30,
+            }}
+          >
+            Accounts
+          </ThemedText>
+
+          <ThemedText
+            style={{
+              fontSize: 14,
+              color: "#6b7280",
+              textAlign: "center",
+              marginTop: 6,
+            }}
+          >
+            Connect your social media accounts.
+          </ThemedText>
+        </>
+      </VStack>
+
+      {/* RIGHT: Spacer to balance back button */}
+      <View style={{ width: 38 }} />
+    </HStack>
+  );
+
+  const renderPlatformCardSkeleton = () => (
+    <ThemedView className="rounded-2xl bg-white p-4 border border-gray-200">
+      <VStack space="sm" className="items-center">
+        {/* Icon */}
+        <ShimmerSkeleton height={37} width={37} borderRadius={19} />
+
+        {/* Platform name */}
+        <ShimmerSkeleton height={16} width={90} />
+      </VStack>
+
+      {/* Connected as (optional area) */}
+      <VStack className="mt-3 items-center gap-3">
+        <ShimmerSkeleton height={12} width={80} />
+        <ShimmerSkeleton height={14} width={110} />
+      </VStack>
+
+      {/* Action button */}
+      <VStack className="mt-4">
+        <ShimmerSkeleton height={30} width="100%" borderRadius={8} />
+      </VStack>
+    </ThemedView>
+  );
+
   /* ----------------------------- LOADER UI ----------------------------- */
 
   if (pageLoading) {
     return (
-      <ThemedView className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#dc2626" />
-        <ThemedText
-          style={{
-            marginTop: 12,
-            fontSize: 14,
-            color: "#6b7280",
-          }}
-        >
-          Loading accounts…
-        </ThemedText>
+      <ThemedView className="flex-1 bg-gray-50 px-4 pt-20">
+        {renderHeader({ loading: true })}
+
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <ThemedView className="flex-row flex-wrap justify-between gap-y-6">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <View key={index}>{renderPlatformCardSkeleton()}</View>
+            ))}
+          </ThemedView>
+        </ScrollView>
       </ThemedView>
     );
   }
@@ -201,49 +284,8 @@ export default function Accounts() {
     <ThemedView className="flex-1 bg-gray-50 px-4 pt-20">
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* HEADER */}
-        <HStack
-          alignItems="center"
-          justifyContent="space-between"
-          style={{ marginBottom: 24 }}
-        >
-          {/* LEFT: Back button */}
-          <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
-            <Ionicons
-              name="arrow-back-outline"
-              size={22}
-              color={colorScheme === "dark" ? "#ffffff" : "#020617"}
-            />
-          </Pressable>
 
-          {/* CENTER: Title */}
-          <VStack style={{ flex: 1, alignItems: "center" }}>
-            <ThemedText
-              style={{
-            flex: 1,
-            fontSize: 24,
-            fontWeight: "700",
-            textAlign: "center",
-            lineHeight: 30,
-          }}
-            >
-              Accounts
-            </ThemedText>
-
-            <ThemedText
-              style={{
-                fontSize: 14,
-                color: "#6b7280",
-                textAlign: "center",
-                marginTop: 6,
-              }}
-            >
-              Connect your social media accounts.
-            </ThemedText>
-          </VStack>
-
-          {/* RIGHT: Spacer (balances back button width) */}
-          {/* <View style={{ width: 38 }} /> */}
-        </HStack>
+        {renderHeader({ loading: false })}
 
         {/* Cards */}
         <ThemedView className="flex-row flex-wrap justify-between gap-y-6">

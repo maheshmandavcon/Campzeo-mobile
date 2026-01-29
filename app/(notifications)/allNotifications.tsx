@@ -17,8 +17,11 @@ import {
 import { useAuth } from "@clerk/clerk-expo";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
-import { SafeAreaView } from "@gluestack-ui/themed";
-import { useColorMode } from "@gluestack-ui/themed";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useColorMode } from "@gluestack-style/react";
+// import { useColorMode } from "@gluestack-style/react";
+// import { SafeAreaView } from "@gluestack-ui/themed";
+// import { useColorMode } from "@gluestack-ui/themed";
 import { useColorScheme } from "react-native";
 
 export default function AllNotifications() {

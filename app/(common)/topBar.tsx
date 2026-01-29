@@ -8,6 +8,13 @@ import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useSidebarStore } from "../../store/sidebarStore";
 import { Text } from "@gluestack-ui/themed";
+import { ThemedText } from "@/components/themed-text";
+import { useColorMode } from "@gluestack-style/react";
+
+// import {
+//   Text,
+//   useColorMode
+// } from "@gluestack-ui/themed";
 
 export default function TopBar() {
   const routePage = useRouter();
@@ -98,7 +105,7 @@ export default function TopBar() {
                 paddingHorizontal: 4,
               }}
             >
-              <Text
+              <ThemedText
                 style={{
                   color: "#fff",
                   fontSize: 10,
@@ -106,7 +113,7 @@ export default function TopBar() {
                 }}
               >
                 {unreadCount > 99 ? "99+" : unreadCount}
-              </Text>
+              </ThemedText>
             </ThemedView>
           )}
         </TouchableOpacity>

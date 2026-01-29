@@ -1,47 +1,68 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import {
-    Avatar,
-    AvatarImage,
-    Box,
-    Divider,
-    HStack,
-    Modal,
-    ModalBackdrop,
-    ModalContent,
-    Pressable,
-    VStack,
-} from "@gluestack-ui/themed";
-import {
-    Briefcase,
-    LockKeyhole,
-    Mail,
-    User,
-    UserPen,
-} from "lucide-react-native";
-import { ScrollView, TouchableOpacity, useColorScheme } from "react-native";
 
-import { ModalBody, ModalCloseButton, ModalHeader } from "@gluestack-ui/themed";
+import {
+  Briefcase,
+  LockKeyhole,
+  Mail,
+  User,
+  UserPen,
+} from "lucide-react-native";
+import {
+  Modal,
+  ScrollView,
+  TouchableOpacity,
+  useColorScheme,
+  View,
+} from "react-native";
+
 import { useEffect, useState } from "react";
-import ChangePassword from "../(auth)/changePassword";
-import EditProfile from "../(auth)/editProfile";
+// import ChangePassword from "../(auth)/changePassword";
+// import EditProfile from "../(auth)/editProfile";
 
 import { getUser } from "@/api/dashboardApi";
 import { useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { Divider } from "@/components/ui/divider";
+import { HStack } from "@/components/ui/hstack";
+import { Pressable } from "@/components/ui/pressable";
+import { VStack } from "@/components/ui/vstack";
+import { Box } from "@/components/ui/box";
+// import {
+//   Modal,
+//   ModalBackdrop,
+//   ModalBody,
+//   ModalCloseButton,
+//   ModalContent,
+//   ModalHeader,
+// } from "@/components/ui/modal";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
+// import { Modal, ModalBackdrop } from "@gluestack-ui/themed";
+// import {
+//   Modal,
+//   ModalBackdrop,
+//   ModalBody,
+//   ModalCloseButton,
+//   ModalContent,
+//   ModalHeader,
+// } from "@/components/ui/modal";
+import { Heading, ModalFooter } from "@gluestack-ui/themed";
+import { Text } from "@gluestack-ui/themed";
+import { Button, ButtonText } from "@/components/ui/button";
+import EditProfile from "../(auth)/editProfile";
+import ChangePassword from "../(auth)/changePassword";
 
 export default function UserProfile() {
   const [userData, setUserData] = useState<any>(null);
-
-  const colorScheme = useColorScheme();
-
-  const [ShowEditProfile, setEditProfile] = useState(false);
-
+  // const [showEditProfile, setEditProfile] = useState(false);
   const [showChangePas, setChangePas] = useState(false);
 
-  const routePage = useRouter();
+  const [showEditProfile, setEditProfile] = useState(false);
 
+  const colorScheme = useColorScheme();
+  const routePage = useRouter();
   const { user } = useUser();
 
   if (!user) return null;
@@ -59,224 +80,173 @@ export default function UserProfile() {
   }, []);
 
   return (
-    <ThemedView className="flex-1 p-5 pt-20">
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* ---------- Profile Header ---------- */}
-        <HStack>
-          <Pressable
-            onPress={() => {
-              routePage.back();
-            }}
-          >
-            <Ionicons
-              name="arrow-back-outline"
-              size={22}
-              color={colorScheme === "dark" ? "#ffffff" : "#020617"}
-            />
-          </Pressable>
-        </HStack>
-        <VStack className="items-center mb-8">
-          <Avatar size="xl" className="mb-4">
-            <AvatarImage
-              source={{
-                uri: user.imageUrl,
-              }}
-              alt="Profile Picture"
-            />
-            {/* <AvatarFallbackText>A</AvatarFallbackText> */}
-          </Avatar>
+    <>
+      <ThemedView className="flex-1 p-5 pt-20">
+        {/* ================= SCROLL CONTENT ================= */}
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* HEADER */}
+          <HStack>
+            <Pressable onPress={() => routePage.back()}>
+              <Ionicons
+                name="arrow-back-outline"
+                size={22}
+                color={colorScheme === "dark" ? "#ffffff" : "#020617"}
+              />
+            </Pressable>
+          </HStack>
 
-          <ThemedText style={{
-                fontSize: 23,
-                fontWeight: "700",
-                textAlign: "center",
-              }}>
-            {user.firstName} {user.lastName}
-          </ThemedText>
+          {/* PROFILE */}
+          <VStack className="items-center mb-8">
+            <Avatar size="xl" className="mb-4">
+              <AvatarImage source={{ uri: user.imageUrl }} />
+            </Avatar>
 
-          {/* <ThemedText className="text-base text-gray-500">
-            {userData?.organisation?.name ?? "-"}
-          </ThemedText> */}
-        </VStack>
-
-        {/* ---------- Details Card ---------- */}
-        <Box className="bg-white/10 px-4 py-5 rounded-2xl">
-          <VStack space="md">
-            {/* UserName */}
-            <HStack className="items-center gap-3">
-              <User size={22} color="#dc2626" />
-
-              <VStack>
-                <ThemedText className="text-sm text-gray-400">
-                  Username
-                </ThemedText>
-                <ThemedText className="text-base font-medium">
-                  {user.username}
-                </ThemedText>
-              </VStack>
-            </HStack>
-
-            <Divider />
-
-            {/* EMAIL */}
-            <HStack className="items-center gap-3">
-              <Mail size={20} color="#dc2626" />
-              <VStack>
-                <ThemedText className="text-sm text-gray-400">Email</ThemedText>
-                <ThemedText className="text-base font-medium">
-                  {user.primaryEmailAddress?.emailAddress}
-                </ThemedText>
-              </VStack>
-            </HStack>
-
-            <Divider />
-
-            {/* PHONE */}
-            {/* <HStack className="items-center gap-3">
-              <Phone size={20} color="#dc2626" />
-              <VStack>
-                <ThemedText className="text-sm text-gray-400">Phone</ThemedText>
-                <ThemedText className="text-base font-medium">
-                  +91 78072 71261 
-                </ThemedText>
-              </VStack>
-            </HStack>
-            <Divider /> 
-            */}
-
-            {/* Organisation */}
-            <HStack className="items-center gap-3">
-              <Briefcase size={20} color="#dc2626" />
-              <VStack>
-                <ThemedText className="text-sm text-gray-400">
-                  Organisation
-                </ThemedText>
-                <ThemedText className="text-base font-medium">
-                  {userData?.organisation?.name ?? "-"}
-                </ThemedText>
-              </VStack>
-            </HStack>
-            <Divider />
+            <ThemedText style={{ fontSize: 23, fontWeight: "700" }}>
+              {user.firstName} {user.lastName}
+            </ThemedText>
           </VStack>
-        </Box>
 
-        {/* ---------- Buttons ---------- */}
-        <VStack className="mt-8" space="md">
-          {/* EDIT PROFILE */}
-          <TouchableOpacity
-            className="bg-[#dc2626] rounded-xl py-4 flex-row items-center justify-center gap-2"
-            onPress={() => setEditProfile(true)}
-          >
-            <UserPen size={20} color="white" />
-            <ThemedText style={{ color: "white", fontWeight: "600" }}>
-              Edit Profile
-            </ThemedText>
-          </TouchableOpacity>
+          {/* DETAILS */}
+          <Box className="bg-white/10 px-4 py-5 rounded-2xl border border-gray-200">
+            <VStack space="md">
+              <HStack className="items-center gap-3">
+                <User size={22} color="#dc2626" />
+                <VStack>
+                  <ThemedText className="text-sm text-gray-400">
+                    Username
+                  </ThemedText>
+                  <ThemedText>{user.username}</ThemedText>
+                </VStack>
+              </HStack>
 
-          <Modal
-            isOpen={ShowEditProfile}
-            onClose={() => {
-              setEditProfile(false);
+              <Divider />
+
+              <HStack className="items-center gap-3">
+                <Mail size={20} color="#dc2626" />
+                <VStack>
+                  <ThemedText className="text-sm text-gray-400">
+                    Email
+                  </ThemedText>
+                  <ThemedText>
+                    {user.primaryEmailAddress?.emailAddress}
+                  </ThemedText>
+                </VStack>
+              </HStack>
+
+              <Divider />
+
+              <HStack className="items-center gap-3">
+                <Briefcase size={20} color="#dc2626" />
+                <VStack>
+                  <ThemedText className="text-sm text-gray-400">
+                    Organisation
+                  </ThemedText>
+                  <ThemedText>
+                    {userData?.organisation?.name ?? (
+                      <ShimmerSkeleton height={15} width={130} />
+                    )}
+                  </ThemedText>
+                </VStack>
+              </HStack>
+            </VStack>
+          </Box>
+
+          {/* BUTTONS */}
+          
+          <VStack className="mt-8" space="md">
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={{
+                backgroundColor: "#dc2626",
+                paddingVertical: 16,
+                borderRadius: 12,
+                flexDirection: "row",
+                justifyContent: "center",
+                gap: 8,
+              }}
+              onPress={() => setEditProfile(true)}
+            >
+              <UserPen size={20} color="white" />
+              <ThemedText style={{ color: "white", fontWeight: "600" }}>
+                Edit Profile
+              </ThemedText>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              className="bg-black rounded-xl py-4 flex-row justify-center gap-2"
+              onPress={() => setChangePas(true)}
+            >
+              <LockKeyhole size={20} color="white" />
+              <ThemedText style={{ color: "white", fontWeight: "600" }}>
+                Change Password
+              </ThemedText>
+            </TouchableOpacity>
+          </VStack>
+        </ScrollView>
+        
+      </ThemedView>
+
+      {/* test modal edit profile */}
+      <Modal
+        visible={showEditProfile}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEditProfile(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.4)",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <View
+            style={{
+              width: "90%",
+              backgroundColor: "white",
+              borderRadius: 16,
+              padding: 20,
             }}
-            size="lg"
           >
-            <ModalBackdrop />
-            <ModalContent>
-              <ModalHeader>
-                <ModalCloseButton></ModalCloseButton>
-              </ModalHeader>
-              <ModalBody>
-                {/* =====EPF Form Child====== */}
-                <EditProfile
-                  closeEPF={() => {
-                    setEditProfile(false);
-                  }}
-                />
-              </ModalBody>
+            
+            <EditProfile closeEPF={() => setEditProfile(false)} />
 
-              {/* <ModalFooter>
-                <Button
-                  variant="outline"
-                  action="secondary"
-                  className="mr-3"
-                  onPress={() => {
-                    setEditProfile(false);
-                  }}
-                >
-                  <ButtonText>Cancel</ButtonText>
-                </Button>
-                <Button
-                  onPress={() => {
-                    setEditProfile(false);
-                  }}
-                >
-                  <ButtonText>Save</ButtonText>
-                </Button>
-              </ModalFooter> */}
-            </ModalContent>
-          </Modal>
+          </View>
+        </View>
+      </Modal>
 
-          {/* CHANGE PASSWORD */}
-          <TouchableOpacity
-            className="bg-black rounded-xl py-4 flex-row items-center justify-center gap-2"
-            onPress={() => setChangePas(true)}
-          >
-            <LockKeyhole size={20} color="white" />
-            <ThemedText style={{ color: "white", fontWeight: "600" }}>
-              Change Password
-            </ThemedText>
-          </TouchableOpacity>
 
-          <Modal
-            isOpen={showChangePas}
-            onClose={() => {
-              setChangePas(false);
+      {/* test modal change password*/}
+      <Modal
+        visible={showChangePas}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setChangePas(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.4)",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <View
+            style={{
+              width: "90%",
+              backgroundColor: "white",
+              borderRadius: 16,
+              padding: 20,
             }}
-            size="lg"
           >
-            <ModalBackdrop />
-            <ModalContent>
-              <ModalHeader>
-                <ModalCloseButton>
-                  {/* <Icon as={CloseIcon} /> */}
-                </ModalCloseButton>
-              </ModalHeader>
-              <ModalBody>
-                {/* <ThemedText>
-                  This is the Change Password body. You can add any content
-                  here.
-                </ThemedText> */}
+            
+            <ChangePassword closeCP={() => setChangePas(false)} />
 
-                <ChangePassword
-                  closeCP={() => {
-                    setChangePas(false);
-                  }}
-                />
-              </ModalBody>
-
-              {/* <ModalFooter>
-                <Button
-                  variant="outline"
-                  action="secondary"
-                  className="mr-3"
-                  onPress={() => {
-                    setChangePas(false);
-                  }}
-                >
-                  <ButtonText>Cancel</ButtonText>
-                </Button>
-                <Button
-                  onPress={() => {
-                    setChangePas(false);
-                  }}
-                >
-                  <ButtonText>Save</ButtonText>
-                </Button>
-              </ModalFooter> */}
-            </ModalContent>
-          </Modal>
-        </VStack>
-      </ScrollView>
-    </ThemedView>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }

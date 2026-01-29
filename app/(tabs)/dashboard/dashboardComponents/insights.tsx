@@ -7,20 +7,19 @@ import {
 } from "@/api/dashboardApi";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import {
-  Box,
-  Center,
-  HStack,
-  Pressable,
-  Progress,
-  ProgressFilledTrack,
-  ScrollView,
-  Text,
-  VStack,
-} from "@gluestack-ui/themed";
+import { Box } from "@/components/ui/box";
+import { Center } from "@/components/ui/center";
+import { HStack } from "@/components/ui/hstack";
+import { Pressable } from "@/components/ui/pressable";
+import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
+import { VStack } from "@/components/ui/vstack";
+import { Progress, ProgressFilledTrack } from "@gluestack-ui/themed";
+import { View } from "@gluestack-ui/themed";
+
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet } from "react-native";
+import { StyleSheet, ScrollView } from "react-native";
+// import { ScrollView } from "react-native-gesture-handler";
 
 /* ================= TYPES ================= */
 
@@ -57,7 +56,6 @@ export default function Insights() {
         setCampaignData(campaigns);
         setContactsData(contacts);
         setUsageData(usage);
-       
       } catch (error) {
         console.error("Dashboard fetch error:", error);
       } finally {
@@ -68,12 +66,98 @@ export default function Insights() {
     fetchInsights();
   }, []);
 
+  /* ================= SKELETON HELPERS ================= */
+
+  const renderHeaderSkeleton = () => (
+    <HStack style={{ marginBottom: 24 }}>
+      <ShimmerSkeleton height={22} width={300} />
+    </HStack>
+  );
+
+  const renderPlanCardSkeleton = () => (
+    <Box style={[styles.planCard, { backgroundColor: "#fee2e2" }]}>
+      <HStack style={{ justifyContent: "space-between", alignItems: "center" }}>
+        <VStack className="gap-5 mb-5">
+          <ShimmerSkeleton height={13} width={90} />
+          <ShimmerSkeleton height={17} width={120} />
+        </VStack>
+        <ShimmerSkeleton height={15} width={110} borderRadius={8} />
+      </HStack>
+      <ShimmerSkeleton height={13} width="90%" />
+    </Box>
+  );
+
+  const renderStatCardSkeleton = () => (
+    <Box style={styles.statCard}>
+      <ShimmerSkeleton height={13} width={120} />
+      <ShimmerSkeleton height={30} width={60} />
+      <ShimmerSkeleton height={12} width="80%" />
+    </Box>
+  );
+
+  const renderUsageItemSkeleton = () => (
+    <VStack style={{ marginBottom: 16, gap: 13 }}>
+      <HStack style={{ justifyContent: "space-between" }}>
+        <ShimmerSkeleton height={14} width={130} />
+        <ShimmerSkeleton height={14} width={60} />
+      </HStack>
+      <ShimmerSkeleton height={8} width="100%" borderRadius={4} />
+    </VStack>
+  );
+
+  const renderTeamSkeleton = () => (
+    <Box style={styles.usageCard} className="gap-2">
+      <ShimmerSkeleton height={15} width={145} />
+
+      <HStack style={{ justifyContent: "space-between", alignItems: "center" }}>
+        <VStack className="gap-3">
+          <ShimmerSkeleton height={14} width={120} />
+          <ShimmerSkeleton height={12} width={160} />
+        </VStack>
+
+        <ShimmerSkeleton height={17} width={60} borderRadius={12} />
+      </HStack>
+    </Box>
+  );
+
   /* ================= LOADING ================= */
   if (loading) {
     return (
-      <ThemedView style={styles.loader}>
-        <ActivityIndicator size="large" color="#dc2626" />
-        <ThemedText style={styles.loadingText}>Loading dashboard…</ThemedText>
+      <ThemedView style={styles.container}>
+        {renderHeaderSkeleton()}
+
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Plan */}
+          {renderPlanCardSkeleton()}
+
+          {/* Stats */}
+          <VStack style={styles.section}>
+            <HStack style={styles.statsRow} className="justify-between">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <View key={i}>{renderStatCardSkeleton()}</View>
+              ))}
+            </HStack>
+
+            <Box style={[styles.statCard, styles.statCardFull]}>
+              <ShimmerSkeleton height={13} width={120} />
+              <ShimmerSkeleton height={30} width={60} />
+              <ShimmerSkeleton height={12} width="80%" />
+            </Box>
+          </VStack>
+
+          {/* Usage */}
+          <Box style={styles.usageCard} className="gap-3">
+            <ShimmerSkeleton height={18} width={160} />
+            <ShimmerSkeleton height={14} width="90%" />
+
+            {Array.from({ length: 5 }).map((_, i) => (
+              <View key={i}>{renderUsageItemSkeleton()}</View>
+            ))}
+          </Box>
+
+          {/* Team */}
+          {renderTeamSkeleton()}
+        </ScrollView>
       </ThemedView>
     );
   }
@@ -96,11 +180,10 @@ export default function Insights() {
   const planName =
     userData?.organisation?.subscriptions?.[0]?.plan?.name ?? "FREE TRIAL";
 
-  const isApproved =
-    userData?.organisation?.isApproved ?? null;
+  const isApproved = userData?.organisation?.isApproved ?? null;
 
-    // console.log("isapp check",isApproved);
-    
+  // console.log("isapp check",isApproved);
+
   // const trialEndDate = userData?.organisation?.trialEndDate
   //   ? new Date(userData.organisation.trialEndDate).toLocaleDateString()
   //   : "N/A";
@@ -123,7 +206,7 @@ export default function Insights() {
 
     return (
       <VStack style={{ marginBottom: 16 }}>
-        <HStack justifyContent="space-between">
+        <HStack style={{ justifyContent: "space-between" }}>
           <ThemedText>{label}</ThemedText>
           <ThemedText>
             {current}/{limit}
@@ -131,9 +214,14 @@ export default function Insights() {
         </HStack>
 
         <Center style={{ marginTop: 6 }}>
-          <Progress value={percentage} size="sm">
-            <ProgressFilledTrack style={{ backgroundColor: progressColor }} />
-          </Progress>
+          {/* <Progress size="sm">
+  <ProgressFilledTrack value={percentage} />
+</Progress> */}
+
+<Progress value={percentage} size="sm">
+  <ProgressFilledTrack />
+</Progress>
+
         </Center>
       </VStack>
     );
@@ -152,9 +240,11 @@ export default function Insights() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* PLAN CARD */}
         <Box style={styles.planCard}>
-          <HStack justifyContent="space-between" alignItems="center">
+          <HStack
+            style={{ justifyContent: "space-between", alignItems: "center" }}
+          >
             <VStack>
-              <Text style={styles.planLabel}>Current Plan</Text>
+              <ThemedText style={styles.planLabel}>Current Plan</ThemedText>
               <ThemedText style={styles.planName}>{planName}</ThemedText>
             </VStack>
 
@@ -162,11 +252,11 @@ export default function Insights() {
               style={styles.trialBadge}
               onPress={() => routePage.push("/(billing)/billingPage")}
             >
-              <Text style={styles.trialText}>Manage Billing</Text>
+              <ThemedText style={styles.trialText}>Manage Billing</ThemedText>
             </Pressable>
           </HStack>
 
-          <Text
+          <ThemedText
             style={[
               styles.trialDate,
               {
@@ -182,14 +272,14 @@ export default function Insights() {
             {isApproved === true && "Your subscription is active."}
             {isApproved === false && "You don't have any active subscription."}
             {isApproved === null && "-"}
-          </Text>
+          </ThemedText>
         </Box>
 
         {/* ================= STATS ================= */}
         <VStack style={styles.section}>
           <HStack style={styles.statsRow}>
             <Box style={styles.statCard}>
-              <Text style={styles.statLabel}>Total Campaigns</Text>
+              <ThemedText style={styles.statLabel}>Total Campaigns</ThemedText>
               <ThemedText style={styles.statValue}>{totalCampaigns}</ThemedText>
               <ThemedText style={styles.statSubtext}>
                 Total Active Campaigns
@@ -197,7 +287,7 @@ export default function Insights() {
             </Box>
 
             <Box style={styles.statCard}>
-              <Text style={styles.statLabel}>Total Contacts</Text>
+              <ThemedText style={styles.statLabel}>Total Contacts</ThemedText>
               <ThemedText style={styles.statValue}>{totalContacts}</ThemedText>
               <ThemedText style={styles.statSubtext}>
                 Audience Reached
@@ -206,7 +296,7 @@ export default function Insights() {
           </HStack>
 
           <Box style={[styles.statCard, styles.statCardFull]}>
-            <Text style={styles.statLabel}>Team Size</Text>
+            <ThemedText style={styles.statLabel}>Team Size</ThemedText>
             <ThemedText style={styles.statValue}>{teamSize}</ThemedText>
             <ThemedText style={styles.statSubtext}>
               Active team members
@@ -232,7 +322,9 @@ export default function Insights() {
         <Box style={styles.usageCard}>
           <ThemedText style={styles.usageName}>Team Members</ThemedText>
 
-          <HStack justifyContent="space-between" alignItems="center">
+          <HStack
+            style={{ justifyContent: "space-between", alignItems: "center" }}
+          >
             <VStack>
               <ThemedText>
                 {userData?.firstName} {userData?.lastName}
@@ -241,7 +333,7 @@ export default function Insights() {
             </VStack>
 
             <Box style={styles.roleBadge}>
-              <Text style={styles.badgeText}>{userData?.role}</Text>
+              <ThemedText style={styles.badgeText}>{userData?.role}</ThemedText>
             </Box>
           </HStack>
         </Box>
@@ -392,7 +484,7 @@ const styles = StyleSheet.create({
   usageName: {
     fontSize: 18,
     fontWeight: "600",
-    marginBottom: 9
+    marginBottom: 9,
   },
   usageLabel: {
     fontSize: 14,
