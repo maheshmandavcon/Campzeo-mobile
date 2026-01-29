@@ -475,18 +475,40 @@ export default function CampaignsDetails() {
             fontSize: 18,
             fontWeight: "bold",
           }}>Created Posts</ThemedText>
-
         {loadingPosts ? (
-          <ThemedView className="flex-1 justify-center items-center">
+          <ThemedView className="flex-1 justify-center items-center" style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
             <ActivityIndicator size="large" color="#dc2626" />
             <ThemedText className="mt-2" style={{ color: isDark ? "#e5e7eb" : "#111" }}>
               Loading posts...
             </ThemedText>
           </ThemedView>
         ) : posts.length === 0 ? (
-          <ThemedText className="text-gray-500 text-center" style={{ color: isDark ? "#e5e7eb" : "#6b7280" }}>
-            No records found
-          </ThemedText>
+          <ThemedView
+            className="flex-1 justify-center items-center"
+            style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
+          >
+            <ThemedText
+              style={{
+                fontSize: 18,
+                fontWeight: "bold",
+                marginBottom: 6,
+                color: isDark ? "#ffffff" : "#000000",
+              }}
+            >
+              No posts yet
+            </ThemedText>
+
+            <ThemedText
+              style={{
+                fontSize: 14,
+                textAlign: "center",
+                color: isDark ? "#9ca3af" : "#6b7280",
+                paddingHorizontal: 24,
+              }}
+            >
+              You haven’t created any posts for this campaign yet.
+            </ThemedText>
+          </ThemedView>
         ) : (
           <FlatList
             data={visiblePosts}

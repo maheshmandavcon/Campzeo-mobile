@@ -11,5 +11,4 @@ export const cancelSchema = z.object({
     reason: z.string().optional(),
 });
 
-
 export type CancelFormValues = z.infer<typeof cancelSchema>;

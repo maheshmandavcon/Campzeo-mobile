@@ -12,8 +12,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Input, InputField, FormControl } from "@gluestack-ui/themed";
-import { useNavigation } from "@react-navigation/native";
-import { router, useLocalSearchParams } from "expo-router";
+// import { useNavigation } from "@react-navigation/native";
+import { router, useLocalSearchParams, useRouter } from "expo-router";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { useAuth } from "@clerk/clerk-expo";
@@ -42,7 +42,8 @@ type CampaignFormValues = {
 };
 
 export default function CreateCampaign() {
-  const navigation = useNavigation();
+  const router = useRouter();
+  // const navigation = useNavigation();
   const { getToken } = useAuth();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const campaignId = id ? Number(id) : undefined;
@@ -190,7 +191,7 @@ export default function CreateCampaign() {
       >
         {/* Close */}
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={() => router.back()}
           className="absolute right-2 z-10 p-2"
         >
           <Ionicons

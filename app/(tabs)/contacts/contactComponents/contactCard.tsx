@@ -39,25 +39,17 @@ export default function ContactCard({
 
   const isDark = useColorScheme() === "dark";
   const iconColor = isDark ? "#ffffff" : "#000000";
-  // 🔥 Dark mode constants
-  const DARK_BG = "#161618";
-  const DARK_BORDER = "#ffffff";
-  const DARK_TEXT = "#ffffff";
-  const DARK_SUBTEXT = "#d1d5db";
 
   return (
     <ThemedView
       style={{
-  backgroundColor: isDark ? DARK_BG : "white",
-
-  // 🔥 BORDER FIX
-  borderWidth: isDark ? 1 : 1,
-  borderColor: isDark ? DARK_BORDER : "#e5e7eb", // light gray border
-
-  padding: 16,    
-  borderRadius: 12,
-  marginBottom: 12,
-}}
+        backgroundColor: isDark ? "#161618" : "white",
+        borderWidth: isDark ? 1 : 1,
+        borderColor: isDark ? "#ffffff" : "#e5e7eb",
+        padding: 16,
+        borderRadius: 12,
+        marginBottom: 12,
+      }}
     >
       {/* Name + Icons */}
       <ThemedView
@@ -65,7 +57,7 @@ export default function ContactCard({
         className="flex-row justify-between items-center"
       >
         <Text
-          style={{ color: isDark ? DARK_TEXT : "#111827" }}
+          style={{ color: isDark ? "#ffffff" : "#111827" }}
           className="font-bold text-lg"
         >
           {record.name}
@@ -126,7 +118,7 @@ export default function ContactCard({
                   color={iconColor}
                 />
                 <Text
-                  style={{ color: isDark ? DARK_SUBTEXT : "#374151" }}
+                  style={{ color: isDark ? "#d1d5db" : "#374151" }}
                   className="text-base font-bold"
                 >
                   {item.label}
@@ -160,7 +152,7 @@ export default function ContactCard({
                 color={iconColor}
               />
               <Text
-                style={{ color: isDark ? DARK_SUBTEXT : "#374151" }}
+                style={{ color: isDark ? "#d1d5db" : "#374151" }}
                 className="text-base font-bold"
               >
                 Campaigns
@@ -169,7 +161,7 @@ export default function ContactCard({
 
             <TouchableOpacity onPress={() => setModalVisible(true)}>
               <Text
-                style={{ color: isDark ? DARK_TEXT : "#1f2937" }}
+                style={{ color: isDark ? "#ffffff" : "#1f2937" }}
                 className="text-base"
               >
                 {record.campaigns?.length ?? 0}{" "}
@@ -178,7 +170,6 @@ export default function ContactCard({
             </TouchableOpacity>
           </ThemedView>
         </ThemedView>
-
       )}
     </ThemedView>
   );
