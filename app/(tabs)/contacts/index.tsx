@@ -7,6 +7,7 @@ import {
   Alert,
   Pressable,
   useColorScheme,
+  View,
 } from "react-native";
 import { Text } from "@gluestack-ui/themed";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,6 +24,7 @@ import { useAuth } from "@clerk/clerk-expo";
 import { useFocusEffect } from "@react-navigation/native";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
+import * as Clipboard from 'expo-clipboard';
 
 export default function Contacts() {
   const [visibleCount, setVisibleCount] = useState(10);
@@ -49,7 +51,7 @@ export default function Contacts() {
       const token = await getToken();
       if (!token) throw new Error("Authentication token not found");
 
-      const res = await getContactsApi(token, 1, 50, search);
+      const res = await getContactsApi(1, 50, search);
       const contactsArray = res?.contacts ?? [];
 
       const mapped: ContactsRecord[] = contactsArray.map((item: any) => ({
@@ -97,6 +99,22 @@ export default function Contacts() {
     });
   };
 
+  const handleCopy = (record: ContactsRecord) => {
+    const textToCopy = `
+Name: ${record.name}
+Email: ${record.email || "-"}
+Mobile: ${record.mobile || "-"}
+WhatsApp: ${record.whatsapp || "-"}
+  `;
+
+    Clipboard.setStringAsync(textToCopy).then(() => {
+      Alert.alert("Copied!", "Contact details copied to clipboard.");
+    }).catch((err) => {
+      console.error("Clipboard error:", err);
+      Alert.alert("Error", "Failed to copy contact details.");
+    });
+  };
+
   const handleDelete = (record: ContactsRecord) => {
     Alert.alert("Delete Contact", `Delete ${record.name}?`, [
       { text: "Cancel", style: "cancel" },
@@ -109,7 +127,7 @@ export default function Contacts() {
             const token = await getToken();
             if (!token) return;
 
-            await deleteContactApi([record.id], token);
+            await deleteContactApi([record.id]);
             setRecords((prev) => prev.filter((r) => r.id !== record.id));
           } catch (e: any) {
             Alert.alert("Error", e.message || "Failed to delete");
@@ -129,7 +147,7 @@ export default function Contacts() {
       const token = await getToken();
       if (!token) throw new Error("Token missing");
 
-      const arrayBuffer = await exportContactsApi(token);
+      const arrayBuffer = await exportContactsApi();
       const binary = new Uint8Array(arrayBuffer);
       let binaryString = "";
       binary.forEach((b) => (binaryString += String.fromCharCode(b)));
@@ -170,17 +188,35 @@ export default function Contacts() {
   return (
     <Pressable onPress={() => setMenuVisible(false)} className="flex-1">
       <ThemedView
-        style={{ backgroundColor: isDark ? "#000000" : "#f3f4f6" }} // gray-100 light bg
+        style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }} // gray-100 light bg
         className="flex-1 p-4"
       >
         {loading && (
-          <ThemedView className="absolute inset-0 justify-center items-center bg-black/40 z-10">
-            <ActivityIndicator size="large" color={DARK_TEXT} />
+          <ThemedView
+            className="absolute inset-0 justify-center items-center z-10"
+            style={{
+              backgroundColor: isDark ? "rgba(0,0,0,0.6)" : "rgba(0,0,0,0.2)", // darker overlay for dark mode
+            }}
+          >
+            <ActivityIndicator
+              size="large"
+              color={isDark ? "#ffffff" : "#dc2626"} // white in dark mode, red in light mode
+            />
+            <Text
+              style={{
+                marginTop: 12,
+                fontWeight: "bold",
+                color: isDark ? "#ffffff" : "#111827", // text color dynamic
+                fontSize: 16,
+              }}
+            >
+              Loading contacts...
+            </Text>
           </ThemedView>
         )}
 
         {/* Top Bar */}
-        <ThemedView
+        <View
           className="flex-row items-center mb-4"
           style={{ backgroundColor: "transparent" }}
         >
@@ -193,7 +229,7 @@ export default function Contacts() {
               paddingHorizontal: 12,
               paddingVertical: 8,
               borderRadius: 9999,
-              backgroundColor: isDark ? DARK_TOPBAR_BG : "#bfdbfe", // gray-800 / blue-100
+              backgroundColor: isDark ? "#161618" : "#bfdbfe", // gray-800 / blue-100
               borderWidth: 1,
               borderColor: isDark ? DARK_BORDER : "transparent",
               marginRight: 8,
@@ -208,7 +244,7 @@ export default function Contacts() {
               style={{
                 marginLeft: 8,
                 fontWeight: "600",
-                color: isDark ? DARK_TEXT : "#1e40af",
+                color: isDark ? DARK_TEXT : "#0284c7",
               }}
             >
               New
@@ -226,20 +262,20 @@ export default function Contacts() {
             placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"} // gray-400 / gray-500
             style={{
               flex: 1,
-              backgroundColor: isDark ? DARK_SEARCH_BG : "#ffffff",
-              color: isDark ? DARK_TEXT : "#000000",
+              backgroundColor: isDark ? "#161618" : "#ffffff",
+              color: isDark ? "#e5e7eb" : "#000000", // light text in dark mode
               paddingHorizontal: 12,
               paddingVertical: 8,
               borderRadius: 9999,
               borderWidth: 1,
-              borderColor: isDark ? "#4b5563" : "#d1d5db", // gray-600 / gray-300
+              borderColor: isDark ? "#fff" : "#d1d5db", // darker gray border in dark mode
             }}
           />
 
           {/* 3-dot menu */}
           <TouchableOpacity
             onPress={() => setMenuVisible(!menuVisible)}
-            className="ml-2"
+            className=""
             style={{
               padding: 8,
               borderRadius: 9999,
@@ -252,13 +288,13 @@ export default function Contacts() {
               color={isDark ? DARK_TEXT : "#000000"}
             />
           </TouchableOpacity>
-        </ThemedView>
+        </View>
 
         {/* Dropdown */}
         {menuVisible && (
           <ThemedView
             style={{
-              backgroundColor: isDark ? DARK_TOPBAR_BG : "#ffffff",
+              backgroundColor: isDark ? "#161618" : "#ffffff",
               borderColor: isDark ? DARK_BORDER : "#d1d5db",
             }}
             className="absolute right-4 top-20 rounded-xl border z-20"
@@ -267,22 +303,30 @@ export default function Contacts() {
               onPress={handleExportAll}
               className="flex-row items-center px-4 py-3"
             >
-              <Ionicons name="download-outline" size={18} color={DARK_TEXT} />
-              <Text className="ml-3 font-medium text-white">Export All</Text>
+              <Ionicons
+                name="download-outline"
+                size={18}
+                color={isDark ? "#ffffff" : "#111827"}
+              />
+              <ThemedText className="ml-3 font-medium text-white">Export All</ThemedText>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={toggleSortOrder}
               className="flex-row items-center px-4 py-3"
             >
-              <Ionicons name="funnel-outline" size={18} color={DARK_TEXT} />
-              <Text className="ml-3 font-medium text-white">
+              <Ionicons
+                name="funnel-outline"
+                size={18}
+                color={isDark ? "#ffffff" : "#111827"}
+              />
+              <ThemedText className="ml-3 font-medium text-white">
                 {sortOrder === "asc"
                   ? "Sort Z → A"
                   : sortOrder === "desc"
-                  ? "Sort A → Z"
-                  : "Sort"}
-              </Text>
+                    ? "Sort A → Z"
+                    : "Sort"}
+              </ThemedText>
             </TouchableOpacity>
           </ThemedView>
         )}
@@ -296,8 +340,8 @@ export default function Contacts() {
               record={item}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onCopy={handleCopy}
               onToggleShow={toggleShow}
-              onCopy={() => {}}
             />
           )}
           ListFooterComponent={
@@ -311,14 +355,14 @@ export default function Contacts() {
                   borderColor: isDark ? DARK_BORDER : "transparent",
                 }}
               >
-                <Text
+                <ThemedText
                   style={{
                     color: isDark ? DARK_TEXT : "#0284c7",
                     fontWeight: "600",
                   }}
                 >
                   {isAllVisible ? "See Less" : "Load More"}
-                </Text>
+                </ThemedText>
               </TouchableOpacity>
             ) : null
           }
