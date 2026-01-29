@@ -60,6 +60,7 @@ export default function LoginScreen() {
         // signIn
         await setActive({ session: result.createdSessionId });
         console.log("[Login] Active session set successfully");
+        router.replace("/(tabs)/dashboard");
       } else {
         console.log("[Login] Sign-in incomplete. Status:", result.status);
         setError(

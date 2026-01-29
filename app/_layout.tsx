@@ -63,19 +63,17 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
     console.log("[AuthGuard]", { isSignedIn, pathname });
 
-    if (pathname === "/login") {
-      if (isSignedIn) {
-        console.log("1",isSignedIn,pathname);
-        router.replace("/(tabs)/dashboard");
-      }
-      return;
+    const authRoutes = ["/", "/login", "/changePassword", "/editProfile"];
+
+    if (!isSignedIn && !authRoutes.includes(pathname) && pathname !== "/auth-callback") {
+      router.replace("/(auth)/login");
     }
 
-    if (!isSignedIn) {
-      router.replace("/(auth)/login")
+    if (isSignedIn && authRoutes.includes(pathname)) {
+      router.replace("/(tabs)/dashboard");
     }
 
-  }, [isLoaded, isSignedIn, router]);
+  }, [isLoaded, isSignedIn, router, pathname]);
 
   if (!isLoaded) {
     return (
@@ -158,6 +156,7 @@ export default function RootLayout() {
                     <Stack screenOptions={{ headerShown: false }}>
                       <Stack.Screen name="(auth)" />
                       <Stack.Screen name="(tabs)" />
+                      <Stack.Screen name="auth-callback" />
                     </Stack>
                     <StatusBar style="auto" />
                   </QueryClientProvider>
