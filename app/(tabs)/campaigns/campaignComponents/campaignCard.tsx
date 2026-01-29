@@ -16,7 +16,7 @@ export interface Campaign {
   contactsCount?: number;
   contacts?: any[];
   postsCount?: number;
-  status?: "Scheduled" | "Active" | "Completed"; // <-- add this
+  status?: "Scheduled" | "Active" | "Completed"; 
 }
 
 interface CampaignCardProps {

@@ -12,7 +12,7 @@ import {
 import { Text } from "@gluestack-ui/themed";
 import { Ionicons } from "@expo/vector-icons";
 import ContactCard, { ContactsRecord } from "./contactComponents/contactCard";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   getContactsApi,
   deleteContactApi,
@@ -21,7 +21,6 @@ import {
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { useAuth } from "@clerk/clerk-expo";
-import { useFocusEffect } from "@react-navigation/native";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import * as Clipboard from 'expo-clipboard';

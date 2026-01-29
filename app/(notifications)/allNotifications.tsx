@@ -8,7 +8,8 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+// import { useNavigation } from "@react-navigation/native";
+
 import {
   getNotificationsApi,
   deleteNotificationApi,
@@ -23,9 +24,11 @@ import { useColorMode } from "@gluestack-style/react";
 // import { SafeAreaView } from "@gluestack-ui/themed";
 // import { useColorMode } from "@gluestack-ui/themed";
 import { useColorScheme } from "react-native";
+import { useRouter } from "expo-router";
 
 export default function AllNotifications() {
-  const navigation = useNavigation();
+  const router = useRouter();
+  // const navigation = useNavigation();
   const { getToken } = useAuth();
 
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -223,7 +226,7 @@ export default function AllNotifications() {
         {/* HEADER */}
         <ThemedView className="flex-row items-center justify-between my-5"
           style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 8 }}>
+          <TouchableOpacity onPress={() => router.back()} style={{ padding: 8 }}>
             <Ionicons name="arrow-back" size={24} color={isDark ? "#e5e7eb" : "#333"} />
           </TouchableOpacity>
 

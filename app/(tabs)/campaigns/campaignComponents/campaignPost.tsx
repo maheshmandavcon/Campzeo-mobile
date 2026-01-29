@@ -10,10 +10,10 @@ import {
 } from "react-native";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import CampaignPostForm from "./campaignPostForm";
-import { useRoute } from "@react-navigation/native";
 import { useAuth } from "@clerk/clerk-expo";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 export default function CampaignPost() {
   const [selected, setSelected] = useState<
@@ -30,12 +30,12 @@ export default function CampaignPost() {
   const [existingPost, setExistingPost] = useState<any>(null);
   const [loadingPost, setLoadingPost] = useState(false);
 
-  const route = useRoute();
-  const { campaignId, postId, type } = route.params as {
+  const route = useRouter();
+  const { campaignId, postId, type } = useLocalSearchParams<{
     campaignId: string;
     postId?: string;
     type?: string;
-  };
+  }>();
 
   const { getToken } = useAuth();
 
