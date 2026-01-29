@@ -4,7 +4,6 @@ import {
 } from "@/api/campaign/campaignApi";
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import { Text, View } from "@gluestack-ui/themed";
 
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
@@ -13,16 +12,16 @@ import {
   Alert,
   FlatList,
   Share,
-  Text,
   TextInput,
   TouchableOpacity,
-  View,
 } from "react-native";
 import CampaignCard, { Campaign } from "./campaignComponents/campaignCard";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { useColorScheme } from "react-native";
 import * as Clipboard from "expo-clipboard";
+import { View } from "@gluestack-ui/themed";
+import { Text } from "@gluestack-ui/themed";
 
 export default function Campaigns() {
   const [search, setSearch] = useState("");

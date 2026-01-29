@@ -5,16 +5,13 @@ import {
   View as RNView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   useColorScheme,
   ActivityIndicator
 } from "react-native";
-import { View, Text } from "@gluestack-ui/themed";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import CampaignPostForm from "./campaignPostForm";
 import { useRoute } from "@react-navigation/native";
 import { useAuth } from "@clerk/clerk-expo";
-import axios from "axios";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 
