@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/app-images/app-logo.png",
     "scheme": "campzeo",
+    "jsEngine": "hermes",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -79,7 +80,7 @@
         "projectId": "872fa55d-43d2-4a89-b9fb-5c356b8fdc89"
       }
     },
-     "runtimeVersion": {
+    "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {

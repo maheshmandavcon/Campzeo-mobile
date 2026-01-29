@@ -23,6 +23,7 @@ import * as Linking from "expo-linking";
 import { ActivityIndicator, Image } from "react-native";
 import { GluestackUIProvider } from "@gluestack-ui/themed";
 import { config } from "@gluestack-ui/config";
+import { NetworkGate } from "./(common)/(network)/networkGate";
 
 /* ---------------- TOKEN CACHE ---------------- */
 
@@ -139,13 +140,13 @@ export default function RootLayout() {
   }
 
   return (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <ClerkLoaded>
-        <AuthBridge />
+  <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+    <ClerkLoaded>
+      <AuthBridge />
 
+      <NetworkGate>
         <AuthGuard>
           <GlobalLinkingHandler />
-
           <GluestackUIProvider config={config}>
             <SafeAreaProvider>
               <ThemeProvider
@@ -165,7 +166,10 @@ export default function RootLayout() {
             </SafeAreaProvider>
           </GluestackUIProvider>
         </AuthGuard>
-      </ClerkLoaded>
-    </ClerkProvider>
-  );
+      </NetworkGate>
+
+    </ClerkLoaded>
+  </ClerkProvider>
+);
+
 }
