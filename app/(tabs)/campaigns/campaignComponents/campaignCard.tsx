@@ -200,7 +200,7 @@ export default function CampaignCard({
 
       {isExpanded && (
         <ThemedView>
-          <ThemedText className="font-bold text-gray-900 mb-1">Description</ThemedText>
+          <ThemedText className="font-boldzzzzz text-gray-900 mb-1">Description</ThemedText>
           <Text className={`mb-3 ${isDark ? "text-gray-200" : "text-gray-700"}`}>
             {campaign.description ?? "No description available"}
           </Text>

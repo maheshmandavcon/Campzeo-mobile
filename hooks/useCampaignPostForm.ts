@@ -110,13 +110,26 @@ export function useCampaignPostForm({
   }>({});
 
   // ================= YOUTUBE =================
-  const [youTubeContentType, setYouTubeContentType] =
-    useState("Standard Video");
+  const [youTubeContentType, setYouTubeContentType] = useState<
+    "VIDEO" | "SHORT" | "PLAYLIST"
+  >("VIDEO");
   const [youTubeTags, setYouTubeTags] = useState("");
   const [youTubeStatus, setYouTubeStatus] = useState("Public");
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [customThumbnail, setCustomThumbnail] = useState<string | null>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
+  const [playlistId, setPlaylistId] = useState<string | undefined>(undefined);
+  const [playlistTitle, setPlaylistTitle] = useState<string>("");
+  const [playlists, setPlaylists] = useState<{ id: string; name: string }[]>(
+    [],
+  );
+  const [loadingPlaylists, setLoadingPlaylists] = useState(false);
+  const [showPlaylistDropdown, setShowPlaylistDropdown] = useState(false);
+  const [selectedPlaylist, setSelectedPlaylist] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [newPlaylistName, setNewPlaylistName] = useState("");
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
 
   // ================= LOADING =================
@@ -165,19 +178,82 @@ export function useCampaignPostForm({
         : null,
     );
 
-    setDestinationLink(existingPost.destinationLink || "");
+    // ✅ PINTEREST
+    if (existingPost.type === "PINTEREST") {
+      setPinterestBoard(existingPost.metadata?.boardName || "");
+      setPinterestBoardId(existingPost.metadata?.boardId || "");
+      setDestinationLink(existingPost.metadata?.destinationLink || "");
+    }
 
-    // ✅ YOUTUBE TAGS (ONLY VALID SOURCE)
-    const tags = Array.isArray(existingPost.metadata?.tags)
-      ? existingPost.metadata.tags
-      : [];
+    // ✅ YOUTUBE
+    if (existingPost.type === "YOUTUBE") {
+      // normalize content type
+      const typeMap: Record<string, "VIDEO" | "SHORT" | "PLAYLIST"> = {
+        VIDEO: "VIDEO",
+        SHORT: "SHORT",
+        SHORT_VIDEO: "SHORT",
+        SHORTS: "SHORT",
+        "YOUTUBE SHORT": "SHORT",
+        PLAYLIST: "PLAYLIST",
+      };
 
-    setYouTubeTags(tags.join(", "));
+      const tags = Array.isArray(existingPost.metadata?.tags)
+        ? existingPost.metadata.tags
+        : [];
+      setYouTubeTags(tags.join(", "));
 
-    // PINTEREST BOARD
-    setPinterestBoardId(existingPost.metadata?.boardId);
-    setPinterestBoard("");
-    setMetadata({ ...existingPost.metadata });
+      const savedType = existingPost.metadata?.postType || "VIDEO";
+      setYouTubeContentType(typeMap[savedType] ?? "VIDEO");
+
+      // normalize privacy/status
+      const savedPrivacy = existingPost.metadata?.privacy || "PUBLIC";
+      setYouTubeStatus(
+        savedPrivacy.toLowerCase() === "private"
+          ? "Private"
+          : savedPrivacy.toLowerCase() === "unlisted"
+            ? "Unlisted"
+            : "Public",
+      );
+
+      // handle tags (array or comma string)
+      let tagsArray: string[] = [];
+      if (Array.isArray(existingPost.metadata?.tags)) {
+        tagsArray = existingPost.metadata.tags;
+      } else if (typeof existingPost.metadata?.tags === "string") {
+        tagsArray = existingPost.metadata.tags
+          .split(",")
+          .map((t: string) => t.trim());
+      }
+      setYouTubeTags(tagsArray.join(", "));
+
+      // other fields
+      setCustomThumbnail(existingPost.metadata?.thumbnailUrl || null);
+      setPlaylistId(existingPost.metadata?.playlistId);
+      setPlaylistTitle(existingPost.metadata?.playlistTitle || "");
+    }
+
+    // ✅ FACEBOOK / INSTAGRAM
+
+     if (
+    existingPost.type === "FACEBOOK" ||
+    existingPost.type === "INSTAGRAM"
+  ) {
+    const typeMap: Record<string, "STANDARD" | "REEL"> = {
+      STANDARD: "STANDARD",
+      POST: "STANDARD",
+
+      REEL: "REEL",
+      SHORT: "REEL",
+      SHORT_VIDEO: "REEL",
+      VIDEO: "REEL",
+    };
+
+    const savedType =
+      existingPost.metadata?.postType ?? "STANDARD";
+
+    setFacebookContentType(typeMap[savedType] ?? "STANDARD");
+    setCoverImage(existingPost.metadata?.coverImage || null);
+  }
 
     // ================= ATTACHMENTS =================
     const prefilledAttachments: Attachment[] = [];
@@ -666,21 +742,36 @@ export function useCampaignPostForm({
         .filter((tag) => tag.length > 0);
 
       const postData: CampaignPostData = {
-        senderEmail,
-        subject,
-        message,
-        type: platform,
-        mediaUrls: attachments.map((a) => a.uploadedUrl || a.uri),
-        scheduledPostTime: postDate?.toISOString() || "",
-        pinterestBoard,
-        destinationLink,
-
-        // ✅ TAGS GO HERE
+        senderEmail, // working
+        subject, // working
+        message, // working
+        type: platform, // working
+        mediaUrls: attachments.map((a) => a.uploadedUrl || a.uri), // working
+        scheduledPostTime: postDate?.toISOString() || "", // working
+        pinterestBoard, // working
         metadata: {
           ...metadata,
-          tags: parsedTags,
-          boardId: metadata.boardId,
-          boardName: pinterestBoard,
+          tags: parsedTags, // working
+          boardId: metadata.boardId, // working
+          boardName: pinterestBoard, // working
+          destinationLink: destinationLink, // working
+
+          // ✅ YOUTUBE
+          ...(platform === "YOUTUBE" && {
+            postType: youTubeContentType,
+            privacy: youTubeStatus, // working
+            thumbnailUrl: customThumbnail || null,
+            playlistId,
+            playlistTitle,
+          }),
+
+          // ✅ FACEBOOK / INSTAGRAM
+          ...(platform === "FACEBOOK" || platform === "INSTAGRAM"
+            ? {
+                postType: facebookContentType,
+                coverImage: coverImage || null,
+              }
+            : {}),
         },
       };
 
@@ -755,6 +846,8 @@ export function useCampaignPostForm({
     youTubeContentType,
     youTubeTags,
     youTubeStatus,
+    playlistId,
+    playlistTitle,
     customThumbnail,
     showStatusDropdown,
     isCreatingPlaylist,
@@ -773,6 +866,10 @@ export function useCampaignPostForm({
     existingPost,
     uploadProgress,
     uploadingMedia,
+    playlists,
+    showPlaylistDropdown,
+    selectedPlaylist,
+    newPlaylistName,
 
     // setters
     setSenderEmail,
@@ -794,6 +891,8 @@ export function useCampaignPostForm({
     setDestinationLink,
     setYouTubeContentType,
     setYouTubeTags,
+    setPlaylistId,
+    setPlaylistTitle,
     setYouTubeStatus,
     setShowStatusDropdown,
     setIsCreatingPlaylist,
@@ -803,6 +902,9 @@ export function useCampaignPostForm({
     setShowTimePicker,
     setUploadProgress,
     setUploadingMedia,
+    setShowPlaylistDropdown,
+    setSelectedPlaylist,
+    setNewPlaylistName,
 
     // actions
     handleAddAttachment,

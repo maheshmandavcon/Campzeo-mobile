@@ -44,14 +44,22 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
     facebookPages, selectedFacebookPage, facebookContentType, isFacebookPageLoading, coverImage,
 
-    youTubeContentType, youTubeTags, youTubeStatus, showStatusDropdown, isCreatingPlaylist, customThumbnail,
+    youTubeContentType, youTubeTags, youTubeStatus, showStatusDropdown, isCreatingPlaylist, customThumbnail, playlistId, playlistTitle,
+    playlists,
+    showPlaylistDropdown,
+    selectedPlaylist,
+    newPlaylistName,
+    setShowPlaylistDropdown,
+    setSelectedPlaylist,
+    setNewPlaylistName,
 
     pinterestBoard, destinationLink, isCreatingPinterestBoard, pinterestModalVisible, newPinterestBoard, pinterestDescription, isPinterestBoardLoading, allPinterestBoards, loadingBoards,
 
     showPicker, showTimePicker,
 
     // setters
-    setSenderEmail, setSubject, setMessage, setPostDate, setAiModalVisible, setAiPrompt, setImageModalVisible, setImagePrompt, setAttachments, setFacebookContentType, setYouTubeContentType, setYouTubeTags, setYouTubeStatus, setShowStatusDropdown, setIsCreatingPlaylist, setIsCreatingPinterestBoard, setPinterestBoard, setPinterestModalVisible, setNewPinterestBoard, setPinterestDescription, setDestinationLink, setShowPicker, setShowTimePicker, setImageLoadingMap,
+    setSenderEmail, setSubject, setMessage, setPostDate, setAiModalVisible, setAiPrompt, setImageModalVisible, setImagePrompt, setAttachments, setFacebookContentType, setYouTubeContentType, setYouTubeTags, setYouTubeStatus, setShowStatusDropdown, setIsCreatingPlaylist, setPlaylistId,
+    setPlaylistTitle, setIsCreatingPinterestBoard, setPinterestBoard, setPinterestModalVisible, setNewPinterestBoard, setPinterestDescription, setDestinationLink, setShowPicker, setShowTimePicker, setImageLoadingMap,
 
     // handlers
     handleSubmit, handleAddAttachment, handleRemoveAttachment, handleGenerateAIText, handleGenerateAIImage, handleCoverImageUpload, handleCustomThumbnailUpload, handleCreatePinterestBoard,
@@ -61,6 +69,12 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     existingPost,
     onClose,
   });
+
+  const YOUTUBE_TYPES = [
+    { label: "Standard Video", value: "VIDEO" },
+    { label: "YouTube Short", value: "SHORT" },
+    { label: "Playlist", value: "PLAYLIST" },
+  ] as const;
 
   // ================= RENDER ATTACHMENTS =================
   const renderAttachmentItem = ({ item, index }: any) => (
@@ -106,7 +120,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 Sender Email</Text>
               <TextInput
                 placeholder="sender@eg.com"
-                placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"} 
+                placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
                 value={senderEmail}
                 onChangeText={setSenderEmail}
                 keyboardType="email-address"
@@ -145,7 +159,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     ? "Enter subject"
                     : "Enter title"
                 }
-                placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"} 
+                placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
                 value={subject}
                 onChangeText={setSubject}
                 className="border border-gray-300 rounded-full px-3 h-12 mb-2 bg-white"
@@ -652,17 +666,17 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     borderWidth: 1,
                     borderColor:
                       facebookContentType === "STANDARD"
-                        ? "#3b82f6" 
+                        ? "#3b82f6"
                         : isDark
-                          ? "#374151" 
-                          : "#d1d5db", 
+                          ? "#374151"
+                          : "#d1d5db",
                     backgroundColor:
                       facebookContentType === "STANDARD"
                         ? isDark
                           ? "#1e3a8a"
-                          : "#eff6ff" 
+                          : "#eff6ff"
                         : isDark
-                          ? "#161618" 
+                          ? "#161618"
                           : "#ffffff",
                     alignItems: "center",
                   }}
@@ -696,17 +710,17 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     borderWidth: 1,
                     borderColor:
                       facebookContentType === "REEL"
-                        ? "#3b82f6" 
+                        ? "#3b82f6"
                         : isDark
-                          ? "#374151" 
-                          : "#d1d5db", 
+                          ? "#374151"
+                          : "#d1d5db",
                     backgroundColor:
                       facebookContentType === "REEL"
                         ? isDark
                           ? "#1e3a8a"
-                          : "#eff6ff" 
+                          : "#eff6ff"
                         : isDark
-                          ? "#161618" 
+                          ? "#161618"
                           : "#ffffff",
                     alignItems: "center",
                   }}
@@ -719,9 +733,9 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                         facebookContentType === "REEL"
                           ? isDark
                             ? "#fff"
-                            : "#2563eb"           
+                            : "#2563eb"
                           : isDark
-                            ? "#ffffff"           
+                            ? "#ffffff"
                             : "#000000",
                     }}
                   >
@@ -748,7 +762,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   <TouchableOpacity
                     onPress={handleCoverImageUpload}
                     style={{
-                      backgroundColor: isDark ? "#1e3a8a" : "#eff6ff", 
+                      backgroundColor: isDark ? "#1e3a8a" : "#eff6ff",
                       paddingVertical: 10,
                       paddingHorizontal: 16,
                       borderRadius: 8,
@@ -802,7 +816,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           {platformState === "YOUTUBE" && (
             <View
               style={{
-                backgroundColor: isDark ? "#161618" : "#f3f4f6", 
+                backgroundColor: isDark ? "#161618" : "#f3f4f6",
                 borderRadius: 12,
               }}
             >
@@ -822,7 +836,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               <View
                 style={{
                   borderWidth: 1,
-                  borderColor: isDark ? "#374151" : "#d1d5db", 
+                  borderColor: isDark ? "#374151" : "#d1d5db",
                   borderRadius: 8,
                   padding: 12,
                   marginBottom: 16,
@@ -840,21 +854,26 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   Content Type
                 </Text>
 
-                <View style={{ marginBottom: 16 }}>
+                <View style={{ marginBottom: 10 }}>
                   <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                    {["Standard Video", "YouTube Short", "Playlist"].map((type) => {
-                      const selected = youTubeContentType === type;
+                    {YOUTUBE_TYPES.map(({ label, value }) => {
+                      const selected = youTubeContentType === value;
+
                       return (
                         <TouchableOpacity
-                          key={type}
-                          onPress={() => setYouTubeContentType(type)}
+                          key={value}
+                          onPress={() => setYouTubeContentType(value)}
                           style={{
                             flex: 1,
                             paddingVertical: 10,
                             marginHorizontal: 4,
                             borderRadius: 8,
                             borderWidth: 1,
-                            borderColor: selected ? "#2563eb" : isDark ? "#374151" : "#d1d5db",
+                            borderColor: selected
+                              ? "#2563eb"
+                              : isDark
+                                ? "#374151"
+                                : "#d1d5db",
                             backgroundColor: selected
                               ? isDark
                                 ? "#1e3a8a"
@@ -879,44 +898,129 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                             }}
                             numberOfLines={1}
                           >
-                            {type}
+                            {label}
                           </Text>
-
                         </TouchableOpacity>
                       );
                     })}
                   </View>
 
                   {/* Playlist Button */}
-                  {youTubeContentType === "Playlist" && (
-                    <TouchableOpacity
-                      onPress={() => setIsCreatingPlaylist(true)}
-                      style={{
-                        marginTop: 8,
-                        paddingVertical: 10,
-                        borderRadius: 8,
-                        borderWidth: 1,
-                        borderColor: isCreatingPlaylist ? "#2563eb" : isDark ? "#374151" : "#d1d5db",
-                        backgroundColor: isDark ? "#111827" : "#ffffff",
-                        alignItems: "center",
-                      }}
-                    >
-                      <Text
+                  {youTubeContentType === "PLAYLIST" && (
+                    <View style={{ marginTop: 12 }}>
+                      {/* Dropdown Button */}
+                      <TouchableOpacity
+                        onPress={() => setShowPlaylistDropdown(!showPlaylistDropdown)}
                         style={{
-                          color: isDark
-                            ? "#ffffff"
-                            : isCreatingPlaylist
-                              ? "#2563eb"
-                              : "#000000",
-                          fontWeight: "bold",
-                          fontSize: 12,
+                          borderWidth: 1,
+                          borderColor: isDark ? "#374151" : "#d1d5db",
+                          borderRadius: 8,
+                          paddingHorizontal: 12,
+                          paddingVertical: 10,
+                          backgroundColor: isDark ? "#111827" : "#ffffff",
                         }}
                       >
-                        + Create New Playlist
-                      </Text>
+                        <Text style={{ color: selectedPlaylist || isCreatingPlaylist ? (isDark ? "#ffffff" : "#000") : "#9ca3af" }}>
+                          {isCreatingPlaylist
+                            ? "Creating New Playlist..."
+                            : selectedPlaylist
+                              ? selectedPlaylist.name
+                              : "Select a playlist"}
+                        </Text>
+                      </TouchableOpacity>
 
-                    </TouchableOpacity>
+                      {/* Dropdown List */}
+                      {showPlaylistDropdown && !isCreatingPlaylist && (
+                        <View
+                          style={{
+                            marginTop: 8,
+                            borderWidth: 1,
+                            borderColor: isDark ? "#374151" : "#d1d5db",
+                            borderRadius: 8,
+                            backgroundColor: isDark ? "#1f2933" : "#f3f4f6",
+                          }}
+                        >
+                          {/* + Create New Playlist Button */}
+                          <TouchableOpacity
+                            onPress={() => {
+                              setIsCreatingPlaylist(true);
+                              setShowPlaylistDropdown(false); // hide dropdown
+                            }}
+                            style={{
+                              paddingVertical: 10,
+                              paddingHorizontal: 12,
+                              borderBottomWidth: 1,
+                              borderBottomColor: isDark ? "#374151" : "#d1d5db",
+                              backgroundColor: isDark ? "#111827" : "#ffffff",
+                            }}
+                          >
+                            <Text style={{ color: "#2563eb", fontWeight: "bold" }}>+ Create New Playlist</Text>
+                          </TouchableOpacity>
+
+                          {/* Existing Playlists */}
+                          {playlists.map((playlist) => (
+                            <TouchableOpacity
+                              key={playlist.id}
+                              onPress={() => {
+                                setSelectedPlaylist(playlist);
+                                setShowPlaylistDropdown(false);
+                                setIsCreatingPlaylist(false);
+                              }}
+                              style={{
+                                paddingVertical: 10,
+                                paddingHorizontal: 12,
+                                borderBottomWidth: 1,
+                                borderBottomColor: isDark ? "#374151" : "#d1d5db",
+                              }}
+                            >
+                              <Text style={{ color: isDark ? "#ffffff" : "#000000" }}>{playlist.name}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
+
+                      {/* New Playlist Input */}
+                      {isCreatingPlaylist && (
+                        <View style={{ marginTop: 12 }}>
+                          <TextInput
+                            placeholder="Enter playlist name"
+                            placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+                            value={newPlaylistName}
+                            onChangeText={setNewPlaylistName}
+                            style={{
+                              borderWidth: 1,
+                              borderColor: isDark ? "#374151" : "#d1d5db",
+                              borderRadius: 8,
+                              paddingHorizontal: 12,
+                              paddingVertical: 10,
+                              backgroundColor: isDark ? "#111827" : "#ffffff",
+                              color: isDark ? "#ffffff" : "#000000",
+                              marginBottom: 8,
+                            }}
+                          />
+                          {/* <TouchableOpacity
+          onPress={() => {
+            // call your create playlist handler here
+            handleCreatePlaylist?.();
+            setIsCreatingPlaylist(false);
+            setNewPlaylistName("");
+          }}
+          style={{
+            paddingVertical: 10,
+            paddingHorizontal: 12,
+            backgroundColor: "#2563eb",
+            borderRadius: 8,
+          }}
+        >
+          <Text style={{ color: "#fff", fontWeight: "bold", textAlign: "center" }}>
+            Create Playlist
+          </Text>
+        </TouchableOpacity> */}
+                        </View>
+                      )}
+                    </View>
                   )}
+
                 </View>
               </View>
 
@@ -1212,10 +1316,10 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   Destination Link (Optional)
                 </Text>
                 <TextInput
-                  placeholder="Enter destination link"
                   placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
                   value={destinationLink}
                   onChangeText={setDestinationLink}
+                  placeholder="Enter destination link"
                   style={{
                     borderWidth: 1,
                     borderColor: isDark ? "#374151" : "#d1d5db",

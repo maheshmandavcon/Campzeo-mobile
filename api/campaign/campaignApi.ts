@@ -22,21 +22,20 @@ export interface CampaignPostData {
   mediaUrls?: string[];
   scheduledPostTime: string;
   pinterestBoard?: string;
-  destinationLink?: string;
 
   metadata?: {
     boardId?: string;
     boardName?: string;
-    link?: string;
+    destinationLink?: string;
     tags?: string[];
-    privacy?: string;
     postType?: string;
-    playlistId?: string;
+    privacy?: string;
     thumbnailUrl?: string | null;
+    playlistId?: string;
     playlistTitle?: string;
+    coverImage?: string | null;
   };
 }
-
 
 // ---------------------- Campaign APIs ---------------------- //
 
@@ -411,6 +410,30 @@ export const getFacebookPagesApi = async (
   }
 };
 
+// ---------------------- YouTube APIs ---------------------- //
+
+export interface YouTubePlaylist {
+  id: string;
+  title: string;
+}
+
+export const getYouTubePlaylistsApi = async (token?: string): Promise<YouTubePlaylist[]> => {
+  try {
+    const response = await https.get("/youtube/playlists", {
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+    return response.data.playlists || response.data || [];
+  } catch (error: any) {
+    console.error(
+      "Get YouTube Playlists API Error:",
+      error.response?.data || error.message,
+    );
+    return [];
+  }
+};
+
 // ---------------------- Upload Media API ---------------------- //
 
 export const uploadMediaApi = async (
@@ -419,13 +442,13 @@ export const uploadMediaApi = async (
   onProgress?: (percentage: number) => void
 ): Promise<string> => {
   try {
-    // console.log("🔄 Starting upload process for:", attachment.name);
+    console.log("🔄 Starting upload process for:", attachment.name);
 
     // Get Base URL from env and ensure correct formatting
     const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
     const uploadRefUrl = `${baseUrl}/upload`;
     
-    // console.log("📍 Token Endpoint:", uploadRefUrl);
+    console.log("📍 Token Endpoint:", uploadRefUrl);
 
     // 1️⃣ Get upload token and details from backend using FETCH
     const payload = {
@@ -478,7 +501,7 @@ export const uploadMediaApi = async (
       "Authorization": `Bearer ${clientToken}`, // Explicitly adding Authorization header as requested by 403 error
     };
 
-    // console.log("📤 Uploading to Blob Store:", urlWithToken);
+    console.log("📤 Uploading to Blob Store:", urlWithToken);
 
     const uploadRes = await fetch(urlWithToken, {
       method: "PUT",
