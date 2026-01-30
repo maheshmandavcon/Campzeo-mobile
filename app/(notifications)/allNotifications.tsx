@@ -1,4 +1,3 @@
-// app/(notifications)/allNotifications.tsx
 import { useEffect, useState } from "react";
 import {
   TextInput,
@@ -8,21 +7,16 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-// import { useNavigation } from "@react-navigation/native";
 
 import {
   getNotificationsApi,
   deleteNotificationApi,
   markAllNotificationsReadApi,
-} from "@/api/notification/notificationApi";
+} from "@/api/notificationApi";
 import { useAuth } from "@clerk/clerk-expo";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useColorMode } from "@gluestack-style/react";
-// import { useColorMode } from "@gluestack-style/react";
-// import { SafeAreaView } from "@gluestack-ui/themed";
-// import { useColorMode } from "@gluestack-ui/themed";
 import { useColorScheme } from "react-native";
 import { useRouter } from "expo-router";
 

@@ -1,7 +1,7 @@
 import {
   deleteCampaignApi,
   getCampaignsApi,
-} from "@/api/campaign/campaignApi";
+} from "@/api/campaignApi";
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 
@@ -12,15 +12,10 @@ import {
   Alert,
   FlatList,
   Share,
-<<<<<<< Updated upstream
-  TextInput,
-  TouchableOpacity,
-=======
   // Text,
   TextInput,
   TouchableOpacity,
   // View,
->>>>>>> Stashed changes
 } from "react-native";
 import CampaignCard, { Campaign } from "./campaignComponents/campaignCard";
 import { ThemedView } from "@/components/themed-view";

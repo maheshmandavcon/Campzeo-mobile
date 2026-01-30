@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Alert, useColorScheme } from "react-native";
 
-import type { CampaignPostData } from "@/api/campaign/campaignApi";
+import type { CampaignPostData } from "@/api/campaignApi";
 import {
   createPinterestBoardApi,
   createPostForCampaignApi,
@@ -14,7 +14,7 @@ import {
   getPinterestBoardsApi,
   updatePostForCampaignApi,
   uploadMediaApi,
-} from "@/api/campaign/campaignApi";
+} from "@/api/campaignApi";
 
 export interface Attachment {
   uri: string;

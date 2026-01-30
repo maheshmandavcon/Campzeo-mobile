@@ -1,6 +1,6 @@
 import { useNetworkStatus } from "@/hooks/network/useNetworkStatus";
 import React from "react";
-import NoInternet from "./noInternet";
+import NoInternet from "../app/(common)/noInternet";
 // import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 // import NoInternet from "@/app/(common)/NoInternet";
 

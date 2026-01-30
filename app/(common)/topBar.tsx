@@ -3,13 +3,11 @@ import { router, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Image, TouchableOpacity, useColorScheme } from "react-native";
 
-import { getNotificationsApi } from "@/api/notification/notificationApi";
+import { getNotificationsApi } from "@/api/notificationApi";
 import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useSidebarStore } from "../../store/sidebarStore";
-import { Text } from "@gluestack-ui/themed";
 import { ThemedText } from "@/components/themed-text";
-import { useColorMode } from "@gluestack-style/react";
 
 // import {
 //   Text,
