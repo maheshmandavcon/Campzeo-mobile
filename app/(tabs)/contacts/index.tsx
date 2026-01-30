@@ -17,7 +17,7 @@ import {
   getContactsApi,
   deleteContactApi,
   exportContactsApi,
-} from "@/api/contact/contactApi";
+} from "@/api/contactApi";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { useAuth } from "@clerk/clerk-expo";

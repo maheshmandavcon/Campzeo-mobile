@@ -21,7 +21,7 @@ export default function NoInternet() {
     >
       <WifiOff size={64} color="#dc2626" strokeWidth={2} />
 
-      <ThemedText style={{ fontSize: 22, fontWeight: "600", marginVertical: 8 }}>
+      <ThemedText style={{ fontSize: 22, fontWeight: "600", marginVertical: 8, color:"#dc2626" }}>
         No Internet Connection
       </ThemedText>
 

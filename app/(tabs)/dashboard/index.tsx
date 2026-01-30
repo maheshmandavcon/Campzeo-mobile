@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import Insights from "./dashboardComponents/insights";
 import CalendarWrapper from "@/app/(common)/calendarWrapper";
+import { ThemedView } from "@/components/themed-view";
 
 const DashboardTabs = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -15,7 +16,7 @@ const DashboardTabs = () => {
   return (
     <SafeAreaView style={styles.container}>
       {/* TOP TABS */}
-      <View style={styles.tabsContainer}>
+      <ThemedView style={styles.tabsContainer}>
         {/* DASHBOARD TAB */}
         <TouchableOpacity
           style={styles.tab}
@@ -51,7 +52,7 @@ const DashboardTabs = () => {
 
           {activeTab === "calendar" && <View style={styles.activeIndicator} />}
         </TouchableOpacity>
-      </View>
+      </ThemedView>
 
       {/* TAB CONTENT */}
       <View style={styles.content}>

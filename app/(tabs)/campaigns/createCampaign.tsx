@@ -21,10 +21,9 @@ import {
   createCampaignApi,
   updateCampaignApi,
   getCampaignByIdApi,
-} from "@/api/campaign/campaignApi";
-import { getContactsApi } from "@/api/contact/contactApi";
-import { ThemedView } from "@/components/themed-view";
-import { ThemedText } from "@/components/themed-text";
+} from "@/api/campaignApi";
+import { getContactsApi } from "@/api/contactApi";
+
 
 type Contact = {
   id: number;

@@ -23,7 +23,7 @@ import * as Linking from "expo-linking";
 import { ActivityIndicator, Image } from "react-native";
 import { GluestackUIProvider } from "@gluestack-ui/themed";
 import { config } from "@gluestack-ui/config";
-import { NetworkGate } from "./(common)/(network)/networkGate";
+import { NetworkGate } from "../network/networkGate";
 
 /* ---------------- TOKEN CACHE ---------------- */
 
