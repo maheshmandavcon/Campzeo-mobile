@@ -9,11 +9,6 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useSidebarStore } from "../../store/sidebarStore";
 import { ThemedText } from "@/components/themed-text";
 
-// import {
-//   Text,
-//   useColorMode
-// } from "@gluestack-ui/themed";
-
 export default function TopBar() {
   const routePage = useRouter();
   const openSidebar = useSidebarStore((state) => state.openSidebar);

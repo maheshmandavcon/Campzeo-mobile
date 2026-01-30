@@ -1,6 +1,5 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-
 import {
   Briefcase,
   LockKeyhole,
@@ -15,11 +14,7 @@ import {
   useColorScheme,
   View,
 } from "react-native";
-
 import { useEffect, useState } from "react";
-// import ChangePassword from "../(auth)/changePassword";
-// import EditProfile from "../(auth)/editProfile";
-
 import { getUser } from "@/api/dashboardApi";
 import { useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
@@ -29,34 +24,13 @@ import { HStack } from "@/components/ui/hstack";
 import { Pressable } from "@/components/ui/pressable";
 import { VStack } from "@/components/ui/vstack";
 import { Box } from "@/components/ui/box";
-// import {
-//   Modal,
-//   ModalBackdrop,
-//   ModalBody,
-//   ModalCloseButton,
-//   ModalContent,
-//   ModalHeader,
-// } from "@/components/ui/modal";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
-// import { Modal, ModalBackdrop } from "@gluestack-ui/themed";
-// import {
-//   Modal,
-//   ModalBackdrop,
-//   ModalBody,
-//   ModalCloseButton,
-//   ModalContent,
-//   ModalHeader,
-// } from "@/components/ui/modal";
-import { Heading, ModalFooter } from "@gluestack-ui/themed";
-import { Text } from "@gluestack-ui/themed";
-import { Button, ButtonText } from "@/components/ui/button";
-import EditProfile from "../(auth)/editProfile";
 import ChangePassword from "../(auth)/changePassword";
+import EditProfile from "../(auth)/editProfile";
 
 export default function UserProfile() {
   const [userData, setUserData] = useState<any>(null);
-  // const [showEditProfile, setEditProfile] = useState(false);
   const [showChangePas, setChangePas] = useState(false);
 
   const [showEditProfile, setEditProfile] = useState(false);

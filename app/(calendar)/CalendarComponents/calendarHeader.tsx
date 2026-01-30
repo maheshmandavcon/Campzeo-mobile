@@ -29,9 +29,6 @@ const CalendarHeader: React.FC<CalendarHeaderProps> = ({
 
   const ACTIVE_COLOR = "#dc2626";
 
-  // const INACTIVE_COLOR = isDark
-  //   ? "#E5E7EB" 
-  //   : "#374151"; 
 
   /* ------------------------- FORMAT LABEL ------------------------- */
 

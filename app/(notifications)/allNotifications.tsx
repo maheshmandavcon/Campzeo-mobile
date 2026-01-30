@@ -32,8 +32,6 @@ export default function AllNotifications() {
   const [visibleCount, setVisibleCount] = useState(5);
   const [searchText, setSearchText] = useState("");
 
-  // const colorMode = useColorMode();
-
   // ---------------- FORMAT API DATA ----------------
   const formatNotification = (item: any) => {
     const dateObj = new Date(item.createdAt);
