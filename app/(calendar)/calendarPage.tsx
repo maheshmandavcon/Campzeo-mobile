@@ -1,13 +1,10 @@
 import { ThemedText } from "@/components/themed-text";
 import { SafeAreaView } from "react-native-safe-area-context";
-// import CalendarComponent from "../(common)/calenderComponent";
-// import { HStack } from "@gluestack-ui/themed";
-// import { Pressable } from "@gluestack-ui/themed";
+
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import CalendarWrapper from "../(common)/calendarWrapper";
 import { useColorScheme } from "react-native";
-// import { View } from "@gluestack-ui/themed";
 import { ThemedView } from "@/components/themed-view";
 import { HStack } from "@/components/ui/hstack";
 import { Pressable } from "@/components/ui/pressable";

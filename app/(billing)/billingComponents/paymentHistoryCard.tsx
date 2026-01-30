@@ -1,9 +1,8 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { Divider } from "@/components/ui/divider";
 import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
-// import { Divider, HStack, VStack } from "@gluestack-ui/themed";
+import { Divider } from "@gluestack-ui/themed";
 import { useColorScheme } from "react-native";
 
 const ACCENT = "#dc2626";

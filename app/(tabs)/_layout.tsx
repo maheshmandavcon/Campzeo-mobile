@@ -1,8 +1,7 @@
 import { Tabs } from "expo-router";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { HapticTab } from "@/components/haptic-tab";
-// import TopBar from "@/components/TopBar";
-// import Sidebar from "@/components/Sidebar";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 import TopBar from "../(common)/topBar";
 import Sidebar from "../(common)/sideBar";

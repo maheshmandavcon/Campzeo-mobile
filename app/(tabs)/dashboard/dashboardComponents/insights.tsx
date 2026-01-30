@@ -2,9 +2,10 @@ import { getUsage } from "@/api/billingApi";
 import {
   getCampaigns,
   getContacts,
-  // getNotifications,
   getUser,
 } from "@/api/dashboardApi";
+import { Text, View } from "react-native";
+
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Box } from "@/components/ui/box";
@@ -14,12 +15,11 @@ import { Pressable } from "@/components/ui/pressable";
 import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
 import { VStack } from "@/components/ui/vstack";
 import { Progress, ProgressFilledTrack } from "@gluestack-ui/themed";
-import { View } from "@gluestack-ui/themed";
 
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { StyleSheet, ScrollView } from "react-native";
-// import { ScrollView } from "react-native-gesture-handler";
+import { Divider } from "@gluestack-ui/themed";
 
 /* ================= TYPES ================= */
 
@@ -39,7 +39,6 @@ export default function Insights() {
   const [campaignData, setCampaignData] = useState<any>(null);
   const [contactsData, setContactsData] = useState<any>(null);
   const [usageData, setUsageData] = useState<any>(null);
-  // const [notificationData, setNotificationData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   /* ================= API ================= */
@@ -218,10 +217,9 @@ export default function Insights() {
   <ProgressFilledTrack value={percentage} />
 </Progress> */}
 
-<Progress value={percentage} size="sm">
-  <ProgressFilledTrack />
-</Progress>
-
+          <Progress value={percentage} size="sm">
+            <ProgressFilledTrack />
+          </Progress>
         </Center>
       </VStack>
     );
@@ -264,8 +262,8 @@ export default function Insights() {
                   isApproved === true
                     ? "#dcfce7" // light green
                     : isApproved === false
-                    ? "#fee2e2" // light red
-                    : "#ffffff",
+                      ? "#fee2e2" // light red
+                      : "#ffffff",
               },
             ]}
           >
@@ -323,19 +321,21 @@ export default function Insights() {
           <ThemedText style={styles.usageName}>Team Members</ThemedText>
 
           <HStack
-            style={{ justifyContent: "space-between", alignItems: "center" }}
+            style={{ justifyContent: "space-between", alignItems: "center", marginBottom:9 }}
           >
-            <VStack>
+            <VStack style={{ alignItems:"center"}}>
               <ThemedText>
                 {userData?.firstName} {userData?.lastName}
               </ThemedText>
-              <ThemedText>{userData?.email}</ThemedText>
             </VStack>
 
             <Box style={styles.roleBadge}>
-              <ThemedText style={styles.badgeText}>{userData?.role}</ThemedText>
+              <Text style={styles.badgeText}>{userData?.role}</Text>
             </Box>
           </HStack>
+          <ThemedText>{userData?.email}</ThemedText>
+
+          <Divider style={{ marginVertical: 13 }} />
         </Box>
 
         {/* ================= NOTIFICATIONS ================= */}

@@ -3,7 +3,6 @@ import { Calendar } from "react-native-big-calendar";
 
 import { ThemedView } from "@/components/themed-view";
 import { CalendarEvent, Post } from "@/types/types";
-// import { ScrollView } from "react-native-gesture-handler";
 import { ScrollView } from "react-native";
 import { groupEventsByDate } from "../../../utils/groupEventsByDate";
 import { mapEvents } from "../../../utils/mapEvents";

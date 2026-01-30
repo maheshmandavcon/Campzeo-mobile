@@ -1,7 +1,6 @@
 import { getScheduledPosts } from "@/api/calanderApi";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Text } from "react-native";
-// import CalendarView from "../(calander)/CalenderComponents/calendarView";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import CalendarView from "../(calendar)/CalendarComponents/calendarView";
@@ -15,9 +14,7 @@ const CalendarWrapper = () => {
     const loadPosts = async () => {
       try {
         const data = await getScheduledPosts();
-
-        // console.log("Calendar API posts:", data.posts);
-
+        
         setPosts(data.posts ?? []);
       } catch (err) {
         console.error(err);

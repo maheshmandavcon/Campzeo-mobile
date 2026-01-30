@@ -15,7 +15,6 @@ import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   Text,
   ToastAndroid,
 } from "react-native";

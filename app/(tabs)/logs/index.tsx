@@ -2,14 +2,7 @@ import { getLogs } from "@/api/logsApi";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
-// import { ThemedView } from "@/components/themed-view";
-// import { ThemedText } from "@/components/themed-text";
-// import { ThemedView } from "@/components/themed-view";
-// import { FontAwesome, Ionicons } from "@expo/vector-icons";
-// import { HStack, Text, View, VStack } from "@gluestack-ui/themed";
 import { useState } from "react";
-// import { HStack } from '@/components/ui/hstack';
-
 import {
   ActivityIndicator,
   FlatList,
@@ -17,15 +10,11 @@ import {
   View as RNView,
   TouchableOpacity,
 } from "react-native";
-
-// import DatePicker from "react-native-date-picker";
-
 import DateTimePicker from "react-native-modal-datetime-picker";
 import LogsCard from "./logs-Components/logsCards";
 import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
 
-// import LogsCard from "./logs-Components/logsCards";
 
 export default function Logs() {
   const [selected, setSelected] = useState<string | null>(null);

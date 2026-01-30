@@ -111,7 +111,7 @@ export default function Accounts() {
         setPlatforms((prev) =>
           prev.map((item) => {
             const backendKey = Object.keys(backendKeyMap).find(
-              (key) => backendKeyMap[key] === item.platformKey
+              (key) => backendKeyMap[key] === item.platformKey,
             );
 
             if (!backendKey || !data[backendKey]) return item;
@@ -121,7 +121,7 @@ export default function Accounts() {
               connected: data[backendKey].connected,
               connectedAs: data[backendKey].name ?? undefined,
             };
-          })
+          }),
         );
       } catch (error) {
         console.error("Failed to fetch connected platforms", error);
@@ -143,7 +143,7 @@ export default function Accounts() {
       if (platformKey === "INSTAGRAM") {
         Alert.alert(
           "Instagram Connection",
-          "Instagram uses Facebook login to connect business accounts."
+          "Instagram uses Facebook login to connect business accounts.",
         );
       }
 
@@ -171,8 +171,8 @@ export default function Accounts() {
         prev.map((item) =>
           item.platformKey === platformKey
             ? { ...item, connected: false, connectedAs: undefined }
-            : item
-        )
+            : item,
+        ),
       );
     } catch (error) {
       console.error("Failed to disconnect:", error);
@@ -357,8 +357,14 @@ export default function Accounts() {
                         variant="outline"
                         action="secondary"
                         onPress={() => handleConnect(item.platformKey)}
+                        style={{
+                          borderColor:
+                            colorScheme === "dark" ? "#ffffff" : "#020617",
+                        }}
                       >
-                        <Text style={{ fontSize: 14 }}>Connect</Text>
+                        <ThemedText style={{ fontSize: 14 }}>
+                          Connect
+                        </ThemedText>
                       </Button>
                     )
                   ) : isLoading && loadingAction === "disconnect" ? (
@@ -376,7 +382,7 @@ export default function Accounts() {
                       onPress={() => handleDisconnect(item.platformKey)}
                       className="py-2 rounded-lg border border-red-200"
                     >
-                      <Text
+                      <ThemedText
                         style={{
                           textAlign: "center",
                           fontSize: 14,
@@ -385,7 +391,7 @@ export default function Accounts() {
                         }}
                       >
                         Disconnect
-                      </Text>
+                      </ThemedText>
                     </Pressable>
                   )}
                 </VStack>
