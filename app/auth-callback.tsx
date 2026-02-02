@@ -13,6 +13,5 @@ export default function AuthCallback() {
       router.replace("/(auth)/login");
     }
   }, [isLoaded, isSignedIn, router]);
-
   return null;
 }

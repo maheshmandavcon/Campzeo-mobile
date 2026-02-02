@@ -8,6 +8,7 @@ import { useColorScheme } from "react-native";
 import { ThemedView } from "@/components/themed-view";
 import { HStack } from "@/components/ui/hstack";
 import { Pressable } from "@/components/ui/pressable";
+import { View } from "@gluestack-ui/themed";
 
 export default function CalendarScreen() {
   const routePage = useRouter();
@@ -52,7 +53,7 @@ export default function CalendarScreen() {
       </ThemedText>
 
       {/* RIGHT: Spacer */}
-      {/* <View style={{ width: 34 }} /> */}
+      <View style={{ width: 34 }} />
     </HStack>
       <CalendarWrapper />
     </ThemedView>

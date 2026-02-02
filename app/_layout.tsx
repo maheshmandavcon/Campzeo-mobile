@@ -1,4 +1,4 @@
-import "react-native-gesture-handler"; // 🔥 MUST BE FIRST
+import "react-native-gesture-handler"; // MUST BE FIRST
 import "react-native-reanimated";
 import "../global.css";
 

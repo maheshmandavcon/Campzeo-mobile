@@ -218,7 +218,6 @@ export default function Logs() {
             fontSize: 13,
             fontWeight: "600",
             marginBottom: 9,
-            color: "#374151",
           }}
         >
           Filter by Date
@@ -232,7 +231,6 @@ export default function Logs() {
             <ThemedText
               style={{
                 fontSize: 11,
-                color: "#6b7280",
                 marginBottom: 4,
               }}
             >
@@ -253,7 +251,6 @@ export default function Logs() {
                 <ThemedText
                   style={{
                     fontSize: 13,
-                    // color: startDate ? "#111827" : "#9ca3af",
                   }}
                 >
                   {startDate ? formatDate(startDate) : "Select date"}
@@ -268,7 +265,6 @@ export default function Logs() {
             <ThemedText
               style={{
                 fontSize: 11,
-                color: "#6b7280",
                 marginBottom: 4,
               }}
             >
@@ -305,12 +301,12 @@ export default function Logs() {
           <TouchableOpacity
             style={{
               flex: 1,
-              backgroundColor: "#2563eb",
+              backgroundColor: "#dc2626",
               paddingVertical: 12,
               borderRadius: 10,
             }}
             onPress={() => {
-              console.log(" APPLY BUTTON PRESSED");
+              // console.log(" APPLY BUTTON PRESSED");
               handleApplyFilters();
             }}
           >
@@ -341,7 +337,6 @@ export default function Logs() {
                 textAlign: "center",
                 fontSize: 13,
                 fontWeight: "600",
-                color: "#374151",
               }}
             >
               Clear

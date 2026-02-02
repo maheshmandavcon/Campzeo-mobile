@@ -23,6 +23,7 @@ import { Center } from "@/components/ui/center";
 
 import { Divider } from "@/components/ui/divider";
 import { Progress, ProgressFilledTrack } from "@gluestack-ui/themed";
+import { View } from "@gluestack-ui/themed";
 
 const ACCENT = "#dc2626";
 const MUTED = "#6b7280";
@@ -167,6 +168,8 @@ export default function BillingPage() {
         >
           Billing & Subscription
         </ThemedText>
+        {/* RIGHT: Spacer */}
+                  <View style={{ width: 34 }} />
       </HStack>
 
       <ScrollView showsVerticalScrollIndicator={false}>
