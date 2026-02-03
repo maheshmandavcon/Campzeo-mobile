@@ -1,7 +1,7 @@
 import https from "./https";
 
 
-// https://camp-zeo-testing-git-testing-mandav-consultancy.vercel.app/api/Analytics/posts?platform=EMAIL&page=1&limit=10
+// https://camp-zeo-testing.vercel.app/api/Analytics/posts?platform=EMAIL&page=1&limit=10
 // export const getLogs= async (platform: string) => {
 //   try {
 //     const response = await https.get(`Analytics/posts?platform=${platform}`);    

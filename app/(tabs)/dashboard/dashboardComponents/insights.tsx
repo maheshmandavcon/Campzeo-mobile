@@ -218,7 +218,12 @@ export default function Insights() {
 </Progress> */}
 
           <Progress value={percentage} size="sm">
-            <ProgressFilledTrack />
+            <ProgressFilledTrack 
+            style={{
+                        backgroundColor: "#dc2626",
+                      }}
+                      />
+                      
           </Progress>
         </Center>
       </VStack>
