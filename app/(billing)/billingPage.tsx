@@ -166,6 +166,8 @@ export default function BillingPage() {
         const plan = await getPlans();
         const payment = await getPayments();
 
+        console.log("current plan:", subscription);
+        
         setusageData(usage);
         setSubscriptionData(subscription);
         setPlansData(plan);
@@ -374,7 +376,9 @@ export default function BillingPage() {
                   <Progress value={percentage} size="sm">
                     <ProgressFilledTrack
                       style={{
-                        backgroundColor: item?.isNearLimit ? "#ef4444" : ACCENT,
+                        backgroundColor: 
+                        // item?.isNearLimit ? "#ef4444" :
+                         ACCENT,
                       }}
                     />
                   </Progress>
