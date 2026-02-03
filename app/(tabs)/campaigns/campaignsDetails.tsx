@@ -506,7 +506,7 @@ export default function CampaignsDetails() {
                 paddingHorizontal: 24,
               }}
             >
-              You haven’t created any posts for this campaign yet.
+              Tap create post to create your first post...
             </ThemedText>
           </ThemedView>
         ) : (

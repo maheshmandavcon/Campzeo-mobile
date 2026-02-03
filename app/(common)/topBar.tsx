@@ -80,15 +80,15 @@ export default function TopBar() {
           <IconSymbol
             name="notifications"
             size={25}
-            color={iconColor} // reacts instantly to theme changes
+            color={iconColor} 
           />
 
           {unreadCount > 0 && (
             <ThemedView
               style={{
                 position: "absolute",
-                top: -4,
-                right: -6,
+                top: -5,
+                right: -5,
                 backgroundColor: "#dc2626",
                 borderRadius: 10,
                 minWidth: 18,

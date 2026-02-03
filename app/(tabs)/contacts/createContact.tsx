@@ -21,6 +21,7 @@ import {
 } from "react-native";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
+import { View } from "lucide-react-native";
 
 type Contact = {
   id?: number;
@@ -373,14 +374,70 @@ export default function CreateContact() {
             {loadingCampaigns ? (
               <ActivityIndicator size="small" color="#dc2626" />
             ) : campaignOptions.length === 0 ? (
-              <Text style={{ color: labelText, marginLeft: 8 }}>No campaigns available</Text>
+              <ThemedView
+                style={{
+                  marginTop: 12,
+                  paddingVertical: 28,
+                  borderRadius: 24,
+                  borderWidth: 1,
+                  borderColor: inputBorder,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: isDark ? "#161618" : "#f3f4f6",
+                }}
+              >
+                <Ionicons
+                  name="megaphone-outline"
+                  size={32}
+                  color={isDark ? "#9ca3af" : "#6b7280"}
+                  style={{ marginBottom: 8 }}
+                />
+
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontWeight: "600",
+                    color: isDark ? "#e5e7eb" : "#374151",
+                    marginBottom: 4,
+                  }}
+                >
+                  No campaigns found
+                </Text>
+
+                <Text
+                  style={{
+                    fontSize: 13,
+                    textAlign: "center",
+                    color: isDark ? "#9ca3af" : "#6b7280",
+                    paddingHorizontal: 20,
+                  }}
+                >
+                  Create a campaign first to attach it here.
+                </Text>
+
+                {/* Optional CTA */}
+                <TouchableOpacity
+                  onPress={() => router.push("/campaigns/createCampaign")}
+                  style={{
+                    marginTop: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    borderRadius: 999,
+                    backgroundColor: "#dc2626",
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "600" }}>
+                    + Create Campaign
+                  </Text>
+                </TouchableOpacity>
+              </ThemedView>
             ) : (
               <ThemedView
                 className="border p-4"
                 style={{
                   borderColor: inputBorder,
                   backgroundColor: isDark ? "#161618" : "#f3f4f6",
-                  borderRadius: 24, 
+                  borderRadius: 24,
                 }}
               >
                 {campaignOptions.map((campaign) => {
@@ -390,34 +447,33 @@ export default function CreateContact() {
                       key={campaign.id}
                       onPress={() => {
                         const current = [...selectedCampaigns];
-                        if (checked) {
-                          setValue(
-                            "campaignIds",
-                            current.filter((id) => id !== campaign.id)
-                          );
-                        } else {
-                          setValue("campaignIds", [...current, campaign.id]);
-                        }
+                        setValue(
+                          "campaignIds",
+                          checked
+                            ? current.filter((id) => id !== campaign.id)
+                            : [...current, campaign.id]
+                        );
                       }}
                       className="flex-row items-center my-2"
                     >
                       <ThemedView
                         style={{
-                        marginRight: 12,
-                        height: 20,
-                        width: 20,
-                        borderRadius: 6,
-                        borderWidth: 1,
-                        borderColor: "#d1d5db",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        backgroundColor: inputBg,
-                      }}
+                          marginRight: 12,
+                          height: 20,
+                          width: 20,
+                          borderRadius: 6,
+                          borderWidth: 1,
+                          borderColor: "#d1d5db",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backgroundColor: inputBg,
+                        }}
                       >
                         {checked && (
                           <Ionicons name="checkmark-outline" size={16} color="#dc2626" />
                         )}
                       </ThemedView>
+
                       <Text
                         style={{
                           color: inputText,
