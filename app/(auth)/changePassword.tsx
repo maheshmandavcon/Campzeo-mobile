@@ -1,5 +1,3 @@
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
 import { Input, InputField } from "@/components/ui/input";
 import { VStack } from "@/components/ui/vstack";
 import {
@@ -7,6 +5,7 @@ import {
   ChangePasswordSchemaType,
 } from "@/validations/profileSchema";
 import { useUser } from "@clerk/clerk-expo";
+import { View } from "@gluestack-ui/themed";
 // import { Input, InputField, VStack } from "@gluestack-ui/themed";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock } from "lucide-react-native";
@@ -109,9 +108,9 @@ export default function ChangePassword({ closeCP }: closeCPType) {
   };
 
   return (
-    <ThemedView className="p-5 rounded-lg">
+    <View className="p-5 rounded-lg">
       <VStack space="lg" className="mt-4">
-        <ThemedText
+        <Text
           style={{
             fontSize: 23,
             fontWeight: "700",
@@ -119,11 +118,11 @@ export default function ChangePassword({ closeCP }: closeCPType) {
           }}
         >
           Change Password
-        </ThemedText>
+        </Text>
         <VStack space="lg" className="mt-4">
           {fields.map((field, idx) => (
             <VStack space="xs" key={idx}>
-              <ThemedText className="text-gray-400">{field.label}</ThemedText>
+              <Text className="text-gray-700">{field.label}</Text>
 
               <Controller
                 control={control}
@@ -183,9 +182,9 @@ export default function ChangePassword({ closeCP }: closeCPType) {
               {loading ? (
                 <ActivityIndicator color="#dc2626" />
               ) : (
-                <ThemedText style={{ color: "white", fontWeight: "600" }}>
+                <Text style={{ color: "white", fontWeight: "600" }}>
                   Save Changes
-                </ThemedText>
+                </Text>
               )}
             </Pressable>
 
@@ -193,13 +192,13 @@ export default function ChangePassword({ closeCP }: closeCPType) {
               className="bg-slate-500 rounded-xl py-4 mt-4 items-center"
               onPress={closeCP}
             >
-              <ThemedText style={{ color: "white", fontWeight: "600" }}>
+              <Text style={{ color: "white", fontWeight: "600" }}>
                 Cancel
-              </ThemedText>
+              </Text>
             </Pressable>
           </VStack>
         </VStack>
       </VStack>
-    </ThemedView>
+    </View>
   );
 }

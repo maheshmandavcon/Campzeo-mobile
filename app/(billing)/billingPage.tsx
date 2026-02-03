@@ -14,15 +14,44 @@ import { Ionicons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import {  useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { Alert, Pressable, useColorScheme, ScrollView } from "react-native";
-import PaymentHistoryCard from "./billingComponents/paymentHistoryCard";
 import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
 import { Center } from "@/components/ui/center";
+import { Divider } from "@gluestack-ui/themed";
 
-import { Divider } from "@/components/ui/divider";
 import { Progress, ProgressFilledTrack } from "@gluestack-ui/themed";
+import { View } from "@gluestack-ui/themed";
+import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
+
+type PaymentStatus = "CREATED" | "COMPLETED" | "FAILED";
+
+type PaymentPlan = "BASIC" | "PRO" | "ENTERPRISE";
+
+export interface Payment {
+  id: string;
+  amount: string;
+  currency: "INR";
+  plan: PaymentPlan;
+  status: PaymentStatus;
+
+  organisationId: number;
+  receipt: string;
+
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+
+  notes: Record<string, any>; // safest for now
+
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentsResponse {
+  payments: Payment[];
+}
 
 const ACCENT = "#dc2626";
 const MUTED = "#6b7280";
@@ -39,9 +68,33 @@ export default function BillingPage() {
   const [usageData, setusageData] = useState<any>(null);
   const [subscriptionData, setSubscriptionData] = useState<any>(null);
   const [plansData, setPlansData] = useState<any>(null);
-  const [paymentsData, setPaymentsData] = useState<any>(null);
+  // const [paymentsData, setPaymentsData] = useState<any>(null);
+
+  const [paymentsData, setPaymentsData] = useState<PaymentsResponse | null>(
+    null,
+  );
 
   const { signOut } = useAuth();
+  // Status color logic
+  // const statusColor =
+  //    paymentsData.payments.status === "COMPLETED"
+  //     ? "#dc2626"
+  //     : paymentsData.payments.status === "PENDING"
+  //     ? "#f59e0b"
+  //     : "#ef4444";
+
+  // Format date
+  // const formattedDate = new Date(paymentsData.payments.createdAt).toLocaleDateString(
+  //   "en-IN",
+  //   {
+  //     day: "2-digit",
+  //     month: "short",
+  //     year: "numeric",
+  //   }
+  // );
+  //     const cardStyle = {
+  //   backgroundColor: isDark ? "#020617" : "#ffffff",
+  // };
 
   const {
     control,
@@ -81,7 +134,7 @@ export default function BillingPage() {
         "Subscription Cancelled",
         cancelImmediately
           ? "Your subscription has been cancelled immediately."
-          : "Your subscription will be cancelled at the end of the billing period."
+          : "Your subscription will be cancelled at the end of the billing period.",
       );
 
       setShowModal(false);
@@ -95,7 +148,7 @@ export default function BillingPage() {
       console.error("Cancel subscription failed:", error);
       Alert.alert(
         "Cancellation Failed",
-        "Something went wrong. Please try again."
+        "Something went wrong. Please try again.",
       );
     }
   };
@@ -144,6 +197,110 @@ export default function BillingPage() {
     borderWidth: 1,
     borderColor: isDark ? "#1e293b" : "#e5e7eb",
   };
+
+  function SkeletonCard({ children }: { children: React.ReactNode }) {
+    return (
+      <ThemedView
+         style={cardStyle}
+      >
+        {children}
+      </ThemedView>
+    );
+  }
+
+  function Spacer({ h }: { h: number }) {
+    return <View style={{ height: h }} />;
+  }
+
+  function BillingPageSkeleton() {
+    return (
+      <ThemedView className="flex-1 px-3 pt-16">
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* HEADER */}
+          {/* HEADER */}
+      <HStack style={{ marginBottom: 24, alignItems: "center" }}>
+        <Pressable onPress={() => router.back()}>
+          <Ionicons
+            name="arrow-back-outline"
+            size={22}
+            color={isDark ? "#ffffff" : "#020617"}
+          />
+        </Pressable>
+
+        <ThemedText
+          style={{
+            flex: 1,
+            fontSize: 24,
+            fontWeight: "700",
+            textAlign: "center",
+            lineHeight: 30,
+          }}
+        >
+          Billing & Subscription
+        </ThemedText>
+        {/* RIGHT: Spacer */}
+        <View style={{ width: 34 }} />
+      </HStack>
+
+          {/* USAGE OVERVIEW CARD */}
+          <SkeletonCard>
+            <ShimmerSkeleton width={160} height={20} />
+            <Spacer h={10} />
+
+            {[1, 2, 3, 4, 5].map((i) => (
+              <View key={i} style={{ marginBottom: 14 }}>
+                <HStack style={{ justifyContent: "space-between" }}>
+                  <ShimmerSkeleton width={120} height={14} />
+                  <ShimmerSkeleton width={60} height={14} />
+                </HStack>
+                <Spacer h={6} />
+                <ShimmerSkeleton height={8} borderRadius={6} />
+              </View>
+            ))}
+          </SkeletonCard>
+
+          {/* CURRENT SUBSCRIPTION */}
+          <SkeletonCard>
+            <HStack style={{ justifyContent: "space-between" }}>
+              <VStack>
+                <ShimmerSkeleton width={140} height={18} />
+                <Spacer h={6} />
+                <ShimmerSkeleton width={100} height={14} />
+              </VStack>
+
+              <ShimmerSkeleton width={80} height={14} />
+            </HStack>
+          </SkeletonCard>
+
+          {/* PAYMENT HISTORY */}
+          <ShimmerSkeleton width={200} height={24} />
+          <Spacer h={12} />
+
+          {[1, 2].map((i) => (
+            <SkeletonCard key={i}>
+              <HStack style={{ justifyContent: "space-between" }}>
+                <VStack>
+                  <ShimmerSkeleton width={120} height={16} />
+                  <Spacer h={6} />
+                  <ShimmerSkeleton width={90} height={12} />
+                </VStack>
+
+                <VStack style={{ alignItems: "flex-end" }}>
+                  <ShimmerSkeleton width={80} height={18} />
+                  <Spacer h={6} />
+                  <ShimmerSkeleton width={70} height={12} />
+                </VStack>
+              </HStack>
+            </SkeletonCard>
+          ))}
+        </ScrollView>
+      </ThemedView>
+    );
+  }
+  if (loading) {
+    return <BillingPageSkeleton />;
+  }
+
   return (
     <ThemedView className="flex-1 px-3 pt-16">
       {/* HEADER */}
@@ -167,6 +324,8 @@ export default function BillingPage() {
         >
           Billing & Subscription
         </ThemedText>
+        {/* RIGHT: Spacer */}
+        <View style={{ width: 34 }} />
       </HStack>
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -623,9 +782,63 @@ export default function BillingPage() {
 
         <ThemedView style={cardStyle}>
           {paymentsData?.payments?.length > 0 ? (
-            paymentsData.payments.map((payment: any) => (
-              <PaymentHistoryCard key={payment.id} payment={payment} />
-            ))
+            paymentsData.payments.map((payment) => {
+              const formattedDate = new Date(
+                payment.createdAt,
+              ).toLocaleDateString("en-IN", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              });
+
+              const statusColor =
+                payment.status === "COMPLETED"
+                  ? "#16a34a"
+                  : payment.status === "FAILED"
+                    ? "#dc2626"
+                    : "#f59e0b";
+
+              return (
+                <ThemedView key={payment.id}>
+                  <HStack style={{ justifyContent: "space-between" }}>
+                    <VStack>
+                      <ThemedText style={{ fontSize: 15, fontWeight: "600" }}>
+                        {payment.plan.replace("_", " ")}
+                      </ThemedText>
+
+                      <ThemedText
+                        style={{
+                          fontSize: 13,
+                          color: ACCENT,
+                          marginTop: 2,
+                        }}
+                      >
+                        {formattedDate}
+                      </ThemedText>
+                    </VStack>
+
+                    <VStack style={{ alignItems: "flex-end" }}>
+                      <ThemedText style={{ fontSize: 16, fontWeight: "700" }}>
+                        ₹{Number(payment.amount).toLocaleString("en-IN")}
+                      </ThemedText>
+
+                      <ThemedText
+                        style={{
+                          fontSize: 12,
+                          fontWeight: "600",
+                          color: statusColor,
+                          marginTop: 2,
+                        }}
+                      >
+                        {payment.status}
+                      </ThemedText>
+                    </VStack>
+                  </HStack>
+
+                  <Divider style={{ marginVertical: 13 }} />
+                </ThemedView>
+              );
+            })
           ) : (
             <ThemedText
               style={{

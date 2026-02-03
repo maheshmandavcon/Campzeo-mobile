@@ -3,7 +3,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Dimensions,
   Image,
@@ -20,6 +19,8 @@ import { LineChart } from "react-native-gifted-charts";
 import { HStack } from "@/components/ui/hstack";
 import { Pressable } from "@/components/ui/pressable";
 import { VStack } from "@/components/ui/vstack";
+import { View } from "@gluestack-ui/themed";
+import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
 
 const { width } = Dimensions.get("window");
 
@@ -55,21 +56,101 @@ export default function PostAnalytics() {
 
     fetchAnalytics();
   }, [id]);
+  function PostAnalyticsSkeleton() {
+    return (
+      <ThemedView style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={{ padding: 16 }}>
+          {/* ---------- HEADER ---------- */}
+          <HStack className="mb-3">
+            {/* LEFT: Back button */}
+            <Pressable onPress={() => routePage.back()} style={{ padding: 6 }}>
+              <Ionicons
+                name="arrow-back-outline"
+                size={22}
+                color={colorScheme === "dark" ? "#ffffff" : "#020617"}
+              />
+            </Pressable>
+
+            {/* CENTER: Title */}
+            <ThemedText
+              style={{
+                flex: 1,
+                fontSize: 24,
+                fontWeight: "700",
+                textAlign: "center",
+                lineHeight: 30,
+              }}
+            >
+              Post Insights
+            </ThemedText>
+
+            {/* RIGHT: Spacer */}
+            <View style={{ width: 34 }} />
+          </HStack>
+
+          {/* ---------- POST INFO CARD ---------- */}
+          <SkeletonCard>
+            <ShimmerSkeleton width={120} height={14} />
+            <Spacer h={8} />
+
+            <ShimmerSkeleton height={16} />
+            <Spacer h={6} />
+
+            <ShimmerSkeleton width={180} height={12} />
+            <Spacer h={12} />
+
+            <ShimmerSkeleton height={220} borderRadius={12} />
+          </SkeletonCard>
+
+          {/* ---------- INSIGHTS CARD ---------- */}
+          <SkeletonCard>
+            <HStack style={{ justifyContent: "space-between" }}>
+              {[1, 2, 3, 4].map((i) => (
+                <VStack key={i} style={{ alignItems: "center" }}>
+                  <ShimmerSkeleton width={32} height={18} />
+                  <Spacer h={6} />
+                  <ShimmerSkeleton width={50} height={12} />
+                </VStack>
+              ))}
+            </HStack>
+          </SkeletonCard>
+
+          {/* ---------- GRAPH CARD ---------- */}
+          <SkeletonCard>
+            <ShimmerSkeleton width={200} height={16} />
+            <Spacer h={16} />
+            <ShimmerSkeleton height={220} borderRadius={12} />
+          </SkeletonCard>
+        </ScrollView>
+      </ThemedView>
+    );
+  }
+
+  /* ---------- DRY HELPERS ---------- */
+
+  function SkeletonCard({ children }: { children: React.ReactNode }) {
+    return (
+      <ThemedView
+        style={{
+          padding: 16,
+          borderRadius: 16,
+          marginBottom: 16,
+        }}
+      >
+        {children}
+      </ThemedView>
+    );
+  }
+
+  function Spacer({ h }: { h: number }) {
+    return <View style={{ height: h }} />;
+  }
 
   if (loading) {
     return (
-      <ThemedView className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#dc2626" />
-        <ThemedText
-          style={{
-            marginTop: 12,
-            fontSize: 14,
-            color: "#6b7280",
-          }}
-        >
-          Loading Post Insights…
-        </ThemedText>
-      </ThemedView>
+      <>
+        <PostAnalyticsSkeleton />
+      </>
     );
   }
 
@@ -80,7 +161,8 @@ export default function PostAnalytics() {
   const isMultipleImages = Array.isArray(media) && media.length > 1;
   const isSingleImage = typeof media === "string";
 
-  const history = analytics?.historicalData ?? [];
+  const history = analytics?.insight ?? [];
+  // console.log("hh",insight);
 
   // Likes line data
   const likesLineData: ChartPoint[] = history.map((item: any) => ({
@@ -147,7 +229,7 @@ export default function PostAnalytics() {
           </ThemedText>
 
           {/* RIGHT: Spacer */}
-          {/* <View style={{ width: 34 }} /> */}
+          <View style={{ width: 34 }} />
         </HStack>
 
         {/* ---------- POST INFO CARD ---------- */}
@@ -181,7 +263,14 @@ export default function PostAnalytics() {
               color: isDark ? "#9ca3af" : "#6b7280",
             }}
           >
-            Published on {new Date(post?.publishedAt).toDateString()}
+            Published on :{" "}
+            {new Date(post?.publishedAt).toLocaleString("en-US", {
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+            })}
           </ThemedText>
 
           <ThemedText
@@ -190,7 +279,14 @@ export default function PostAnalytics() {
               color: isDark ? "#9ca3af" : "#6b7280",
             }}
           >
-            Updated on {new Date(post?.updatedAt).toDateString()}
+            Last Updated :{" "}
+            {new Date(insight?.lastUpdated).toLocaleString("en-US", {
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+            })}
           </ThemedText>
 
           {/* Media */}
@@ -259,13 +355,13 @@ export default function PostAnalytics() {
                 <Ionicons
                   name="refresh"
                   size={20}
-                  color={"#2563eb"}
+                  color={"#dc2626"}
 
                   //  isDark ? "#e5e7eb" : "#374151"
                 />
               </TouchableOpacity>
               <ThemedText
-                style={{ fontSize: 12, color: "#2563eb", marginTop: 4 }}
+                style={{ fontSize: 12, color: "#dc2626", marginTop: 4 }}
               >
                 Refresh
               </ThemedText>
@@ -326,7 +422,7 @@ export default function PostAnalytics() {
               maxValue={Math.max(
                 ...likesLineData.map((d) => d.value),
                 ...commentsLineData.map((d) => d.value),
-                1
+                1,
               )}
             />
           )}

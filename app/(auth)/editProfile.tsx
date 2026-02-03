@@ -1,5 +1,4 @@
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
+
 import { Input, InputField } from "@/components/ui/input";
 import { VStack } from "@/components/ui/vstack";
 import {
@@ -7,10 +6,11 @@ import {
   EditProfileSchemaType,
 } from "@/validations/profileSchema";
 import { useUser } from "@clerk/clerk-expo";
+import { View } from "@gluestack-ui/themed";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as ImagePicker from "expo-image-picker";
 import { Controller, useForm } from "react-hook-form";
-import { Image, Pressable, ScrollView, Text } from "react-native";
+import { Image, Pressable, Text } from "react-native";
 
 type closeEPFType = {
   closeEPF: () => void;
@@ -89,9 +89,9 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
   ];
 
   return (
-    <ThemedView className="p-5 rounded-lg">
+    <View className="p-5 rounded-lg">
       <VStack space="lg" className="my-5">
-        <ThemedText
+        <Text
           style={{
             fontSize: 23,
             fontWeight: "700",
@@ -99,7 +99,7 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
           }}
         >
           Edit Profile
-        </ThemedText>
+        </Text>
         <VStack space="lg" className="my-5">
           {/* =====================
               PROFILE IMAGE PICKER
@@ -117,9 +117,9 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
                 }}
               />
             </Pressable>
-            <ThemedText className="text-center text-gray-600 mt-1">
+            <Text className="text-center text-gray-600 mt-1">
               Tap to change picture
-            </ThemedText>
+            </Text>
           </VStack>
 
           {/* =====================
@@ -127,7 +127,7 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
           ====================== */}
           {fields.map((field, idx) => (
             <VStack space="xs" key={idx}>
-              <ThemedText className="text-gray-400">{field.label}</ThemedText>
+              <Text className="text-gray-700">{field.label}</Text>
 
               <Controller
                 control={control}
@@ -166,22 +166,22 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
               className="bg-[#dc2626] rounded-xl py-4 mt-4 items-center"
               onPress={handleSubmit(onSubmit)}
             >
-              <ThemedText style={{ color: "white", fontWeight: "600" }}>
+              <Text style={{ color: "white", fontWeight: "600" }}>
                 Save Changes
-              </ThemedText>
+              </Text>
             </Pressable>
 
             <Pressable
               className="bg-slate-500 rounded-xl py-4 mt-4 items-center"
               onPress={closeEPF}
             >
-              <ThemedText style={{ color: "white", fontWeight: "600" }}>
+              <Text style={{ color: "white", fontWeight: "600" }}>
                 Cancel
-              </ThemedText>
+              </Text>
             </Pressable>
           </VStack>
         </VStack>
       </VStack>
-    </ThemedView>
+    </View>
   );
 }

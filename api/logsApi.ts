@@ -57,7 +57,7 @@ export const getRefreshLog = async (platform: string) => {
   try {
     const response = await https.get(`Analytics/posts?platform=${platform}&fresh=true`);
 
-    // console.log("Refreshed logs details: ",response.data);
+    // console.log("Refreshed logs details: ", response.data);
     return response.data;
   } catch (error) {
     console.error("Fetching platform Error:", error);
@@ -69,6 +69,7 @@ export const getRefreshLog = async (platform: string) => {
 export const getAnalytics = async (postId: number) => {
   try {
     const response = await https.get(`Analytics/post-details/${postId}?fresh=true`);
+    console.log("post details", response.data);
     return response.data;
   }
   catch (error) {

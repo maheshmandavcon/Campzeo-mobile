@@ -13,7 +13,7 @@ export default function TabsLayout() {
       <TopBar />
       <Sidebar />
 
-      {/* REAL bottom tab navigator */}
+      {/* Bottom tab navigator */}
       <Tabs
         screenOptions={{
           headerShown: false,

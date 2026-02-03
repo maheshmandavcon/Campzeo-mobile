@@ -117,7 +117,7 @@ export default function Sidebar() {
               onPress={() => navigate("/billingPage")}
             >
               <Wallet size={24} color={TEXT_COLOR} />
-              <Text style={styles.menuText}>Billing</Text>
+              <Text style={styles.menuText}>Billing History</Text>
             </Pressable>
           </View>
         </DrawerBody>
