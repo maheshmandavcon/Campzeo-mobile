@@ -12,23 +12,16 @@ import {
   Alert,
   FlatList,
   Share,
-<<<<<<< Updated upstream
   TextInput,
-  TouchableOpacity,
-=======
-  // Text,
-  TextInput,
-  TouchableOpacity,
-  // View,
->>>>>>> Stashed changes
+  TouchableOpacity
+
 } from "react-native";
 import CampaignCard, { Campaign } from "./campaignComponents/campaignCard";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { useColorScheme } from "react-native";
 import * as Clipboard from "expo-clipboard";
-import { View } from "@gluestack-ui/themed";
-import { Text } from "@gluestack-ui/themed";
+import { View, Text } from "@gluestack-ui/themed";
 
 export default function Campaigns() {
   const [search, setSearch] = useState("");
@@ -72,9 +65,9 @@ export default function Campaigns() {
         const formatDate = (dateString?: string) => {
           if (!dateString) return "";
           const date = new Date(dateString);
-          const day = String(date.getDate()).padStart(2, "0");     // day
-          const month = String(date.getMonth() + 1).padStart(2, "0"); // month (0-indexed)
-          const year = date.getFullYear();                         // year
+          const day = String(date.getDate()).padStart(2, "0");
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const year = date.getFullYear();
           return `${day}/${month}/${year}`;
         };
 
@@ -307,7 +300,7 @@ Contacts Count: ${c.contactsCount ?? 0}
             >
               <Ionicons name="funnel-outline" size={20} color="#f59e0b" />
               <ThemedText className="ml-2 text-gray-800 font-semibold">
-                {filter === "all" ? "All" : filter === "show" ? "Show" : "Hide"}
+                {filter === "show" ? "Hide" : "Show"}
               </ThemedText>
             </TouchableOpacity>
           </ThemedView>
@@ -332,11 +325,32 @@ Contacts Count: ${c.contactsCount ?? 0}
             }
           />
         )}
+        contentContainerStyle={{ flexGrow: 1 }}
         ListEmptyComponent={
           loading ? null : (
-            <ThemedText style={{ textAlign: "center", marginTop: 20 }}>
-              No Campaigns Found
-            </ThemedText>
+            <ThemedView
+              className="flex-1 justify-center items-center"
+              style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
+            >
+              <ThemedText
+                style={{
+                  fontSize: 18,
+                  fontWeight: "bold",
+                  marginBottom: 6,
+                }}
+              >
+                No campaigns yet
+              </ThemedText>
+              <ThemedText
+                style={{
+                  fontSize: 14,
+                  textAlign: "center",
+                  paddingHorizontal: 24,
+                }}
+              >
+              Tap + New to create your first campaign...
+              </ThemedText>
+            </ThemedView>
           )
         }
         ListFooterComponent={

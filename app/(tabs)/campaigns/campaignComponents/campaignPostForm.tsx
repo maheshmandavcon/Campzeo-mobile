@@ -12,6 +12,7 @@ import {
   Modal,
   ActivityIndicator,
 } from "react-native";
+import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Button } from "@gluestack-ui/themed";
@@ -42,16 +43,10 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
     imageModalVisible, imagePrompt, generatedImages, loadingImage,
 
-    facebookPages, selectedFacebookPage, facebookContentType, isFacebookPageLoading, coverImage,
+    facebookPages, selectedFacebookPage, facebookContentType, isFacebookPageLoading, coverImage, coverUploading,
 
     youTubeContentType, youTubeTags, youTubeStatus, showStatusDropdown, isCreatingPlaylist, customThumbnail, playlistId, playlistTitle,
-    playlists,
-    showPlaylistDropdown,
-    selectedPlaylist,
-    newPlaylistName,
-    setShowPlaylistDropdown,
-    setSelectedPlaylist,
-    setNewPlaylistName,
+    playlists, showPlaylistDropdown, selectedPlaylist, newPlaylistName, selectedAccount,
 
     pinterestBoard, destinationLink, isCreatingPinterestBoard, pinterestModalVisible, newPinterestBoard, pinterestDescription, isPinterestBoardLoading, allPinterestBoards, loadingBoards,
 
@@ -59,7 +54,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
     // setters
     setSenderEmail, setSubject, setMessage, setPostDate, setAiModalVisible, setAiPrompt, setImageModalVisible, setImagePrompt, setAttachments, setFacebookContentType, setYouTubeContentType, setYouTubeTags, setYouTubeStatus, setShowStatusDropdown, setIsCreatingPlaylist, setPlaylistId,
-    setPlaylistTitle, setIsCreatingPinterestBoard, setPinterestBoard, setPinterestModalVisible, setNewPinterestBoard, setPinterestDescription, setDestinationLink, setShowPicker, setShowTimePicker, setImageLoadingMap,
+    setPlaylistTitle, setIsCreatingPinterestBoard, setPinterestBoard, setPinterestModalVisible, setNewPinterestBoard, setPinterestDescription, setDestinationLink, setShowPicker, setShowTimePicker, setImageLoadingMap, setSelectedAccount, setShowPlaylistDropdown, setSelectedPlaylist, setNewPlaylistName,
 
     // handlers
     handleSubmit, handleAddAttachment, handleRemoveAttachment, handleGenerateAIText, handleGenerateAIImage, handleCoverImageUpload, handleCustomThumbnailUpload, handleCreatePinterestBoard,
@@ -75,6 +70,11 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     { label: "YouTube Short", value: "SHORT" },
     { label: "Playlist", value: "PLAYLIST" },
   ] as const;
+
+  const linkedinAccounts = [
+    { id: "1", name: "Company Page" },
+    { id: "2", name: "Personal Profile" },
+  ];
 
   // ================= RENDER ATTACHMENTS =================
   const renderAttachmentItem = ({ item, index }: any) => (
@@ -132,8 +132,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   paddingHorizontal: 12,
                   height: 48,
                   marginBottom: 16,
-                  backgroundColor: isDark ? "#161618" : "#ffffff", // dark/light bg
-                  color: isDark ? "#e5e7eb" : "#111111", // text color
+                  backgroundColor: isDark ? "#161618" : "#ffffff",
+                  color: isDark ? "#e5e7eb" : "#111111",
                 }}
               />
             </>
@@ -517,46 +517,129 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           </Modal>
 
           {/* MEDIA */}
-          <Text
-            style={{
-              color: isDark ? "#ffffff" : "#000000",
-              fontWeight: "bold",
-              marginBottom: 8,
-              marginLeft: 4,
-            }}
-          >
-            {platformState === "YOUTUBE" ? "Media (Videos)" : "Media (Photos / Videos)"}
-          </Text>
-
-          <FlatList
-            data={attachments}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(_, index) => String(index)}
-            renderItem={renderAttachmentItem}
-            ListHeaderComponent={
-              <TouchableOpacity
-                onPress={handleAddAttachment}
-                disabled={loading}
+          {platformState !== "SMS" && (
+            <>
+              <Text
                 style={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: 8,
-                  backgroundColor: "#dbeafe",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  marginRight: 8,
+                  color: isDark ? "#ffffff" : "#000000",
+                  fontWeight: "bold",
                   marginBottom: 8,
+                  marginLeft: 4,
                 }}
               >
-                {loading ? (
-                  <ActivityIndicator size="small" color="#2563eb" />
-                ) : (
-                  <Ionicons name="add" size={28} color="#2563eb" />
-                )}
-              </TouchableOpacity>
-            }
-          />
+                {platformState === "YOUTUBE"
+                  ? "Media (Videos)"
+                  : "Media (Photos / Videos)"}
+              </Text>
+
+              <FlatList
+                data={attachments}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(_, index) => String(index)}
+                renderItem={renderAttachmentItem}
+                ListHeaderComponent={
+                  <TouchableOpacity
+                    onPress={handleAddAttachment}
+                    disabled={loading}
+                    style={{
+                      width: 60,
+                      height: 60,
+                      borderRadius: 8,
+                      backgroundColor: "#dbeafe",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      marginRight: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {loading ? (
+                      <ActivityIndicator size="small" color="#2563eb" />
+                    ) : (
+                      <Ionicons name="add" size={28} color="#2563eb" />
+                    )}
+                  </TouchableOpacity>
+                }
+              />
+            </>
+          )}
+
+
+          {platformState === "LINKEDIN" && (
+            <View
+              style={{
+                borderWidth: 1,
+                borderColor: isDark ? "#374151" : "#d1d5db",
+                borderRadius: 12,
+                padding: 14,
+                marginBottom: 12,
+                backgroundColor: isDark ? "#161618" : "#f3f4f6",
+              }}
+            >
+              {/* Header with Icon */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginBottom: 12,
+                }}
+              >
+                <Ionicons
+                  name="logo-linkedin"
+                  size={24}
+                  color="#0A66C2"
+                  style={{ marginRight: 8 }}
+                />
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "bold",
+                    color: isDark ? "#ffffff" : "#000000",
+                  }}
+                >
+                  Post As
+                </Text>
+              </View>
+
+              {/* Dropdown */}
+              <View
+                style={{
+                  borderWidth: 1,
+                  borderColor: isDark ? "#374151" : "#d1d5db",
+                  borderRadius: 8,
+                  backgroundColor: isDark ? "#1f1f22" : "#ffffff",
+                  overflow: "hidden",
+                }}
+              >
+                <Picker
+                  selectedValue={selectedAccount}
+                  onValueChange={(itemValue) => setSelectedAccount(itemValue)}
+                  style={{
+                    color: isDark ? "#fff" : "#000",
+                  }}
+                  dropdownIconColor={isDark ? "#fff" : "#000"}
+                >
+
+                  {/* 🔹 Placeholder */}
+                  <Picker.Item
+                    label="Select author"
+                    value={null}
+                    enabled={false}
+                    color={isDark ? "#9ca3af" : "#6b7280"}
+                  />
+
+                  {/* 🔹 Actual accounts */}
+                  {linkedinAccounts.map((account) => (
+                    <Picker.Item
+                      key={account.id}
+                      label={account.name}
+                      value={String(account.id)}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+          )}
 
           {platformState === "FACEBOOK" && (
             <View
@@ -760,6 +843,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
                   {/* Upload Button */}
                   <TouchableOpacity
+                    disabled={coverUploading} // disable while uploading
                     onPress={handleCoverImageUpload}
                     style={{
                       backgroundColor: isDark ? "#1e3a8a" : "#eff6ff",
@@ -770,21 +854,27 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                       marginBottom: 6,
                       borderWidth: 1,
                       borderColor: isDark ? "#3b82f6" : "#2563eb",
+                      opacity: coverUploading ? 0.6 : 1, // show visually disabled
+                      flexDirection: "row",
+                      justifyContent: "center",
                     }}
                   >
-                    <Text
-                      style={{
-                        color: isDark ? "#fff" : "#2563eb",
-                        fontWeight: "bold",
-                        fontSize: 12,
-                      }}
-                    >
-                      Upload Cover
-                    </Text>
+                    {coverUploading ? (
+                      <>
+                        <ActivityIndicator size="small" color={isDark ? "#fff" : "#2563eb"} style={{ marginRight: 6 }} />
+                        <Text style={{ color: isDark ? "#fff" : "#2563eb", fontWeight: "bold", fontSize: 12 }}>
+                          Uploading…
+                        </Text>
+                      </>
+                    ) : (
+                      <Text style={{ color: isDark ? "#fff" : "#2563eb", fontWeight: "bold", fontSize: 12 }}>
+                        Upload Cover
+                      </Text>
+                    )}
                   </TouchableOpacity>
 
                   {/* Preview */}
-                  {coverImage && (
+                  {coverImage && !coverUploading && (
                     <Image
                       source={{ uri: coverImage }}
                       style={{
@@ -802,7 +892,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   {/* Helper Text */}
                   <Text
                     style={{
-                      fontSize: 10, marginTop: 8,
+                      fontSize: 10,
+                      marginTop: 8,
                       color: isDark ? "#9ca3af" : "#6b7280",
                     }}
                   >
@@ -810,6 +901,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   </Text>
                 </View>
               )}
+
             </View>
           )}
 

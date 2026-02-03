@@ -228,7 +228,7 @@ export default function CreateCampaign() {
           <FormControl isInvalid={!!errors.name}>
             <FormControl.Label
               style={{
-                marginLeft: 8, 
+                marginLeft: 8,
               }}
             >
               {requiredLabel("Name")}
@@ -367,7 +367,64 @@ export default function CreateCampaign() {
           </Text>
 
           {loadingContacts ? (
-            <ActivityIndicator size="small" color="#0284c7" />
+            <ActivityIndicator size="small" color="#0284c7" style={{ marginTop: 12 }} />
+          ) : contacts.length === 0 ? (
+            <View
+              style={{
+                marginTop: 12,
+                paddingVertical: 28,
+                borderRadius: 24,
+                borderWidth: 1,
+                borderColor: "#d1d5db",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Ionicons
+                name="people-outline"
+                size={32}
+                color={isDark ? "#9ca3af" : "#6b7280"}
+                style={{ marginBottom: 8 }}
+              />
+
+              <Text
+                style={{
+                  fontSize: 15,
+                  fontWeight: "600",
+                  color: isDark ? "#e5e7eb" : "#374151",
+                  marginBottom: 4,
+                }}
+              >
+                No contacts found
+              </Text>
+
+              <Text
+                style={{
+                  fontSize: 13,
+                  textAlign: "center",
+                  color: isDark ? "#9ca3af" : "#6b7280",
+                  paddingHorizontal: 16,
+                }}
+              >
+                Please add contacts before creating a campaign.
+              </Text>
+
+              {/* Optional CTA */}
+              <TouchableOpacity
+                onPress={() => router.push("/contacts/createContact")}
+                style={{
+                  marginTop: 12,
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 999,
+                  backgroundColor: "#0284c7",
+                }}
+              >
+                <Text style={{ color: "#fff", fontWeight: "600" }}>
+                  + Add Contact
+                </Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             <View
               style={{
