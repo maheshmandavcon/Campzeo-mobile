@@ -3,9 +3,7 @@ import { ThemedView } from "@/components/themed-view";
 import { CalendarEvent } from "@/types/types";
 import React from "react";
 import { StyleSheet, useColorScheme, View, ScrollView } from "react-native";
-// import { ScrollView } from "react-native-gesture-handler";
 import { formatReadableTime, getDateLabel } from "../../../utils/dateHelpers";
-// import { Center } from "@gluestack-ui/themed";
 
 interface UpcomingPostsListProps {
   groupedEvents: Record<string, CalendarEvent[]>;

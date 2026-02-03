@@ -1,7 +1,7 @@
 import {
   deleteCampaignApi,
   getCampaignsApi,
-} from "@/api/campaign/campaignApi";
+} from "@/api/campaignApi";
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 

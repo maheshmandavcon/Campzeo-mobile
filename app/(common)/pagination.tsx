@@ -2,7 +2,6 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Pressable } from "@/components/ui/pressable";
 import { Ionicons } from "@expo/vector-icons";
-// import { Pressable, Text, View } from "@gluestack-ui/themed";
 
 interface Props {
   currentPage: number;

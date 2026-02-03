@@ -1,4 +1,4 @@
-import https from "../https";
+import https from "./https";
 
 // import * as FileSystem from "expo-file-system";
 

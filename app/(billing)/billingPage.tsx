@@ -11,56 +11,17 @@ import { ThemedView } from "@/components/themed-view";
 import { CancelFormValues, cancelSchema } from "@/validations/billingSchema";
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
-// import {
-//     Center,
-//     Divider,
-//     HStack,
-//     Modal,
-//     ModalBackdrop,
-//     ModalBody,
-//     ModalContent,
-//     ModalFooter,
-//     ModalHeader,
-//     Progress,
-//     ProgressFilledTrack,
-//     Radio,
-//     RadioGroup,
-//     RadioIcon,
-//     RadioIndicator,
-//     Switch,
-//     Textarea,
-//     TextareaInput,
-//     VStack,
-// } from "@gluestack-ui/themed";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
-import { AlertTriangle } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import {  useForm } from "react-hook-form";
 import { Alert, Pressable, useColorScheme, ScrollView } from "react-native";
-// import { ScrollView } from "react-native-gesture-handler";
 import PaymentHistoryCard from "./billingComponents/paymentHistoryCard";
 import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
 import { Center } from "@/components/ui/center";
-// import { Progress, ProgressFilledTrack } from "@/components/ui/progress";
-import { Switch } from "@/components/ui/switch";
-import {
-  Modal,
-  ModalBackdrop,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-} from "@/components/ui/modal";
-import {
-  Radio,
-  RadioGroup,
-  RadioIcon,
-  RadioIndicator,
-} from "@/components/ui/radio";
+
 import { Divider } from "@/components/ui/divider";
-import { Textarea, TextareaInput } from "@/components/ui/textarea";
 import { Progress, ProgressFilledTrack } from "@gluestack-ui/themed";
 
 const ACCENT = "#dc2626";
@@ -317,7 +278,7 @@ export default function BillingPage() {
           </HStack>
 
           {/* AUTO RENEW */}
-          <HStack
+          {/* <HStack
             style={{
               justifyContent: "space-between",
               alignItems: "center",
@@ -338,9 +299,9 @@ export default function BillingPage() {
               }}
               thumbColor="#ffffff"
             />
-          </HStack>
+          </HStack> */}
 
-          <ThemedText
+          {/* <ThemedText
             style={{
               fontSize: 13,
               color: MUTED,
@@ -349,9 +310,9 @@ export default function BillingPage() {
           >
             Automatically renew the subscription at the end of your billing
             period
-          </ThemedText>
+          </ThemedText> */}
 
-          <Pressable
+          {/* <Pressable
             style={{
               marginTop: 16,
               paddingVertical: 10,
@@ -371,9 +332,9 @@ export default function BillingPage() {
             >
               Cancel Subscription
             </ThemedText>
-          </Pressable>
+          </Pressable> */}
 
-          <Modal
+          {/* <Modal
             isOpen={showModal}
             onClose={() => setShowModal(false)}
             size="lg"
@@ -381,7 +342,6 @@ export default function BillingPage() {
             <ModalBackdrop />
 
             <ModalContent>
-              {/* ================= HEADER ================= */}
               <ModalHeader>
                 <HStack
                   style={{
@@ -415,9 +375,7 @@ export default function BillingPage() {
                 </HStack>
               </ModalHeader>
 
-              {/* ================= BODY ================= */}
               <ModalBody>
-                {/* Warning Card */}
                 <ThemedView
                   style={{
                     flexDirection: "row",
@@ -445,7 +403,6 @@ export default function BillingPage() {
                   </ThemedText>
                 </ThemedView>
 
-                {/* Radio Section Title */}
                 <ThemedText
                   style={{
                     fontSize: 14,
@@ -458,7 +415,6 @@ export default function BillingPage() {
                 </ThemedText>
 
                 <RadioGroup>
-                  {/* Option 1 */}
                   <Radio
                     value="end"
                     onPress={() =>
@@ -512,7 +468,6 @@ export default function BillingPage() {
                     </HStack>
                   </Radio>
 
-                  {/* Option 2 */}
                   <Radio
                     value="immediate"
                     onPress={() =>
@@ -579,7 +534,6 @@ export default function BillingPage() {
                   </ThemedText>
                 )}
 
-                {/* Reason */}
                 <VStack style={{ gap: 6 }}>
                   <ThemedText
                     style={{
@@ -607,10 +561,8 @@ export default function BillingPage() {
                 </VStack>
               </ModalBody>
 
-              {/* ================= FOOTER ================= */}
               <ModalFooter>
                 <HStack className="gap-3">
-                  {/* Secondary */}
                   <Pressable
                     onPress={() => setShowModal(false)}
                     style={{
@@ -632,7 +584,6 @@ export default function BillingPage() {
                     </ThemedText>
                   </Pressable>
 
-                  {/* Danger */}
                   <Pressable
                     onPress={handleSubmit(onSubmit)}
                     style={{
@@ -655,7 +606,7 @@ export default function BillingPage() {
                 </HStack>
               </ModalFooter>
             </ModalContent>
-          </Modal>
+          </Modal> */}
         </ThemedView>
 
         {/* ================= PAYMENT HISTORY ================= */}

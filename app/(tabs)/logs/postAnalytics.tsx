@@ -1,6 +1,5 @@
 import { getAnalytics } from "@/api/logsApi";
 import { Ionicons } from "@expo/vector-icons";
-// import { HStack, Pressable, VStack } from "@gluestack-ui/themed";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -15,9 +14,7 @@ import Carousel from "react-native-reanimated-carousel";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-// import { View } from "@gluestack-ui/themed";
 import { TrendingUp } from "lucide-react-native";
-// import { ScrollView } from "react-native-gesture-handler";
 import { ScrollView } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
 import { HStack } from "@/components/ui/hstack";

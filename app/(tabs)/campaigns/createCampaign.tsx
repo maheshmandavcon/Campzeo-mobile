@@ -12,7 +12,6 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Input, InputField, FormControl } from "@gluestack-ui/themed";
-// import { useNavigation } from "@react-navigation/native";
 import { router, useLocalSearchParams, useRouter } from "expo-router";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
@@ -21,10 +20,9 @@ import {
   createCampaignApi,
   updateCampaignApi,
   getCampaignByIdApi,
-} from "@/api/campaign/campaignApi";
-import { getContactsApi } from "@/api/contact/contactApi";
-import { ThemedView } from "@/components/themed-view";
-import { ThemedText } from "@/components/themed-text";
+} from "@/api/campaignApi";
+import { getContactsApi } from "@/api/contactApi";
+
 
 type Contact = {
   id: number;

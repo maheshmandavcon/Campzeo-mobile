@@ -16,10 +16,10 @@ import {
   getCampaignByIdApi,
   getPostsByCampaignIdApi,
   shareCampaignPostApi,
-} from "@/api/campaign/campaignApi";
+} from "@/api/campaignApi";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
-import { getContactsApi } from "@/api/contact/contactApi";
+import { getContactsApi } from "@/api/contactApi";
 import { ContactsRecord } from "../contacts/contactComponents/contactCard";
 import ShareCampaignPost from "./campaignComponents/shareCampaignPost";
 

@@ -1,8 +1,8 @@
 import {
   createContactApi,
   updateContactApi,
-} from "@/api/contact/contactApi";
-import { getCampaignsApi } from "@/api/campaign/campaignApi";
+} from "@/api/contactApi";
+import { getCampaignsApi } from "@/api/campaignApi";
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { FormControl, Input, InputField } from "@gluestack-ui/themed";
