@@ -18,6 +18,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { Button } from "@gluestack-ui/themed";
 import { useColorScheme } from "react-native";
 import { useCampaignPostForm } from "@/hooks/useCampaignPostForm";
+import Preview from "./preview";
 
 // ---------- Define Props Interface ----------
 interface CampaignPostFormProps {
@@ -75,6 +76,10 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     { id: "1", name: "Company Page" },
     { id: "2", name: "Personal Profile" },
   ];
+
+  const [postText, setPostText] = React.useState<string>(""); // post text input
+const [postImageUrl, setPostImageUrl] = React.useState<string | undefined>(undefined); // optional image
+
 
   // ================= RENDER ATTACHMENTS =================
   const renderAttachmentItem = ({ item, index }: any) => (
@@ -1601,6 +1606,14 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           )}
 
         </View>
+
+        {/* <Preview
+          platform="facebook"
+          text={postText}
+          image={postImageUrl} // optional
+          timestamp="Just now"
+        /> */}
+
         <Button
           onPress={handleSubmit}
           className="rounded-full mb-8 px-4 py-3 flex-row justify-center items-center"

@@ -89,6 +89,21 @@ export default function CampaignPost() {
 
   const { getToken } = useAuth();
 
+  const socialPlatforms = ["FACEBOOK", "INSTAGRAM", "LINKEDIN", "YOUTUBE", "PINTEREST"];
+
+  const connectedCount = socialPlatforms.filter(
+    (p) => connectedPlatforms[p]
+  ).length;
+
+  const totalCount = socialPlatforms.length;
+
+  const noneConnected = connectedCount === 0;
+  const someConnected = connectedCount > 0 && connectedCount < totalCount;
+
+  const bannerMessage = noneConnected
+    ? "No social accounts are connected yet. Connect them to continue."
+    : `Almost there! ${totalCount - connectedCount} account(s) still need connection.`;
+
   // ---------- FETCH CONNECTED PLATFORMS ----------
   useEffect(() => {
     const fetchConnections = async () => {
@@ -184,6 +199,11 @@ export default function CampaignPost() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
+  // Check if any social platform is disconnected (SMS/EMAIL/WHATSAPP are always connected)
+  const hasDisconnectedPlatform = ["FACEBOOK", "INSTAGRAM", "LINKEDIN", "YOUTUBE", "PINTEREST"].some(
+    (key) => connectedPlatforms[key] === false
+  );
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -215,92 +235,112 @@ export default function CampaignPost() {
         >
 
           {/* To hide all disconnected accounts */}
-          {/* {icons
-          .filter((icon) => connectedPlatforms[icon.label] !== false)
-          .map((icon, index) => { */}
-          {icons.map((icon, index) => {
-            const IconComponent = icon.library;
-            const isSelected = selected === icon.label;
-            const isConnected = connectedPlatforms[icon.label] ?? false;
-            const isEditingThisPlatform =
-              isEditMode &&
-              !loadingPost &&
-              !!existingPost &&
-              existingPost.type === icon.label;
+          {icons
+            .filter((icon) => connectedPlatforms[icon.label] !== false)
+            .map((icon, index) => {
+              {/* {icons.map((icon, index) => { */ }
+              const IconComponent = icon.library;
+              const isSelected = selected === icon.label;
+              const isConnected = connectedPlatforms[icon.label] ?? false;
+              const isEditingThisPlatform =
+                isEditMode &&
+                !loadingPost &&
+                !!existingPost &&
+                existingPost.type === icon.label;
 
-            // Disable everything if in edit mode, except the platform being edited
-            const isDisabled = loadingConnections || !isConnected || (isEditMode && !isEditingThisPlatform);
+              // Disable everything if in edit mode, except the platform being edited
+              const isDisabled = loadingConnections || !isConnected || (isEditMode && !isEditingThisPlatform);
 
-            return (
-              <ThemedView
-                key={index}
-                className="w-1/4 mb-6 items-center"
-                style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
-              >
-                <RNView
-                  style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    shadowColor: icon.color,
-                    shadowOffset: { width: 0, height: 0 },
-                    shadowOpacity: isSelected && !isDisabled ? 0.5 : 0,
-                    shadowRadius: isSelected && !isDisabled ? 12 : 0,
-                    elevation: isSelected && !isDisabled ? 12 : 0,
-                  }}
+              return (
+                <ThemedView
+                  key={index}
+                  className="w-1/4 mb-6 items-center"
+                  style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
                 >
-                  <TouchableOpacity
-                    disabled={isDisabled}
-                    onPress={() => {
-                      if (isDisabled) {
-                        Alert.alert(
-                          "Platform not connected",
-                          `Please connect your ${icon.label} account from Accounts first.`
-                        );
-                        return;
-                      }
-                      setSelected(icon.label);
-                    }}
+                  <RNView
                     style={{
                       width: 64,
                       height: 64,
                       borderRadius: 32,
                       alignItems: "center",
                       justifyContent: "center",
-                      borderWidth: 2,
-                      borderColor: isDisabled
-                        ? "#9ca3af"
-                        : isSelected
-                          ? icon.color
-                          : "#d1d5db",
-                      backgroundColor: isDark ? "#161618" : "#ffffff",
-                      opacity: isDisabled ? 0.4 : 1,
+                      shadowColor: icon.color,
+                      shadowOffset: { width: 0, height: 0 },
+                      shadowOpacity: isSelected && !isDisabled ? 0.5 : 0,
+                      shadowRadius: isSelected && !isDisabled ? 12 : 0,
+                      elevation: isSelected && !isDisabled ? 12 : 0,
                     }}
                   >
-                    <IconComponent
-                      name={icon.name as any}
-                      size={28}
-                      color={isDark ? "#ffffff" : icon.color}
-                    />
-                  </TouchableOpacity>
-                </RNView>
+                    <TouchableOpacity
+                      disabled={isDisabled}
+                      onPress={() => {
+                        if (isDisabled) {
+                          Alert.alert(
+                            "Platform not connected",
+                            `Please connect your ${icon.label} account from Accounts first.`
+                          );
+                          return;
+                        }
+                        setSelected(icon.label);
+                      }}
+                      style={{
+                        width: 64,
+                        height: 64,
+                        borderRadius: 32,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderWidth: 2,
+                        borderColor: isDisabled
+                          ? "#9ca3af"
+                          : isSelected
+                            ? icon.color
+                            : "#d1d5db",
+                        backgroundColor: isDark ? "#161618" : "#ffffff",
+                        opacity: isDisabled ? 0.4 : 1,
+                      }}
+                    >
+                      <IconComponent
+                        name={icon.name as any}
+                        size={28}
+                        color={isDark ? "#ffffff" : icon.color}
+                      />
+                    </TouchableOpacity>
+                  </RNView>
 
-                <ThemedText
-                  style={{
-                    marginTop: 8,
-                    textAlign: "center",
-                    fontSize: 14,
-                    fontWeight: "bold",
-                  }}
-                >
-                  {icon.label}
-                </ThemedText>
-              </ThemedView>
-            );
-          })}
+                  <ThemedText
+                    style={{
+                      marginTop: 8,
+                      textAlign: "center",
+                      fontSize: 14,
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {icon.label}
+                  </ThemedText>
+                </ThemedView>
+              );
+            })}
         </ThemedView>
+
+        {/* ---------- ACCOUNTS BUTTON ---------- */}
+        {hasDisconnectedPlatform && (
+          <ThemedView style={{
+            backgroundColor: "#fef3c7",
+            padding: 12,
+            borderRadius: 12,
+            // marginVertical: 12,
+            marginBottom: 12,
+            marginTop: -20,
+            flexDirection: "row",
+            alignItems: "center",
+          }}>
+            <Ionicons name="alert-circle-outline" size={20} color="#b45309" />
+            <ThemedText style={{ flex: 1, marginLeft: 8 }}>{bannerMessage}</ThemedText>
+            <TouchableOpacity onPress={() => router.push("/(accounts)/accounts")}>
+              <ThemedText style={{ color: "#b45309", fontWeight: "bold" }}>Connect</ThemedText>
+            </TouchableOpacity>
+          </ThemedView>
+        )}
 
         {/* ---------- FORM OR LOADING ---------- */}
         {selected && !isEditMode && connectedPlatforms[selected] === false ? (

@@ -756,6 +756,7 @@ const handleSubmit = async () => {
       return;
     }
 
+    // ================= TAGS =================
     const parsedTags = youTubeTags
       .split(",")
       .map((tag) => tag.trim())
@@ -769,14 +770,17 @@ const handleSubmit = async () => {
       mediaUrls: attachments.map((a) => a.uploadedUrl || a.uri), // working
       scheduledPostTime: postDate?.toISOString() || "", // working
       pinterestBoard, // working
+
       metadata: {
         ...metadata,
+
+        // ================= COMMON =================
         tags: parsedTags, // working
         boardId: metadata.boardId, // working
         boardName: pinterestBoard, // working
         destinationLink: destinationLink, // working
 
-        // ✅ YOUTUBE
+        // ================= YOUTUBE =================
         ...(platform === "YOUTUBE" && {
           postType: youTubeContentType,
           privacy: youTubeStatus, // working
@@ -785,7 +789,7 @@ const handleSubmit = async () => {
           playlistTitle,
         }),
 
-        // ✅ FACEBOOK / INSTAGRAM
+        // ================= FACEBOOK / INSTAGRAM =================
         ...(platform === "FACEBOOK" || platform === "INSTAGRAM"
           ? {
               postType: facebookContentType,
@@ -793,7 +797,7 @@ const handleSubmit = async () => {
             }
           : {}),
 
-        // ✅ LINKEDIN
+        // ================= LINKEDIN =================
         ...(platform === "LINKEDIN" && {
           authorId: selectedAccount,
           authorType: "ORGANIZATION",
@@ -801,6 +805,7 @@ const handleSubmit = async () => {
       },
     };
 
+    // ================= API CALL =================
     const token = await getToken();
     if (!token) throw new Error("Authentication token missing");
 
@@ -824,7 +829,7 @@ const handleSubmit = async () => {
 
     onClose?.(response);
 
-    // ✅ Reset form only if creating a new post
+    // ================= RESET (ONLY CREATE) =================
     if (!existingPost) {
       setSenderEmail("");
       setSubject("");
@@ -834,7 +839,7 @@ const handleSubmit = async () => {
       setImagePrompt("");
       setGeneratedImages([]);
       setSelectedImage(undefined);
-      setCoverImage(null); // <-- reset cover image as well
+      setCoverImage(null);
     }
 
     onCreatedNavigate ? onCreatedNavigate() : router.back();
@@ -844,7 +849,6 @@ const handleSubmit = async () => {
     setLoading(false);
   }
 };
-
 
   // ================= RETURN =================
   return {

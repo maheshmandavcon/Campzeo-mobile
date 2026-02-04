@@ -360,7 +360,7 @@ export default function CampaignsDetails() {
           >
             {item.subject}
           </ThemedText>
-        ) : (
+        ) : item.type === "SMS" ? null : ( 
           <ThemedView className="flex-row items-center mb-2">
             <Ionicons
               name="information-circle-outline"
