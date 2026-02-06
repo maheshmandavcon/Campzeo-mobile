@@ -201,6 +201,25 @@ export default function CampaignsDetails() {
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [currentSharePostId, setCurrentSharePostId] = useState<number | null>(null);
 
+  // 🔧 FIX: sanitize post data for share modal (Pinterest issue)
+  const sharePostData = useMemo(() => {
+    if (!currentSharePostId) return null;
+
+    const rawPost = posts.find(p => p.id === currentSharePostId);
+    if (!rawPost) return null;
+
+    return {
+      ...rawPost,
+      mediaUrls:
+        rawPost.type === "PINTEREST"
+          ? rawPost.mediaUrls?.filter(
+            (url: string) =>
+              typeof url === "string" && url.startsWith("http")
+          )
+          : rawPost.mediaUrls,
+    };
+  }, [posts, currentSharePostId]);
+
   const fetchContactsForShare = async () => {
     try {
       setLoadingContacts(true);
@@ -252,6 +271,23 @@ export default function CampaignsDetails() {
     const post = posts.find((p) => p.id === currentSharePostId);
     if (!post) return;
 
+    // ✅ PINTEREST VALIDATION (THIS WAS MISSING)
+    // if (post.type === "PINTEREST") {
+    //   const boardId =
+    //     post.metadata?.boardId || post.boardId;
+
+    //   const boardName =
+    //     post.metadata?.boardName || post.boardName;
+
+    //   if (!boardId || !boardName) {
+    //     Alert.alert(
+    //       "Pinterest Board Required",
+    //       "Please select a board or create a new board before publishing."
+    //     );
+    //     return;
+    //   }
+    // }
+
     let contactsToSend: number[] = [];
 
     if (["SMS", "EMAIL", "WHATSAPP"].includes(post.type)) {
@@ -264,29 +300,18 @@ export default function CampaignsDetails() {
 
     try {
       setPublishing(true);
+
       const result = await shareCampaignPostApi(
         resolvedCampaignId,
         currentSharePostId,
-        contactsToSend,
+        contactsToSend
       );
 
-      if (result.success) {
-        Alert.alert(
-          "Success",
-          contactsToSend.length > 0
-            ? `Post sent to ${contactsToSend.length} contacts`
-            : "Post sent Successfully"
-        );
-      } else {
-        Alert.alert(
-          "Failed",
-          `Failed to send post to ${result.failed?.length || 0} contacts`
-        );
-      }
-
+      Alert.alert("Success", "Post sent successfully");
+      setSelectedContacts([]); // reset selected contacts
       setShareModalVisible(false);
+      fetchPosts(); // refresh posts from backend
     } catch (error: any) {
-      console.error("Send error", error);
       Alert.alert("Error", error.message || "Failed to send post");
     } finally {
       setPublishing(false);
@@ -360,7 +385,7 @@ export default function CampaignsDetails() {
           >
             {item.subject}
           </ThemedText>
-        ) : item.type === "SMS" ? null : ( 
+        ) : item.type === "SMS" ? null : (
           <ThemedView className="flex-row items-center mb-2">
             <Ionicons
               name="information-circle-outline"
@@ -464,7 +489,7 @@ export default function CampaignsDetails() {
           onDelete={() => { }}
           onCopy={() => { }}
           onToggleShow={() => { }}
-          onPressPost={() => handleCreatePost(campaign.id)}
+          onPressPost={() => campaign?.id && handleCreatePost(campaign.id)}
         />
       )}
 
@@ -537,7 +562,7 @@ export default function CampaignsDetails() {
       <ShareCampaignPost
         visible={shareModalVisible}
         isDark={isDark}
-        post={posts.find(p => p.id === currentSharePostId) ?? null}
+        post={sharePostData}
         contacts={contacts}
         selectedContacts={selectedContacts}
         loadingContacts={loadingContacts}
