@@ -8,6 +8,7 @@ import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useSidebarStore } from "../../store/sidebarStore";
 import { ThemedText } from "@/components/themed-text";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function TopBar() {
   const routePage = useRouter();
@@ -77,7 +78,7 @@ export default function TopBar() {
           style={{ position: "relative" }}
           activeOpacity={0.7}
         >
-          <IconSymbol
+          <Ionicons
             name="notifications"
             size={25}
             color={iconColor} 

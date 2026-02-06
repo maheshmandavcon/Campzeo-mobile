@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   TouchableOpacity,
   ScrollView,
@@ -14,7 +14,7 @@ import CampaignPostForm from "./campaignPostForm";
 import { useAuth } from "@clerk/clerk-expo";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
-import { router, useLocalSearchParams, useRouter } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { getSocialStatus } from "@/api/accountsApi";
 
 export default function CampaignPost() {
@@ -105,12 +105,12 @@ export default function CampaignPost() {
     : `Almost there! ${totalCount - connectedCount} account(s) still need connection.`;
 
   // ---------- FETCH CONNECTED PLATFORMS ----------
-  useEffect(() => {
+  useFocusEffect(
+  useCallback(() => {
     const fetchConnections = async () => {
       try {
         setLoadingConnections(true);
         const data = await getSocialStatus();
-
         setConnectedPlatforms({
           FACEBOOK: data.facebook?.connected ?? false,
           INSTAGRAM: data.instagram?.connected ?? false,
@@ -129,7 +129,8 @@ export default function CampaignPost() {
     };
 
     fetchConnections();
-  }, []);
+  }, [])
+);
 
   // ---------- FETCH EXISTING POST IF postId EXISTS ----------
   useEffect(() => {

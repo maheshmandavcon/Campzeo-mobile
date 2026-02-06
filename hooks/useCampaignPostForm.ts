@@ -95,7 +95,9 @@ export function useCampaignPostForm({
   const [PinterestBoardId, setPinterestBoardId] = useState<string | undefined>(
     undefined,
   );
-  const [allPinterestBoards, setAllPinterestBoards] = useState<string[]>([]);
+  const [allPinterestBoards, setAllPinterestBoards] = useState<
+    { id: string; name: string }[]
+  >([]);
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [loadingBoards, setLoadingBoards] = useState(false);
   const [pinterestModalVisible, setPinterestModalVisible] = useState(false);
@@ -108,7 +110,7 @@ export function useCampaignPostForm({
   const [metadata, setMetadata] = useState<{
     boardId?: string;
     boardName?: string;
-    link?: string;
+    destinationLink?: string;
   }>({});
 
   // ================= LINKEDIN =================
@@ -185,10 +187,11 @@ export function useCampaignPostForm({
 
     // ✅ PINTEREST
     if (existingPost.type === "PINTEREST") {
-      setPinterestBoard(existingPost.metadata?.boardName || "");
       setPinterestBoardId(existingPost.metadata?.boardId || "");
+      setPinterestBoard(existingPost.metadata?.boardName || "");
       setDestinationLink(existingPost.metadata?.destinationLink || "");
     }
+    
 
     // ✅ YOUTUBE
     if (existingPost.type === "YOUTUBE") {
@@ -441,6 +444,7 @@ export function useCampaignPostForm({
       setUploadProgress(0);
     }
   }
+
   const handleRemoveAttachment = (index: number) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
@@ -503,10 +507,7 @@ export function useCampaignPostForm({
 
       console.log("AI Image API Response:", response);
 
-      const imageUrl =
-        response?.images?.[0] ||
-        response?.imagePrompt ||
-        "https://picsum.photos/200";
+      const imageUrl = response?.images?.[0] || response?.imagePrompt;
 
       setGeneratedImages([imageUrl]);
       setSelectedImage(imageUrl);
@@ -567,7 +568,13 @@ export function useCampaignPostForm({
       if (!token) throw new Error("Authentication token missing");
 
       const boards = await getPinterestBoardsApi(token);
-      setAllPinterestBoards(boards.map((b: any) => b.name));
+      console.log("pinterest board array", boards);
+      setAllPinterestBoards(
+        boards.map((board: any) => ({
+          id: board.id,
+          name: board.name,
+        })),
+      );
     } catch (err) {
       console.log("Failed to fetch Pinterest boards:", err);
     } finally {
@@ -606,6 +613,13 @@ export function useCampaignPostForm({
 
       // ✅ success
       setPinterestBoard(response?.data?.name || newPinterestBoard.trim());
+      setPinterestBoardId(response?.data?.id);
+
+      setMetadata((prev) => ({
+        ...prev,
+        boardId: response?.data?.id,
+        boardName: response?.data?.name || newPinterestBoard.trim(),
+      }));
       setNewPinterestBoard("");
       setPinterestDescription("");
 
@@ -728,127 +742,149 @@ export function useCampaignPostForm({
     }
   };
 
-// ================= SUBMIT =================
-const handleSubmit = async () => {
-  setLoading(true);
+  // ================= SUBMIT =================
+  const handleSubmit = async () => {
+    setLoading(true);
 
-  try {
-    // ✅ Validate required fields
-    if (
-      !subject ||
-      !message ||
-      !postDate ||
-      (platform === "EMAIL" && !senderEmail)
-    ) {
-      Alert.alert("⚠️ Please fill in all fields.");
-      return;
-    }
+    try {
+      // ================= VALIDATION =================
+      // Common required fields
+      if (!message || !postDate) {
+        Alert.alert("⚠️ Please fill in all fields.");
+        return;
+      }
 
-    // ✅ Use campaignId prop OR fallback to existingPost.campaignId
-    const campaignIdToUse =
-      Number(campaignId) ||
-      Number(existingPost?.campaignId) ||
-      Number(existingPost?.campaign?.id);
+      // Email-specific validation
+      if (platform === "EMAIL" && (!subject || !senderEmail)) {
+        Alert.alert("⚠️ Please fill in all fields.");
+        return;
+      }
 
-    if (!campaignIdToUse) {
-      Alert.alert("Campaign ID missing");
+      // Platforms that require subject
+      const subjectRequiredPlatforms = [
+        "FACEBOOK",
+        "INSTAGRAM",
+        "LINKEDIN",
+        "YOUTUBE",
+        "PINTEREST",
+      ];
+
+      if (subjectRequiredPlatforms.includes(platform) && !subject) {
+        Alert.alert("⚠️ Please fill in all fields.");
+        return;
+      }
+
+      // ================= CAMPAIGN ID =================
+      // ✅ Use campaignId prop OR fallback to existingPost.campaignId
+      const campaignIdToUse =
+        Number(campaignId) ||
+        Number(existingPost?.campaignId) ||
+        Number(existingPost?.campaign?.id);
+
+      if (!campaignIdToUse) {
+        Alert.alert("Campaign ID missing");
+        setLoading(false);
+        return;
+      }
+
+      // ================= TAGS =================
+      const parsedTags = youTubeTags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0);
+
+      const postData: CampaignPostData = {
+        senderEmail, // working
+        subject, // working
+        message, // working
+        type: platform, // working
+        mediaUrls: attachments.map((a) => a.uploadedUrl || a.uri), // working
+        scheduledPostTime: postDate?.toISOString() || "", // working
+        pinterestBoard, // working
+
+        metadata: {
+          ...metadata,
+
+          // ================= COMMON =================
+          tags: parsedTags, // working
+
+          // ================= PINTEREST =================
+          ...(platform === "PINTEREST" && {
+            boardId: PinterestBoardId, // working
+            boardName: pinterestBoard, // working
+            destinationLink: metadata.destinationLink, // working
+          }),
+
+          // ================= YOUTUBE =================
+          ...(platform === "YOUTUBE" && {
+            postType: youTubeContentType,
+            privacy: youTubeStatus, // working
+            thumbnailUrl: customThumbnail || null,
+            playlistId,
+            playlistTitle,
+          }),
+
+          // ================= FACEBOOK / INSTAGRAM =================
+          ...(platform === "FACEBOOK" || platform === "INSTAGRAM"
+            ? {
+                postType: facebookContentType,
+                coverImage: coverImage || null,
+              }
+            : {}),
+
+          // ================= LINKEDIN =================
+          ...(platform === "LINKEDIN" && {
+            authorId: selectedAccount,
+            authorType: "ORGANIZATION",
+          }),
+        },
+      };
+
+      // ================= API CALL =================
+      const token = await getToken();
+      if (!token) throw new Error("Authentication token missing");
+
+      let response;
+      console.log("post data is", postData);
+      if (existingPost?.id) {
+        // ✅ Edit existing post
+        response = await updatePostForCampaignApi(
+          Number(campaignIdToUse),
+          Number(existingPost.id),
+          postData,
+          token,
+        );
+      } else {
+        // ✅ Create new post
+        response = await createPostForCampaignApi(
+          Number(campaignIdToUse),
+          postData,
+          token,
+        );
+      }
+
+      onClose?.(response);
+
+      // ================= RESET (ONLY CREATE) =================
+      if (!existingPost) {
+        setSenderEmail("");
+        setSubject("");
+        setMessage("");
+        setAiPrompt("");
+        setPostDate(null);
+        setImagePrompt("");
+        setGeneratedImages([]);
+        setSelectedImage(undefined);
+        setCoverImage(null);
+      }
+
+      onCreatedNavigate ? onCreatedNavigate() : router.back();
+    } catch (error: any) {
+      Alert.alert("Error", error?.message || "Something went wrong");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // ================= TAGS =================
-    const parsedTags = youTubeTags
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter((tag) => tag.length > 0);
-
-    const postData: CampaignPostData = {
-      senderEmail, // working
-      subject, // working
-      message, // working
-      type: platform, // working
-      mediaUrls: attachments.map((a) => a.uploadedUrl || a.uri), // working
-      scheduledPostTime: postDate?.toISOString() || "", // working
-      pinterestBoard, // working
-
-      metadata: {
-        ...metadata,
-
-        // ================= COMMON =================
-        tags: parsedTags, // working
-        boardId: metadata.boardId, // working
-        boardName: pinterestBoard, // working
-        destinationLink: destinationLink, // working
-
-        // ================= YOUTUBE =================
-        ...(platform === "YOUTUBE" && {
-          postType: youTubeContentType,
-          privacy: youTubeStatus, // working
-          thumbnailUrl: customThumbnail || null,
-          playlistId,
-          playlistTitle,
-        }),
-
-        // ================= FACEBOOK / INSTAGRAM =================
-        ...(platform === "FACEBOOK" || platform === "INSTAGRAM"
-          ? {
-              postType: facebookContentType,
-              coverImage: coverImage || null, // <-- added here
-            }
-          : {}),
-
-        // ================= LINKEDIN =================
-        ...(platform === "LINKEDIN" && {
-          authorId: selectedAccount,
-          authorType: "ORGANIZATION",
-        }),
-      },
-    };
-
-    // ================= API CALL =================
-    const token = await getToken();
-    if (!token) throw new Error("Authentication token missing");
-
-    let response;
-    if (existingPost?.id) {
-      // ✅ Edit existing post
-      response = await updatePostForCampaignApi(
-        Number(campaignIdToUse),
-        Number(existingPost.id),
-        postData,
-        token
-      );
-    } else {
-      // ✅ Create new post
-      response = await createPostForCampaignApi(
-        Number(campaignIdToUse),
-        postData,
-        token
-      );
-    }
-
-    onClose?.(response);
-
-    // ================= RESET (ONLY CREATE) =================
-    if (!existingPost) {
-      setSenderEmail("");
-      setSubject("");
-      setMessage("");
-      setAiPrompt("");
-      setPostDate(null);
-      setImagePrompt("");
-      setGeneratedImages([]);
-      setSelectedImage(undefined);
-      setCoverImage(null);
-    }
-
-    onCreatedNavigate ? onCreatedNavigate() : router.back();
-  } catch (error: any) {
-    Alert.alert("Error", error?.message || "Something went wrong");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // ================= RETURN =================
   return {
@@ -920,6 +956,7 @@ const handleSubmit = async () => {
     setSelectedFacebookPage,
     setPinterestModalVisible,
     setPinterestBoard,
+    setPinterestBoardId,
     setNewPinterestBoard,
     setDropdownVisible,
     setDestinationLink,
