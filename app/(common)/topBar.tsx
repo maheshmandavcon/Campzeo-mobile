@@ -1,7 +1,9 @@
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { router, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Image, TouchableOpacity, useColorScheme } from "react-native";
+import { Image, TouchableOpacity,
+  //  useColorScheme 
+  } from "react-native";
 
 import { getNotificationsApi } from "@/api/notificationApi";
 import { ThemedView } from "@/components/themed-view";
@@ -18,9 +20,9 @@ export default function TopBar() {
   const [unreadCount, setUnreadCount] = useState<number>(0);
 
   // ✅ Use React Native's useColorScheme for reactive updates
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const iconColor = isDark ? "#fff" : "#000";
+  // const colorScheme = useColorScheme();
+  // const isDark = colorScheme === "dark";
+  // const iconColor = isDark ? "#fff" : "#dc2626";
 
   // ---------------- FETCH UNREAD COUNT ----------------
   const fetchUnreadCount = async () => {
@@ -80,7 +82,7 @@ export default function TopBar() {
           <IconSymbol
             name="notifications"
             size={25}
-            color={iconColor} // reacts instantly to theme changes
+            color={"#dc2626"} 
           />
 
           {unreadCount > 0 && (

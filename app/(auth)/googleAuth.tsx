@@ -92,7 +92,7 @@ export default function GoogleAuth() {
           height: 45,
           borderWidth: 1,
           borderColor: "#dc2626",
-          borderRadius: 10,
+          borderRadius: 12,
           justifyContent: "center",
           alignItems: "center",
         }}

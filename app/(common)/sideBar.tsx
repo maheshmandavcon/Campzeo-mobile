@@ -92,7 +92,7 @@ export default function Sidebar() {
               style={styles.menuItem}
               onPress={() => navigate("/userProfile")}
             >
-              <User size={24} color={TEXT_COLOR} />
+              <User size={24} color={"#dc2626"} />
               <Text style={styles.menuText}>My Profile</Text>
             </Pressable>
 
@@ -100,7 +100,7 @@ export default function Sidebar() {
               style={styles.menuItem}
               onPress={() => navigate("/accounts")}
             >
-              <Notebook size={24} color={TEXT_COLOR} />
+              <Notebook size={24} color={"#dc2626"} />
               <Text style={styles.menuText}>Accounts</Text>
             </Pressable>
 
@@ -108,7 +108,7 @@ export default function Sidebar() {
               style={styles.menuItem}
               onPress={() => navigate("/calendarPage")}
             >
-              <Calendar size={24} color={TEXT_COLOR} />
+              <Calendar size={24} color={"#dc2626"} />
               <Text style={styles.menuText}>Calendar</Text>
             </Pressable>
 
@@ -116,7 +116,7 @@ export default function Sidebar() {
               style={styles.menuItem}
               onPress={() => navigate("/billingPage")}
             >
-              <Wallet size={24} color={TEXT_COLOR} />
+              <Wallet size={24} color={"#dc2626"} />
               <Text style={styles.menuText}>Billing History</Text>
             </Pressable>
           </View>
@@ -130,8 +130,8 @@ export default function Sidebar() {
             action="secondary"
             onPress={handleLogout}
           >
-            <LogOut size={20} color={TEXT_COLOR} />
-            <ButtonText style={{ color: TEXT_COLOR }}>
+            <LogOut size={20} color={"#dc2626"} />
+            <ButtonText style={{ color: "#dc2626" }}>
               Logout
             </ButtonText>
           </Button>
@@ -172,5 +172,6 @@ const styles = StyleSheet.create({
   logoutButton: {
     width: "100%",
     gap: 8,
+    borderColor: "#dc2626"
   },
 });
