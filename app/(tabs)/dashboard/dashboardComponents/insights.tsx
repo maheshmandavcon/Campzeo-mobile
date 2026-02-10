@@ -201,7 +201,7 @@ export default function Insights() {
     const percentage =
       typeof data?.percentage === "number" ? data.percentage : 0;
 
-    const progressColor = data?.isNearLimit ? "#f97316" : "#22c55e";
+    // const progressColor = data?.isNearLimit ? "#f97316" : "#22c55e";
 
     return (
       <VStack style={{ marginBottom: 16 }}>
@@ -340,7 +340,7 @@ export default function Insights() {
           </HStack>
           <ThemedText>{userData?.email}</ThemedText>
 
-          <Divider style={{ marginVertical: 13 }} />
+          <Divider style={{ marginVertical: 7 }} />
         </Box>
 
         {/* ================= NOTIFICATIONS ================= */}
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#e0f2fe",
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 7,
   },
   platformBadge: {
     backgroundColor: "#ede9fe",

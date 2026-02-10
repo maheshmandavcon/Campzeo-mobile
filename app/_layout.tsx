@@ -9,7 +9,11 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
-import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
+} from "@react-navigation/native";
 
 import { ClerkLoaded, ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -24,6 +28,7 @@ import { ActivityIndicator, Image } from "react-native";
 import { GluestackUIProvider } from "@gluestack-ui/themed";
 import { config } from "@gluestack-ui/config";
 import { NetworkGate } from "../network/networkGate";
+import { OverlayProvider } from "@gluestack-ui/core/overlay/creator";
 
 /* ---------------- TOKEN CACHE ---------------- */
 
@@ -34,7 +39,7 @@ const tokenCache = {
       console.log(
         item
           ? `[TokenCache] Token found for key: ${key}`
-          : `[TokenCache] No token found for key: ${key}`
+          : `[TokenCache] No token found for key: ${key}`,
       );
       return item;
     } catch (err) {
@@ -66,14 +71,17 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
     const authRoutes = ["/", "/login", "/changePassword", "/editProfile"];
 
-    if (!isSignedIn && !authRoutes.includes(pathname) && pathname !== "/auth-callback") {
+    if (
+      !isSignedIn &&
+      !authRoutes.includes(pathname) &&
+      pathname !== "/auth-callback"
+    ) {
       router.replace("/(auth)/login");
     }
 
     if (isSignedIn && authRoutes.includes(pathname)) {
       router.replace("/(tabs)/dashboard");
     }
-
   }, [isLoaded, isSignedIn, router, pathname]);
 
   if (!isLoaded) {
@@ -84,7 +92,12 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       >
         <Image
           source={require("../assets/app-images/camp-logo.png")}
-          style={{ width: 200, height: 80, resizeMode: "contain", marginBottom: 20 }}
+          style={{
+            width: 200,
+            height: 80,
+            resizeMode: "contain",
+            marginBottom: 20,
+          }}
         />
         <ActivityIndicator size="large" color="#dc2626" />
       </ThemedView>
@@ -140,36 +153,36 @@ export default function RootLayout() {
   }
 
   return (
-  <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-    <ClerkLoaded>
-      <AuthBridge />
+    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+      <ClerkLoaded>
+        <AuthBridge />
 
-      <NetworkGate>
-        <AuthGuard>
-          <GlobalLinkingHandler />
-          <GluestackUIProvider config={config}>
-            <SafeAreaProvider>
-              <ThemeProvider
-                value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-              >
-                <GestureHandlerRootView style={{ flex: 1 }}>
-                  <QueryClientProvider client={queryClient}>
-                    <Stack screenOptions={{ headerShown: false }}>
-                      <Stack.Screen name="(auth)" />
-                      <Stack.Screen name="(tabs)" />
-                      <Stack.Screen name="auth-callback" />
-                    </Stack>
-                    <StatusBar style="auto" />
-                  </QueryClientProvider>
-                </GestureHandlerRootView>
-              </ThemeProvider>
-            </SafeAreaProvider>
-          </GluestackUIProvider>
-        </AuthGuard>
-      </NetworkGate>
-
-    </ClerkLoaded>
-  </ClerkProvider>
-);
-
+        <NetworkGate>
+          <AuthGuard>
+            <GlobalLinkingHandler />
+            <GluestackUIProvider config={config}>
+              <OverlayProvider>
+                <SafeAreaProvider>
+                  <ThemeProvider
+                    value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+                  >
+                    <GestureHandlerRootView style={{ flex: 1 }}>
+                      <QueryClientProvider client={queryClient}>
+                        <Stack screenOptions={{ headerShown: false }}>
+                          <Stack.Screen name="(auth)" />
+                          <Stack.Screen name="(tabs)" />
+                          <Stack.Screen name="auth-callback" />
+                        </Stack>
+                        <StatusBar style="auto" />
+                      </QueryClientProvider>
+                    </GestureHandlerRootView>
+                  </ThemeProvider>
+                </SafeAreaProvider>
+              </OverlayProvider>
+            </GluestackUIProvider>
+          </AuthGuard>
+        </NetworkGate>
+      </ClerkLoaded>
+    </ClerkProvider>
+  );
 }

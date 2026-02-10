@@ -15,6 +15,7 @@ export const mapEvents = (posts: any[]): CalendarEvent[] => {
 
       platform: post.type,
       message: post.message,
+      subject: post.subject,
 
       // keep campaign if you still want it in modal
       campaign: post.campaign?.name ?? ""

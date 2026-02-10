@@ -15,7 +15,7 @@ const CalendarWrapper = () => {
       try {
         const data = await getScheduledPosts();
         
-        setPosts(data.posts ?? []);
+        setPosts(data?.posts ?? []);
       } catch (err) {
         console.error(err);
         setError("Failed to load posts");

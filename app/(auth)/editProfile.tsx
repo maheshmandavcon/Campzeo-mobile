@@ -134,7 +134,7 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
                 name={field.name as any}
                 render={({ field: { value, onChange } }) => (
                   <>
-                    <Input className="bg-white/10 rounded-xl px-1 py-2">
+                    <Input className="rounded-lg px-1 py-2">
                       <InputField
                         placeholder={field.placeholder}
                         value={value}

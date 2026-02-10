@@ -59,9 +59,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts }) => {
           events={events}
           mode={viewMode}
           date={currentDate}
-          height={520}
+          height={500}
           onPressEvent={handleEventPress}
-          swipeEnabled={true}
+          swipeEnabled={true}         
         />
 
         {/* UPCOMING POSTS LIST BELOW CALENDAR */}
@@ -73,7 +73,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts }) => {
         event={selectedEvent}
         isOpen={isModalVisible}
         onClose={() => setModalVisible(false)}
-      />
+
+/>
     </ThemedView>
   );
 };

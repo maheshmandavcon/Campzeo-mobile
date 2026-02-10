@@ -100,36 +100,35 @@ export default function Accounts() {
   >(null);
 
   /* ----------------------------- EFFECT ----------------------------- */
+  const fetchConnections = async () => {
+    try {
+      setPageLoading(true);
+
+      const data = await getSocialStatus();
+
+      setPlatforms((prev) =>
+        prev.map((item) => {
+          const backendKey = Object.keys(backendKeyMap).find(
+            (key) => backendKeyMap[key] === item.platformKey,
+          );
+
+          if (!backendKey || !data[backendKey]) return item;
+
+          return {
+            ...item,
+            connected: data[backendKey].connected,
+            connectedAs: data[backendKey].name ?? undefined,
+          };
+        }),
+      );
+    } catch (error) {
+      console.error("Failed to fetch connected platforms", error);
+    } finally {
+      setPageLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchConnections = async () => {
-      try {
-        setPageLoading(true);
-
-        const data = await getSocialStatus();
-
-        setPlatforms((prev) =>
-          prev.map((item) => {
-            const backendKey = Object.keys(backendKeyMap).find(
-              (key) => backendKeyMap[key] === item.platformKey,
-            );
-
-            if (!backendKey || !data[backendKey]) return item;
-
-            return {
-              ...item,
-              connected: data[backendKey].connected,
-              connectedAs: data[backendKey].name ?? undefined,
-            };
-          }),
-        );
-      } catch (error) {
-        console.error("Failed to fetch connected platforms", error);
-      } finally {
-        setPageLoading(false);
-      }
-    };
-
     fetchConnections();
   }, []);
 
@@ -152,6 +151,7 @@ export default function Accounts() {
       if (data?.url) {
         await WebBrowser.openBrowserAsync(data.url);
       }
+      fetchConnections();
     } catch (error) {
       console.error("Failed to connect:", error);
     } finally {
@@ -174,6 +174,7 @@ export default function Accounts() {
             : item,
         ),
       );
+      fetchConnections();
     } catch (error) {
       console.error("Failed to disconnect:", error);
     } finally {
@@ -346,8 +347,8 @@ export default function Accounts() {
                         className="items-center justify-center py-2"
                         space="xs"
                       >
-                        <ActivityIndicator size="small" color="#2563eb" />
-                        <Text style={{ fontSize: 13, color: "#2563eb" }}>
+                        <ActivityIndicator size="small" color="#dc2626" />
+                        <Text style={{ fontSize: 13, color: "#dc2626" }}>
                           Redirecting…
                         </Text>
                       </HStack>

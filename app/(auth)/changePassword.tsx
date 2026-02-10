@@ -11,12 +11,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock } from "lucide-react-native";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import {
-  ActivityIndicator,
-  Pressable,
-  Text,
-  ToastAndroid,
-} from "react-native";
+import { ActivityIndicator, Pressable, Text, ToastAndroid } from "react-native";
 
 type closeCPType = {
   closeCP: () => void;
@@ -129,7 +124,7 @@ export default function ChangePassword({ closeCP }: closeCPType) {
                 name={field.name}
                 render={({ field: { value, onChange } }) => (
                   <>
-                    <Input className="bg-white/10 rounded-xl px-3 py-2 flex-row items-center">
+                    <Input className="rounded-lg px-3 py-2 flex-row items-center">
                       {field.icon}
 
                       <InputField
@@ -192,9 +187,7 @@ export default function ChangePassword({ closeCP }: closeCPType) {
               className="bg-slate-500 rounded-xl py-4 mt-4 items-center"
               onPress={closeCP}
             >
-              <Text style={{ color: "white", fontWeight: "600" }}>
-                Cancel
-              </Text>
+              <Text style={{ color: "white", fontWeight: "600" }}>Cancel</Text>
             </Pressable>
           </VStack>
         </VStack>

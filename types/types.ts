@@ -11,6 +11,7 @@ export interface Post {
     | "facebook";
     campaign: string;
     message: string;
+    subject: string;
     scheduledTime: string; 
 }
 
@@ -19,7 +20,8 @@ export interface CalendarEvent {
   id: number;
   title: string;              
   start: Date;                 
-  end: Date;                   
+  end: Date;  
+  subject: string;                 
   platform: string;           
   message: string;             
   campaign: string;            
