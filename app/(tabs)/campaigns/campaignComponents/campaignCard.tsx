@@ -175,23 +175,20 @@ export default function CampaignCard({
           {showActions && (
             <ThemedView className="flex-row">
               <TouchableOpacity onPress={handleEdit} className="mx-1">
-                <Ionicons name="create-outline" size={22} color="#10b981" />
+                <Ionicons name="create-outline" size={22} style ={{ color: isDark ? "#73f3c9": "#10b981" }} />
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => onDelete(campaign)} className="mx-1">
-                <Ionicons name="trash-outline" size={22} color="#ef4444" />
+                <Ionicons name="trash-outline" size={22} style ={{ color: isDark ? "#f47a7a": "#ef4444" }} />
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => onCopy(campaign)} className="mx-1">
-                <Ionicons name="copy-outline" size={22} color="#3b82f6" />
+                <Ionicons name="copy-outline" size={22} style ={{ color: isDark ? "#73a6f9": "#3b82f6" }} />
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => onToggleShow(campaign)} className="mx-1">
                 <Ionicons
-                  name={campaign.show ? "eye-off-outline" : "eye-outline"}
-                  size={22}
-                  color="#6b7280"
-                />
+                  name={campaign.show ? "eye-off-outline" : "eye-outline"} size={22} style ={{ color: isDark ? "#b4b8c0": "6b7280" }} />
               </TouchableOpacity>
             </ThemedView>
           )}
@@ -249,7 +246,7 @@ export default function CampaignCard({
                   className="flex-row items-center px-3 py-1.5 rounded-full"
                   style={{
                     backgroundColor: isDark
-                      ? "rgba(255,255,255,0.08)"   // subtle dark bg
+                      ? "rgba(255,255,255,0.08)"  
                       : "rgba(59,130,246,0.18)",
                     borderWidth: 1,
                     borderColor: isDark ? "#ffffff" : "transparent",

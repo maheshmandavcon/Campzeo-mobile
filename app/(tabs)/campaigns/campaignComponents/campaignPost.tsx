@@ -30,18 +30,6 @@ export default function CampaignPost() {
     { name: "pinterest", label: "PINTEREST" as const, library: FontAwesome, color: "#E60023" },
   ];
 
-  // const [selected, setSelected] = useState<
-  //   | "EMAIL"
-  //   | "SMS"
-  //   | "INSTAGRAM"
-  //   | "WHATSAPP"
-  //   | "FACEBOOK"
-  //   | "YOUTUBE"
-  //   | "LINKEDIN"
-  //   | "PINTEREST"
-  //   | null
-  // >(null);
-
   type PlatformType =
     | "SMS"
     | "EMAIL"
@@ -61,11 +49,6 @@ export default function CampaignPost() {
   const [loadingConnections, setLoadingConnections] = useState(true);
 
   const route = useRouter();
-  // const { campaignId, postId, type } = useLocalSearchParams<{
-  //   campaignId: string;
-  //   postId?: string;
-  //   type?: string;
-  // }>();
 
   const params = useLocalSearchParams();
 
@@ -106,31 +89,31 @@ export default function CampaignPost() {
 
   // ---------- FETCH CONNECTED PLATFORMS ----------
   useFocusEffect(
-  useCallback(() => {
-    const fetchConnections = async () => {
-      try {
-        setLoadingConnections(true);
-        const data = await getSocialStatus();
-        setConnectedPlatforms({
-          FACEBOOK: data.facebook?.connected ?? false,
-          INSTAGRAM: data.instagram?.connected ?? false,
-          LINKEDIN: data.linkedin?.connected ?? false,
-          YOUTUBE: data.youtube?.connected ?? false,
-          PINTEREST: data.pinterest?.connected ?? false,
-          EMAIL: true,
-          SMS: true,
-          WHATSAPP: true,
-        });
-      } catch (error) {
-        console.error("Failed to fetch social status", error);
-      } finally {
-        setLoadingConnections(false);
-      }
-    };
+    useCallback(() => {
+      const fetchConnections = async () => {
+        try {
+          setLoadingConnections(true);
+          const data = await getSocialStatus();
+          setConnectedPlatforms({
+            FACEBOOK: data.facebook?.connected ?? false,
+            INSTAGRAM: data.instagram?.connected ?? false,
+            LINKEDIN: data.linkedin?.connected ?? false,
+            YOUTUBE: data.youtube?.connected ?? false,
+            PINTEREST: data.pinterest?.connected ?? false,
+            EMAIL: true,
+            SMS: true,
+            WHATSAPP: true,
+          });
+        } catch (error) {
+          console.error("Failed to fetch social status", error);
+        } finally {
+          setLoadingConnections(false);
+        }
+      };
 
-    fetchConnections();
-  }, [])
-);
+      fetchConnections();
+    }, [])
+  );
 
   // ---------- FETCH EXISTING POST IF postId EXISTS ----------
   useEffect(() => {
@@ -204,6 +187,91 @@ export default function CampaignPost() {
   const hasDisconnectedPlatform = ["FACEBOOK", "INSTAGRAM", "LINKEDIN", "YOUTUBE", "PINTEREST"].some(
     (key) => connectedPlatforms[key] === false
   );
+
+  const SkeletonBlock = ({
+    width = "100%",
+    height = 12,
+    radius = 20,
+    style = {},
+  }: {
+    width?: number | string;
+    height?: number;
+    radius?: number;
+    style?: any;
+  }) => {
+    const isDark = useColorScheme() === "dark";
+    const bg = isDark ? "#27272a" : "#f3f4f6";
+
+    return (
+      <RNView
+        style={{
+          width,
+          height,
+          borderRadius: radius,
+          backgroundColor: bg,
+          marginBottom: 10,
+          ...style,
+        }}
+      />
+    );
+  };
+
+  const SkeletonInput = ({
+    height = 40,
+  }: {
+    height?: number;
+  }) => {
+    const isDark = useColorScheme() === "dark";
+
+    return (
+      <RNView
+        style={{
+          height,
+          borderRadius: 12,
+          backgroundColor: isDark ? "#27272a" : "#ffffff",
+          borderWidth: 1,
+          borderColor: isDark ? "#3f3f46" : "#e5e7eb",
+          marginBottom: 12,
+          paddingHorizontal: 12,
+          justifyContent: "center",
+        }}
+      >
+        {/* inner shimmer */}
+        <SkeletonBlock
+          height={12}
+          width="60%"
+          radius={6}
+          style={{ marginBottom: 0 }}
+        />
+      </RNView>
+    );
+  };
+
+  const CampaignPostFormSkeleton = () => {
+    const isDark = useColorScheme() === "dark";
+
+    return (
+      <ThemedView
+        style={{
+          paddingVertical: 16,
+          backgroundColor: isDark ? "#18181b" : "#f3f4f6",
+        }}
+      >
+        {/* Subject (white input) */}
+        <SkeletonInput />
+
+        {/* Description */}
+        <SkeletonInput />
+        <SkeletonInput height={120} />
+
+        {/* Schedule */}
+        <SkeletonInput />
+
+        {/* Submit button */}
+        <SkeletonBlock height={44} radius={12} />
+      </ThemedView>
+    );
+  };
 
   return (
     <KeyboardAvoidingView
@@ -326,7 +394,7 @@ export default function CampaignPost() {
         {/* ---------- ACCOUNTS BUTTON ---------- */}
         {hasDisconnectedPlatform && (
           <ThemedView style={{
-            backgroundColor: "#fef3c7",
+            backgroundColor: isDark ? "#1f2937" : "#fef3c7",
             padding: 12,
             borderRadius: 12,
             // marginVertical: 12,
@@ -335,11 +403,59 @@ export default function CampaignPost() {
             flexDirection: "row",
             alignItems: "center",
           }}>
-            <Ionicons name="alert-circle-outline" size={20} color="#b45309" />
-            <ThemedText style={{ flex: 1, marginLeft: 8 }}>{bannerMessage}</ThemedText>
+            <Ionicons name="alert-circle-outline" size={20} style={{ color: isDark ? "#facc15" : "#b45309", }} />
+            <ThemedText style={{ flex: 1, marginLeft: 8, color: isDark ? "#fde68a" : "#000" }}>{bannerMessage}</ThemedText>
             <TouchableOpacity onPress={() => router.push("/(accounts)/accounts")}>
-              <ThemedText style={{ color: "#b45309", fontWeight: "bold" }}>Connect</ThemedText>
+              <ThemedText style={{ color: isDark ? "#facc15" : "#b45309", fontWeight: "bold" }}>Connect</ThemedText>
             </TouchableOpacity>
+          </ThemedView>
+        )}
+
+        {/* ---------- EMPTY STATE MESSAGE ---------- */}
+        {!selected && !loadingConnections && !loadingPost && (
+          <ThemedView
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              paddingHorizontal: 20,
+              backgroundColor: isDark ? "#161618" : "#f3f4f6",
+            }}
+          >
+            <ThemedView
+              style={{
+                padding: 18,
+                borderRadius: 14,
+                alignItems: "center",
+                backgroundColor: isDark ? "#161618" : "#ecfeff",
+                borderWidth: 1,
+                borderColor: isDark ? "#1f2937" : "#67e8f9",
+                maxWidth: 320,
+                width: "100%",
+              }}
+            >
+              <Ionicons
+                name="flash-outline"
+                size={28}
+                color={isDark ? "#22d3ee" : "#0891b2"}
+                style={{ marginBottom: 8 }}
+              />
+
+              <ThemedText style={{ fontSize: 16, fontWeight: "700", textAlign: "center" }}>
+                Choose a platform to create your post
+              </ThemedText>
+
+              <ThemedText
+                style={{
+                  marginTop: 6,
+                  fontSize: 13,
+                  textAlign: "center",
+                  color: isDark ? "#9ca3af" : "#164e63",
+                }}
+              >
+                Content, format, and preview will update automatically
+              </ThemedText>
+            </ThemedView>
           </ThemedView>
         )}
 
@@ -440,27 +556,8 @@ export default function CampaignPost() {
               </ThemedView>
             </ThemedView>
           </ScrollView>
-        ) : loadingPost || loadingConnections ? (
-          <ThemedView
-            style={{
-              flex: 1,
-              justifyContent: "center",
-              alignItems: "center",
-              minHeight: 200,
-              backgroundColor: isDark ? "#161618" : "#f3f4f6",
-            }}
-          >
-            <ActivityIndicator size="large" color="#10b981" />
-            <ThemedText
-              style={{
-                marginTop: 10,
-                color: isDark ? "#fff" : "#000",
-                fontWeight: "bold",
-              }}
-            >
-              Loading...
-            </ThemedText>
-          </ThemedView>
+        ) : loadingConnections || loadingPost ? (
+          <CampaignPostFormSkeleton />
         ) : selected ? (
           <ThemedView style={{ marginTop: 0, marginBottom: 5 }}>
             <CampaignPostForm

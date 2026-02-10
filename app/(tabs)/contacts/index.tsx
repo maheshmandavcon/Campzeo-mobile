@@ -24,6 +24,7 @@ import { useAuth } from "@clerk/clerk-expo";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import * as Clipboard from 'expo-clipboard';
+import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
 
 export default function Contacts() {
   const [visibleCount, setVisibleCount] = useState(10);
@@ -181,14 +182,67 @@ WhatsApp: ${record.whatsapp || "-"}
     setRecords([...records]);
   };
 
+  type ListItem = ContactsRecord | { id: string; skeleton: true };
+
+  const skeletonData: ListItem[] = Array.from({ length: 6 }, (_, i) => ({
+    id: `skeleton-${i}`,
+    skeleton: true,
+  }));
+
+  const ContactSkeletonCard = () => (
+    <ThemedView className="bg-gray-50 rounded-xl p-4 mb-3 border border-gray-200">
+
+      {/* NAME + ACTIONS */}
+      <View className="flex-row items-center justify-between mb-3">
+        <ShimmerSkeleton height={16} width="45%" />
+
+        <View className="flex-row gap-2" style={{ marginLeft: 8 }}>
+          <ShimmerSkeleton height={24} width={24} borderRadius={12} />
+          <ShimmerSkeleton height={24} width={24} borderRadius={12} />
+          <ShimmerSkeleton height={24} width={24} borderRadius={12} />
+          <ShimmerSkeleton height={24} width={24} borderRadius={12} />
+        </View>
+      </View>
+
+      {/* EMAIL ROW */}
+      <View className="flex-row justify-between items-center mb-2">
+        <ShimmerSkeleton height={12} width="20%" />
+        <ShimmerSkeleton height={12} width="55%" />
+      </View>
+
+      {/* MOBILE ROW */}
+      <View className="flex-row justify-between items-center mb-2">
+        <ShimmerSkeleton height={12} width="20%" />
+        <ShimmerSkeleton height={12} width="45%" />
+      </View>
+
+      {/* WHATSAPP ROW */}
+      <View className="flex-row justify-between items-center mb-2">
+        <ShimmerSkeleton height={12} width="25%" />
+        <ShimmerSkeleton height={12} width="45%" />
+      </View>
+
+      {/* CAMPAIGNS COUNT ROW */}
+      <View className="flex-row justify-between items-center mt-2">
+        <ShimmerSkeleton height={12} width="30%" />
+        <ShimmerSkeleton height={14} width={40} borderRadius={6} />
+      </View>
+
+    </ThemedView>
+  );
+
+  const listData = loading
+    ? skeletonData
+    : visibleRecords;
+
   /* ================= UI ================= */
   return (
     <Pressable onPress={() => setMenuVisible(false)} className="flex-1">
       <ThemedView
-        style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }} // gray-100 light bg
+        style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }} 
         className="flex-1 p-4"
       >
-        {loading && (
+        {/* {loading && (
           <ThemedView
             className="absolute inset-0 justify-center items-center z-10"
             style={{
@@ -210,7 +264,7 @@ WhatsApp: ${record.whatsapp || "-"}
               Loading contacts...
             </Text>
           </ThemedView>
-        )}
+        )} */}
 
         {/* Top Bar */}
         <View
@@ -329,26 +383,36 @@ WhatsApp: ${record.whatsapp || "-"}
         )}
 
         {/* List */}
-        <FlatList
-          data={visibleRecords}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <ContactCard
-              record={item}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onCopy={handleCopy}
-              onToggleShow={toggleShow}
-            />
-          )}
-          contentContainerStyle={{ flexGrow: 1 }}
+        <FlatList<ListItem>
+          data={listData}
+          keyExtractor={(item) =>
+            "skeleton" in item ? item.id : item.id.toString()
+          }
+          renderItem={({ item }) =>
+            "skeleton" in item ? (
+              <ContactSkeletonCard />
+            ) : (
+              <ContactCard
+                record={item}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onCopy={handleCopy}
+                onToggleShow={toggleShow}
+              />
+            )
+          }
           ListEmptyComponent={
             !loading ? (
-              <ThemedView className="flex-1 justify-center items-center"
-              style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
-                <ThemedText style={{ fontSize: 18, fontWeight: "bold", marginBottom: 6 }}>
+              <ThemedView
+                className="flex-1 justify-center items-center"
+                style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
+              >
+                <ThemedText
+                  style={{ fontSize: 18, fontWeight: "bold", marginBottom: 6 }}
+                >
                   No contacts yet
                 </ThemedText>
+
                 <ThemedText
                   style={{
                     fontSize: 14,
@@ -362,29 +426,11 @@ WhatsApp: ${record.whatsapp || "-"}
               </ThemedView>
             ) : null
           }
-          ListFooterComponent={
-            filteredRecords.length > 5 ? (
-              <TouchableOpacity
-                onPress={handleLoadToggle}
-                className="py-3 my-2 rounded-xl items-center"
-                style={{
-                  backgroundColor: isDark ? DARK_TOPBAR_BG : "#e0f2fe", 
-                  borderWidth: isDark ? 1 : 0,
-                  borderColor: isDark ? DARK_BORDER : "transparent",
-                }}
-              >
-                <ThemedText
-                  style={{
-                    color: isDark ? DARK_TEXT : "#0284c7",
-                    fontWeight: "600",
-                  }}
-                >
-                  {isAllVisible ? "See Less" : "Load More"}
-                </ThemedText>
-              </TouchableOpacity>
-            ) : null
-          }
+          contentContainerStyle={{
+            flexGrow: listData.length === 0 ? 1 : undefined,
+          }}
         />
+
       </ThemedView>
     </Pressable>
   );
