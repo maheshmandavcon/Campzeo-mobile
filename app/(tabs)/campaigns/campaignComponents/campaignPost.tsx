@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   TouchableOpacity,
   ScrollView,
@@ -6,52 +6,147 @@ import {
   KeyboardAvoidingView,
   Platform,
   useColorScheme,
-  ActivityIndicator
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import CampaignPostForm from "./campaignPostForm";
 import { useAuth } from "@clerk/clerk-expo";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { getSocialStatus } from "@/api/accountsApi";
 
 export default function CampaignPost() {
-  const [selected, setSelected] = useState<
-    | "EMAIL"
+  // ---------- SOCIAL MEDIA ICONS ----------
+  const icons = [
+    { name: "chatbubble-ellipses-outline", label: "SMS" as const, library: Ionicons, color: "#10b981" },
+    { name: "mail", label: "EMAIL" as const, library: Ionicons, color: "#f59e0b" },
+    { name: "logo-whatsapp", label: "WHATSAPP" as const, library: Ionicons, color: "#25D366" },
+    { name: "instagram", label: "INSTAGRAM" as const, library: FontAwesome, color: "#c13584" },
+    { name: "facebook-square", label: "FACEBOOK" as const, library: FontAwesome, color: "#1877F2" },
+    { name: "youtube-play", label: "YOUTUBE" as const, library: FontAwesome, color: "#FF0000" },
+    { name: "linkedin-square", label: "LINKEDIN" as const, library: FontAwesome, color: "#0A66C2" },
+    { name: "pinterest", label: "PINTEREST" as const, library: FontAwesome, color: "#E60023" },
+  ];
+
+  // const [selected, setSelected] = useState<
+  //   | "EMAIL"
+  //   | "SMS"
+  //   | "INSTAGRAM"
+  //   | "WHATSAPP"
+  //   | "FACEBOOK"
+  //   | "YOUTUBE"
+  //   | "LINKEDIN"
+  //   | "PINTEREST"
+  //   | null
+  // >(null);
+
+  type PlatformType =
     | "SMS"
-    | "INSTAGRAM"
+    | "EMAIL"
     | "WHATSAPP"
+    | "INSTAGRAM"
     | "FACEBOOK"
     | "YOUTUBE"
     | "LINKEDIN"
-    | "PINTEREST"
-    | null
-  >(null);
+    | "PINTEREST";
+
+  const [selected, setSelected] = useState<PlatformType | null>(null);
+
   const [existingPost, setExistingPost] = useState<any>(null);
   const [loadingPost, setLoadingPost] = useState(false);
 
+  const [connectedPlatforms, setConnectedPlatforms] = useState<Record<string, boolean>>({});
+  const [loadingConnections, setLoadingConnections] = useState(true);
+
   const route = useRouter();
-  const { campaignId, postId, type } = useLocalSearchParams<{
-    campaignId: string;
-    postId?: string;
-    type?: string;
-  }>();
+  // const { campaignId, postId, type } = useLocalSearchParams<{
+  //   campaignId: string;
+  //   postId?: string;
+  //   type?: string;
+  // }>();
+
+  const params = useLocalSearchParams();
+
+  const campaignIdStr =
+    typeof params.campaignId === "string" ? params.campaignId : params.campaignId?.[0];
+
+  const postIdStr =
+    typeof params.postId === "string" ? params.postId : params.postId?.[0];
+
+  const typeStr =
+    typeof params.type === "string" ? params.type : params.type?.[0];
+
+  //  const { campaignId, postId, type } = route.pharmas as {
+  //   campaignId: string;
+  //   postId?: string;
+  //   type?: string;
+  // };
+
+  // const isEditMode = Boolean(postId);
+  const isEditMode = !!(postIdStr && typeStr);
 
   const { getToken } = useAuth();
 
+  const socialPlatforms = ["FACEBOOK", "INSTAGRAM", "LINKEDIN", "YOUTUBE", "PINTEREST"];
+
+  const connectedCount = socialPlatforms.filter(
+    (p) => connectedPlatforms[p]
+  ).length;
+
+  const totalCount = socialPlatforms.length;
+
+  const noneConnected = connectedCount === 0;
+  const someConnected = connectedCount > 0 && connectedCount < totalCount;
+
+  const bannerMessage = noneConnected
+    ? "No social accounts are connected yet. Connect them to continue."
+    : `Almost there! ${totalCount - connectedCount} account(s) still need connection.`;
+
+  // ---------- FETCH CONNECTED PLATFORMS ----------
+  useFocusEffect(
+  useCallback(() => {
+    const fetchConnections = async () => {
+      try {
+        setLoadingConnections(true);
+        const data = await getSocialStatus();
+        setConnectedPlatforms({
+          FACEBOOK: data.facebook?.connected ?? false,
+          INSTAGRAM: data.instagram?.connected ?? false,
+          LINKEDIN: data.linkedin?.connected ?? false,
+          YOUTUBE: data.youtube?.connected ?? false,
+          PINTEREST: data.pinterest?.connected ?? false,
+          EMAIL: true,
+          SMS: true,
+          WHATSAPP: true,
+        });
+      } catch (error) {
+        console.error("Failed to fetch social status", error);
+      } finally {
+        setLoadingConnections(false);
+      }
+    };
+
+    fetchConnections();
+  }, [])
+);
+
   // ---------- FETCH EXISTING POST IF postId EXISTS ----------
   useEffect(() => {
-    if (!campaignId || !postId) return;
+    if (!campaignIdStr || !postIdStr) return;
 
     let isMounted = true;
-    setLoadingPost(true); // start loading
+    setLoadingPost(true);
 
     const fetchPostDetails = async () => {
       try {
         const token = await getToken();
         if (!token) throw new Error("Token missing");
 
-        const url = `https://campzeo-v1-oym2.vercel.app/api/campaigns/${campaignId}/posts/${postId}`;
+        // const url = `https://campzeo-v1-oym2.vercel.app/api/campaigns/${campaignIdStr}/posts/${postIdStr}`;
+        const url = `https://camp-zeo-testing.vercel.app/api/campaigns/${campaignIdStr}/posts/${postIdStr}`;
+
         console.log("Fetching post details from:", url);
 
         const response = await fetch(url, {
@@ -72,7 +167,7 @@ export default function CampaignPost() {
           console.error("Unexpected error:", error);
         }
       } finally {
-        setLoadingPost(false); // stop loading once data is fetched
+        setLoadingPost(false);
       }
     };
 
@@ -81,22 +176,34 @@ export default function CampaignPost() {
     return () => {
       isMounted = false;
     };
-  }, [campaignId, postId]);
+  }, [campaignIdStr, postIdStr]);
+
+  useEffect(() => {
+    if (!isEditMode || !typeStr || selected) return;
+
+    const allowedPlatforms: PlatformType[] = [
+      "SMS",
+      "EMAIL",
+      "WHATSAPP",
+      "INSTAGRAM",
+      "FACEBOOK",
+      "YOUTUBE",
+      "LINKEDIN",
+      "PINTEREST",
+    ];
+
+    if (allowedPlatforms.includes(typeStr as PlatformType)) {
+      setSelected(typeStr as PlatformType);
+    }
+  }, [isEditMode, typeStr]);
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  // ---------- SOCIAL MEDIA ICONS ----------
-  const icons = [
-    { name: "mail", label: "EMAIL" as const, library: Ionicons, color: "#f59e0b" },
-    { name: "chatbubble-ellipses-outline", label: "SMS" as const, library: Ionicons, color: "#10b981" },
-    { name: "instagram", label: "INSTAGRAM" as const, library: FontAwesome, color: "#c13584" },
-    { name: "logo-whatsapp", label: "WHATSAPP" as const, library: Ionicons, color: "#25D366" },
-    { name: "facebook-square", label: "FACEBOOK" as const, library: FontAwesome, color: "#1877F2" },
-    { name: "youtube-play", label: "YOUTUBE" as const, library: FontAwesome, color: "#FF0000" },
-    { name: "linkedin-square", label: "LINKEDIN" as const, library: FontAwesome, color: "#0A66C2" },
-    { name: "pinterest", label: "PINTEREST" as const, library: FontAwesome, color: "#E60023" },
-  ];
+  // Check if any social platform is disconnected (SMS/EMAIL/WHATSAPP are always connected)
+  const hasDisconnectedPlatform = ["FACEBOOK", "INSTAGRAM", "LINKEDIN", "YOUTUBE", "PINTEREST"].some(
+    (key) => connectedPlatforms[key] === false
+  );
 
   return (
     <KeyboardAvoidingView
@@ -119,91 +226,247 @@ export default function CampaignPost() {
             color: isDark ? "#fff" : "#000",
           }}
         >
-          {postId ? "Edit Campaign Post" : "Create Campaign Post"}
+          {postIdStr ? "Edit Campaign Post" : "Create Campaign Post"}
         </ThemedText>
 
         {/* ---------- ICON SECTION ---------- */}
-        <ThemedView className="flex-row flex-wrap justify-between mb-4"
-          style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
-          {icons.map((icon, index) => {
-            const IconComponent = icon.library;
-            const isSelected = selected === icon.label;
+        <ThemedView
+          className="flex-row flex-wrap justify-between mb-4"
+          style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
+        >
 
-            return (
-              <ThemedView key={index} className="w-1/4 mb-6 items-center"
-                style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
-                <RNView
-                  style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    shadowColor: icon.color,
-                    shadowOffset: { width: 0, height: 0 },
-                    shadowOpacity: isSelected ? 0.5 : 0,
-                    shadowRadius: isSelected ? 12 : 0,
-                    elevation: isSelected ? 12 : 0,
-                  }}
+          {/* To hide all disconnected accounts */}
+          {icons
+            .filter((icon) => connectedPlatforms[icon.label] !== false)
+            .map((icon, index) => {
+              {/* {icons.map((icon, index) => { */ }
+              const IconComponent = icon.library;
+              const isSelected = selected === icon.label;
+              const isConnected = connectedPlatforms[icon.label] ?? false;
+              const isEditingThisPlatform =
+                isEditMode &&
+                !loadingPost &&
+                !!existingPost &&
+                existingPost.type === icon.label;
+
+              // Disable everything if in edit mode, except the platform being edited
+              const isDisabled = loadingConnections || !isConnected || (isEditMode && !isEditingThisPlatform);
+
+              return (
+                <ThemedView
+                  key={index}
+                  className="w-1/4 mb-6 items-center"
+                  style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
                 >
-                  <TouchableOpacity
-                    onPress={() => setSelected(icon.label)}
+                  <RNView
                     style={{
                       width: 64,
                       height: 64,
                       borderRadius: 32,
                       alignItems: "center",
                       justifyContent: "center",
-                      borderWidth: 2,
-                      borderColor: isSelected ? icon.color : "#d1d5db",
-                      backgroundColor: isDark ? "#161618" : "#ffffff",
+                      shadowColor: icon.color,
+                      shadowOffset: { width: 0, height: 0 },
+                      shadowOpacity: isSelected && !isDisabled ? 0.5 : 0,
+                      shadowRadius: isSelected && !isDisabled ? 12 : 0,
+                      elevation: isSelected && !isDisabled ? 12 : 0,
                     }}
                   >
-                    <IconComponent
-                      name={icon.name as any}
-                      size={28}
-                      color={isDark ? "#ffffff" : icon.color}
-                    />
-                  </TouchableOpacity>
-                </RNView>
+                    <TouchableOpacity
+                      disabled={isDisabled}
+                      onPress={() => {
+                        if (isDisabled) {
+                          Alert.alert(
+                            "Platform not connected",
+                            `Please connect your ${icon.label} account from Accounts first.`
+                          );
+                          return;
+                        }
+                        setSelected(icon.label);
+                      }}
+                      style={{
+                        width: 64,
+                        height: 64,
+                        borderRadius: 32,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderWidth: 2,
+                        borderColor: isDisabled
+                          ? "#9ca3af"
+                          : isSelected
+                            ? icon.color
+                            : "#d1d5db",
+                        backgroundColor: isDark ? "#161618" : "#ffffff",
+                        opacity: isDisabled ? 0.4 : 1,
+                      }}
+                    >
+                      <IconComponent
+                        name={icon.name as any}
+                        size={28}
+                        color={isDark ? "#ffffff" : icon.color}
+                      />
+                    </TouchableOpacity>
+                  </RNView>
 
-                <ThemedText
-                  style={{
-                    marginTop: 8,
-                    textAlign: "center",
-                    fontSize: 14,
-                    fontWeight: "bold",
-                  }}
-                >
-                  {icon.label}
-                </ThemedText>
-              </ThemedView>
-            );
-          })}
+                  <ThemedText
+                    style={{
+                      marginTop: 8,
+                      textAlign: "center",
+                      fontSize: 14,
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {icon.label}
+                  </ThemedText>
+                </ThemedView>
+              );
+            })}
         </ThemedView>
 
+        {/* ---------- ACCOUNTS BUTTON ---------- */}
+        {hasDisconnectedPlatform && (
+          <ThemedView style={{
+            backgroundColor: "#fef3c7",
+            padding: 12,
+            borderRadius: 12,
+            // marginVertical: 12,
+            marginBottom: 12,
+            marginTop: -20,
+            flexDirection: "row",
+            alignItems: "center",
+          }}>
+            <Ionicons name="alert-circle-outline" size={20} color="#b45309" />
+            <ThemedText style={{ flex: 1, marginLeft: 8 }}>{bannerMessage}</ThemedText>
+            <TouchableOpacity onPress={() => router.push("/(accounts)/accounts")}>
+              <ThemedText style={{ color: "#b45309", fontWeight: "bold" }}>Connect</ThemedText>
+            </TouchableOpacity>
+          </ThemedView>
+        )}
+
         {/* ---------- FORM OR LOADING ---------- */}
-        {loadingPost ? (
+        {selected && !isEditMode && connectedPlatforms[selected] === false ? (
+          <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+            <ThemedView
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+                padding: 24,
+                backgroundColor: isDark ? "#161618" : "#f3f4f6",
+              }}
+            >
+              <ThemedView
+                style={{
+                  width: "100%",
+                  maxWidth: 360,
+                  padding: 24,
+                  borderRadius: 18,
+                  backgroundColor: isDark ? "#1f1f22" : "#ffffff",
+                  shadowColor: "#000",
+                  shadowOpacity: 0.15,
+                  shadowRadius: 12,
+                  elevation: 6,
+                  alignItems: "center",
+                }}
+              >
+                {/* Icon INSIDE card */}
+                <RNView
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: 32,
+                    backgroundColor: isDark ? "#262626" : "#f3f4f6",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    marginBottom: 16,
+                  }}
+                >
+                  <Ionicons
+                    name="alert-circle-outline"
+                    size={36}
+                    color={isDark ? "#f87171" : "#dc2626"}
+                  />
+                </RNView>
+
+                {/* Title */}
+                <ThemedText
+                  style={{
+                    textAlign: "center",
+                    fontSize: 17,
+                    fontWeight: "bold",
+                    marginBottom: 6,
+                  }}
+                >
+                  Platform Disconnected
+                </ThemedText>
+
+                {/* Description */}
+                <ThemedText
+                  style={{
+                    textAlign: "center",
+                    fontSize: 14,
+                    lineHeight: 20,
+                    color: isDark ? "#d1d5db" : "#4b5563",
+                  }}
+                >
+                  This platform is currently disconnected.
+                  Please connect it from Accounts to continue.
+                </ThemedText>
+
+                {/* CTA */}
+                <TouchableOpacity
+                  style={{
+                    marginTop: 18,
+                    width: "100%",
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    backgroundColor: "#10b981",
+                  }}
+                  onPress={() => {
+                    router.push("/(accounts)/accounts");
+                  }}
+                >
+                  <ThemedText
+                    style={{
+                      textAlign: "center",
+                      color: "#ffffff",
+                      fontWeight: "bold",
+                      fontSize: 14,
+                    }}
+                  >
+                    Go to Accounts
+                  </ThemedText>
+                </TouchableOpacity>
+              </ThemedView>
+            </ThemedView>
+          </ScrollView>
+        ) : loadingPost || loadingConnections ? (
           <ThemedView
             style={{
               flex: 1,
               justifyContent: "center",
               alignItems: "center",
               minHeight: 200,
-              backgroundColor: isDark ? "#161618" : "#f3f4f6"
+              backgroundColor: isDark ? "#161618" : "#f3f4f6",
             }}
           >
             <ActivityIndicator size="large" color="#10b981" />
-            <ThemedText style={{ marginTop: 10, color: isDark ? "#fff" : "#000", fontWeight: "bold" }}>
+            <ThemedText
+              style={{
+                marginTop: 10,
+                color: isDark ? "#fff" : "#000",
+                fontWeight: "bold",
+              }}
+            >
               Loading...
             </ThemedText>
           </ThemedView>
         ) : selected ? (
           <ThemedView style={{ marginTop: 0, marginBottom: 5 }}>
             <CampaignPostForm
-              key={selected} // remount when platform changes
+              key={selected}
               platform={selected}
-              campaignId={campaignId.toString()}
+              campaignId={campaignIdStr.toString()}
               existingPost={existingPost}
               onClose={() => {
                 setSelected(null);
@@ -212,7 +475,6 @@ export default function CampaignPost() {
             />
           </ThemedView>
         ) : null}
-
       </ScrollView>
     </KeyboardAvoidingView>
   );

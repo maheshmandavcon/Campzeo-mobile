@@ -135,6 +135,7 @@ export const getPostsByCampaignIdApi = async (campaignId: number) => {
   }
 };
 
+
 // Create a post for a specific campaign
 
 export const createPostForCampaignApi = async (

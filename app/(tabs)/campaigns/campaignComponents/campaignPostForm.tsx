@@ -1,22 +1,27 @@
-import React from "react";
+import { getUser } from "@/api/dashboardApi";
+import { useCampaignPostForm } from "@/hooks/useCampaignPostForm";
+import { useUser } from "@clerk/clerk-expo";
+import { Ionicons } from "@expo/vector-icons";
+import { Button } from "@gluestack-ui/themed";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Picker } from '@react-native-picker/picker';
+import { ResizeMode, Video } from "expo-av";
+import React, { useEffect, useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Image,
-  FlatList,
-  Modal,
-  ActivityIndicator,
+  useColorScheme,
+  View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { Button } from "@gluestack-ui/themed";
-import { useColorScheme } from "react-native";
-import { useCampaignPostForm } from "@/hooks/useCampaignPostForm";
+import Preview from "./preview";
 
 // ---------- Define Props Interface ----------
 interface CampaignPostFormProps {
@@ -42,16 +47,10 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
     imageModalVisible, imagePrompt, generatedImages, loadingImage,
 
-    facebookPages, selectedFacebookPage, facebookContentType, isFacebookPageLoading, coverImage,
+    facebookPages, selectedFacebookPage, facebookContentType, isFacebookPageLoading, coverImage, coverUploading,
 
     youTubeContentType, youTubeTags, youTubeStatus, showStatusDropdown, isCreatingPlaylist, customThumbnail, playlistId, playlistTitle,
-    playlists,
-    showPlaylistDropdown,
-    selectedPlaylist,
-    newPlaylistName,
-    setShowPlaylistDropdown,
-    setSelectedPlaylist,
-    setNewPlaylistName,
+    playlists, showPlaylistDropdown, selectedPlaylist, newPlaylistName, selectedAccount,
 
     pinterestBoard, destinationLink, isCreatingPinterestBoard, pinterestModalVisible, newPinterestBoard, pinterestDescription, isPinterestBoardLoading, allPinterestBoards, loadingBoards,
 
@@ -59,7 +58,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
     // setters
     setSenderEmail, setSubject, setMessage, setPostDate, setAiModalVisible, setAiPrompt, setImageModalVisible, setImagePrompt, setAttachments, setFacebookContentType, setYouTubeContentType, setYouTubeTags, setYouTubeStatus, setShowStatusDropdown, setIsCreatingPlaylist, setPlaylistId,
-    setPlaylistTitle, setIsCreatingPinterestBoard, setPinterestBoard, setPinterestModalVisible, setNewPinterestBoard, setPinterestDescription, setDestinationLink, setShowPicker, setShowTimePicker, setImageLoadingMap,
+    setPlaylistTitle, setIsCreatingPinterestBoard, setPinterestBoard, setPinterestBoardId, setPinterestModalVisible, setNewPinterestBoard, setPinterestDescription, setDestinationLink, setShowPicker, setShowTimePicker, setImageLoadingMap, setSelectedAccount, setShowPlaylistDropdown, setSelectedPlaylist, setNewPlaylistName,
 
     // handlers
     handleSubmit, handleAddAttachment, handleRemoveAttachment, handleGenerateAIText, handleGenerateAIImage, handleCoverImageUpload, handleCustomThumbnailUpload, handleCreatePinterestBoard,
@@ -76,23 +75,99 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     { label: "Playlist", value: "PLAYLIST" },
   ] as const;
 
+  const linkedinAccounts = [
+    { id: "1", name: "Company Page" },
+    { id: "2", name: "Personal Profile" },
+  ];
+
+  const [postText, setPostText] = React.useState<string>(""); // post text input
+  const [postImageUrl, setPostImageUrl] = React.useState<string | undefined>(undefined); // optional image
+
+  const [userData, setUserData] = useState<any>(null);
+
   // ================= RENDER ATTACHMENTS =================
-  const renderAttachmentItem = ({ item, index }: any) => (
-    <View className="flex-row items-center bg-gray-200 rounded-lg px-2 py-1 mr-2 mb-2">
-      {item.type.startsWith("image/") && (
-        <Image
-          source={{ uri: item.uri }}
-          style={{ width: 50, height: 50, borderRadius: 5, marginRight: 5 }}
-        />
-      )}
-      <Text className="mr-2 text-gray-700" numberOfLines={1} style={{ maxWidth: 80 }}>
-        {item.name}
-      </Text>
-      <TouchableOpacity onPress={() => handleRemoveAttachment(index)}>
-        <Ionicons name="close-circle" size={20} color="#dc2626" />
-      </TouchableOpacity>
-    </View>
-  );
+
+  const renderAttachmentItem = ({ item, index }: any) => {
+    const isImage = item.type.startsWith("image/");
+    const isVideo = item.type.startsWith("video/");
+
+    return (
+      <View
+        className="flex-row items-center bg-gray-200 rounded-lg px-2 py-1 mr-2 mb-2"
+      >
+        {isImage && (
+          <Image
+            source={{ uri: item.uri }}
+            style={{ width: 50, height: 50, borderRadius: 5, marginRight: 5 }}
+          />
+        )}
+
+        {isVideo && (
+          <View
+            style={{
+              width: 50,
+              height: 50,
+              borderRadius: 5,
+              marginRight: 5,
+              overflow: "hidden",
+            }}
+          >
+            <Video
+              source={{ uri: item.uri }}
+              style={{ width: "100%", height: "100%" }}
+              resizeMode={ResizeMode.COVER}
+              shouldPlay={true} // only first frame
+              isMuted
+              useNativeControls={false}
+            />
+            {/* Play icon overlay */}
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: "rgba(0,0,0,0.2)",
+              }}
+            >
+              <Ionicons name="play-circle" size={24} color="#fff" />
+            </View>
+          </View>
+        )}
+
+        <Text
+          className="mr-2 text-gray-700"
+          numberOfLines={1}
+          style={{ maxWidth: 80 }}
+        >
+          {item.name}
+        </Text>
+
+        <TouchableOpacity onPress={() => handleRemoveAttachment(index)}>
+          <Ionicons name="close-circle" size={20} color="#dc2626" />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const user = await getUser();
+        setUserData(user);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    fetchUser();
+  }, []);
+
+  // post preview profile
+  const { user } = useUser();
 
   return (
     <KeyboardAvoidingView
@@ -132,8 +207,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   paddingHorizontal: 12,
                   height: 48,
                   marginBottom: 16,
-                  backgroundColor: isDark ? "#161618" : "#ffffff", // dark/light bg
-                  color: isDark ? "#e5e7eb" : "#111111", // text color
+                  backgroundColor: isDark ? "#161618" : "#ffffff",
+                  color: isDark ? "#e5e7eb" : "#111111",
                 }}
               />
             </>
@@ -517,46 +592,129 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           </Modal>
 
           {/* MEDIA */}
-          <Text
-            style={{
-              color: isDark ? "#ffffff" : "#000000",
-              fontWeight: "bold",
-              marginBottom: 8,
-              marginLeft: 4,
-            }}
-          >
-            {platformState === "YOUTUBE" ? "Media (Videos)" : "Media (Photos / Videos)"}
-          </Text>
-
-          <FlatList
-            data={attachments}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(_, index) => String(index)}
-            renderItem={renderAttachmentItem}
-            ListHeaderComponent={
-              <TouchableOpacity
-                onPress={handleAddAttachment}
-                disabled={loading}
+          {platformState !== "SMS" && (
+            <>
+              <Text
                 style={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: 8,
-                  backgroundColor: "#dbeafe",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  marginRight: 8,
+                  color: isDark ? "#ffffff" : "#000000",
+                  fontWeight: "bold",
                   marginBottom: 8,
+                  marginLeft: 4,
                 }}
               >
-                {loading ? (
-                  <ActivityIndicator size="small" color="#2563eb" />
-                ) : (
-                  <Ionicons name="add" size={28} color="#2563eb" />
-                )}
-              </TouchableOpacity>
-            }
-          />
+                {platformState === "YOUTUBE"
+                  ? "Media (Videos)"
+                  : "Media (Photos / Videos)"}
+              </Text>
+
+              <FlatList
+                data={attachments}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(_, index) => String(index)}
+                renderItem={renderAttachmentItem}
+                ListHeaderComponent={
+                  <TouchableOpacity
+                    onPress={handleAddAttachment}
+                    disabled={loading}
+                    style={{
+                      width: 60,
+                      height: 60,
+                      borderRadius: 8,
+                      backgroundColor: "#dbeafe",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      marginRight: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {loading ? (
+                      <ActivityIndicator size="small" color="#2563eb" />
+                    ) : (
+                      <Ionicons name="add" size={28} color="#2563eb" />
+                    )}
+                  </TouchableOpacity>
+                }
+              />
+            </>
+          )}
+
+
+          {platformState === "LINKEDIN" && (
+            <View
+              style={{
+                borderWidth: 1,
+                borderColor: isDark ? "#374151" : "#d1d5db",
+                borderRadius: 12,
+                padding: 14,
+                marginBottom: 12,
+                backgroundColor: isDark ? "#161618" : "#f3f4f6",
+              }}
+            >
+              {/* Header with Icon */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginBottom: 12,
+                }}
+              >
+                <Ionicons
+                  name="logo-linkedin"
+                  size={24}
+                  color="#0A66C2"
+                  style={{ marginRight: 8 }}
+                />
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "bold",
+                    color: isDark ? "#ffffff" : "#000000",
+                  }}
+                >
+                  Post As
+                </Text>
+              </View>
+
+              {/* Dropdown */}
+              <View
+                style={{
+                  borderWidth: 1,
+                  borderColor: isDark ? "#374151" : "#d1d5db",
+                  borderRadius: 8,
+                  backgroundColor: isDark ? "#1f1f22" : "#ffffff",
+                  overflow: "hidden",
+                }}
+              >
+                <Picker
+                  selectedValue={selectedAccount}
+                  onValueChange={(itemValue) => setSelectedAccount(itemValue)}
+                  style={{
+                    color: isDark ? "#fff" : "#000",
+                  }}
+                  dropdownIconColor={isDark ? "#fff" : "#000"}
+                >
+
+                  {/* 🔹 Placeholder */}
+                  <Picker.Item
+                    label="Select author"
+                    value={null}
+                    enabled={false}
+                    color={isDark ? "#9ca3af" : "#6b7280"}
+                  />
+
+                  {/* 🔹 Actual accounts */}
+                  {linkedinAccounts.map((account) => (
+                    <Picker.Item
+                      key={account.id}
+                      label={account.name}
+                      value={String(account.id)}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+          )}
 
           {platformState === "FACEBOOK" && (
             <View
@@ -760,6 +918,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
                   {/* Upload Button */}
                   <TouchableOpacity
+                    disabled={coverUploading} // disable while uploading
                     onPress={handleCoverImageUpload}
                     style={{
                       backgroundColor: isDark ? "#1e3a8a" : "#eff6ff",
@@ -770,21 +929,27 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                       marginBottom: 6,
                       borderWidth: 1,
                       borderColor: isDark ? "#3b82f6" : "#2563eb",
+                      opacity: coverUploading ? 0.6 : 1, // show visually disabled
+                      flexDirection: "row",
+                      justifyContent: "center",
                     }}
                   >
-                    <Text
-                      style={{
-                        color: isDark ? "#fff" : "#2563eb",
-                        fontWeight: "bold",
-                        fontSize: 12,
-                      }}
-                    >
-                      Upload Cover
-                    </Text>
+                    {coverUploading ? (
+                      <>
+                        <ActivityIndicator size="small" color={isDark ? "#fff" : "#2563eb"} style={{ marginRight: 6 }} />
+                        <Text style={{ color: isDark ? "#fff" : "#2563eb", fontWeight: "bold", fontSize: 12 }}>
+                          Uploading…
+                        </Text>
+                      </>
+                    ) : (
+                      <Text style={{ color: isDark ? "#fff" : "#2563eb", fontWeight: "bold", fontSize: 12 }}>
+                        Upload Cover
+                      </Text>
+                    )}
                   </TouchableOpacity>
 
                   {/* Preview */}
-                  {coverImage && (
+                  {coverImage && !coverUploading && (
                     <Image
                       source={{ uri: coverImage }}
                       style={{
@@ -802,7 +967,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   {/* Helper Text */}
                   <Text
                     style={{
-                      fontSize: 10, marginTop: 8,
+                      fontSize: 10,
+                      marginTop: 8,
                       color: isDark ? "#9ca3af" : "#6b7280",
                     }}
                   >
@@ -810,6 +976,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   </Text>
                 </View>
               )}
+
             </View>
           )}
 
@@ -1283,13 +1450,14 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                         ) : (
                           <FlatList
                             data={allPinterestBoards}
-                            keyExtractor={(item) => item}
+                            keyExtractor={(item: any) => item.id}
                             style={{ flexGrow: 0 }}
                             nestedScrollEnabled
                             renderItem={({ item }) => (
                               <TouchableOpacity
                                 onPress={() => {
-                                  setPinterestBoard(item);
+                                  setPinterestBoardId(item.id)
+                                  setPinterestBoard(item.name);
                                   setIsCreatingPinterestBoard(false);
                                   setPinterestModalVisible(false);
                                 }}
@@ -1301,7 +1469,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                                   backgroundColor: isDark ? "#111827" : "#f3f4f6",
                                 }}
                               >
-                                <Text style={{ color: isDark ? "#e5e7eb" : "#000000" }}>{item}</Text>
+                                <Text style={{ color: isDark ? "#e5e7eb" : "#000000" }}>{item.name}</Text>
                               </TouchableOpacity>
                             )}
                           />
@@ -1509,6 +1677,120 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           )}
 
         </View>
+
+        {/* ---------- PREVIEW SLOT ---------- */}
+        <View style={{ marginBottom: 20 }}>
+          {/* ✅ Facebook Preview */}
+          {platformState === "FACEBOOK" && (
+            <Preview
+              platform="facebook"
+              profilePic={user?.imageUrl}
+              username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
+              text={message}
+              images={attachments?.map(a => a.uri)}
+              timestamp="Just now"
+            />
+          )}
+
+          {/* ✅ Instagram Preview */}
+          {platformState === "INSTAGRAM" && (
+            <Preview
+              platform="instagram"
+              profilePic={user?.imageUrl}
+              username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
+              text={message}
+              images={attachments?.map(a => a.uri)}
+              timestamp="Just now"
+            />
+          )}
+
+          {/* ✅ LinkedIn Preview */}
+          {platformState === "LINKEDIN" && (
+            <Preview
+              platform="linkedin"
+              profilePic={user?.imageUrl}
+              username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
+              text={message}
+              images={attachments?.map(a => a.uri)}
+              timestamp="Just now"
+            />
+          )}
+
+          {/* ✅ WhatsApp Preview */}
+          {platformState === "WHATSAPP" && (
+            <Preview
+              platform="whatsapp"
+              profilePic={user?.imageUrl}
+              username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
+              text={message}
+              images={attachments?.map(a => a.uri)}
+              timestamp={new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            />
+          )}
+
+          {/* ✅ Email Preview */}
+          {platformState === "EMAIL" && (
+            <Preview
+              platform="email"
+              profilePic={user?.imageUrl}
+              username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
+              text={message}
+              images={attachments?.map(a => a.uri)}
+              timestamp={new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            />
+          )}
+
+          {/* ✅ SMS Preview */}
+          {platformState === "SMS" && (
+            <Preview
+              platform="sms"
+              profilePic={user?.imageUrl}
+              username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
+              text={message}
+              timestamp={new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            />
+          )}
+
+          {/* ✅ Pinterest Preview */}
+          {platformState === "PINTEREST" && (
+            <Preview
+              platform="pinterest"
+              profilePic={user?.imageUrl}
+              username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
+              text={message}
+              images={attachments?.map(a => a.uri)}
+            // timestamp={new Date().toLocaleTimeString([], {
+            //   hour: "2-digit",
+            //   minute: "2-digit",
+            // })}
+            />
+          )}
+
+          {/* ✅ YouTube Preview */}
+          {platformState === "YOUTUBE" && (
+            <Preview
+              platform="youtube"
+              profilePic={user?.imageUrl}
+              username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
+              text={message}
+              images={attachments?.map(a => a.uri)}
+              timestamp={new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            />
+          )}
+        </View>
+
         <Button
           onPress={handleSubmit}
           className="rounded-full mb-8 px-4 py-3 flex-row justify-center items-center"

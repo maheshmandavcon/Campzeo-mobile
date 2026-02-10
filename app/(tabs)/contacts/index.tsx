@@ -35,9 +35,7 @@ export default function Contacts() {
 
   const isDark = useColorScheme() === "dark";
 
-  const DARK_TOPBAR_BG = "#1f2937"; // gray-800
-  const DARK_SEARCH_BG = "#374151"; // gray-700
-  const DARK_BUTTON_BG = "#2563eb"; // blue-600
+  const DARK_TOPBAR_BG = "#1f2937";
   const DARK_TEXT = "#ffffff";
   const DARK_BORDER = "#ffffff";
 
@@ -343,13 +341,34 @@ WhatsApp: ${record.whatsapp || "-"}
               onToggleShow={toggleShow}
             />
           )}
+          contentContainerStyle={{ flexGrow: 1 }}
+          ListEmptyComponent={
+            !loading ? (
+              <ThemedView className="flex-1 justify-center items-center"
+              style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
+                <ThemedText style={{ fontSize: 18, fontWeight: "bold", marginBottom: 6 }}>
+                  No contacts yet
+                </ThemedText>
+                <ThemedText
+                  style={{
+                    fontSize: 14,
+                    textAlign: "center",
+                    paddingHorizontal: 24,
+                    opacity: 0.7,
+                  }}
+                >
+                  Tap + New to add your first contact.
+                </ThemedText>
+              </ThemedView>
+            ) : null
+          }
           ListFooterComponent={
             filteredRecords.length > 5 ? (
               <TouchableOpacity
                 onPress={handleLoadToggle}
                 className="py-3 my-2 rounded-xl items-center"
                 style={{
-                  backgroundColor: isDark ? DARK_TOPBAR_BG : "#e0f2fe", // light blue
+                  backgroundColor: isDark ? DARK_TOPBAR_BG : "#e0f2fe", 
                   borderWidth: isDark ? 1 : 0,
                   borderColor: isDark ? DARK_BORDER : "transparent",
                 }}

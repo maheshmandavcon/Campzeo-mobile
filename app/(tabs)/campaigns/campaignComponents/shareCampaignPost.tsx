@@ -9,6 +9,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { ContactsRecord } from "../../contacts/contactComponents/contactCard";
+import { Video, ResizeMode } from "expo-av";
 
 type Props = {
   visible: boolean;
@@ -191,69 +192,111 @@ export default function ShareCampaignPost({
 
             {post.mediaUrls?.length > 0 && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {post.mediaUrls.map((url: string, idx: number) => (
-                  <Image
-                    key={idx}
-                    source={{ uri: url }}
-                    style={{
-                      width: 100,
-                      height: 100,
-                      borderRadius: 8,
-                      marginRight: 8,
-                    }}
-                  />
-                ))}
+                {post.mediaUrls.map((url: string, idx: number) => {
+                  const isVideo = /\.(mp4|mov|webm|mkv)$/i.test(url);
+
+                  return isVideo ? (
+                    <ThemedView
+                      key={idx}
+                      style={{
+                        width: 120,
+                        height: 120,
+                        borderRadius: 8,
+                        marginRight: 8,
+                        overflow: "hidden",
+                        position: "relative",
+                        backgroundColor: "#000",
+                      }}
+                    >
+                      {/* VIDEO */}
+                      <Video
+                        source={{ uri: url }}
+                        style={{ width: "100%", height: "100%" }}
+                        resizeMode={ResizeMode.COVER}
+                        isLooping
+                        shouldPlay={false}
+                      />
+
+                      {/* PLAY ICON OVERLAY */}
+                      <ThemedView
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          justifyContent: "center",
+                          alignItems: "center",
+                          backgroundColor: "rgba(0,0,0,0.25)",
+                        }}
+                      >
+                        <Ionicons name="play-circle" size={44} color="#fff" />
+                      </ThemedView>
+                    </ThemedView>
+                  ) : (
+                    <Image
+                      key={idx}
+                      source={{ uri: url }}
+                      style={{
+                        width: 120,
+                        height: 120,
+                        borderRadius: 8,
+                        marginRight: 8,
+                      }}
+                    />
+                  );
+                })}
               </ScrollView>
             )}
+
+            {/* FOOTER */}
+            <ThemedView
+              style={{
+                flexDirection: "row",
+                justifyContent: "flex-end",
+                gap: 12,
+                paddingTop: 12,
+                borderTopWidth: 1,
+                borderColor: isDark ? "#374151" : "#e5e7eb",
+              }}
+            >
+              <TouchableOpacity
+                onPress={onClose}
+                style={{
+                  paddingVertical: 10,
+                  paddingHorizontal: 18,
+                  borderRadius: 8,
+                  backgroundColor: "#ef4444",
+                }}
+              >
+                <ThemedText style={{ color: "#fff", fontWeight: "bold" }}>
+                  Cancel
+                </ThemedText>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={onPublish}
+                disabled={publishing}
+                style={{
+                  paddingVertical: 10,
+                  paddingHorizontal: 18,
+                  borderRadius: 8,
+                  backgroundColor: "#10b981",
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                {publishing ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <ThemedText style={{ color: "#fff", fontWeight: "bold" }}>
+                    {isManual ? "Send Now" : "Publish Now"}
+                  </ThemedText>
+                )}
+              </TouchableOpacity>
+            </ThemedView>
           </ThemedView>
         </ScrollView>
-
-        {/* FOOTER */}
-        <ThemedView
-          style={{
-            flexDirection: "row",
-            justifyContent: "flex-end",
-            gap: 12,
-            paddingTop: 12,
-            borderTopWidth: 1,
-            borderColor: isDark ? "#374151" : "#e5e7eb",
-          }}
-        >
-          <TouchableOpacity
-            onPress={onClose}
-            style={{
-              paddingVertical: 10,
-              paddingHorizontal: 18,
-              borderRadius: 8,
-              backgroundColor: "#ef4444",
-            }}
-          >
-            <ThemedText style={{ color: "#fff", fontWeight: "bold" }}>
-              Cancel
-            </ThemedText>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={onPublish}
-            disabled={publishing}
-            style={{
-              paddingVertical: 10,
-              paddingHorizontal: 18,
-              borderRadius: 8,
-              backgroundColor: "#10b981",
-              flexDirection: "row",
-              alignItems: "center",
-            }}
-          >
-            {publishing ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <ThemedText style={{ color: "#fff", fontWeight: "bold" }}>
-                {isManual ? "Send Now" : "Publish Now"}
-              </ThemedText>
-            )}
-          </TouchableOpacity>
-        </ThemedView>
       </ThemedView>
     </ThemedView>
   );

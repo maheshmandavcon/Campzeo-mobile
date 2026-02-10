@@ -22,6 +22,7 @@ export interface Attachment {
   name: string;
   type: string;
   uploading: boolean;
+  progress?: number;
 }
 
 export interface AIVariation {
@@ -87,13 +88,16 @@ export function useCampaignPostForm({
   >(null);
   const [isFacebookPageLoading, setIsFacebookPageLoading] = useState(false);
   const [facebookError, setFacebookError] = useState("");
+  const [coverUploading, setCoverUploading] = useState(false);
 
   // ================= PINTEREST =================
   const [pinterestBoard, setPinterestBoard] = useState("");
   const [PinterestBoardId, setPinterestBoardId] = useState<string | undefined>(
     undefined,
   );
-  const [allPinterestBoards, setAllPinterestBoards] = useState<string[]>([]);
+  const [allPinterestBoards, setAllPinterestBoards] = useState<
+    { id: string; name: string }[]
+  >([]);
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [loadingBoards, setLoadingBoards] = useState(false);
   const [pinterestModalVisible, setPinterestModalVisible] = useState(false);
@@ -106,8 +110,11 @@ export function useCampaignPostForm({
   const [metadata, setMetadata] = useState<{
     boardId?: string;
     boardName?: string;
-    link?: string;
+    destinationLink?: string;
   }>({});
+
+  // ================= LINKEDIN =================
+  const [selectedAccount, setSelectedAccount] = useState<string>();
 
   // ================= YOUTUBE =================
   const [youTubeContentType, setYouTubeContentType] = useState<
@@ -180,10 +187,11 @@ export function useCampaignPostForm({
 
     // ✅ PINTEREST
     if (existingPost.type === "PINTEREST") {
-      setPinterestBoard(existingPost.metadata?.boardName || "");
       setPinterestBoardId(existingPost.metadata?.boardId || "");
+      setPinterestBoard(existingPost.metadata?.boardName || "");
       setDestinationLink(existingPost.metadata?.destinationLink || "");
     }
+    
 
     // ✅ YOUTUBE
     if (existingPost.type === "YOUTUBE") {
@@ -234,26 +242,32 @@ export function useCampaignPostForm({
 
     // ✅ FACEBOOK / INSTAGRAM
 
-     if (
-    existingPost.type === "FACEBOOK" ||
-    existingPost.type === "INSTAGRAM"
-  ) {
-    const typeMap: Record<string, "STANDARD" | "REEL"> = {
-      STANDARD: "STANDARD",
-      POST: "STANDARD",
+    if (existingPost.type === "FACEBOOK" || existingPost.type === "INSTAGRAM") {
+      const typeMap: Record<string, "STANDARD" | "REEL"> = {
+        STANDARD: "STANDARD",
+        POST: "STANDARD",
 
-      REEL: "REEL",
-      SHORT: "REEL",
-      SHORT_VIDEO: "REEL",
-      VIDEO: "REEL",
-    };
+        REEL: "REEL",
+        SHORT: "REEL",
+        SHORT_VIDEO: "REEL",
+        VIDEO: "REEL",
+      };
 
-    const savedType =
-      existingPost.metadata?.postType ?? "STANDARD";
+      const savedType = existingPost.metadata?.postType ?? "STANDARD";
 
-    setFacebookContentType(typeMap[savedType] ?? "STANDARD");
-    setCoverImage(existingPost.metadata?.coverImage || null);
-  }
+      setFacebookContentType(typeMap[savedType] ?? "STANDARD");
+      setCoverImage(existingPost.metadata?.coverImage || null);
+    }
+
+    // ✅ LINKEDIN
+
+    if (existingPost.type === "LINKEDIN") {
+      const authorId = existingPost.metadata?.authorId;
+
+      if (authorId) {
+        setSelectedAccount(String(authorId)); // must be string
+      }
+    }
 
     // ================= ATTACHMENTS =================
     const prefilledAttachments: Attachment[] = [];
@@ -420,7 +434,7 @@ export function useCampaignPostForm({
         }
       }
 
-      Alert.alert("Success", "File uploaded successfully");
+      // Alert.alert("Success", "File uploaded successfully");
     } catch (error: any) {
       console.error("Attachment upload error:", error);
       Alert.alert("Upload failed", error?.message || "Media upload failed");
@@ -430,6 +444,7 @@ export function useCampaignPostForm({
       setUploadProgress(0);
     }
   }
+
   const handleRemoveAttachment = (index: number) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
@@ -492,10 +507,7 @@ export function useCampaignPostForm({
 
       console.log("AI Image API Response:", response);
 
-      const imageUrl =
-        response?.images?.[0] ||
-        response?.imagePrompt ||
-        "https://picsum.photos/200";
+      const imageUrl = response?.images?.[0] || response?.imagePrompt;
 
       setGeneratedImages([imageUrl]);
       setSelectedImage(imageUrl);
@@ -556,7 +568,13 @@ export function useCampaignPostForm({
       if (!token) throw new Error("Authentication token missing");
 
       const boards = await getPinterestBoardsApi(token);
-      setAllPinterestBoards(boards.map((b: any) => b.name));
+      console.log("pinterest board array", boards);
+      setAllPinterestBoards(
+        boards.map((board: any) => ({
+          id: board.id,
+          name: board.name,
+        })),
+      );
     } catch (err) {
       console.log("Failed to fetch Pinterest boards:", err);
     } finally {
@@ -595,6 +613,13 @@ export function useCampaignPostForm({
 
       // ✅ success
       setPinterestBoard(response?.data?.name || newPinterestBoard.trim());
+      setPinterestBoardId(response?.data?.id);
+
+      setMetadata((prev) => ({
+        ...prev,
+        boardId: response?.data?.id,
+        boardName: response?.data?.name || newPinterestBoard.trim(),
+      }));
       setNewPinterestBoard("");
       setPinterestDescription("");
 
@@ -681,6 +706,8 @@ export function useCampaignPostForm({
     const asset = result.assets[0];
 
     try {
+      setCoverUploading(true); // ⬅️ start spinner / change button text
+
       const token = await getToken();
       if (!token) {
         throw new Error("No authentication token available");
@@ -693,18 +720,25 @@ export function useCampaignPostForm({
           type: "image/jpeg",
         },
         token,
+        (progress) => {
+          // Optional: if you want percentage progress
+          console.log("Cover Upload Progress:", progress);
+        },
       );
 
       if (uploadedUrl && typeof uploadedUrl === "string") {
-        setCoverImage(uploadedUrl);
+        setCoverImage(uploadedUrl); // ✅ show uploaded cover image
       } else {
         throw new Error("Failed to upload cover image: no URL returned");
       }
     } catch (error: any) {
+      console.error("Cover upload error:", error);
       Alert.alert(
         "Upload failed",
         error?.message || "Failed to upload cover image",
       );
+    } finally {
+      setCoverUploading(false); // ⬅️ stop spinner / revert button text
     }
   };
 
@@ -713,17 +747,34 @@ export function useCampaignPostForm({
     setLoading(true);
 
     try {
-      // ✅ Validate required fields
-      if (
-        !subject ||
-        !message ||
-        !postDate ||
-        (platform === "EMAIL" && !senderEmail)
-      ) {
+      // ================= VALIDATION =================
+      // Common required fields
+      if (!message || !postDate) {
         Alert.alert("⚠️ Please fill in all fields.");
         return;
       }
 
+      // Email-specific validation
+      if (platform === "EMAIL" && (!subject || !senderEmail)) {
+        Alert.alert("⚠️ Please fill in all fields.");
+        return;
+      }
+
+      // Platforms that require subject
+      const subjectRequiredPlatforms = [
+        "FACEBOOK",
+        "INSTAGRAM",
+        "LINKEDIN",
+        "YOUTUBE",
+        "PINTEREST",
+      ];
+
+      if (subjectRequiredPlatforms.includes(platform) && !subject) {
+        Alert.alert("⚠️ Please fill in all fields.");
+        return;
+      }
+
+      // ================= CAMPAIGN ID =================
       // ✅ Use campaignId prop OR fallback to existingPost.campaignId
       const campaignIdToUse =
         Number(campaignId) ||
@@ -736,6 +787,7 @@ export function useCampaignPostForm({
         return;
       }
 
+      // ================= TAGS =================
       const parsedTags = youTubeTags
         .split(",")
         .map((tag) => tag.trim())
@@ -749,14 +801,21 @@ export function useCampaignPostForm({
         mediaUrls: attachments.map((a) => a.uploadedUrl || a.uri), // working
         scheduledPostTime: postDate?.toISOString() || "", // working
         pinterestBoard, // working
+
         metadata: {
           ...metadata,
-          tags: parsedTags, // working
-          boardId: metadata.boardId, // working
-          boardName: pinterestBoard, // working
-          destinationLink: destinationLink, // working
 
-          // ✅ YOUTUBE
+          // ================= COMMON =================
+          tags: parsedTags, // working
+
+          // ================= PINTEREST =================
+          ...(platform === "PINTEREST" && {
+            boardId: PinterestBoardId, // working
+            boardName: pinterestBoard, // working
+            destinationLink: metadata.destinationLink, // working
+          }),
+
+          // ================= YOUTUBE =================
           ...(platform === "YOUTUBE" && {
             postType: youTubeContentType,
             privacy: youTubeStatus, // working
@@ -765,20 +824,28 @@ export function useCampaignPostForm({
             playlistTitle,
           }),
 
-          // ✅ FACEBOOK / INSTAGRAM
+          // ================= FACEBOOK / INSTAGRAM =================
           ...(platform === "FACEBOOK" || platform === "INSTAGRAM"
             ? {
                 postType: facebookContentType,
                 coverImage: coverImage || null,
               }
             : {}),
+
+          // ================= LINKEDIN =================
+          ...(platform === "LINKEDIN" && {
+            authorId: selectedAccount,
+            authorType: "ORGANIZATION",
+          }),
         },
       };
 
+      // ================= API CALL =================
       const token = await getToken();
       if (!token) throw new Error("Authentication token missing");
 
       let response;
+      console.log("post data is", postData);
       if (existingPost?.id) {
         // ✅ Edit existing post
         response = await updatePostForCampaignApi(
@@ -798,7 +865,7 @@ export function useCampaignPostForm({
 
       onClose?.(response);
 
-      // ✅ Reset form only if creating a new post
+      // ================= RESET (ONLY CREATE) =================
       if (!existingPost) {
         setSenderEmail("");
         setSubject("");
@@ -808,6 +875,7 @@ export function useCampaignPostForm({
         setImagePrompt("");
         setGeneratedImages([]);
         setSelectedImage(undefined);
+        setCoverImage(null);
       }
 
       onCreatedNavigate ? onCreatedNavigate() : router.back();
@@ -837,11 +905,16 @@ export function useCampaignPostForm({
     imageModalVisible,
     facebookPages,
     coverImage,
+    coverUploading,
     facebookContentType,
     selectedFacebookPage,
+    isFacebookPageLoading,
     pinterestBoard,
     pinterestModalVisible,
     newPinterestBoard,
+    allPinterestBoards,
+    isPinterestBoardLoading,
+    pinterestDescription,
     destinationLink,
     youTubeContentType,
     youTubeTags,
@@ -856,13 +929,9 @@ export function useCampaignPostForm({
     loading,
     loadingAI,
     loadingImage,
-    isPinterestBoardLoading,
     dropdownVisible,
-    allPinterestBoards,
     loadingBoards,
     isCreatingPinterestBoard,
-    pinterestDescription,
-    isFacebookPageLoading,
     existingPost,
     uploadProgress,
     uploadingMedia,
@@ -870,6 +939,7 @@ export function useCampaignPostForm({
     showPlaylistDropdown,
     selectedPlaylist,
     newPlaylistName,
+    selectedAccount,
 
     // setters
     setSenderEmail,
@@ -886,6 +956,7 @@ export function useCampaignPostForm({
     setSelectedFacebookPage,
     setPinterestModalVisible,
     setPinterestBoard,
+    setPinterestBoardId,
     setNewPinterestBoard,
     setDropdownVisible,
     setDestinationLink,
@@ -905,6 +976,7 @@ export function useCampaignPostForm({
     setShowPlaylistDropdown,
     setSelectedPlaylist,
     setNewPlaylistName,
+    setSelectedAccount,
 
     // actions
     handleAddAttachment,

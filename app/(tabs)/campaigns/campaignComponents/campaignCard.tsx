@@ -1,9 +1,9 @@
-import React from "react";
-import { View, Text, TouchableOpacity, useColorScheme } from "react-native";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { ThemedView } from "@/components/themed-view";
-import { ThemedText } from "@/components/themed-text";
+import React from "react";
+import { Text, TouchableOpacity, useColorScheme, View } from "react-native";
 
 // Define Campaign type
 export interface Campaign {
@@ -16,7 +16,7 @@ export interface Campaign {
   contactsCount?: number;
   contacts?: any[];
   postsCount?: number;
-  status?: "Scheduled" | "Active" | "Completed"; 
+  status?: "Scheduled" | "Active" | "Completed";
 }
 
 interface CampaignCardProps {
@@ -200,7 +200,7 @@ export default function CampaignCard({
 
       {isExpanded && (
         <ThemedView>
-          <ThemedText className="font-boldzzzzz text-gray-900 mb-1">Description</ThemedText>
+          <ThemedText className="font-bold text-gray-900 mb-1">Description</ThemedText>
           <Text className={`mb-3 ${isDark ? "text-gray-200" : "text-gray-700"}`}>
             {campaign.description ?? "No description available"}
           </Text>
@@ -211,8 +211,8 @@ export default function CampaignCard({
               <ThemedText className="font-bold text-gray-900">Duration</ThemedText>
               <View
                 className={`px-2.5 py-1 rounded-full border ${isDark
-                    ? `${statusStyles[status].darkBg} ${statusStyles[status].darkBorder}`
-                    : `${statusStyles[status].bg} ${statusStyles[status].border}`
+                  ? `${statusStyles[status].darkBg} ${statusStyles[status].darkBorder}`
+                  : `${statusStyles[status].bg} ${statusStyles[status].border}`
                   }`}
               >
                 <Text
