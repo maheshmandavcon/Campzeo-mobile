@@ -136,7 +136,7 @@ export default function LoginScreen() {
           <Pressable
             onPress={onSignInPress}
             disabled={loading}
-            className="bg-[#dc2626] rounded-2xl py-3"
+            className="bg-[#dc2626] rounded-xl py-3"
             style={({ pressed }) => [
               styles.signInButton,
               { opacity: pressed || loading ? 0.8 : 1 },
@@ -207,13 +207,14 @@ const styles = StyleSheet.create({
   },
 
   inputWrapper: {
-    borderRadius: 12,
+    borderRadius: 9,
     marginBottom: 14,
   },
 
   inputText: {
     fontSize: 15,
     lineHeight: 20,
+    // color:"#dc2626"
   },
 
   errorText: {

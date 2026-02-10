@@ -165,9 +165,7 @@ export default function BillingPage() {
         const subscription = await getCurrentSubscription();
         const plan = await getPlans();
         const payment = await getPayments();
-
-        console.log("current plan:", subscription);
-        
+                
         setusageData(usage);
         setSubscriptionData(subscription);
         setPlansData(plan);
@@ -803,7 +801,7 @@ export default function BillingPage() {
                     : "#f59e0b";
 
               return (
-                <ThemedView key={payment.id}>
+                <View key={payment.id}>
                   <HStack style={{ justifyContent: "space-between" }}>
                     <VStack>
                       <ThemedText style={{ fontSize: 15, fontWeight: "600" }}>
@@ -840,7 +838,7 @@ export default function BillingPage() {
                   </HStack>
 
                   <Divider style={{ marginVertical: 13 }} />
-                </ThemedView>
+                </View>
               );
             })
           ) : (

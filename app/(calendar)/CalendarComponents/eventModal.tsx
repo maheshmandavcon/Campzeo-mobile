@@ -1,5 +1,4 @@
 import React from "react";
-
 import { CalendarEvent } from "@/types/types";
 import {
   formatReadableDate,
@@ -17,6 +16,7 @@ import {
 } from "@gluestack-ui/themed";
 import { ModalContent } from "@gluestack-ui/themed";
 import { ModalCloseButton } from "@gluestack-ui/themed";
+import { View } from "@gluestack-ui/themed";
 
 interface EventModalProps {
   event: CalendarEvent | null;
@@ -37,35 +37,136 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
           <ModalCloseButton />
         </ModalHeader>
 
-        <ModalBody>
-          {/* PLATFORM */}
-          <Text style={{ fontSize: 16, marginBottom: 8 }}>
-            <Text style={{ fontWeight: "bold" }}>Campaign:</Text>{" "}
-            {event.campaign}
-          </Text>
-          <Text style={{ fontSize: 16, marginBottom: 8 }}>
-            <Text style={{ fontWeight: "bold" }}>Platform:</Text>{" "}
-            {event.platform.toUpperCase()}
-          </Text>
+        <ModalBody style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+          {/* INFO GRID */}
+          <View style={{ gap: 12 }}>
+            {/* CAMPAIGN */}
+            <View>
+              <Text
+                style={{
+                  fontSize: 13,
+                  color: "#64748b",
+                  marginBottom: 2,
+                }}
+              >
+                Campaign
+              </Text>
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: "600",
+                  color: "#020617",
+                  lineHeight: 20,
+                }}
+              >
+                {event.campaign}
+              </Text>
+            </View>
 
-          {/* DATE */}
-          <Text style={{ fontSize: 16, marginBottom: 8 }}>
-            <Text style={{ fontWeight: "bold" }}>Date:</Text>{" "}
-            {formatReadableDate(event.start)}
-          </Text>
+            {/* SUBJECT */}
+            <View>
+              <Text
+                style={{
+                  fontSize: 13,
+                  color: "#64748b",
+                  marginBottom: 2,
+                  lineHeight: 20,
+                }}
+              >
+                Subject
+              </Text>
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: "500",
+                  color: "#020617",
+                  lineHeight: 20,
+                }}
+              >
+                {event.subject}
+              </Text>
+            </View>
 
-          {/* TIME */}
-          <Text style={{ fontSize: 16, marginBottom: 8 }}>
-            <Text style={{ fontWeight: "bold" }}>Time:</Text>{" "}
-            {formatReadableTime(event.start)}
-          </Text>
+            {/* DATE & TIME */}
+            <View style={{ flexDirection: "row", gap: 16 }}>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: "#64748b",
+                    marginBottom: 2,
+                  }}
+                >
+                  Date
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontWeight: "500",
+                    color: "#020617",
+                    lineHeight: 20,
+                  }}
+                >
+                  {formatReadableDate(event.start)}
+                </Text>
+              </View>
 
-          {/* MESSAGE */}
-          <Text style={{ fontSize: 16, marginTop: 12 }}>
-            <Text style={{ fontWeight: "bold" }}>Message:</Text>
-            {"\n"}
-            {event.message}
-          </Text>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: "#64748b",
+                    marginBottom: 2,
+                  }}
+                >
+                  Time
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontWeight: "500",
+                    color: "#020617",
+                    lineHeight: 20,
+                  }}
+                >
+                  {formatReadableTime(event.start)}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* MESSAGE SECTION */}
+          <View
+            style={{
+              marginTop: 20,
+              padding: 14,
+              borderRadius: 12,
+              backgroundColor: "#f8fafc",
+              borderWidth: 1,
+              borderColor: "#e5e7eb",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: "600",
+                color: "#64748b",
+                marginBottom: 6,
+              }}
+            >
+              Message
+            </Text>
+
+            <Text
+              style={{
+                fontSize: 15,
+                lineHeight: 22,
+                color: "#020617",
+              }}
+            >
+              {event.message}
+            </Text>
+          </View>
         </ModalBody>
 
         <ModalFooter>
@@ -74,7 +175,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
             onPress={onClose}
             style={{
               marginTop: 16,
-              backgroundColor: "#9ca3af", 
+              backgroundColor: "#9ca3af",
               borderRadius: 10,
               alignItems: "center",
             }}
@@ -85,7 +186,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
                 fontSize: 15,
                 fontWeight: "600",
                 letterSpacing: 0.5,
-                lineHeight: 15
+                lineHeight: 15,
               }}
             >
               Close
