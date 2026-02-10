@@ -22,6 +22,7 @@ import { ThemedText } from "@/components/themed-text";
 import { useColorScheme } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { View, Text } from "@gluestack-ui/themed";
+import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
 
 export default function Campaigns() {
   const [search, setSearch] = useState("");
@@ -183,10 +184,82 @@ Contacts Count: ${c.contactsCount ?? 0}
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
+  const CampaignSkeletonCard = ({ isDark }: { isDark: boolean }) => (
+    <ThemedView
+      style={{
+        padding: 16,
+        borderRadius: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: isDark ? "#374151" : "#e5e7eb",
+        backgroundColor: isDark ? "#161618" : "#ffffff",
+      }}
+    >
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        {/* Title */}
+        <ShimmerSkeleton height={16} width="60%" />
+
+        {/* 4 icon buttons */}
+        <View style={{ flexDirection: "row" }}>
+          {[1, 2, 3, 4].map((_, i) => (
+            <View key={i} style={{ marginLeft: 8 }}>
+              <ShimmerSkeleton height={28} width={28} borderRadius={14} />
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* 🔹 Description */}
+      <View style={{ marginTop: 8 }}>
+        <ShimmerSkeleton height={12} width="90%" />
+      </View>
+
+      {/* 🔹 Meta row + button */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginTop: 12,
+        }}
+      >
+        {/* Meta info */}
+        <View style={{ flexDirection: "row" }}>
+          <ShimmerSkeleton height={12} width={80} />
+          <View style={{ marginLeft: 12 }}>
+            <ShimmerSkeleton height={12} width={60} />
+          </View>
+        </View>
+
+        {/* Right-side button */}
+        <ShimmerSkeleton height={26} width={80} borderRadius={13} />
+      </View>
+
+      {/* 🔹 Actions (3 equal buttons) */}
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          marginTop: 16,
+        }}
+      >
+        <ShimmerSkeleton height={28} width={70} borderRadius={14} />
+        <ShimmerSkeleton height={28} width={70} borderRadius={14} />
+        <ShimmerSkeleton height={28} width={70} borderRadius={14} />
+      </View>
+    </ThemedView>
+  );
+
   return (
     <View className="flex-1 p-4"
       style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
-      {loading && (
+      {/* {loading && (
         <ThemedView className="absolute inset-0 justify-center items-center bg-black/10 z-10">
           <ActivityIndicator color={isDark ? "#ffffff" : "#dc2626"} size="large" />
           <ThemedText
@@ -200,7 +273,7 @@ Contacts Count: ${c.contactsCount ?? 0}
             Loading campaigns...
           </ThemedText>
         </ThemedView>
-      )}
+      )} */}
 
       {/* Top Controls */}
       <View className="flex-row items-center mb-4 relative"
@@ -247,7 +320,7 @@ Contacts Count: ${c.contactsCount ?? 0}
             setVisibleCount(5);
           }}
           placeholder="Search campaigns..."
-          placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"} // gray-400 / gray-500
+          placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"} 
           style={{
             flex: 1,
             paddingHorizontal: 12,
@@ -308,68 +381,51 @@ Contacts Count: ${c.contactsCount ?? 0}
       </View>
 
       {/* Campaign List */}
-      <FlatList
-        data={visibleCampaigns}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <CampaignCard
-            campaign={item}
-            onDelete={handleDelete}
-            onCopy={handleCopy}
-            onToggleShow={handleToggleShow}
-            onEdit={(campaign) =>
-              router.push({
-                pathname: "/campaigns/createCampaign",
-                params: { id: campaign.id.toString() },
-              })
-            }
-          />
-        )}
-        contentContainerStyle={{ flexGrow: 1 }}
+      <FlatList<Campaign | null>
+        data={loading ? Array(6).fill(null) : visibleCampaigns}
+        keyExtractor={(item, index) =>
+          loading || !item ? `skeleton-${index}` : item.id.toString()
+        }
+        renderItem={({ item }) =>
+          loading || !item ? (
+            <CampaignSkeletonCard isDark={isDark} />
+          ) : (
+            <CampaignCard
+              campaign={item}
+              onDelete={handleDelete}
+              onCopy={handleCopy}
+              onToggleShow={handleToggleShow}
+              onEdit={(campaign) =>
+                router.push({
+                  pathname: "/campaigns/createCampaign",
+                  params: { id: campaign.id.toString() },
+                })
+              }
+            />
+          )
+        }
+        contentContainerStyle={{
+          paddingBottom: 16,
+          flexGrow: loading || visibleCampaigns.length > 0 ? 0 : 1,
+        }}
         ListEmptyComponent={
-          loading ? null : (
+          !loading ? (
             <ThemedView
               className="flex-1 justify-center items-center"
               style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
             >
-              <ThemedText
-                style={{
-                  fontSize: 18,
-                  fontWeight: "bold",
-                  marginBottom: 6,
-                }}
-              >
+              <ThemedText style={{ fontSize: 18, fontWeight: "bold" }}>
                 No campaigns yet
               </ThemedText>
-              <ThemedText
-                style={{
-                  fontSize: 14,
-                  textAlign: "center",
-                  paddingHorizontal: 24,
-                }}
-              >
-              Tap + New to create your first campaign...
+
+              <ThemedText style={{ marginTop: 6, opacity: 0.7 }}>
+                Tap + New to create your first campaign...
               </ThemedText>
             </ThemedView>
-          )
-        }
-        ListFooterComponent={
-          filtered.length > 5 ? (
-            <TouchableOpacity
-              onPress={isAllVisible ? handleShowLess : handleLoadMore}
-              className={`py-3 my-2 rounded-xl items-center ${isAllVisible ? "bg-red-100" : "bg-blue-100"
-                }`}
-            >
-              <ThemedText
-                className={`font-semibold ${isAllVisible ? "text-red-700" : "text-blue-700"
-                  }`}
-              >
-                {isAllVisible ? "Show Less" : "Load More"}
-              </ThemedText>
-            </TouchableOpacity>
           ) : null
         }
       />
+
     </View>
   );
 }

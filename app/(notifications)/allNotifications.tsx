@@ -113,7 +113,7 @@ export default function AllNotifications() {
       if (!token) return;
 
       const res = await markAllNotificationsReadApi(token);
-      console.log("MARK ALL RESPONSE:", res); 
+      console.log("MARK ALL RESPONSE:", res);
 
       await fetchNotifications();
       setTab("All");
@@ -211,12 +211,80 @@ export default function AllNotifications() {
     );
   };
 
+  const NotificationSkeletonCard = ({ isDark }: { isDark: boolean }) => {
+    const bg = isDark ? "#27272a" : "#e5e7eb";
+
+    return (
+      <ThemedView
+        style={{
+          backgroundColor: isDark ? "#161618" : "#ffffff",
+          borderRadius: 16,
+          padding: 12,
+          marginBottom: 12,
+          borderWidth: 1,
+          borderColor: isDark ? "#3f3f46" : "#e5e7eb",
+        }}
+      >
+        {/* Title */}
+        <ThemedView
+          style={{
+            height: 16,
+            width: "50%",
+            borderRadius: 6,
+            backgroundColor: bg,
+            marginBottom: 8,
+          }}
+        />
+
+        {/* Description lines */}
+        <ThemedView
+          style={{
+            height: 12,
+            width: "90%",
+            borderRadius: 6,
+            backgroundColor: bg,
+            marginBottom: 6,
+          }}
+        />
+        <ThemedView
+          style={{
+            height: 12,
+            width: "70%",
+            borderRadius: 6,
+            backgroundColor: bg,
+            marginBottom: 8,
+          }}
+        />
+
+        {/* Time */}
+        <ThemedView
+          style={{
+            height: 10,
+            width: "30%",
+            borderRadius: 6,
+            backgroundColor: bg,
+          }}
+        />
+      </ThemedView>
+    );
+  };
+
+  const NotificationsSkeletonList = ({ isDark }: { isDark: boolean }) => {
+    return (
+      <ThemedView style={{ marginTop: 12, backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <NotificationSkeletonCard key={i} isDark={isDark} />
+        ))}
+      </ThemedView>
+    );
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#020617" : "#EEF2FF" }}>
-      <ThemedView className="flex-1 px-4 pt-4"
+      <ThemedView className="flex-1 px-4"
         style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
         {/* HEADER */}
-        <ThemedView className="flex-row items-center justify-between my-5"
+        <ThemedView className="flex-row items-center justify-between"
           style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
           <TouchableOpacity onPress={() => router.back()} style={{ padding: 8 }}>
             <Ionicons name="arrow-back" size={24} color={isDark ? "#e5e7eb" : "#333"} />
@@ -331,34 +399,55 @@ export default function AllNotifications() {
         </ThemedView>
 
         {/* LOADING */}
-        {loading && (
-          <ThemedView
-            className="mt-10 items-center justify-center p-4 rounded-lg"
-            style={{
-              backgroundColor: isDark ? "#161618" : "#f3f4f6",
-            }}
-          >
-            <ActivityIndicator size="large" color="#dc2626" />
-            <ThemedText
-              style={{
-                color: isDark ? "#ffffff" : "#000000",
-                marginTop: 8,
-                fontWeight: "bold",
-              }}
-            >
-              Loading, please wait...
-            </ThemedText>
-          </ThemedView>
-        )}
+        {loading && <NotificationsSkeletonList isDark={isDark} />}
 
         {/* EMPTY STATE */}
         {!loading && !hasNotifications && (
-          <ThemedView className="flex-1 items-center justify-center mt-10"
-            style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
-            <Ionicons name="notifications-off-outline" size={70} color="#9AA6FF" />
-            <ThemedText style={{ color: isDark ? "#94a3b8" : "#6b7280", backgroundColor: isDark ? "#161618" : "#f3f4f6", marginTop: 12 }}>
-              Looks like there’s nothing here
+          <ThemedView
+            className="flex-1 items-center justify-center px-6"
+            style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
+          >
+            <Ionicons
+              name="notifications-circle-outline"
+              size={64}
+              color={isDark ? "#94a3b8" : "#4f46e5"}
+            />
+
+            <ThemedText
+              style={{
+                fontSize: 18,
+                fontWeight: "bold",
+                marginTop: 16,
+              }}
+            >
+              No alerts yet
             </ThemedText>
+
+            <ThemedText
+              style={{
+                fontSize: 14,
+                marginTop: 6,
+                textAlign: "center",
+                color: isDark ? "#9ca3af" : "#6b7280",
+              }}
+            >
+              Pull down or tap below to refresh
+            </ThemedText>
+
+            <TouchableOpacity
+              onPress={fetchNotifications}
+              style={{
+                marginTop: 16,
+                backgroundColor: "#dc2626",
+                paddingHorizontal: 20,
+                paddingVertical: 10,
+                borderRadius: 9999,
+              }}
+            >
+              <ThemedText style={{ color: "#fff", fontWeight: "bold" }}>
+                Refresh
+              </ThemedText>
+            </TouchableOpacity>
           </ThemedView>
         )}
 

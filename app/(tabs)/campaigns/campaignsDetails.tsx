@@ -194,6 +194,106 @@ export default function CampaignsDetails() {
     });
   };
 
+  const PostSkeletonCard = ({ isDark }: { isDark: boolean }) => {
+    const bg = isDark ? "#27272a" : "#e5e7eb";
+
+    return (
+      <ThemedView
+        className="mb-3 rounded-xl p-4"
+        style={{
+          borderWidth: 1,
+          borderColor: isDark ? "#3f3f46" : "#d1d5db",
+          backgroundColor: isDark ? "#18181b" : "#ffffff",
+        }}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          {/* Subject */}
+          <View
+            style={{
+              height: 18,
+              width: "65%",
+              borderRadius: 6,
+              backgroundColor: bg,
+            }}
+          />
+
+          {/* Icons */}
+          <View style={{ flexDirection: "row" }}>
+            {[1, 2, 3].map((_, i) => (
+              <View
+                key={i}
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 11,
+                  backgroundColor: bg,
+                  marginLeft: 10,
+                }}
+              />
+            ))}
+          </View>
+        </View>
+
+        {/* ───────── Description ───────── */}
+        {[1, 2].map((_, i) => (
+          <View
+            key={i}
+            style={{
+              height: 12,
+              width: i === 1 ? "50%" : "80%",
+              borderRadius: 6,
+              backgroundColor: bg,
+              marginBottom: 8,
+            }}
+          />
+        ))}
+
+        {/* ───────── Date & Time ───────── */}
+        <View
+          style={{
+            height: 12,
+            width: "60%",
+            borderRadius: 6,
+            backgroundColor: bg,
+            marginTop: 6,
+            marginBottom: 10,
+          }}
+        />
+
+        {/* ───────── Type + Platform Icon ───────── */}
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          {/* Type text */}
+          <View
+            style={{
+              height: 12,
+              width: 70,
+              borderRadius: 6,
+              backgroundColor: bg,
+              marginRight: 10,
+            }}
+          />
+
+          {/* Platform icon */}
+          <View
+            style={{
+              width: 20,
+              height: 20,
+              borderRadius: 10,
+              backgroundColor: bg,
+            }}
+          />
+        </View>
+      </ThemedView>
+    );
+  };
+
   // ========= SHARE POST MODAL =========
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [contacts, setContacts] = useState<ContactsRecord[]>([]);
@@ -345,7 +445,7 @@ export default function CampaignsDetails() {
               alignItems: "center",
             }}
           >
-            <Ionicons name="share-social-outline" size={22} color="#3b82f6" />
+            <Ionicons name="share-social-outline" size={22} style ={{ color: isDark ? "#73a6f9": "#3b82f6" }} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -358,7 +458,7 @@ export default function CampaignsDetails() {
               alignItems: "center",
             }}
           >
-            <Ionicons name="create-outline" size={22} color="#10b981" />
+            <Ionicons name="create-outline" size={22} style ={{ color: isDark ? "#73f3c9": "#10b981" }} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -372,7 +472,7 @@ export default function CampaignsDetails() {
               alignItems: "center",
             }}
           >
-            <Ionicons name="trash-outline" size={22} color="#ef4444" />
+            <Ionicons name="trash-outline" size={22} style ={{ color: isDark ? "#f47a7a": "#ef4444" }} />
           </TouchableOpacity>
         </View>
 
@@ -501,12 +601,12 @@ export default function CampaignsDetails() {
             fontWeight: "bold",
           }}>Created Posts</ThemedText>
         {loadingPosts ? (
-          <ThemedView className="flex-1 justify-center items-center" style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
-            <ActivityIndicator size="large" color="#dc2626" />
-            <ThemedText className="mt-2" style={{ color: isDark ? "#e5e7eb" : "#111" }}>
-              Loading posts...
-            </ThemedText>
-          </ThemedView>
+          <FlatList
+            data={Array(5).fill(null)}
+            keyExtractor={(_, i) => `skeleton-${i}`}
+            renderItem={() => <PostSkeletonCard isDark={isDark} />}
+            showsVerticalScrollIndicator={false}
+          />
         ) : posts.length === 0 ? (
           <ThemedView
             className="flex-1 justify-center items-center"
