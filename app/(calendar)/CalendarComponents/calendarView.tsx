@@ -23,7 +23,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts }) => {
 
   // Event Modal State
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
-    null,
+    null
   );
   const [isModalVisible, setModalVisible] = useState(false);
 
@@ -60,22 +60,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts }) => {
           mode={viewMode}
           date={currentDate}
           height={500}
-          swipeEnabled
           onPressEvent={handleEventPress}
-          theme={{
-            dayHeader: {
-              dayName: {
-                color: "#ff5252", // Mon, Tue
-                fontSize: 14,
-                fontWeight: "600",
-              },
-              dayNumber: {
-                color: "#2979ff", // 12, 13
-                fontSize: 18,
-                fontWeight: "700",
-              },
-            },
-          }}
+          swipeEnabled={true}         
         />
 
         {/* UPCOMING POSTS LIST BELOW CALENDAR */}
@@ -87,7 +73,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts }) => {
         event={selectedEvent}
         isOpen={isModalVisible}
         onClose={() => setModalVisible(false)}
-      />
+
+/>
     </ThemedView>
   );
 };
