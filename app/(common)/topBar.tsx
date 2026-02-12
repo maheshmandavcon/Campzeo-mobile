@@ -1,9 +1,10 @@
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { router, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Image, TouchableOpacity,
-   useColorScheme 
-  } from "react-native";
+import {
+  Image, TouchableOpacity,
+  useColorScheme
+} from "react-native";
 
 import { getNotificationsApi } from "@/api/notificationApi";
 import { ThemedView } from "@/components/themed-view";
@@ -83,7 +84,7 @@ export default function TopBar() {
           <Ionicons
             name="notifications"
             size={25}
-            color={iconColor} 
+            color={iconColor}
           />
 
           {unreadCount > 0 && (
@@ -104,12 +105,15 @@ export default function TopBar() {
               <ThemedText
                 style={{
                   color: "#fff",
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: "bold",
+                  lineHeight: 12,
+                  marginTop: 1,
                 }}
               >
                 {unreadCount > 99 ? "99+" : unreadCount}
               </ThemedText>
+
             </ThemedView>
           )}
         </TouchableOpacity>
