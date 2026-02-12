@@ -2,7 +2,7 @@
   "expo": {
     "name": "Campzeo",
     "slug": "campzeo",
-    "version": "1.0.3",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/app-images/app-logo.png",
     "scheme": "campzeo",
@@ -11,11 +11,11 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.campzeo.app"
+      "bundleIdentifier": "com.mandavconsultancy.campzeo"
     },
     "android": {
-      "package": "com.campzeo.app",
-      "versionCode": 6,
+      "package": "com.mandavconsultancy.campzeo",
+      "versionCode": 1,
       "permissions": [
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
@@ -75,10 +75,7 @@
       "clerkPublishableKey": "pk_test_ZmFzdC1yZWRmaXNoLTUyLmNsZXJrLmFjY291bnRzLmRldiQ",
       "apiBaseUrl": "https://camp-zeo-testing-git-testing-mandav-consultancy.vercel.app/api/",
       "router": {},
-      "mobileApiKey": "YEKa-f39c7b12e84d56a1c92f0b4c77e9d3",
-      "eas": {
-        "projectId": "872fa55d-43d2-4a89-b9fb-5c356b8fdc89"
-      }
+      "mobileApiKey": "YEKa-f39c7b12e84d56a1c92f0b4c77e9d3"
     },
     "runtimeVersion": {
       "policy": "appVersion"
