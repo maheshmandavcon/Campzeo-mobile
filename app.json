@@ -73,12 +73,16 @@
     },
     "extra": {
       "clerkPublishableKey": "pk_test_ZmFzdC1yZWRmaXNoLTUyLmNsZXJrLmFjY291bnRzLmRldiQ",
-      "apiBaseUrl": "https://camp-zeo-testing-git-testing-mandav-consultancy.vercel.app/api/",
+      "apiBaseUrl": "https://camp-zeo-testing.vercel.app/api/",
       "router": {},
-      "mobileApiKey": "YEKa-f39c7b12e84d56a1c92f0b4c77e9d3"
+      "mobileApiKey": "YEKa-f39c7b12e84d56a1c92f0b4c77e9d3",
+      "eas": {
+        "projectId": "872fa55d-43d2-4a89-b9fb-5c356b8fdc89"
+      }
     },
     "runtimeVersion": {
       "policy": "appVersion"
-    }
+    },
+    "owner": "campzeo-app"
   }
 }
