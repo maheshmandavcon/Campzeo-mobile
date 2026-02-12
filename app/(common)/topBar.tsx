@@ -2,7 +2,7 @@ import { useAuth, useUser } from "@clerk/clerk-expo";
 import { router, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Image, TouchableOpacity,
-  //  useColorScheme 
+   useColorScheme 
   } from "react-native";
 
 import { getNotificationsApi } from "@/api/notificationApi";
@@ -21,9 +21,9 @@ export default function TopBar() {
   const [unreadCount, setUnreadCount] = useState<number>(0);
 
   // ✅ Use React Native's useColorScheme for reactive updates
-  // const colorScheme = useColorScheme();
-  // const isDark = colorScheme === "dark";
-  // const iconColor = isDark ? "#fff" : "#dc2626";
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const iconColor = isDark ? "#fff" : "#000";
 
   // ---------------- FETCH UNREAD COUNT ----------------
   const fetchUnreadCount = async () => {
