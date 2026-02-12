@@ -9,14 +9,14 @@ import { Text, TouchableOpacity, useColorScheme, View } from "react-native";
 export interface Campaign {
   id: number;
   details: string;
-  dates: string;
   description: string;
+  startDate?: string;
+  endDate?: string;
+  dates: string;
   posts: string[];
   show?: boolean;
   contactsCount?: number;
-  contacts?: any[];
   postsCount?: number;
-  status?: "Scheduled" | "Active" | "Completed";
 }
 
 interface CampaignCardProps {
@@ -29,7 +29,9 @@ interface CampaignCardProps {
   showPostButton?: boolean;
   alwaysExpanded?: boolean;
   hidePostsHeading?: boolean;
-  postButtonTopRight?: boolean;
+  statusPosition?: "top" | "middle" | "both" | "none";
+  highlightBorder?: boolean;
+  createPostButton?: boolean;
   onPressPost?: () => void;
   onEdit?: (campaign: Campaign) => void;
 }
@@ -43,30 +45,31 @@ export default function CampaignCard({
   showPostButton = true,
   alwaysExpanded = false,
   hidePostsHeading = false,
-  postButtonTopRight = false,
+  statusPosition,
+  highlightBorder = false,
+  createPostButton = false,
   onPressPost,
   postsCount = 0,
   onEdit,
 }: CampaignCardProps) {
 
   /* ---------------- STATUS LOGIC (FIXED) ---------------- */
-  const getStatus = () => {
-    if (!campaign.dates) return "Scheduled";
+  type CampaignStatus = "Scheduled" | "Active" | "Completed";
 
-    const [startStr, endStr] = campaign.dates.split(" - ").map(s => s.trim());
-    if (!startStr) return "Scheduled";
+  const getStatus = (): CampaignStatus => {
+    if (!campaign.startDate || !campaign.endDate) return "Scheduled";
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const startDate = new Date(startStr);
-    startDate.setHours(0, 0, 0, 0);
+    const start = new Date(campaign.startDate);
+    start.setHours(0, 0, 0, 0);
 
-    const endDate = endStr ? new Date(endStr) : startDate;
-    endDate.setHours(23, 59, 59, 999);
+    const end = new Date(campaign.endDate);
+    end.setHours(23, 59, 59, 999);
 
-    if (today < startDate) return "Scheduled";
-    if (today > endDate) return "Completed";
+    if (today < start) return "Scheduled";
+    if (today > end) return "Completed";
     return "Active";
   };
 
@@ -143,12 +146,46 @@ export default function CampaignCard({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
+  const borderColorMap: Record<string, string> = {
+    "green-300": "#86efac",
+    "green-500": "#22c55e",
+    "red-300": "#fca5a5",
+    "red-500": "#ef4444",
+    "yellow-300": "#fde047",
+    "yellow-500": "#eab308",
+  };
+
+  const borderColorStyle =
+    borderColorMap[
+    (isDark
+      ? statusStyles[status].darkBorder
+      : statusStyles[status].border
+    ).replace("border-", "")
+    ];
+
+  const StatusBadge = () => (
+    <View
+      className={`px-2.5 py-1 rounded-full border ${isDark
+        ? `${statusStyles[status].darkBg} ${statusStyles[status].darkBorder}`
+        : `${statusStyles[status].bg} ${statusStyles[status].border}`
+        }`}
+    >
+      <Text
+        className={`text-[12px] font-semibold ${isDark ? statusStyles[status].darkText : statusStyles[status].text
+          }`}
+      >
+        {status}
+      </Text>
+    </View>
+  );
+
   return (
-    <ThemedView className="p-4 rounded-xl mb-4"
+    <ThemedView
+      className="p-4 rounded-xl mb-4"
       style={{
         backgroundColor: isDark ? "#161618" : "#fff",
-        borderWidth: isDark ? 1 : 1,
-        borderColor: isDark ? "#ffffff" : "#e5e7eb",
+        borderWidth: 2,
+        borderColor: highlightBorder ? borderColorStyle : isDark ? "#ffffff" : "#e5e7eb",
       }}
     >
       {/* Title + Actions */}
@@ -160,38 +197,26 @@ export default function CampaignCard({
         </ThemedView>
 
         <ThemedView className="flex-row items-start w-24 justify-end">
-          {postButtonTopRight && showPostButton && (
-            <TouchableOpacity
-              onPress={handleAddPost}
-              className="px-4 py-2 rounded-full bg-blue-100 items-center justify-center"
-              style={{ minWidth: 100 }}
-            >
-              <Text className="text-blue-500 font-semibold text-sm text-center">
-                Create Post
-              </Text>
-            </TouchableOpacity>
+          {(statusPosition === "top") && (
+            <StatusBadge />
           )}
-
           {showActions && (
             <ThemedView className="flex-row">
               <TouchableOpacity onPress={handleEdit} className="mx-1">
-                <Ionicons name="create-outline" size={22} color="#10b981" />
+                <Ionicons name="create-outline" size={22} style={{ color: isDark ? "#73f3c9" : "#10b981" }} />
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => onDelete(campaign)} className="mx-1">
-                <Ionicons name="trash-outline" size={22} color="#ef4444" />
+                <Ionicons name="trash-outline" size={22} style={{ color: isDark ? "#f47a7a" : "#ef4444" }} />
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => onCopy(campaign)} className="mx-1">
-                <Ionicons name="copy-outline" size={22} color="#3b82f6" />
+                <Ionicons name="copy-outline" size={22} style={{ color: isDark ? "#73a6f9" : "#3b82f6" }} />
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => onToggleShow(campaign)} className="mx-1">
                 <Ionicons
-                  name={campaign.show ? "eye-off-outline" : "eye-outline"}
-                  size={22}
-                  color="#6b7280"
-                />
+                  name={campaign.show ? "eye-off-outline" : "eye-outline"} size={22} style={{ color: isDark ? "#b4b8c0" : "6b7280" }} />
               </TouchableOpacity>
             </ThemedView>
           )}
@@ -209,21 +234,10 @@ export default function CampaignCard({
             {/* Duration + Status */}
             <ThemedView className="flex-row justify-between items-center mb-2">
               <ThemedText className="font-bold text-gray-900">Duration</ThemedText>
-              <View
-                className={`px-2.5 py-1 rounded-full border ${isDark
-                  ? `${statusStyles[status].darkBg} ${statusStyles[status].darkBorder}`
-                  : `${statusStyles[status].bg} ${statusStyles[status].border}`
-                  }`}
-              >
-                <Text
-                  className={`text-[12px] font-semibold ${isDark
-                    ? statusStyles[status].darkText
-                    : statusStyles[status].text
-                    }`}
-                >
-                  {status}
-                </Text>
-              </View>
+              {(statusPosition === "middle") && (
+                <StatusBadge />
+              )}
+
             </ThemedView>
 
             <Text className={`mb-3 ${isDark ? "text-gray-200" : "text-gray-700"}`}>{campaign.dates}</Text>
@@ -243,13 +257,13 @@ export default function CampaignCard({
                 </Text>
               </ThemedView>
 
-              {showPostButton && !postButtonTopRight && (
+              {showPostButton && !createPostButton && (
                 <TouchableOpacity
                   onPress={handleAddPost}
                   className="flex-row items-center px-3 py-1.5 rounded-full"
                   style={{
                     backgroundColor: isDark
-                      ? "rgba(255,255,255,0.08)"   // subtle dark bg
+                      ? "rgba(255,255,255,0.08)"
                       : "rgba(59,130,246,0.18)",
                     borderWidth: 1,
                     borderColor: isDark ? "#ffffff" : "transparent",
@@ -269,6 +283,19 @@ export default function CampaignCard({
                   </Text>
                 </TouchableOpacity>
               )}
+
+              {createPostButton && showPostButton && (
+                <TouchableOpacity
+                  onPress={handleAddPost}
+                  className="px-4 py-2 rounded-full bg-blue-100 items-center justify-center"
+                  style={{ minWidth: 100 }}
+                >
+                  <Text className="text-blue-500 font-semibold text-sm text-center">
+                    Create Post
+                  </Text>
+                </TouchableOpacity>
+              )}
+
             </ThemedView>
           </ThemedView>
         </ThemedView>

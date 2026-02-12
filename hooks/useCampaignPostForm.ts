@@ -113,6 +113,16 @@ export function useCampaignPostForm({
     destinationLink?: string;
   }>({});
 
+  // ================= PREVIEW TIMESTEMP =================
+  const previewTimestamp = postDate
+  ? postDate.toLocaleString([], {
+      // day: "2-digit",
+      // month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  : "Just now";
+
   // ================= LINKEDIN =================
   const [selectedAccount, setSelectedAccount] = useState<string>();
 
@@ -191,7 +201,6 @@ export function useCampaignPostForm({
       setPinterestBoard(existingPost.metadata?.boardName || "");
       setDestinationLink(existingPost.metadata?.destinationLink || "");
     }
-    
 
     // ✅ YOUTUBE
     if (existingPost.type === "YOUTUBE") {
@@ -357,12 +366,116 @@ export function useCampaignPostForm({
   //   }
   // }
 
+  // async function handleAddAttachment() {
+  //   try {
+  //     const isYouTube = platform === "YOUTUBE";
+
+  //     const result = await ImagePicker.launchImageLibraryAsync({
+  //       mediaTypes: isYouTube ? ["videos"] : ["images", "videos"],
+  //       quality: 0.8,
+  //     });
+
+  //     if (result.canceled) return;
+
+  //     const asset = result.assets[0];
+  //     const isVideo = asset.type === "video";
+
+  //     // ✅ Validate media limit (max 10 files)
+  //     if (attachments.length + 1 > 10) {
+  //       Alert.alert(
+  //         "Upload limit",
+  //         "You can upload a maximum of 10 media files",
+  //       );
+  //       return;
+  //     }
+
+  //     const tempAttachment: Attachment = {
+  //       uri: asset.uri,
+  //       name:
+  //         asset.fileName ??
+  //         `${isVideo ? "video" : "image"}-${Date.now()}.${
+  //           isVideo ? "mp4" : "jpg"
+  //         }`,
+  //       type: isVideo ? "video/mp4" : "image/jpeg",
+  //       uploading: true,
+  //     };
+
+  //     setAttachments((prev) => [...prev, tempAttachment]);
+  //     setUploadingMedia(true);
+  //     setUploadProgress(0);
+
+  //     // ⬇️ Upload with token using new backend endpoint
+  //     const token = await getToken();
+  //     if (!token) {
+  //       throw new Error("No authentication token available");
+  //     }
+
+  //     const finalUrl = await uploadMediaApi(
+  //       {
+  //         uri: asset.uri,
+  //         name: tempAttachment.name,
+  //         type: tempAttachment.type,
+  //       },
+  //       token,
+  //       // (progress) => setUploadProgress(progress),
+  //     );
+
+  //     if (finalUrl == null || typeof finalUrl !== "string") {
+  //       throw new Error("Upload failed: no Url returned");
+  //     }
+
+  //     setAttachments((prev) =>
+  //       prev.map((a) =>
+  //         a.uri === asset.uri
+  //           ? { ...a, uri: finalUrl, uploadedUrl: finalUrl, uploading: false }
+  //           : a,
+  //       ),
+  //     );
+
+  //     // ✅ Auto-detect Content Type for Instagram/Facebook
+  //     if (platform === "INSTAGRAM" || platform === "FACEBOOK") {
+  //       if (isVideo) {
+  //         setFacebookContentType("REEL");
+  //         Alert.alert("Success", "Video detected: Switched to Reel/Video mode");
+  //       } else if (attachments.length === 0 && !isVideo) {
+  //         // Only switch to STANDARD if it's the first upload and it's an image
+  //         setFacebookContentType("STANDARD");
+  //       }
+  //     }
+
+  //     // Alert.alert("Success", "File uploaded successfully");
+  //   } catch (error: any) {
+  //     console.error("Attachment upload error:", error);
+  //     Alert.alert("Upload failed", error?.message || "Media upload failed");
+  //     setAttachments((prev) => prev.filter((a) => !a.uploading));
+  //   } finally {
+  //     setUploadingMedia(false);
+  //     setUploadProgress(0);
+  //   }
+  // }
+
+  // permission for upload
   async function handleAddAttachment() {
     try {
+      // 1️⃣ Always ask permission when user taps "+"
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          "Permission required",
+          "Please allow access to photos and videos to upload media.",
+        );
+        return;
+      }
+
+      // 2️⃣ Open picker ONLY after permission
       const isYouTube = platform === "YOUTUBE";
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: isYouTube ? ["videos"] : ["images", "videos"],
+        mediaTypes: isYouTube
+          ? ImagePicker.MediaTypeOptions.Videos
+          : ImagePicker.MediaTypeOptions.All,
         quality: 0.8,
       });
 
@@ -371,7 +484,7 @@ export function useCampaignPostForm({
       const asset = result.assets[0];
       const isVideo = asset.type === "video";
 
-      // ✅ Validate media limit (max 10 files)
+      // 3️⃣ Validate max media limit
       if (attachments.length + 1 > 10) {
         Alert.alert(
           "Upload limit",
@@ -395,7 +508,7 @@ export function useCampaignPostForm({
       setUploadingMedia(true);
       setUploadProgress(0);
 
-      // ⬇️ Upload with token using new backend endpoint
+      // 4️⃣ Upload to backend
       const token = await getToken();
       if (!token) {
         throw new Error("No authentication token available");
@@ -408,36 +521,38 @@ export function useCampaignPostForm({
           type: tempAttachment.type,
         },
         token,
-        // (progress) => setUploadProgress(progress),
       );
 
-      if (finalUrl == null || typeof finalUrl !== "string") {
-        throw new Error("Upload failed: no Url returned");
+      if (!finalUrl) {
+        throw new Error("Upload failed: no URL returned");
       }
 
+      // 5️⃣ Replace temp attachment with uploaded one
       setAttachments((prev) =>
         prev.map((a) =>
           a.uri === asset.uri
-            ? { ...a, uri: finalUrl, uploadedUrl: finalUrl, uploading: false }
+            ? {
+                ...a,
+                uri: finalUrl,
+                uploadedUrl: finalUrl,
+                uploading: false,
+              }
             : a,
         ),
       );
 
-      // ✅ Auto-detect Content Type for Instagram/Facebook
+      // 6️⃣ Auto content-type detection
       if (platform === "INSTAGRAM" || platform === "FACEBOOK") {
         if (isVideo) {
           setFacebookContentType("REEL");
-          Alert.alert("Success", "Video detected: Switched to Reel/Video mode");
-        } else if (attachments.length === 0 && !isVideo) {
-          // Only switch to STANDARD if it's the first upload and it's an image
+        } else if (attachments.length === 0) {
           setFacebookContentType("STANDARD");
         }
       }
-
-      // Alert.alert("Success", "File uploaded successfully");
     } catch (error: any) {
       console.error("Attachment upload error:", error);
       Alert.alert("Upload failed", error?.message || "Media upload failed");
+
       setAttachments((prev) => prev.filter((a) => !a.uploading));
     } finally {
       setUploadingMedia(false);
@@ -891,6 +1006,7 @@ export function useCampaignPostForm({
     isDark,
     // state
     platform,
+    previewTimestamp,
     senderEmail,
     subject,
     message,

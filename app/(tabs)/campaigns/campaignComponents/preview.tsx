@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { View, Text, Image, Dimensions, ScrollView, TouchableOpacity } from "react-native";
+import { View, Text, Image, Dimensions, ScrollView, TouchableOpacity, useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ResizeMode, Video } from 'expo-av';
 
@@ -22,6 +22,9 @@ const Preview: React.FC<PreviewProps> = ({
   images = [],
   timestamp,
 }) => {
+
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   // Facebook & LinkedIn style media renderer
   const renderFacebookPreview = (images: string[]) => (
@@ -243,7 +246,9 @@ const Preview: React.FC<PreviewProps> = ({
     };
 
     return (
-      <View className="px-3 py-4 bg-[#efeae2]">
+      <View className="px-3 py-4 bg-[#efeae2]" style={{
+        backgroundColor: isDark ? "#161618" : "#efeae2",
+      }}>
         <View className="self-end max-w-[85%] bg-[#dcf8c6] rounded-xl p-2">
           {/* MEDIA */}
           {images.length === 1 && (
@@ -348,9 +353,16 @@ const Preview: React.FC<PreviewProps> = ({
 
   // Email style media renderer
   const renderEmailPreview = () => (
-    <View className="border border-gray-300 rounded-lg p-4 bg-white">
+    <View
+      className="border border-gray-300 rounded-lg p-4 bg-white"
+      style={{
+        backgroundColor: isDark ? "#161618" : "#f2f2f7",
+        marginHorizontal: 8,
+      }}
+    >
       <View className="flex-row justify-between mb-2">
-        <Text className="font-semibold text-gray-900">
+        <Text className="font-semibold text-gray-900"
+          style={{ color: isDark ? "#f2f2f7" : "#111827" }}>
           Subject: Campaign Update
         </Text>
         <Text className="text-xs text-gray-500">
@@ -374,7 +386,7 @@ const Preview: React.FC<PreviewProps> = ({
   // SMS style preview
   const renderSmsPreview = () => {
     return (
-      <View className="px-3 py-4 bg-[#f2f2f7]">
+      <View className="px-3 py-4 bg-[#f2f2f7]" style={{ backgroundColor: isDark ? "#161618" : "#f2f2f7" }}>
         {/* Message bubble */}
         <View className="self-end max-w-[85%] bg-[#007AFF] rounded-2xl px-3 py-2">
           <Text className="text-white text-[15px] leading-5">
@@ -396,7 +408,7 @@ const Preview: React.FC<PreviewProps> = ({
     const isVideo = (uri: string) => /\.(mp4|mov|mkv)$/i.test(uri);
 
     return (
-      <View className="p-3 bg-white">
+      <View className="p-3 bg-white" style= {{backgroundColor: isDark ? "#161618" : "#fff"}}>
         {images.map((uri, index) => (
           <View
             key={index}
@@ -609,7 +621,7 @@ const Preview: React.FC<PreviewProps> = ({
     <View
       className={`my-2 bg-white border border-gray-300 rounded-lg pb-2 ${platform === "sms" ? "" : "overflow-hidden"
         } ${platform === "facebook" ? "p-3" : ""}`}
-    >
+      style={{ backgroundColor: isDark ? "#161618" : "#fff" }}>
       {/* HEADER */}
       <View className="flex-row items-center px-4 py-4">
 
@@ -621,7 +633,7 @@ const Preview: React.FC<PreviewProps> = ({
         )}
 
         <View className="flex-1 ml-3 justify-center">
-          <Text className="font-bold text-gray-900 leading-5">
+          <Text className="font-bold text-gray-900 leading-5" style={{ color: isDark ? "#f2f2f7" : "#111827" }}>
             {platform === "email" ? "From: " : ""}
             {username}
           </Text>

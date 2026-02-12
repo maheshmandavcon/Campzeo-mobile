@@ -41,7 +41,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
   const {
     // state
-    platform: platformState, senderEmail, subject, message, attachments, postDate, loading,
+    platform: platformState, senderEmail, subject, message, attachments, postDate, loading, previewTimestamp,
 
     aiModalVisible, aiPrompt, aiResults, loadingAI, imageLoadingMap,
 
@@ -507,7 +507,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     }}
                   >
                     <ActivityIndicator size="large" color="#2563eb" />
-                    <Text style={{ marginTop: 12, fontWeight: "bold", color: "#000" }}>Generating image...</Text>
+                    <Text style={{ marginTop: 12, fontWeight: "bold", color: isDark ? "#fff" : "#000" }}>Generating image...</Text>
                   </View>
                 ) : generatedImages.length > 0 ? (
                   <FlatList
@@ -1084,7 +1084,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                           borderRadius: 8,
                           paddingHorizontal: 12,
                           paddingVertical: 10,
-                          backgroundColor: isDark ? "#111827" : "#ffffff",
+                          backgroundColor: isDark ? "#161618" : "#ffffff",
                         }}
                       >
                         <Text style={{ color: selectedPlaylist || isCreatingPlaylist ? (isDark ? "#ffffff" : "#000") : "#9ca3af" }}>
@@ -1118,7 +1118,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                               paddingHorizontal: 12,
                               borderBottomWidth: 1,
                               borderBottomColor: isDark ? "#374151" : "#d1d5db",
-                              backgroundColor: isDark ? "#111827" : "#ffffff",
+                              backgroundColor: isDark ? "#161618" : "#ffffff",
                             }}
                           >
                             <Text style={{ color: "#2563eb", fontWeight: "bold" }}>+ Create New Playlist</Text>
@@ -1160,7 +1160,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                               borderRadius: 8,
                               paddingHorizontal: 12,
                               paddingVertical: 10,
-                              backgroundColor: isDark ? "#111827" : "#ffffff",
+                              backgroundColor: isDark ? "#161618" : "#ffffff",
                               color: isDark ? "#ffffff" : "#000000",
                               marginBottom: 8,
                             }}
@@ -1207,7 +1207,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   paddingHorizontal: 12,
                   height: 48,
                   marginBottom: 16,
-                  backgroundColor: isDark ? "#111827" : "#ffffff",
+                  backgroundColor: isDark ? "#161618" : "#ffffff",
                   color: isDark ? "#e5e7eb" : "#000000",
                 }}
               />
@@ -1224,7 +1224,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   borderRadius: 9999,
                   paddingHorizontal: 12,
                   height: 48,
-                  backgroundColor: isDark ? "#111827" : "#ffffff",
+                  backgroundColor: isDark ? "#161618" : "#ffffff",
                   flexDirection: "row",
                   justifyContent: "space-between",
                   alignItems: "center",
@@ -1244,7 +1244,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               {showStatusDropdown && (
                 <View
                   style={{
-                    backgroundColor: isDark ? "#111827" : "#ffffff",
+                    backgroundColor: isDark ? "#161618" : "#ffffff",
                     borderWidth: 1,
                     borderColor: isDark ? "#374151" : "#d1d5db",
                     borderRadius: 8,
@@ -1344,6 +1344,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   style={{
                     borderWidth: 1,
                     borderColor: isDark ? "#374151" : "#d1d5db",
+                    backgroundColor: isDark ? "#161618" : "#fff",
                     borderRadius: 9999,
                     paddingVertical: 10,
                     paddingHorizontal: 12,
@@ -1385,7 +1386,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                           paddingVertical: 12,
                           paddingHorizontal: 16,
                           marginBottom: 12,
-                          backgroundColor: isDark ? "#111827" : "#f3f4f6",
+                          backgroundColor: isDark ? "#161618" : "#f3f4f6",
                           borderRadius: 8,
                         }}
                       >
@@ -1466,7 +1467,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                                   paddingHorizontal: 12,
                                   borderRadius: 8,
                                   marginBottom: 6,
-                                  backgroundColor: isDark ? "#111827" : "#f3f4f6",
+                                  backgroundColor: isDark ? "#161618" : "#f3f4f6",
                                 }}
                               >
                                 <Text style={{ color: isDark ? "#e5e7eb" : "#000000" }}>{item.name}</Text>
@@ -1491,9 +1492,11 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   style={{
                     borderWidth: 1,
                     borderColor: isDark ? "#374151" : "#d1d5db",
+                    backgroundColor: isDark ? "#161618" : "#fff",
                     borderRadius: 9999,
-                    paddingVertical: 10,
-                    paddingHorizontal: 12,
+                    // paddingVertical: 10,
+                    // paddingHorizontal: 12,
+                    padding: 10,
                     marginBottom: 8,
                     color: isDark ? "#ffffff" : "#000000",
                   }}
@@ -1614,7 +1617,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               paddingHorizontal: 14,
               paddingVertical: 12,
               marginBottom: 16,
-              backgroundColor: isDark ? "#161618" : "#ffffff",
+              backgroundColor: isDark ? "#161618" : "#fff",
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",
@@ -1675,7 +1678,6 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               }}
             />
           )}
-
         </View>
 
         {/* ---------- PREVIEW SLOT ---------- */}
@@ -1688,7 +1690,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map(a => a.uri)}
-              timestamp="Just now"
+              timestamp={previewTimestamp}
             />
           )}
 
@@ -1700,7 +1702,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map(a => a.uri)}
-              timestamp="Just now"
+              timestamp={previewTimestamp}
             />
           )}
 
@@ -1712,7 +1714,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map(a => a.uri)}
-              timestamp="Just now"
+              timestamp={previewTimestamp}
             />
           )}
 
@@ -1724,10 +1726,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map(a => a.uri)}
-              timestamp={new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              timestamp={previewTimestamp}
             />
           )}
 
@@ -1739,10 +1738,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map(a => a.uri)}
-              timestamp={new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              timestamp={previewTimestamp}
             />
           )}
 
@@ -1753,10 +1749,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               profilePic={user?.imageUrl}
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
-              timestamp={new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              timestamp={previewTimestamp}
             />
           )}
 
@@ -1768,10 +1761,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map(a => a.uri)}
-            // timestamp={new Date().toLocaleTimeString([], {
-            //   hour: "2-digit",
-            //   minute: "2-digit",
-            // })}
+              // timestamp={previewTimestamp}
             />
           )}
 
@@ -1783,10 +1773,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map(a => a.uri)}
-              timestamp={new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              timestamp={previewTimestamp}
             />
           )}
         </View>
