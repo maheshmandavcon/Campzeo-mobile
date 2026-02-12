@@ -1,9 +1,5 @@
 import { getUsage } from "@/api/billingApi";
-import {
-  getCampaigns,
-  getContacts,
-  getUser,
-} from "@/api/dashboardApi";
+import { getCampaigns, getContacts, getUser } from "@/api/dashboardApi";
 import { Text, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
@@ -218,12 +214,11 @@ export default function Insights() {
 </Progress> */}
 
           <Progress value={percentage} size="sm">
-            <ProgressFilledTrack 
-            style={{
-                        backgroundColor: "#dc2626",
-                      }}
-                      />
-                      
+            <ProgressFilledTrack
+              style={{
+                backgroundColor: "#dc2626",
+              }}
+            />
           </Progress>
         </Center>
       </VStack>
@@ -326,21 +321,25 @@ export default function Insights() {
           <ThemedText style={styles.usageName}>Team Members</ThemedText>
 
           <HStack
-            style={{ justifyContent: "space-between", alignItems: "center", marginBottom:9 }}
+            style={{
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginVertical: 9,
+            }}
           >
-            <VStack style={{ alignItems:"center"}}>
+            <VStack style={{ alignItems: "center" }}>
               <ThemedText>
                 {userData?.firstName} {userData?.lastName}
               </ThemedText>
             </VStack>
 
             <Box style={styles.roleBadge}>
-              <Text style={styles.badgeText}>{userData?.role}</Text>
+              <ThemedText style={styles.badgeText}>{userData?.role}</ThemedText>
             </Box>
           </HStack>
           <ThemedText>{userData?.email}</ThemedText>
 
-          <Divider style={{ marginVertical: 7 }} />
+          <Divider style={{ marginVertical: 13 }} />
         </Box>
 
         {/* ================= NOTIFICATIONS ================= */}
@@ -499,20 +498,21 @@ const styles = StyleSheet.create({
 
   /* BADGES */
   roleBadge: {
-    backgroundColor: "#e0f2fe",
+    backgroundColor: "#dc2626",
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 3,
     borderRadius: 7,
   },
   platformBadge: {
     backgroundColor: "#ede9fe",
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 3,
     borderRadius: 12,
   },
   badgeText: {
+    color: "#ffffff",
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "900",
   },
 
   /* NOTIFICATIONS */
