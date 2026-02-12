@@ -29,7 +29,9 @@ interface CampaignCardProps {
   showPostButton?: boolean;
   alwaysExpanded?: boolean;
   hidePostsHeading?: boolean;
-  postButtonTopRight?: boolean;
+  statusPosition?: "top" | "middle" | "both" | "none";
+  highlightBorder?: boolean;
+  createPostButton?: boolean;
   onPressPost?: () => void;
   onEdit?: (campaign: Campaign) => void;
 }
@@ -43,7 +45,9 @@ export default function CampaignCard({
   showPostButton = true,
   alwaysExpanded = false,
   hidePostsHeading = false,
-  postButtonTopRight = false,
+  statusPosition,
+  highlightBorder = false,
+  createPostButton = false,
   onPressPost,
   postsCount = 0,
   onEdit,
@@ -142,12 +146,46 @@ export default function CampaignCard({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
+  const borderColorMap: Record<string, string> = {
+    "green-300": "#86efac",
+    "green-500": "#22c55e",
+    "red-300": "#fca5a5",
+    "red-500": "#ef4444",
+    "yellow-300": "#fde047",
+    "yellow-500": "#eab308",
+  };
+
+  const borderColorStyle =
+    borderColorMap[
+    (isDark
+      ? statusStyles[status].darkBorder
+      : statusStyles[status].border
+    ).replace("border-", "")
+    ];
+
+  const StatusBadge = () => (
+    <View
+      className={`px-2.5 py-1 rounded-full border ${isDark
+        ? `${statusStyles[status].darkBg} ${statusStyles[status].darkBorder}`
+        : `${statusStyles[status].bg} ${statusStyles[status].border}`
+        }`}
+    >
+      <Text
+        className={`text-[12px] font-semibold ${isDark ? statusStyles[status].darkText : statusStyles[status].text
+          }`}
+      >
+        {status}
+      </Text>
+    </View>
+  );
+
   return (
-    <ThemedView className="p-4 rounded-xl mb-4"
+    <ThemedView
+      className="p-4 rounded-xl mb-4"
       style={{
         backgroundColor: isDark ? "#161618" : "#fff",
-        borderWidth: isDark ? 1 : 1,
-        borderColor: isDark ? "#ffffff" : "#e5e7eb",
+        borderWidth: 2,
+        borderColor: highlightBorder ? borderColorStyle : isDark ? "#ffffff" : "#e5e7eb",
       }}
     >
       {/* Title + Actions */}
@@ -159,18 +197,9 @@ export default function CampaignCard({
         </ThemedView>
 
         <ThemedView className="flex-row items-start w-24 justify-end">
-          {postButtonTopRight && showPostButton && (
-            <TouchableOpacity
-              onPress={handleAddPost}
-              className="px-4 py-2 rounded-full bg-blue-100 items-center justify-center"
-              style={{ minWidth: 100 }}
-            >
-              <Text className="text-blue-500 font-semibold text-sm text-center">
-                Create Post
-              </Text>
-            </TouchableOpacity>
+          {(statusPosition === "top") && (
+            <StatusBadge />
           )}
-
           {showActions && (
             <ThemedView className="flex-row">
               <TouchableOpacity onPress={handleEdit} className="mx-1">
@@ -205,21 +234,10 @@ export default function CampaignCard({
             {/* Duration + Status */}
             <ThemedView className="flex-row justify-between items-center mb-2">
               <ThemedText className="font-bold text-gray-900">Duration</ThemedText>
-              <View
-                className={`px-2.5 py-1 rounded-full border ${isDark
-                  ? `${statusStyles[status].darkBg} ${statusStyles[status].darkBorder}`
-                  : `${statusStyles[status].bg} ${statusStyles[status].border}`
-                  }`}
-              >
-                <Text
-                  className={`text-[12px] font-semibold ${isDark
-                    ? statusStyles[status].darkText
-                    : statusStyles[status].text
-                    }`}
-                >
-                  {status}
-                </Text>
-              </View>
+              {(statusPosition === "middle") && (
+                <StatusBadge />
+              )}
+
             </ThemedView>
 
             <Text className={`mb-3 ${isDark ? "text-gray-200" : "text-gray-700"}`}>{campaign.dates}</Text>
@@ -239,7 +257,7 @@ export default function CampaignCard({
                 </Text>
               </ThemedView>
 
-              {showPostButton && !postButtonTopRight && (
+              {showPostButton && !createPostButton && (
                 <TouchableOpacity
                   onPress={handleAddPost}
                   className="flex-row items-center px-3 py-1.5 rounded-full"
@@ -265,6 +283,19 @@ export default function CampaignCard({
                   </Text>
                 </TouchableOpacity>
               )}
+
+              {createPostButton && showPostButton && (
+                <TouchableOpacity
+                  onPress={handleAddPost}
+                  className="px-4 py-2 rounded-full bg-blue-100 items-center justify-center"
+                  style={{ minWidth: 100 }}
+                >
+                  <Text className="text-blue-500 font-semibold text-sm text-center">
+                    Create Post
+                  </Text>
+                </TouchableOpacity>
+              )}
+
             </ThemedView>
           </ThemedView>
         </ThemedView>
