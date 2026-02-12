@@ -50,18 +50,6 @@ export default function Campaigns() {
       }
 
       const mapped: Campaign[] = campaignsArray.map((item: any) => {
-        const today = new Date();
-
-        let status: "Scheduled" | "Active" | "Completed" = "Scheduled";
-
-        if (item.startDate && item.endDate) {
-          const startDate = new Date(item.startDate);
-          const endDate = new Date(item.endDate);
-
-          if (today < startDate) status = "Scheduled";
-          else if (today > endDate) status = "Completed";
-          else status = "Active";
-        }
 
         const formatDate = (dateString?: string) => {
           if (!dateString) return "";
@@ -75,14 +63,14 @@ export default function Campaigns() {
         return {
           id: item.id,
           details: item.name ?? "Untitled Campaign",
-          dates: `${formatDate(item.startDate)} - ${formatDate(item.endDate)}`,
           description: item.description ?? "No description available",
+          startDate: item.startDate,
+          endDate: item.endDate,
+          dates: `${formatDate(item.startDate)} - ${formatDate(item.endDate)}`,
           posts: [],
           postsCount: item._count?.posts ?? 0,
-          show: true,
           contactsCount: item._count?.contacts ?? 0,
-          contacts: [],
-          status,
+          show: true,
         };
       });
 
@@ -256,6 +244,57 @@ Contacts Count: ${c.contactsCount ?? 0}
     </ThemedView>
   );
 
+  const INITIAL_COUNT = 5;
+
+  const renderLoadMoreFooter = () => {
+    if (loading || campaigns.length <= INITIAL_COUNT) return null;
+
+    return (
+      <TouchableOpacity
+        onPress={() =>
+          isAllVisible
+            ? setVisibleCount(INITIAL_COUNT)
+            : setVisibleCount((v) => v + INITIAL_COUNT)
+        }
+        style={{
+          marginTop: 12,
+          marginHorizontal: 12,
+          paddingVertical: 14,
+          borderRadius: 12,
+          alignItems: "center",
+          backgroundColor: isAllVisible
+            ? isDark
+              ? "rgba(239,68,68,0.15)"
+              : "#fee2e2"
+            : isDark
+              ? "rgba(59,130,246,0.15)"
+              : "#dbeafe",
+        }}
+      >
+        <ThemedText
+          style={{
+            fontWeight: "600",
+            color: isAllVisible
+              ? isDark
+                ? "#fca5a5"
+                : "#b91c1c"
+              : isDark
+                ? "#93c5fd"
+                : "#1d4ed8",
+          }}
+        >
+          {isAllVisible ? "Load Less" : "Load More"}
+        </ThemedText>
+      </TouchableOpacity>
+    );
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      setVisibleCount(INITIAL_COUNT);
+    }, [])
+  );
+
   return (
     <View className="flex-1 p-4"
       style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
@@ -320,7 +359,7 @@ Contacts Count: ${c.contactsCount ?? 0}
             setVisibleCount(5);
           }}
           placeholder="Search campaigns..."
-          placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"} 
+          placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
           style={{
             flex: 1,
             paddingHorizontal: 12,
@@ -405,9 +444,10 @@ Contacts Count: ${c.contactsCount ?? 0}
           )
         }
         contentContainerStyle={{
-          paddingBottom: 16,
+          paddingBottom: 20,
           flexGrow: loading || visibleCampaigns.length > 0 ? 0 : 1,
         }}
+        ListFooterComponent={renderLoadMoreFooter}
         ListEmptyComponent={
           !loading ? (
             <ThemedView
@@ -425,7 +465,6 @@ Contacts Count: ${c.contactsCount ?? 0}
           ) : null
         }
       />
-
     </View>
   );
 }

@@ -41,7 +41,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
   const {
     // state
-    platform: platformState, senderEmail, subject, message, attachments, postDate, loading,
+    platform: platformState, senderEmail, subject, message, attachments, postDate, loading, previewTimestamp,
 
     aiModalVisible, aiPrompt, aiResults, loadingAI, imageLoadingMap,
 
@@ -1617,7 +1617,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               paddingHorizontal: 14,
               paddingVertical: 12,
               marginBottom: 16,
-              backgroundColor: isDark ? "#161618" : "#ffffff",
+              backgroundColor: isDark ? "#161618" : "#fff",
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",
@@ -1678,7 +1678,6 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               }}
             />
           )}
-
         </View>
 
         {/* ---------- PREVIEW SLOT ---------- */}
@@ -1691,7 +1690,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map(a => a.uri)}
-              timestamp="Just now"
+              timestamp={previewTimestamp}
             />
           )}
 
@@ -1703,7 +1702,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map(a => a.uri)}
-              timestamp="Just now"
+              timestamp={previewTimestamp}
             />
           )}
 
@@ -1715,7 +1714,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map(a => a.uri)}
-              timestamp="Just now"
+              timestamp={previewTimestamp}
             />
           )}
 
@@ -1727,10 +1726,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map(a => a.uri)}
-              timestamp={new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              timestamp={previewTimestamp}
             />
           )}
 
@@ -1742,10 +1738,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map(a => a.uri)}
-              timestamp={new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              timestamp={previewTimestamp}
             />
           )}
 
@@ -1756,10 +1749,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               profilePic={user?.imageUrl}
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
-              timestamp={new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              timestamp={previewTimestamp}
             />
           )}
 
@@ -1771,10 +1761,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map(a => a.uri)}
-            // timestamp={new Date().toLocaleTimeString([], {
-            //   hour: "2-digit",
-            //   minute: "2-digit",
-            // })}
+              // timestamp={previewTimestamp}
             />
           )}
 
@@ -1786,10 +1773,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map(a => a.uri)}
-              timestamp={new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              timestamp={previewTimestamp}
             />
           )}
         </View>

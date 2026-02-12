@@ -8,6 +8,7 @@ import {
   View,
   ActivityIndicator,
   useColorScheme,
+  TextInput,
 } from "react-native";
 import CampaignCard, { Campaign } from "./campaignComponents/campaignCard";
 import { useAuth } from "@clerk/clerk-expo";
@@ -64,6 +65,7 @@ export default function CampaignsDetails() {
   const [posts, setPosts] = useState<any[]>([]);
   const [visibleCount, setVisibleCount] = useState(5);
   const [publishing, setPublishing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const refreshCallback =
     typeof params.refreshCallback === "string";
@@ -80,6 +82,27 @@ export default function CampaignsDetails() {
     }
     return undefined;
   }, [campaign, campaignIdParam]);
+
+  // ========= ALERT WHEN YOUR CAMAPIGN COMPLETE AND TRY TO CLICK CREATE POST =========
+  const getCampaignStatus = (campaign: Campaign | null) => {
+    if (!campaign?.startDate || !campaign?.endDate) return "Scheduled";
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const start = new Date(campaign.startDate);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(campaign.endDate);
+    end.setHours(23, 59, 59, 999);
+
+    if (today < start) return "Scheduled";
+    if (today > end) return "Completed";
+    return "Active";
+  };
+
+  const campaignStatus = getCampaignStatus(campaign);
+  const isCompleted = campaignStatus === "Completed";
 
   // ========= FETCH CAMPAIGN DETAILS =========
   useEffect(() => {
@@ -149,6 +172,44 @@ export default function CampaignsDetails() {
     }
   }, [refreshCallback]);
 
+
+  const filteredPosts = useMemo(() => {
+    if (!searchQuery.trim()) return posts;
+
+    const q = searchQuery.toLowerCase();
+    return posts.filter(
+      (p) =>
+        p.subject?.toLowerCase().includes(q) ||
+        p.message?.toLowerCase().includes(q) ||
+        p.type?.toLowerCase().includes(q)
+    );
+  }, [posts, searchQuery]);
+
+  const visiblePosts = filteredPosts.slice(0, visibleCount);
+  const isAllVisible = visibleCount >= filteredPosts.length;
+
+  // Post Status
+  const getPostStatus = (item: any) => {
+    const backendStatus = item.status?.toUpperCase();
+
+    // ✅ Accept only meaningful backend statuses
+    if (backendStatus && backendStatus !== "DRAFT") {
+      return backendStatus;
+    }
+
+    // ✅ Already sent
+    if (item.sentAt) return "SENT";
+
+    // ✅ Scheduled in future
+    if (item.scheduledPostTime) {
+      const scheduled = new Date(item.scheduledPostTime);
+      if (scheduled > new Date()) return "SCHEDULED";
+    }
+
+    // ✅ Default fallback
+    return "PENDING";
+  };
+
   // ========= POST ACTIONS =========
   const handleDeletePost = async (postId: number) => {
     if (!resolvedCampaignId) return;
@@ -175,11 +236,15 @@ export default function CampaignsDetails() {
 
   // ========= HANDLE CREATE / EDIT POST =========
   const handleCreatePost = (campaignId: number) => {
-    router.push({
-      pathname: "/campaigns/campaignComponents/campaignPost",
-      params: { campaignId: String(campaignId), refreshCallback: "true" },
-    });
-  };
+  router.push({
+    pathname: "/campaigns/campaignComponents/campaignPost",
+    params: {
+      campaignId: String(campaignId),
+      campaignStartDate: campaign?.startDate, 
+      refreshCallback: "true",
+    },
+  });
+};
 
   const handleEditPost = (campaignId: number, post: any) => {
     if (!post?.id || !post?.type) return;
@@ -421,6 +486,7 @@ export default function CampaignsDetails() {
   // ========= RENDER POST ITEM =========
   const renderPostItem = ({ item }: { item: any }) => {
     const platform = platformIcons[item.type];
+    const status = getPostStatus(item);
 
     return (
       <View className="p-4 rounded-xl mb-4 relative">
@@ -445,7 +511,7 @@ export default function CampaignsDetails() {
               alignItems: "center",
             }}
           >
-            <Ionicons name="share-social-outline" size={22} style ={{ color: isDark ? "#73a6f9": "#3b82f6" }} />
+            <Ionicons name="share-social-outline" size={22} style={{ color: isDark ? "#73a6f9" : "#3b82f6" }} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -458,7 +524,7 @@ export default function CampaignsDetails() {
               alignItems: "center",
             }}
           >
-            <Ionicons name="create-outline" size={22} style ={{ color: isDark ? "#73f3c9": "#10b981" }} />
+            <Ionicons name="create-outline" size={22} style={{ color: isDark ? "#73f3c9" : "#10b981" }} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -472,7 +538,7 @@ export default function CampaignsDetails() {
               alignItems: "center",
             }}
           >
-            <Ionicons name="trash-outline" size={22} style ={{ color: isDark ? "#f47a7a": "#ef4444" }} />
+            <Ionicons name="trash-outline" size={22} style={{ color: isDark ? "#f47a7a" : "#ef4444" }} />
           </TouchableOpacity>
         </View>
 
@@ -541,28 +607,86 @@ export default function CampaignsDetails() {
           </ThemedView>
         )}
 
-        <ThemedView className="flex-row items-center">
-          <ThemedText className="font-semibold mr-2">Type</ThemedText>
-          {platform ? (
-            <platform.Icon
-              name={platform.name}
-              size={22}
-              color={isDark ? "#ffffff" : platform.color}
-            />
-          ) : (
+        {/* TYPE + STATUS ROW */}
+        <ThemedView className="flex-row items-center justify-between mt-2">
+          {/* TYPE */}
+          <ThemedView className="flex-row items-center">
             <ThemedText
-              style={{ color: isDark ? "#e5e7eb" : "#111" }}
+              className="font-semibold mr-2"
+              style={{ color: isDark ? "#e5e7eb" : "#111827" }}
             >
-              {item.type}
+              Type
             </ThemedText>
-          )}
+
+            {platform ? (
+              <platform.Icon
+                name={platform.name}
+                size={20}
+                color={isDark ? "#ffffff" : platform.color}
+              />
+            ) : (
+              <ThemedText style={{ color: isDark ? "#e5e7eb" : "#111" }}>
+                {item.type}
+              </ThemedText>
+            )}
+          </ThemedView>
+
+          {/* STATUS */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+              paddingHorizontal: 14,
+              paddingVertical: 5,
+              borderRadius: 999,
+              backgroundColor: isDark ? "#020617" : "#f9fafb",
+            }}
+          >
+            <Ionicons
+              name={
+                status === "SENT"
+                  ? "checkmark-circle"
+                  : status === "SCHEDULED"
+                    ? "time-outline"
+                    : "hourglass-outline"
+              }
+              size={14}
+              style={{
+                textShadowColor:
+                  status === "SENT"
+                    ? "#16a34a"
+                    : status === "SCHEDULED"
+                      ? "#2563eb"
+                      : "#f59e0b",
+                textShadowRadius: 8,
+              }}
+              color={
+                status === "SENT"
+                  ? "#22c55e"
+                  : status === "SCHEDULED"
+                    ? "#3b82f6"
+                    : "#fbbf24"
+              }
+            />
+            <ThemedText
+              style={{
+                fontSize: 12,
+                fontWeight: "600",
+                color: isDark ? "#e5e7eb" : "#111827",
+              }}
+            >
+              {status}
+            </ThemedText>
+          </View>
+
         </ThemedView>
       </View>
     );
   };
 
-  const visiblePosts = posts.slice(0, visibleCount);
-  const isAllVisible = visibleCount >= posts.length;
+  // const visiblePosts = posts.slice(0, visibleCount);
+  // const isAllVisible = visibleCount >= posts.length;
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -589,17 +713,73 @@ export default function CampaignsDetails() {
           onDelete={() => { }}
           onCopy={() => { }}
           onToggleShow={() => { }}
-          onPressPost={() => campaign?.id && handleCreatePost(campaign.id)}
+          // onPressPost={() => campaign?.id && handleCreatePost(campaign.id)}
+          onPressPost={() => {
+            if (isCompleted) {
+              Alert.alert(
+                "Campaign Completed",
+                "You cannot create posts for a completed campaign."
+              );
+              return;
+            }
+            campaign?.id && handleCreatePost(campaign.id);
+          }}
+
         />
       )}
 
       {/* POSTS */}
       <ThemedView className="flex-1" style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
-        <ThemedText className="text-xl font-bold mb-3"
-          style={{
-            fontSize: 18,
-            fontWeight: "bold",
-          }}>Created Posts</ThemedText>
+        <ThemedView
+          className="flex-row items-center justify-between mb-3"
+          style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
+        >
+          {/* Title */}
+          <ThemedText
+            style={{
+              fontSize: 18,
+              fontWeight: "bold",
+              color: isDark ? "#ffffff" : "#000000",
+            }}
+          >
+            Created Posts
+          </ThemedText>
+
+          {/* Search */}
+          <ThemedView
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              borderWidth: 1,
+              borderColor: isDark ? "#3f3f46" : "#e5e7eb",
+              backgroundColor: isDark ? "#161618" : "#ffffff",
+              borderRadius: 50,
+              paddingHorizontal: 10,
+              height: 40,
+              width: 200,
+            }}
+          >
+            <Ionicons
+              name="search-outline"
+              size={16}
+              color={isDark ? "#9ca3af" : "#6b7280"}
+            />
+
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search posts"
+              placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+              style={{
+                marginLeft: 6,
+                flex: 1,
+                fontSize: 13,
+                color: isDark ? "#ffffff" : "#000000",
+              }}
+            />
+          </ThemedView>
+        </ThemedView>
+
         {loadingPosts ? (
           <FlatList
             data={Array(5).fill(null)}

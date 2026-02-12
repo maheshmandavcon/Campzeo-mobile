@@ -9,14 +9,14 @@ import { Text, TouchableOpacity, useColorScheme, View } from "react-native";
 export interface Campaign {
   id: number;
   details: string;
-  dates: string;
   description: string;
+  startDate?: string;
+  endDate?: string;
+  dates: string;
   posts: string[];
   show?: boolean;
   contactsCount?: number;
-  contacts?: any[];
   postsCount?: number;
-  status?: "Scheduled" | "Active" | "Completed";
 }
 
 interface CampaignCardProps {
@@ -50,23 +50,22 @@ export default function CampaignCard({
 }: CampaignCardProps) {
 
   /* ---------------- STATUS LOGIC (FIXED) ---------------- */
-  const getStatus = () => {
-    if (!campaign.dates) return "Scheduled";
+  type CampaignStatus = "Scheduled" | "Active" | "Completed";
 
-    const [startStr, endStr] = campaign.dates.split(" - ").map(s => s.trim());
-    if (!startStr) return "Scheduled";
+  const getStatus = (): CampaignStatus => {
+    if (!campaign.startDate || !campaign.endDate) return "Scheduled";
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const startDate = new Date(startStr);
-    startDate.setHours(0, 0, 0, 0);
+    const start = new Date(campaign.startDate);
+    start.setHours(0, 0, 0, 0);
 
-    const endDate = endStr ? new Date(endStr) : startDate;
-    endDate.setHours(23, 59, 59, 999);
+    const end = new Date(campaign.endDate);
+    end.setHours(23, 59, 59, 999);
 
-    if (today < startDate) return "Scheduled";
-    if (today > endDate) return "Completed";
+    if (today < start) return "Scheduled";
+    if (today > end) return "Completed";
     return "Active";
   };
 
@@ -175,20 +174,20 @@ export default function CampaignCard({
           {showActions && (
             <ThemedView className="flex-row">
               <TouchableOpacity onPress={handleEdit} className="mx-1">
-                <Ionicons name="create-outline" size={22} style ={{ color: isDark ? "#73f3c9": "#10b981" }} />
+                <Ionicons name="create-outline" size={22} style={{ color: isDark ? "#73f3c9" : "#10b981" }} />
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => onDelete(campaign)} className="mx-1">
-                <Ionicons name="trash-outline" size={22} style ={{ color: isDark ? "#f47a7a": "#ef4444" }} />
+                <Ionicons name="trash-outline" size={22} style={{ color: isDark ? "#f47a7a" : "#ef4444" }} />
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => onCopy(campaign)} className="mx-1">
-                <Ionicons name="copy-outline" size={22} style ={{ color: isDark ? "#73a6f9": "#3b82f6" }} />
+                <Ionicons name="copy-outline" size={22} style={{ color: isDark ? "#73a6f9" : "#3b82f6" }} />
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => onToggleShow(campaign)} className="mx-1">
                 <Ionicons
-                  name={campaign.show ? "eye-off-outline" : "eye-outline"} size={22} style ={{ color: isDark ? "#b4b8c0": "6b7280" }} />
+                  name={campaign.show ? "eye-off-outline" : "eye-outline"} size={22} style={{ color: isDark ? "#b4b8c0" : "6b7280" }} />
               </TouchableOpacity>
             </ThemedView>
           )}
@@ -246,7 +245,7 @@ export default function CampaignCard({
                   className="flex-row items-center px-3 py-1.5 rounded-full"
                   style={{
                     backgroundColor: isDark
-                      ? "rgba(255,255,255,0.08)"  
+                      ? "rgba(255,255,255,0.08)"
                       : "rgba(59,130,246,0.18)",
                     borderWidth: 1,
                     borderColor: isDark ? "#ffffff" : "transparent",
