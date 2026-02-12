@@ -83,7 +83,7 @@ export default function TopBar() {
           <Ionicons
             name="notifications"
             size={25}
-            color={iconColor} 
+            color={"#dc2626"} 
           />
 
           {unreadCount > 0 && (
