@@ -434,6 +434,7 @@ Contacts Count: ${c.contactsCount ?? 0}
               onDelete={handleDelete}
               onCopy={handleCopy}
               onToggleShow={handleToggleShow}
+              statusPosition={"middle"}
               onEdit={(campaign) =>
                 router.push({
                   pathname: "/campaigns/createCampaign",

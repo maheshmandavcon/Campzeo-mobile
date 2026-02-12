@@ -708,8 +708,10 @@ export default function CampaignsDetails() {
           campaign={campaign}
           showActions={false}
           alwaysExpanded={true}
-          postButtonTopRight={true}
+          createPostButton={true}
           hidePostsHeading={true}
+          statusPosition={"top"}
+          highlightBorder 
           onDelete={() => { }}
           onCopy={() => { }}
           onToggleShow={() => { }}
@@ -724,7 +726,6 @@ export default function CampaignsDetails() {
             }
             campaign?.id && handleCreatePost(campaign.id);
           }}
-
         />
       )}
 
