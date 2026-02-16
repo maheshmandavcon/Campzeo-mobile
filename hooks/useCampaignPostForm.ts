@@ -894,7 +894,9 @@ export function useCampaignPostForm({
     try {
       // ================= VALIDATION =================
       // Common required fields
-      if (!message || !postDate) {
+      if (!message
+        //  || !postDate
+        ) {
         Alert.alert("⚠️ Please fill in all fields.");
         return;
       }
