@@ -80,6 +80,36 @@ export function useCampaignPostForm({
   const [showPicker, setShowPicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
+  // ================= DATE CONSTRAINTS =================
+  const today = new Date();
+  today.setSeconds(0, 0);
+
+  // -------- START DATE --------
+  const campaignStartDate = existingPost?.campaign?.startDate
+    ? new Date(existingPost.campaign.startDate)
+    : null;
+
+  // Minimum start date
+  const minSelectableStartDate = (() => {
+    if (campaignStartDate && campaignStartDate > today) {
+      return campaignStartDate;
+    }
+    return today;
+  })();
+
+  // -------- END DATE --------
+  const campaignEndDate = existingPost?.campaign?.endDate
+    ? new Date(existingPost.campaign.endDate)
+    : null;
+
+  const minSelectableEndDate = minSelectableStartDate;
+  const maxSelectableEndDate = campaignEndDate ?? undefined;
+
+  // console.log("campaignStartDate", campaignStartDate);
+  // console.log("minSelectableStartDate", minSelectableStartDate);
+  // console.log("campaignEndDate", campaignEndDate);
+  // console.log("minSelectableEndDate", minSelectableEndDate);
+
   // ================= FACEBOOK =================
   const [facebookContentType, setFacebookContentType] = useState("STANDARD");
   const [facebookPages, setFacebookPages] = useState<any[]>([]);
@@ -115,13 +145,13 @@ export function useCampaignPostForm({
 
   // ================= PREVIEW TIMESTEMP =================
   const previewTimestamp = postDate
-  ? postDate.toLocaleString([], {
-      // day: "2-digit",
-      // month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  : "Just now";
+    ? postDate.toLocaleString([], {
+        // day: "2-digit",
+        // month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "Just now";
 
   // ================= LINKEDIN =================
   const [selectedAccount, setSelectedAccount] = useState<string>();
@@ -871,6 +901,18 @@ export function useCampaignPostForm({
         return;
       }
 
+      const mediaRequiredPlatforms = ["INSTAGRAM", "YOUTUBE", "PINTEREST"];
+      if (
+        mediaRequiredPlatforms.includes(platform) &&
+        attachments.length === 0
+      ) {
+        Alert.alert(
+          "⚠️ Missing Media",
+          "Please add at least one image or video for this platform.",
+        );
+        return;
+      }
+
       // Email-specific validation
       if (platform === "EMAIL" && (!subject || !senderEmail)) {
         Alert.alert("⚠️ Please fill in all fields.");
@@ -979,7 +1021,6 @@ export function useCampaignPostForm({
           token,
         );
       }
-
       onClose?.(response);
 
       // ================= RESET (ONLY CREATE) =================
@@ -1058,6 +1099,9 @@ export function useCampaignPostForm({
     selectedPlaylist,
     newPlaylistName,
     selectedAccount,
+    minSelectableStartDate,
+    minSelectableEndDate,
+    maxSelectableEndDate,
 
     // setters
     setSenderEmail,

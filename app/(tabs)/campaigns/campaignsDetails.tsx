@@ -66,6 +66,7 @@ export default function CampaignsDetails() {
   const [visibleCount, setVisibleCount] = useState(5);
   const [publishing, setPublishing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [deletingPostId, setDeletingPostId] = useState<number | null>(null);
 
   const refreshCallback =
     typeof params.refreshCallback === "string";
@@ -190,29 +191,24 @@ export default function CampaignsDetails() {
 
   // Post Status
   const getPostStatus = (item: any) => {
-    const backendStatus = item.status?.toUpperCase();
+    if (item.isPostSent === true) return "SENT";
 
-    // ✅ Accept only meaningful backend statuses
-    if (backendStatus && backendStatus !== "DRAFT") {
-      return backendStatus;
-    }
+    if (item.publishedDate) return "SENT";
 
-    // ✅ Already sent
-    if (item.sentAt) return "SENT";
-
-    // ✅ Scheduled in future
-    if (item.scheduledPostTime) {
+    if (item.scheduledPostTime && !item.isPostSent) {
       const scheduled = new Date(item.scheduledPostTime);
       if (scheduled > new Date()) return "SCHEDULED";
     }
 
-    // ✅ Default fallback
+    if (item.failureReason) return "PENDING";
+
     return "PENDING";
   };
 
   // ========= POST ACTIONS =========
   const handleDeletePost = async (postId: number) => {
     if (!resolvedCampaignId) return;
+
     Alert.alert("Delete Post?", "Are you sure you want to delete this post?", [
       { text: "Cancel", style: "cancel" },
       {
@@ -220,14 +216,20 @@ export default function CampaignsDetails() {
         style: "destructive",
         onPress: async () => {
           try {
+            setDeletingPostId(postId);
+
             await deletePostForCampaignApi(resolvedCampaignId, postId);
+
             const updatedPosts = posts.filter((p) => p.id !== postId);
             setPosts(updatedPosts);
 
-            if (visibleCount > updatedPosts.length) setVisibleCount(updatedPosts.length);
+            if (visibleCount > updatedPosts.length) {
+              setVisibleCount(updatedPosts.length);
+            }
           } catch (error) {
-            console.error("Failed to delete post:", error);
             Alert.alert("Error", "Failed to delete post. Please try again.");
+          } finally {
+            setDeletingPostId(null); // ✅ STOP spinner
           }
         },
       },
@@ -236,15 +238,19 @@ export default function CampaignsDetails() {
 
   // ========= HANDLE CREATE / EDIT POST =========
   const handleCreatePost = (campaignId: number) => {
-  router.push({
-    pathname: "/campaigns/campaignComponents/campaignPost",
-    params: {
-      campaignId: String(campaignId),
-      campaignStartDate: campaign?.startDate, 
-      refreshCallback: "true",
-    },
-  });
-};
+    // console.log("campaignStartDate:", campaign?.startDate);
+    // console.log("campaignEndDate:", campaign?.endDate);
+    router.push({
+      pathname: "/campaigns/campaignComponents/campaignPost",
+      params: {
+        campaignId: String(campaignId),
+        campaignStartDate: campaign?.startDate,
+        campaignEndDate: campaign?.endDate,
+        // campaignStartDate: campaign.startDate, 
+        refreshCallback: "true",
+      },
+    });
+  };
 
   const handleEditPost = (campaignId: number, post: any) => {
     if (!post?.id || !post?.type) return;
@@ -466,17 +472,34 @@ export default function CampaignsDetails() {
     try {
       setPublishing(true);
 
-      const result = await shareCampaignPostApi(
+      await shareCampaignPostApi(
         resolvedCampaignId,
         currentSharePostId,
         contactsToSend
       );
 
       Alert.alert("Success", "Post sent successfully");
-      setSelectedContacts([]); // reset selected contacts
+
+      // ✅ FORCE UI UPDATE
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === currentSharePostId
+            ? {
+              ...p,
+              status: "SENT",
+              sentAt: new Date().toISOString(),
+              scheduledPostTime: null, // 🔑 IMPORTANT
+            }
+            : p
+        )
+      );
+
+      setSelectedContacts([]);
       setShareModalVisible(false);
-      fetchPosts(); // refresh posts from backend
-    } catch (error: any) {
+
+      await fetchPosts(); // optional but fine
+    }
+    catch (error: any) {
       Alert.alert("Error", error.message || "Failed to send post");
     } finally {
       setPublishing(false);
@@ -487,6 +510,9 @@ export default function CampaignsDetails() {
   const renderPostItem = ({ item }: { item: any }) => {
     const platform = platformIcons[item.type];
     const status = getPostStatus(item);
+    const canDelete = status !== "SENT";
+    const canEdit = status !== "SENT";
+    const canShare = status !== "SENT";
 
     return (
       <View className="p-4 rounded-xl mb-4 relative">
@@ -501,44 +527,80 @@ export default function CampaignsDetails() {
           }}
         >
           <TouchableOpacity
-            onPress={() => handleOpenShareModal(item.id)}
-            activeOpacity={0.6}
+            onPress={() => {
+              if (!canShare) return;
+              handleOpenShareModal(item.id);
+            }}
+            disabled={!canShare}
+            activeOpacity={canShare ? 0.6 : 1}
             style={{
               width: 44,
               height: 44,
               borderRadius: 22,
               justifyContent: "center",
               alignItems: "center",
+              opacity: !canShare ? 0.4 : 1,
             }}
           >
-            <Ionicons name="share-social-outline" size={22} style={{ color: isDark ? "#73a6f9" : "#3b82f6" }} />
+            <Ionicons
+              name="share-social-outline"
+              size={22}
+              color={isDark ? "#73a6f9" : "#3b82f6"}
+            />
           </TouchableOpacity>
 
+
           <TouchableOpacity
-            onPress={() => handleEditPost(campaign!.id, item)}
-            activeOpacity={0.6}
+            onPress={() => {
+              if (!canEdit) return;
+              handleEditPost(campaign!.id, item);
+            }}
+            disabled={!canEdit}
+            activeOpacity={canEdit ? 0.6 : 1}
             style={{
               width: 44,
               height: 44,
               justifyContent: "center",
               alignItems: "center",
+              opacity: !canEdit ? 0.4 : 1,
             }}
           >
-            <Ionicons name="create-outline" size={22} style={{ color: isDark ? "#73f3c9" : "#10b981" }} />
+            <Ionicons
+              name="create-outline"
+              size={22}
+              color={isDark ? "#73f3c9" : "#10b981"}
+            />
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => handleDeletePost(item.id)}
-            activeOpacity={0.6}
+            onPress={() => {
+              if (!canDelete) return;
+              handleDeletePost(item.id);
+            }}
+            disabled={!canDelete || deletingPostId === item.id}
+            activeOpacity={canDelete ? 0.6 : 1}
             style={{
               width: 44,
               height: 44,
               borderRadius: 22,
               justifyContent: "center",
               alignItems: "center",
+              opacity: !canDelete ? 0.4 : 1,
             }}
           >
-            <Ionicons name="trash-outline" size={22} style={{ color: isDark ? "#f47a7a" : "#ef4444" }} />
+
+            {deletingPostId === item.id ? (
+              <ActivityIndicator
+                size="small"
+                color={isDark ? "#f47a7a" : "#ef4444"}
+              />
+            ) : (
+              <Ionicons
+                name="trash-outline"
+                size={22}
+                color={isDark ? "#f47a7a" : "#ef4444"}
+              />
+            )}
           </TouchableOpacity>
         </View>
 
@@ -646,10 +708,10 @@ export default function CampaignsDetails() {
             <Ionicons
               name={
                 status === "SENT"
-                  ? "checkmark-circle"
+                  ? "paper-plane"
                   : status === "SCHEDULED"
-                    ? "time-outline"
-                    : "hourglass-outline"
+                    ? "alarm-outline"
+                    : "pencil-outline"
               }
               size={14}
               style={{
@@ -711,7 +773,7 @@ export default function CampaignsDetails() {
           createPostButton={true}
           hidePostsHeading={true}
           statusPosition={"top"}
-          highlightBorder 
+          highlightBorder
           onDelete={() => { }}
           onCopy={() => { }}
           onToggleShow={() => { }}

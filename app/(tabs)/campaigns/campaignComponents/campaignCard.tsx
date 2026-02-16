@@ -99,7 +99,9 @@ export default function CampaignCard({
     } else {
       router.push({
         pathname: "/campaigns/campaignsDetails",
-        params: { campaign: JSON.stringify(campaign) },
+        params: { campaign: JSON.stringify(campaign),
+        campaignStartDate: campaign.startDate,
+         },
       });
     }
   };

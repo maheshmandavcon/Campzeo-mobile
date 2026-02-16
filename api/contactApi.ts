@@ -24,9 +24,17 @@ export const createContactApi = async (data: ContactData) => {
     const res = await https.post("/contacts", payload);
     return res.data;
   } catch (error: any) {
-    console.error("Create contact error:", error.response || error.message);
+    const apiData = error?.response?.data;
+
+    if (error?.response?.status === 409 && apiData?.duplicate) {
+      throw new Error(apiData.error); 
+    }
+
     throw new Error(
-      error?.response?.data?.message || error?.response?.data || "Failed to create contact"
+      apiData?.error ||
+      apiData?.message ||
+      error?.message ||
+      "Failed to create contact"
     );
   }
 };
