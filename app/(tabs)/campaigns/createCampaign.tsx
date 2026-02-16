@@ -57,6 +57,7 @@ export default function CreateCampaign() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const today = new Date();
+  const minStartDate = startDateObj && startDateObj > today ? startDateObj : today;
 
   const {
     control,
@@ -273,12 +274,12 @@ export default function CreateCampaign() {
                   <DateTimePickerModal
                     isVisible={showStartPicker}
                     mode="date"
-                    minimumDate={today}
+                    minimumDate={minStartDate} 
                     onConfirm={(date) => {
                       setShowStartPicker(false);
                       setStartDateObj(date);
                       setValue("startDate", date.toISOString().split("T")[0]);
-                      setValue("endDate", "");
+                      setValue("endDate", ""); 
                     }}
                     onCancel={() => setShowStartPicker(false)}
                   />
@@ -355,7 +356,7 @@ export default function CreateCampaign() {
           <Text
             style={{
               marginTop: 16,
-              marginLeft: 8, // ← added for heading shift
+              marginLeft: 8, 
               fontSize: 16,
               fontWeight: "600",
               color: isDark ? "#e5e7eb" : "#374151",
