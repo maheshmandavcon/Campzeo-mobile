@@ -51,6 +51,19 @@ export default function CampaignPost() {
   const route = useRouter();
 
   const params = useLocalSearchParams();
+  // Get params from router
+  const { campaignId, campaignStartDate: campaignStartDateStr, campaignEndDate: campaignEndDateStr } = useLocalSearchParams<{
+    campaignId?: string;
+    campaignStartDate?: string;
+    campaignEndDate?: string;
+  }>();
+
+  // Convert strings to Date objects
+  const campaignStartDate = campaignStartDateStr ? new Date(campaignStartDateStr) : new Date();
+  const campaignEndDate = campaignEndDateStr ? new Date(campaignEndDateStr) : undefined;
+
+  // console.log("campaignStartDate on CampaignPost:", campaignStartDate);
+  // console.log("campaignEndDate on CampaignPost:", campaignEndDate);
 
   const campaignIdStr =
     typeof params.campaignId === "string" ? params.campaignId : params.campaignId?.[0];
@@ -453,7 +466,8 @@ export default function CampaignPost() {
                   color: isDark ? "#9ca3af" : "#164e63",
                 }}
               >
-                Content, format, and preview will update automatically
+                {/* Content, format, and preview will update automatically */}
+                We’ll tailor the content and preview for the platform you choose
               </ThemedText>
             </ThemedView>
           </ThemedView>
@@ -565,6 +579,8 @@ export default function CampaignPost() {
               platform={selected}
               campaignId={campaignIdStr.toString()}
               existingPost={existingPost}
+              campaignStartDate={campaignStartDate.toISOString()}
+              campaignEndDate={campaignEndDate ? campaignEndDate.toISOString() : undefined}
               onClose={() => {
                 setSelected(null);
                 setExistingPost(null);

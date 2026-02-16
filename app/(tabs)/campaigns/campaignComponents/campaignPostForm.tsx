@@ -9,6 +9,7 @@ import { ResizeMode, Video } from "expo-av";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -28,6 +29,8 @@ interface CampaignPostFormProps {
   platform: "EMAIL" | "SMS" | "INSTAGRAM" | "WHATSAPP" | "FACEBOOK" | "YOUTUBE" | "LINKEDIN" | "PINTEREST";
   existingPost?: any;
   campaignId?: string;
+  campaignStartDate?: string;
+  campaignEndDate?: string;
   onClose?: () => void;
 }
 
@@ -35,6 +38,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
   platform,
   existingPost = null,
   campaignId,
+  campaignStartDate,
+  campaignEndDate,
   onClose,
 }) => {
   const isDark = useColorScheme() === "dark";
@@ -54,7 +59,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
     pinterestBoard, destinationLink, isCreatingPinterestBoard, pinterestModalVisible, newPinterestBoard, pinterestDescription, isPinterestBoardLoading, allPinterestBoards, loadingBoards,
 
-    showPicker, showTimePicker,
+    showPicker, showTimePicker, minSelectableStartDate, minSelectableEndDate, maxSelectableEndDate,
 
     // setters
     setSenderEmail, setSubject, setMessage, setPostDate, setAiModalVisible, setAiPrompt, setImageModalVisible, setImagePrompt, setAttachments, setFacebookContentType, setYouTubeContentType, setYouTubeTags, setYouTubeStatus, setShowStatusDropdown, setIsCreatingPlaylist, setPlaylistId,
@@ -65,7 +70,10 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
   } = useCampaignPostForm({
     platform,
     campaignId,
-    existingPost,
+    existingPost: existingPost
+      ? existingPost
+      : { campaign: { startDate: campaignStartDate, endDate: campaignEndDate, } },
+    // campaignStartDate,
     onClose,
   });
 
@@ -1607,7 +1615,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             </View>
           )}
 
-          {/* DATE TIME */}
+          {/* DATE & TIME PICKER */}
           <TouchableOpacity
             onPress={() => setShowPicker(true)}
             style={{
@@ -1623,15 +1631,16 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               justifyContent: "space-between",
             }}
           >
-            {/* Date Text */}
             <Text style={{ color: isDark ? "#9ca3af" : "#6b7280" }}>
               {postDate ? postDate.toLocaleString() : "Select Date & Time"}
             </Text>
 
-            {/* Close / Clear Button */}
             {postDate && (
               <TouchableOpacity
-                onPress={() => setPostDate(null)}
+                onPress={() => {
+                  setPostDate(null);
+                  setShowTimePicker(false);
+                }}
                 hitSlop={10}
               >
                 <Ionicons
@@ -1643,38 +1652,55 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             )}
           </TouchableOpacity>
 
-          {showPicker && (
+          {/* DATE PICKER */}
+          {showTimePicker && (
             <DateTimePicker
-              value={postDate || new Date()}
-              mode="date"
-              minimumDate={new Date()}
-              onChange={(_, date) => {
-                setShowPicker(false);
-                if (date) {
-                  setPostDate(date);
-                  setShowTimePicker(true);
-                }
+              value={postDate ?? minSelectableEndDate}
+              mode="time"
+              is24Hour={true}
+              onChange={(_, time) => {
+                setShowTimePicker(false);
+                if (!time || !postDate) return;
+
+                setPostDate(
+                  new Date(
+                    postDate.getFullYear(),
+                    postDate.getMonth(),
+                    postDate.getDate(),
+                    time.getHours(),
+                    time.getMinutes(),
+                    0,
+                    0
+                  )
+                );
               }}
             />
           )}
 
-          {showTimePicker && (
+          {/* TIME PICKER */}
+          {showPicker && (
             <DateTimePicker
-              value={postDate || new Date()}
-              mode="time"
-              onChange={(_, time) => {
-                setShowTimePicker(false);
-                if (time && postDate) {
-                  setPostDate(
-                    new Date(
-                      postDate.getFullYear(),
-                      postDate.getMonth(),
-                      postDate.getDate(),
-                      time.getHours(),
-                      time.getMinutes()
-                    )
-                  );
-                }
+              value={postDate ?? minSelectableEndDate}
+              mode="date"
+              minimumDate={minSelectableEndDate}
+              maximumDate={maxSelectableEndDate}
+              onChange={(_, date) => {
+                setShowPicker(false);
+                if (!date) return;
+
+                const base = postDate ?? new Date();
+
+                setPostDate(
+                  new Date(
+                    date.getFullYear(),
+                    date.getMonth(),
+                    date.getDate(),
+                    base.getHours(),
+                    base.getMinutes()
+                  )
+                );
+
+                setShowTimePicker(true);
               }}
             />
           )}
@@ -1761,7 +1787,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map(a => a.uri)}
-              // timestamp={previewTimestamp}
+            // timestamp={previewTimestamp}
             />
           )}
 
