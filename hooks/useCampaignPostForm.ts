@@ -75,6 +75,10 @@ export function useCampaignPostForm({
     existingPost?.image || undefined,
   );
   const [imageModalVisible, setImageModalVisible] = useState(false);
+  // const [imageLoadingMap, setImageLoadingMap] = useState<Record<string, boolean>>({});
+  const [imageErrorMap, setImageErrorMap] = useState<Record<string, boolean>>(
+    {},
+  );
 
   // ================= DATE =================
   const [showPicker, setShowPicker] = useState(false);
@@ -637,9 +641,10 @@ export function useCampaignPostForm({
   // ================= AI IMAGE =================
   const handleGenerateAIImage = async () => {
     if (!imagePrompt.trim()) {
-      Alert.alert("Enter prompt to generate image");
+      Alert.alert("Enter a prompt to generate an image");
       return;
     }
+
     if (loadingImage) return;
 
     setLoadingImage(true);
@@ -650,16 +655,56 @@ export function useCampaignPostForm({
 
       const response = await generateAIImageApi({ prompt: imagePrompt }, token);
 
-      console.log("AI Image API Response:", response);
+      const imageUrl = response?.images?.[0];
 
-      const imageUrl = response?.images?.[0] || response?.imagePrompt;
+      // 🚫 API responded but no image
+      if (!imageUrl) {
+        const failedKey = `failed-${Date.now()}`;
 
-      setGeneratedImages([imageUrl]);
-      setSelectedImage(imageUrl);
+        setGeneratedImages((prev) => [...prev, failedKey]);
+
+        setImageLoadingMap((prev) => ({
+          ...prev,
+          [failedKey]: false,
+        }));
+
+        setImageErrorMap((prev) => ({
+          ...prev,
+          [failedKey]: true,
+        }));
+
+        Alert.alert(
+          "Image Generation Failed",
+          "The AI could not generate an image.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                setImageModalVisible(false);
+              },
+            },
+          ],
+        );
+
+        return;
+      }
+
+      // ✅ Valid image
+      setGeneratedImages((prev) => [...prev, imageUrl]);
+
+      setImageLoadingMap((prev) => ({
+        ...prev,
+        [imageUrl]: true,
+      }));
+
+      setImageErrorMap((prev) => ({
+        ...prev,
+        [imageUrl]: false,
+      }));
     } catch (error: any) {
       Alert.alert(
         "Image Generation Error",
-        error?.message || "Failed to generate image",
+        error?.message || "Something went wrong while generating the image.",
       );
     } finally {
       setLoadingImage(false);
@@ -894,9 +939,10 @@ export function useCampaignPostForm({
     try {
       // ================= VALIDATION =================
       // Common required fields
-      if (!message
+      if (
+        !message
         //  || !postDate
-        ) {
+      ) {
         Alert.alert("⚠️ Please fill in all fields.");
         return;
       }
@@ -998,6 +1044,37 @@ export function useCampaignPostForm({
           }),
         },
       };
+
+      const isFutureDateTime = (date: Date) => {
+        return date.getTime() > Date.now();
+      };
+
+      // ================= SCHEDULE VALIDATION =================
+      if (postDate) {
+        if (!isFutureDateTime(postDate)) {
+          const now = new Date();
+
+          const currentTime = now.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          const future = new Date(now.getTime() + 60 * 1000);
+
+          const futureTime = future.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          Alert.alert(
+            "Invalid Time",
+            `Please select a future time (for example, ${futureTime} instead of ${currentTime}).`,
+          );
+
+          setLoading(false);
+          return;
+        }
+      }
 
       // ================= API CALL =================
       const token = await getToken();
@@ -1102,6 +1179,7 @@ export function useCampaignPostForm({
     minSelectableStartDate,
     minSelectableEndDate,
     maxSelectableEndDate,
+    imageErrorMap,
 
     // setters
     setSenderEmail,
@@ -1139,6 +1217,7 @@ export function useCampaignPostForm({
     setSelectedPlaylist,
     setNewPlaylistName,
     setSelectedAccount,
+    setImageErrorMap,
 
     // actions
     handleAddAttachment,

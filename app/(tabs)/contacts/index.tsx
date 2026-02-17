@@ -96,6 +96,24 @@ export default function Contacts() {
       },
     });
   };
+//   const handleEdit = (record: ContactsRecord) => {
+//   // 1️⃣ Print all emails
+//   const allEmails = records.map((r) => r.email);
+//   console.log("Existing contact emails:", allEmails);
+
+//   // 2️⃣ Print all mobile numbers
+//   const allMobiles = records.map((r) => r.mobile);
+//   console.log("Existing contact numbers:", allMobiles);
+
+//   // 3️⃣ Navigate to edit page
+//   router.push({
+//     pathname: "/contacts/createContact",
+//     params: {
+//       contactId: String(record.id),
+//       record: JSON.stringify(record),
+//     },
+//   });
+// };
 
   const handleCopy = (record: ContactsRecord) => {
     const textToCopy = `

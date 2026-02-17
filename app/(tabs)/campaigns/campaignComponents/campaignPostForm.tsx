@@ -27,14 +27,14 @@ import Preview from "./preview";
 // ---------- Define Props Interface ----------
 interface CampaignPostFormProps {
   platform:
-    | "EMAIL"
-    | "SMS"
-    | "INSTAGRAM"
-    | "WHATSAPP"
-    | "FACEBOOK"
-    | "YOUTUBE"
-    | "LINKEDIN"
-    | "PINTEREST";
+  | "EMAIL"
+  | "SMS"
+  | "INSTAGRAM"
+  | "WHATSAPP"
+  | "FACEBOOK"
+  | "YOUTUBE"
+  | "LINKEDIN"
+  | "PINTEREST";
   existingPost?: any;
   campaignId?: string;
   campaignStartDate?: string;
@@ -67,7 +67,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
     pinterestBoard, destinationLink, isCreatingPinterestBoard, pinterestModalVisible, newPinterestBoard, pinterestDescription, isPinterestBoardLoading, allPinterestBoards, loadingBoards,
 
-    showPicker, showTimePicker, minSelectableStartDate, minSelectableEndDate, maxSelectableEndDate,
+    showPicker, showTimePicker, minSelectableStartDate, minSelectableEndDate, maxSelectableEndDate, imageErrorMap,
 
     // setters
     setSenderEmail,
@@ -101,6 +101,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     setShowPlaylistDropdown,
     setSelectedPlaylist,
     setNewPlaylistName,
+    setImageErrorMap,
 
     // handlers
     handleSubmit,
@@ -640,8 +641,10 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     horizontal
                     renderItem={({ item }) => (
                       <TouchableOpacity
+                        disabled={imageLoadingMap[item] || imageErrorMap[item]}
                         onPress={() => {
-                          // Add clicked image to attachments
+                          if (imageErrorMap[item]) return; // 🛑 safety guard
+
                           setAttachments((prev) => [
                             ...prev,
                             {
@@ -651,9 +654,14 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                               uploading: false,
                             },
                           ]);
+
                           setImageModalVisible(false);
                         }}
+                        style={{
+                          opacity: imageErrorMap[item] ? 0.4 : 1, // optional visual cue
+                        }}
                       >
+
                         <View
                           style={{
                             width: 100,
@@ -682,25 +690,25 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                               width: "100%",
                               height: "100%",
                               borderRadius: 6,
-                              opacity: imageLoadingMap[item] ? 0 : 1,
+                              opacity: imageLoadingMap[item] || imageErrorMap[item] ? 0 : 1,
                             }}
                             resizeMode="cover"
                             onLoadEnd={() =>
-                              setImageLoadingMap(
-                                (prev: Record<string, boolean>) => ({
-                                  ...prev,
-                                  [item]: false,
-                                }),
-                              )
+                              setImageLoadingMap((prev) => ({
+                                ...prev,
+                                [item]: false,
+                              }))
                             }
                             onError={() => {
                               console.log("Image failed to load", item);
-                              setImageLoadingMap(
-                                (prev: Record<string, boolean>) => ({
-                                  ...prev,
-                                  [item]: false,
-                                }),
-                              );
+                              setImageLoadingMap((prev) => ({
+                                ...prev,
+                                [item]: false,
+                              }));
+                              setImageErrorMap((prev) => ({
+                                ...prev,
+                                [item]: true, // 🚫 mark broken image
+                              }));
                             }}
                           />
                         </View>
@@ -1932,18 +1940,50 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 setShowTimePicker(false);
                 if (!time || !postDate) return;
 
-                setPostDate(
-                  new Date(
-                    postDate.getFullYear(),
-                    postDate.getMonth(),
-                    postDate.getDate(),
-                    time.getHours(),
-                    time.getMinutes(),
-                    0,
-                    0
-                  )
+                const selectedDateTime = new Date(
+                  postDate.getFullYear(),
+                  postDate.getMonth(),
+                  postDate.getDate(),
+                  time.getHours(),
+                  time.getMinutes(),
+                  0,
+                  0
                 );
+
+                // 🚨 STRICT FUTURE CHECK (not now, not past)
+                // if (selectedDateTime.getTime() <= Date.now()) {
+                //   Alert.alert(
+                //     "Invalid Time",
+                //     "Please select a future time (for example, 10:01 instead of 10:00)."
+                //   );
+                //   return;
+                // }
+
+                if (selectedDateTime.getTime() <= Date.now()) {
+                  const now = new Date();
+
+                  const currentTime = now.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+
+                  const future = new Date(now.getTime() + 60 * 1000);
+
+                  const futureTime = future.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+
+                  Alert.alert(
+                    "Invalid Time",
+                    `Please select a future time (for example, ${futureTime} instead of ${currentTime}).`
+                  );
+                  return;
+                }
+
+                setPostDate(selectedDateTime);
               }}
+
             />
           )}
 
@@ -1951,7 +1991,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           {showPicker && (
             <DateTimePicker
               value={postDate ?? minSelectableEndDate}
-              mode="date"
+              // mode="date"
               minimumDate={minSelectableEndDate}
               maximumDate={maxSelectableEndDate}
               onChange={(_, date) => {
@@ -2007,7 +2047,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 }
               }}
             />
-          )}
+          )} 
         </View>
 
         {/* ---------- PREVIEW SLOT ---------- */}

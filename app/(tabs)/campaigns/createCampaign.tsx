@@ -1,28 +1,33 @@
-import React, { useState, useEffect } from "react";
 import {
-  View,
-  Text,
+  createCampaignApi,
+  getCampaignByIdApi,
+  getPostsByCampaignIdApi,
+  updateCampaignApi,
+} from "@/api/campaignApi";
+import { getContactsApi } from "@/api/contactApi";
+import { useAuth } from "@clerk/clerk-expo";
+import { Ionicons } from "@expo/vector-icons";
+import { FormControl, Input, InputField } from "@gluestack-ui/themed";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { Controller, SubmitHandler, useForm } from "react-hook-form";
+import {
+  ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Text,
   TouchableOpacity,
-  Alert,
-  ActivityIndicator,
   useColorScheme,
+  View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { Input, InputField, FormControl } from "@gluestack-ui/themed";
-import { router, useLocalSearchParams, useRouter } from "expo-router";
-import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
-import { useAuth } from "@clerk/clerk-expo";
-import {
-  createCampaignApi,
-  updateCampaignApi,
-  getCampaignByIdApi,
-} from "@/api/campaignApi";
-import { getContactsApi } from "@/api/contactApi";
 
+type CampaignPost = {
+  id: number;
+  scheduledPostTime: string;
+};
 
 type Contact = {
   id: number;
@@ -78,6 +83,36 @@ export default function CreateCampaign() {
 
   const selectedContactIds = watch("contactIds") || [];
 
+  const [posts, setPosts] = useState<CampaignPost[]>([]);
+
+  // --- LOG POSTS TO CONSOLE ---
+  // useEffect(() => {
+  //   if (posts.length > 0) {
+  //     console.log("Scheduled posts:", posts);
+  //     posts.forEach((post) => {
+  //       console.log(
+  //         `Post ID: ${post.id}, Scheduled Time: ${new Date(
+  //           post.scheduledPostTime
+  //         ).toLocaleString()}`
+  //       );
+  //     });
+  //   }
+  // }, [posts]);
+
+  // Minimum end date based on scheduled posts
+  const minEndDate = React.useMemo(() => {
+    if (!posts || posts.length === 0) return startDateObj || today;
+
+    // Find the latest scheduled post date
+    const latestPostDate = posts.reduce((latest, post) => {
+      const postDate = new Date(post.scheduledPostTime);
+      return postDate > latest ? postDate : latest;
+    }, new Date(posts[0].scheduledPostTime));
+
+    return latestPostDate;
+  }, [posts, startDateObj]);
+
+
   // Fetch campaign if editing
   useEffect(() => {
     if (!isEditMode || !campaignId) return;
@@ -102,6 +137,17 @@ export default function CreateCampaign() {
         if (campaign.startDate) {
           setStartDateObj(new Date(campaign.startDate));
         }
+
+        const postsRes = await getPostsByCampaignIdApi(campaignId);
+        console.log("Posts API returned:", postsRes);
+
+        const postsArray = Array.isArray(postsRes)
+          ? postsRes
+          : postsRes.posts ?? [];
+
+        console.log("Setting posts array:", postsArray);
+
+        setPosts(postsArray);
       } catch (err) {
         Alert.alert("Error", "Failed to load campaign");
         router.back();
@@ -112,6 +158,7 @@ export default function CreateCampaign() {
 
     fetchCampaign();
   }, [isEditMode, campaignId]);
+
 
   /* ---------------- FETCH CONTACTS ---------------- */
   useEffect(() => {
@@ -139,10 +186,45 @@ export default function CreateCampaign() {
     fetchContacts();
   }, []);
 
+  const hasInvalidPostDates = (startDate: string, endDate: string) => {
+    if (!startDate || !endDate) return false;
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    // Set end date to the end of the day to include all posts on that date
+    end.setHours(23, 59, 59, 999);
+
+    return posts.some((post) => {
+      const postDate = new Date(post.scheduledPostTime);
+      return postDate < start || postDate > end;
+    });
+  };
+
   const onSubmit: SubmitHandler<CampaignFormValues> = async (data) => {
     try {
       const token = await getToken();
       if (!token) throw new Error("Token missing");
+
+      // 🔒 LOCK DATE CHANGE IF POSTS EXIST
+      if (isEditMode && posts.length > 0) {
+        const invalid = hasInvalidPostDates(data.startDate, data.endDate);
+
+        if (invalid) {
+          // Find the latest scheduled post
+          const latestPostDate = posts.reduce((latest, post) => {
+            const postDate = new Date(post.scheduledPostTime);
+            return postDate > latest ? postDate : latest;
+          }, new Date(posts[0].scheduledPostTime));
+
+          Alert.alert(
+            "Date change not allowed",
+            `Some posts are scheduled outside this date range.\n\n` +
+            `Latest scheduled post is on ${latestPostDate.toLocaleDateString()}`
+          );
+          return;
+        }
+      }
 
       isEditMode && campaignId
         ? await updateCampaignApi(campaignId, data)
@@ -259,27 +341,63 @@ export default function CreateCampaign() {
           {/* START DATE */}
           <FormControl isInvalid={!!errors.startDate}>
             <FormControl.Label>{requiredLabel("Start Date")}</FormControl.Label>
+
             <Controller
               control={control}
               name="startDate"
               rules={{ required: "Start Date is required" }}
               render={({ field: { value } }) => (
                 <>
-                  <TouchableOpacity onPress={() => setShowStartPicker(true)}>
-                    <Input style={{ borderColor: "#d1d5db", borderWidth: 1, borderRadius: 12 }}>
-                      <InputField value={value} placeholder="YYYY-MM-DD" editable={false} />
-                    </Input>
-                  </TouchableOpacity>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      borderWidth: 1,
+                      borderColor: "#d1d5db",
+                      borderRadius: 12,
+                      paddingRight: 12,
+                    }}
+                  >
+                    <TouchableOpacity
+                      style={{ flex: 1 }}
+                      onPress={() => setShowStartPicker(true)}
+                    >
+                      <Input borderWidth={0}>
+                        <InputField
+                          value={value}
+                          placeholder="YYYY-MM-DD"
+                          editable={false}
+                        />
+                      </Input>
+                    </TouchableOpacity>
+
+                    {/* CLEAR BUTTON */}
+                    {value ? (
+                      <TouchableOpacity
+                        onPress={() => {
+                          setValue("startDate", "");
+                          setValue("endDate", ""); // reset end date too
+                          setStartDateObj(null);
+                        }}
+                      >
+                        <Ionicons
+                          name="close-circle"
+                          size={20}
+                          color={isDark ? "#9ca3af" : "#6b7280"}
+                        />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
 
                   <DateTimePickerModal
                     isVisible={showStartPicker}
                     mode="date"
-                    minimumDate={minStartDate} 
+                    minimumDate={minStartDate}
                     onConfirm={(date) => {
                       setShowStartPicker(false);
                       setStartDateObj(date);
                       setValue("startDate", date.toISOString().split("T")[0]);
-                      setValue("endDate", ""); 
+                      setValue("endDate", "");
                     }}
                     onCancel={() => setShowStartPicker(false)}
                   />
@@ -288,20 +406,81 @@ export default function CreateCampaign() {
             />
           </FormControl>
 
+
           {/* END DATE */}
           <FormControl isInvalid={!!errors.endDate}>
             <FormControl.Label>{requiredLabel("End Date")}</FormControl.Label>
+
             <Controller
               control={control}
               name="endDate"
               rules={{ required: "End Date is required" }}
               render={({ field: { value } }) => (
                 <>
-                  <TouchableOpacity onPress={() => setShowEndPicker(true)}>
-                    <Input style={{ borderColor: "#d1d5db", borderWidth: 1, borderRadius: 12 }}>
-                      <InputField value={value} placeholder="YYYY-MM-DD" editable={false} />
-                    </Input>
-                  </TouchableOpacity>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      borderWidth: 1,
+                      borderColor: "#d1d5db",
+                      borderRadius: 12,
+                      paddingRight: 12,
+                    }}
+                  >
+                    {/* <TouchableOpacity
+                      style={{ flex: 1 }}
+                      onPress={() => setShowEndPicker(true)}
+                    >
+                      <Input borderWidth={0}>
+                        <InputField
+                          value={value}
+                          placeholder="YYYY-MM-DD"
+                          editable={false}
+                        />
+                      </Input>
+                    </TouchableOpacity> */}
+                    <TouchableOpacity
+                      style={{ flex: 1 }}
+                      onPress={() => {
+                        // console.log("Opening End Date Picker, posts.length:", posts?.length ?? 0);
+                        setShowEndPicker(true);
+                      }}
+                    >
+                      <Input borderWidth={0}>
+                        <InputField
+                          value={value}
+                          placeholder="YYYY-MM-DD"
+                          editable={false}
+                        />
+                      </Input>
+                    </TouchableOpacity>
+
+                    <DateTimePickerModal
+                      isVisible={showEndPicker}
+                      mode="date"
+                      minimumDate={minEndDate}
+                      onConfirm={(date) => {
+                        setValue("endDate", date.toISOString().split("T")[0]);
+                        setShowEndPicker(false);
+                      }}
+                      onCancel={() => setShowEndPicker(false)}
+                    />
+
+                    {/* CLEAR BUTTON */}
+                    {value ? (
+                      <TouchableOpacity
+                        onPress={() => {
+                          setValue("endDate", "");
+                        }}
+                      >
+                        <Ionicons
+                          name="close-circle"
+                          size={20}
+                          color={isDark ? "#9ca3af" : "#6b7280"}
+                        />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
 
                   <DateTimePickerModal
                     isVisible={showEndPicker}
@@ -317,6 +496,7 @@ export default function CreateCampaign() {
               )}
             />
           </FormControl>
+
 
           {/* DESCRIPTION */}
           <FormControl isInvalid={!!errors.description}>
@@ -356,7 +536,7 @@ export default function CreateCampaign() {
           <Text
             style={{
               marginTop: 16,
-              marginLeft: 8, 
+              marginLeft: 8,
               fontSize: 16,
               fontWeight: "600",
               color: isDark ? "#e5e7eb" : "#374151",
