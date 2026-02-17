@@ -63,6 +63,26 @@ export const getContactsApi = async (
 };
 
 // UPDATE CONTACT
+// export const updateContactApi = async (contactId: number, data: ContactData) => {
+//   try {
+//     const payload = {
+//       contactName: data.name,
+//       contactEmail: data.email,
+//       contactMobile: data.mobile,
+//       contactWhatsApp: data.whatsapp,
+//       campaignIds: data.campaignIds,
+//     };
+
+//     const res = await https.patch(`/contacts/${contactId}`, payload);
+//     console.log("Update response:", res.data); // Optional debug log
+//     return res.data;
+//   } catch (error: any) {
+//     console.error("Update contact error:", error.response || error.message);
+//     throw new Error(
+//       error?.response?.data?.message || error?.response?.data || "Failed to update contact"
+//     );
+//   }
+// };
 export const updateContactApi = async (contactId: number, data: ContactData) => {
   try {
     const payload = {
@@ -74,12 +94,19 @@ export const updateContactApi = async (contactId: number, data: ContactData) => 
     };
 
     const res = await https.patch(`/contacts/${contactId}`, payload);
-    console.log("Update response:", res.data); // Optional debug log
+    console.log("Update response:", res.data);
     return res.data;
   } catch (error: any) {
-    console.error("Update contact error:", error.response || error.message);
+    const apiData = error?.response?.data;
+
+    // Check for duplicate email
+    if (error?.response?.status === 409 && apiData?.duplicate) {
+      throw new Error(apiData.error || "Email already exists");
+    }
+
+    // Fallback generic error
     throw new Error(
-      error?.response?.data?.message || error?.response?.data || "Failed to update contact"
+      apiData?.error || apiData?.message || error?.message || "Failed to update contact"
     );
   }
 };

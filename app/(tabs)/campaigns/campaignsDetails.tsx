@@ -207,34 +207,34 @@ export default function CampaignsDetails() {
 
   // ========= POST ACTIONS =========
   const handleDeletePost = async (postId: number) => {
-    if (!resolvedCampaignId) return;
+  if (!resolvedCampaignId) return;
 
-    Alert.alert("Delete Post?", "Are you sure you want to delete this post?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            setDeletingPostId(postId);
+  Alert.alert("Delete Post?", "Are you sure you want to delete this post?", [
+    { text: "Cancel", style: "cancel" },
+    {
+      text: "Delete",
+      style: "destructive",
+      onPress: async () => {
+        try {
+          setDeletingPostId(postId);
 
-            await deletePostForCampaignApi(resolvedCampaignId, postId);
+          await deletePostForCampaignApi(resolvedCampaignId, postId);
 
-            const updatedPosts = posts.filter((p) => p.id !== postId);
-            setPosts(updatedPosts);
+          // ✅ Reload ALL posts after delete
+          await fetchPosts();
 
-            if (visibleCount > updatedPosts.length) {
-              setVisibleCount(updatedPosts.length);
-            }
-          } catch (error) {
-            Alert.alert("Error", "Failed to delete post. Please try again.");
-          } finally {
-            setDeletingPostId(null); // ✅ STOP spinner
-          }
-        },
+          // optional: reset visible count
+          setVisibleCount(5);
+        } catch (error) {
+          Alert.alert("Error", "Failed to delete post. Please try again.");
+        } finally {
+          setDeletingPostId(null);
+        }
       },
-    ]);
-  };
+    },
+  ]);
+};
+
 
   // ========= HANDLE CREATE / EDIT POST =========
   const handleCreatePost = (campaignId: number) => {
@@ -711,7 +711,8 @@ export default function CampaignsDetails() {
                   ? "paper-plane"
                   : status === "SCHEDULED"
                     ? "alarm-outline"
-                    : "pencil-outline"
+                    // : "pencil-outline" || "hourglass-outline"
+                    : "hourglass-outline"
               }
               size={14}
               style={{

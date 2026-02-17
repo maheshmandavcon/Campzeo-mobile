@@ -297,7 +297,6 @@ export default function CampaignCard({
                   </Text>
                 </TouchableOpacity>
               )}
-
             </ThemedView>
           </ThemedView>
         </ThemedView>

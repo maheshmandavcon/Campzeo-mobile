@@ -126,7 +126,7 @@ export default function UserProfile() {
           </Box>
 
           {/* BUTTONS */}
-          
+
           <VStack className="mt-8" space="md">
             <TouchableOpacity
               activeOpacity={0.8}
@@ -158,7 +158,7 @@ export default function UserProfile() {
             </TouchableOpacity>
           </VStack>
         </ScrollView>
-        
+
       </ThemedView>
 
       {/* test modal edit profile */}
@@ -184,7 +184,7 @@ export default function UserProfile() {
               padding: 20,
             }}
           >
-            
+
             <EditProfile closeEPF={() => setEditProfile(false)} />
 
           </View>
@@ -215,7 +215,7 @@ export default function UserProfile() {
               padding: 20,
             }}
           >
-            
+
             <ChangePassword closeCP={() => setChangePas(false)} />
 
           </View>
