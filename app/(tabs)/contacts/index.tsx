@@ -12,7 +12,7 @@ import {
 import { Text } from "@gluestack-ui/themed";
 import { Ionicons } from "@expo/vector-icons";
 import ContactCard, { ContactsRecord } from "./contactComponents/contactCard";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import {
   getContactsApi,
   deleteContactApi,
@@ -96,24 +96,24 @@ export default function Contacts() {
       },
     });
   };
-//   const handleEdit = (record: ContactsRecord) => {
-//   // 1️⃣ Print all emails
-//   const allEmails = records.map((r) => r.email);
-//   console.log("Existing contact emails:", allEmails);
+  //   const handleEdit = (record: ContactsRecord) => {
+  //   // 1️⃣ Print all emails
+  //   const allEmails = records.map((r) => r.email);
+  //   console.log("Existing contact emails:", allEmails);
 
-//   // 2️⃣ Print all mobile numbers
-//   const allMobiles = records.map((r) => r.mobile);
-//   console.log("Existing contact numbers:", allMobiles);
+  //   // 2️⃣ Print all mobile numbers
+  //   const allMobiles = records.map((r) => r.mobile);
+  //   console.log("Existing contact numbers:", allMobiles);
 
-//   // 3️⃣ Navigate to edit page
-//   router.push({
-//     pathname: "/contacts/createContact",
-//     params: {
-//       contactId: String(record.id),
-//       record: JSON.stringify(record),
-//     },
-//   });
-// };
+  //   // 3️⃣ Navigate to edit page
+  //   router.push({
+  //     pathname: "/contacts/createContact",
+  //     params: {
+  //       contactId: String(record.id),
+  //       record: JSON.stringify(record),
+  //     },
+  //   });
+  // };
 
   const handleCopy = (record: ContactsRecord) => {
     const textToCopy = `
@@ -255,9 +255,9 @@ WhatsApp: ${record.whatsapp || "-"}
 
   /* ================= UI ================= */
   return (
-    <Pressable onPress={() => setMenuVisible(false)} className="flex-1">
+    <ThemedView className="flex-1">
       <ThemedView
-        style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }} 
+        style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
         className="flex-1 p-4"
       >
         {/* {loading && (
@@ -298,7 +298,7 @@ WhatsApp: ${record.whatsapp || "-"}
               paddingHorizontal: 12,
               paddingVertical: 8,
               borderRadius: 9999,
-              backgroundColor: isDark ? "#161618" : "#bfdbfe", // gray-800 / blue-100
+              backgroundColor: isDark ? "#161618" : "#bfdbfe",
               borderWidth: 1,
               borderColor: isDark ? DARK_BORDER : "transparent",
               marginRight: 8,
@@ -328,16 +328,16 @@ WhatsApp: ${record.whatsapp || "-"}
               setVisibleCount(5);
             }}
             placeholder="Search contacts..."
-            placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"} // gray-400 / gray-500
+            placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"} 
             style={{
               flex: 1,
               backgroundColor: isDark ? "#161618" : "#ffffff",
-              color: isDark ? "#e5e7eb" : "#000000", // light text in dark mode
+              color: isDark ? "#e5e7eb" : "#000000",
               paddingHorizontal: 12,
               paddingVertical: 8,
               borderRadius: 9999,
               borderWidth: 1,
-              borderColor: isDark ? "#fff" : "#d1d5db", // darker gray border in dark mode
+              borderColor: isDark ? "#fff" : "#d1d5db", 
             }}
           />
 
@@ -450,6 +450,6 @@ WhatsApp: ${record.whatsapp || "-"}
         />
 
       </ThemedView>
-    </Pressable>
+    </ThemedView>
   );
 }

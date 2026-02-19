@@ -328,8 +328,7 @@ Contacts Count: ${c.contactsCount ?? 0}
             paddingVertical: 8,
             borderRadius: 9999,
             marginRight: 8,
-
-            backgroundColor: isDark ? "#161618" : "#dbeafe", // dark / blue-100
+            backgroundColor: isDark ? "#161618" : "#dbeafe",
             borderWidth: isDark ? 1 : 0,
             borderColor: isDark ? "#ffffff" : "transparent",
           }}

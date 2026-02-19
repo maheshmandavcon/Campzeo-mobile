@@ -207,33 +207,33 @@ export default function CampaignsDetails() {
 
   // ========= POST ACTIONS =========
   const handleDeletePost = async (postId: number) => {
-  if (!resolvedCampaignId) return;
+    if (!resolvedCampaignId) return;
 
-  Alert.alert("Delete Post?", "Are you sure you want to delete this post?", [
-    { text: "Cancel", style: "cancel" },
-    {
-      text: "Delete",
-      style: "destructive",
-      onPress: async () => {
-        try {
-          setDeletingPostId(postId);
+    Alert.alert("Delete Post?", "Are you sure you want to delete this post?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            setDeletingPostId(postId);
 
-          await deletePostForCampaignApi(resolvedCampaignId, postId);
+            await deletePostForCampaignApi(resolvedCampaignId, postId);
 
-          // ✅ Reload ALL posts after delete
-          await fetchPosts();
+            // ✅ Reload ALL posts after delete
+            await fetchPosts();
 
-          // optional: reset visible count
-          setVisibleCount(5);
-        } catch (error) {
-          Alert.alert("Error", "Failed to delete post. Please try again.");
-        } finally {
-          setDeletingPostId(null);
-        }
+            // optional: reset visible count
+            setVisibleCount(5);
+          } catch (error) {
+            Alert.alert("Error", "Failed to delete post. Please try again.");
+          } finally {
+            setDeletingPostId(null);
+          }
+        },
       },
-    },
-  ]);
-};
+    ]);
+  };
 
 
   // ========= HANDLE CREATE / EDIT POST =========
@@ -472,27 +472,53 @@ export default function CampaignsDetails() {
     try {
       setPublishing(true);
 
-      await shareCampaignPostApi(
+      const res = await shareCampaignPostApi(
         resolvedCampaignId,
         currentSharePostId,
         contactsToSend
       );
 
-      Alert.alert("Success", "Post sent successfully");
+      // ✅ THIS IS THE FIX
+      const sent = res?.data?.sent ?? 0;
+      const failed = res?.data?.failed ?? 0;
+
+      if (sent > 0) {
+        // ✅ Delivered
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === currentSharePostId
+              ? {
+                ...p,
+                isPostSent: true,
+                publishedDate: new Date().toISOString(),
+              }
+              : p
+          )
+        );
+
+        Alert.alert("Success", "Post sent successfully");
+      } else {
+        Alert.alert(
+          "Delivery failed",
+          "Message could not be delivered. Scheduled time is preserved."
+        );
+      }
 
       // ✅ FORCE UI UPDATE
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.id === currentSharePostId
-            ? {
-              ...p,
-              status: "SENT",
-              sentAt: new Date().toISOString(),
-              scheduledPostTime: null, // 🔑 IMPORTANT
-            }
-            : p
-        )
-      );
+      // setPosts((prev) =>
+      //   prev.map((p) =>
+      //     p.id === currentSharePostId
+      //       ? {
+      //         ...p,
+      //         status: "SENT",
+      //         sentAt: new Date().toISOString(),
+      //         scheduledPostTime: null, 
+      //         isPostSent: true,
+      //         publishedDate: new Date().toISOString(),
+      //       }
+      //       : p
+      //   )
+      // );
 
       setSelectedContacts([]);
       setShareModalVisible(false);
