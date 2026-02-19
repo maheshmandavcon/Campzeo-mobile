@@ -1935,7 +1935,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             <DateTimePicker
               value={postDate ?? minSelectableEndDate}
               mode="time"
-              is24Hour={true}
+              is24Hour={false}
               onChange={(_, time) => {
                 setShowTimePicker(false);
                 if (!time || !postDate) return;
@@ -2015,7 +2015,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             />
           )}
           
-          {showTimePicker && (
+          {/* {showTimePicker && (
             <DateTimePicker
               value={postDate || new Date()}
               mode="time"
@@ -2047,7 +2047,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 }
               }}
             />
-          )} 
+          )}  */}
         </View>
 
         {/* ---------- PREVIEW SLOT ---------- */}

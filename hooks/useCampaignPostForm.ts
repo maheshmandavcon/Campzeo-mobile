@@ -896,7 +896,7 @@ export function useCampaignPostForm({
     const asset = result.assets[0];
 
     try {
-      setCoverUploading(true); // ⬅️ start spinner / change button text
+      setCoverUploading(true); 
 
       const token = await getToken();
       if (!token) {
@@ -911,13 +911,12 @@ export function useCampaignPostForm({
         },
         token,
         (progress) => {
-          // Optional: if you want percentage progress
           console.log("Cover Upload Progress:", progress);
         },
       );
 
       if (uploadedUrl && typeof uploadedUrl === "string") {
-        setCoverImage(uploadedUrl); // ✅ show uploaded cover image
+        setCoverImage(uploadedUrl); 
       } else {
         throw new Error("Failed to upload cover image: no URL returned");
       }
@@ -928,7 +927,7 @@ export function useCampaignPostForm({
         error?.message || "Failed to upload cover image",
       );
     } finally {
-      setCoverUploading(false); // ⬅️ stop spinner / revert button text
+      setCoverUploading(false); 
     }
   };
 
