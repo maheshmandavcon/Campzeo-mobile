@@ -1,6 +1,6 @@
 import { getUsage } from "@/api/billingApi";
 import { getCampaigns, getContacts, getUser } from "@/api/dashboardApi";
-import { Text, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
@@ -12,7 +12,7 @@ import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
 import { VStack } from "@/components/ui/vstack";
 import { Progress, ProgressFilledTrack } from "@gluestack-ui/themed";
 
-import { useRouter } from "expo-router";
+import { router, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { StyleSheet, ScrollView } from "react-native";
 import { Divider } from "@gluestack-ui/themed";
@@ -276,21 +276,49 @@ export default function Insights() {
         {/* ================= STATS ================= */}
         <VStack style={styles.section}>
           <HStack style={styles.statsRow}>
-            <Box style={styles.statCard}>
+            
+            <TouchableOpacity
+              style={{ flex: 1 }}
+              activeOpacity={0.8}
+              onPress={() => router.push("/(tabs)/campaigns")}
+            >
+              <Box style={styles.statCard}>
+                <ThemedText style={styles.statLabel}>Total Campaigns</ThemedText>
+                <ThemedText style={styles.statValue}>{totalCampaigns}</ThemedText>
+                <ThemedText style={styles.statSubtext}>
+                  Total Active Campaigns
+                </ThemedText>
+              </Box>
+            </TouchableOpacity>
+
+            {/* <Box style={styles.statCard}>
               <ThemedText style={styles.statLabel}>Total Campaigns</ThemedText>
               <ThemedText style={styles.statValue}>{totalCampaigns}</ThemedText>
               <ThemedText style={styles.statSubtext}>
                 Total Active Campaigns
               </ThemedText>
-            </Box>
+            </Box> */}
 
-            <Box style={styles.statCard}>
+            {/* <Box style={styles.statCard}>
               <ThemedText style={styles.statLabel}>Total Contacts</ThemedText>
               <ThemedText style={styles.statValue}>{totalContacts}</ThemedText>
               <ThemedText style={styles.statSubtext}>
                 Audience Reached
               </ThemedText>
-            </Box>
+            </Box> */}
+
+            <TouchableOpacity
+              style={{ flex: 1 }}
+              activeOpacity={0.8}
+              onPress={() => router.push("/(tabs)/contacts")}>
+              <Box style={styles.statCard}>
+                <ThemedText style={styles.statLabel}>Total Contacts</ThemedText>
+                <ThemedText style={styles.statValue}>{totalContacts}</ThemedText>
+                <ThemedText style={styles.statSubtext}>
+                  Audience Reached
+                </ThemedText>
+              </Box>
+            </TouchableOpacity>
           </HStack>
 
           <Box style={[styles.statCard, styles.statCardFull]}>

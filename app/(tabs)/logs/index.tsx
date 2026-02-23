@@ -5,15 +5,19 @@ import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   View as RNView,
   TouchableOpacity,
+  useColorScheme,
 } from "react-native";
 import DateTimePicker from "react-native-modal-datetime-picker";
 import LogsCard from "./logs-Components/logsCards";
 import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
+import { useFocusEffect } from "expo-router";
+import { useCallback } from "react";
 
 
 export default function Logs() {
@@ -33,56 +37,132 @@ export default function Logs() {
   // const [search, setSearch] = useState("");
 
   // Platform icons
+  // const icons = [
+  //   { name: "mail", label: "Email", library: Ionicons, color: "#E60023" },
+  //   {
+  //     name: "chatbubble-ellipses-outline",
+  //     label: "SMS",
+  //     library: Ionicons,
+  //     color: "#f59e0b",
+  //   },
+  //   {
+  //     name: "instagram",
+  //     label: "Instagram",
+  //     library: FontAwesome,
+  //     color: "#c13584",
+  //   },
+  //   {
+  //     name: "logo-whatsapp",
+  //     label: "Whatsapp",
+  //     library: Ionicons,
+  //     color: "#25D366",
+  //   },
+  //   {
+  //     name: "facebook-square",
+  //     label: "Facebook",
+  //     library: FontAwesome,
+  //     color: "#1877F2",
+  //   },
+  //   {
+  //     name: "youtube-play",
+  //     label: "YouTube",
+  //     library: FontAwesome,
+  //     color: "#FF0000",
+  //   },
+  //   {
+  //     name: "linkedin-square",
+  //     label: "LinkedIn",
+  //     library: FontAwesome,
+  //     color: "#0A66C2",
+  //   },
+  //   {
+  //     name: "pinterest",
+  //     label: "Pinterest",
+  //     library: FontAwesome,
+  //     color: "#E60023",
+  //   },
+  // ];
+
   const icons = [
-    { name: "mail", label: "Email", library: Ionicons, color: "#E60023" },
-    {
-      name: "chatbubble-ellipses-outline",
-      label: "SMS",
-      library: Ionicons,
-      color: "#f59e0b",
-    },
-    {
-      name: "instagram",
-      label: "Instagram",
-      library: FontAwesome,
-      color: "#c13584",
-    },
-    {
-      name: "logo-whatsapp",
-      label: "Whatsapp",
-      library: Ionicons,
-      color: "#25D366",
-    },
-    {
-      name: "facebook-square",
-      label: "Facebook",
-      library: FontAwesome,
-      color: "#1877F2",
-    },
-    {
-      name: "youtube-play",
-      label: "YouTube",
-      library: FontAwesome,
-      color: "#FF0000",
-    },
-    {
-      name: "linkedin-square",
-      label: "LinkedIn",
-      library: FontAwesome,
-      color: "#0A66C2",
-    },
-    {
-      name: "pinterest",
-      label: "Pinterest",
-      library: FontAwesome,
-      color: "#E60023",
-    },
+    { name: "chatbubble-ellipses-outline", label: "SMS" as const, library: Ionicons, color: "#10b981" },
+    { name: "mail", label: "EMAIL" as const, library: Ionicons, color: "#f59e0b" },
+    { name: "logo-whatsapp", label: "WHATSAPP" as const, library: Ionicons, color: "#25D366" },
+    { name: "instagram", label: "INSTAGRAM" as const, library: FontAwesome, color: "#c13584" },
+    { name: "facebook-square", label: "FACEBOOK" as const, library: FontAwesome, color: "#1877F2" },
+    { name: "youtube-play", label: "YOUTUBE" as const, library: FontAwesome, color: "#FF0000" },
+    { name: "linkedin-square", label: "LINKEDIN" as const, library: FontAwesome, color: "#0A66C2" },
+    { name: "pinterest", label: "PINTEREST" as const, library: FontAwesome, color: "#E60023" },
   ];
 
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const [showFilters, setShowFilters] = useState(false);
+
+  const handleFilterMenuPress = () => {
+    if (!selected) {
+      Alert.alert(
+        "Select Platform",
+        "Please select a platform first to apply filters."
+      );
+      return;
+    }
+
+    setShowFilters((prev) => !prev);
+  };
+
+  useFocusEffect(
+  useCallback(() => {
+    // 🔄 Reset page state every time screen is opened
+    setSelected(null);
+    setBackendPlatform(null);
+    setLogs([]);
+    setStartDate(null);
+    setEndDate(null);
+    setShowFilters(false);
+    setError(null);
+
+    return () => {
+      // optional cleanup
+    };
+  }, [])
+);
+
+
   // Platform click handler
+  // const handlePlatformSelect = async (platformLabel: string) => {
+  //   try {
+  //     setSelected(platformLabel);
+  //     setLoading(true);
+  //     setError(null);
+
+  //     const platformMap: Record<string, string> = {
+  //       Facebook: "FACEBOOK",
+  //       Instagram: "INSTAGRAM",
+  //       LinkedIn: "LINKEDIN",
+  //     };
+
+  //     const platform = platformMap[platformLabel];
+  //     setBackendPlatform(platform);
+
+  //     if (!platform) {
+  //       setLogs([]);
+  //       return;
+  //     }
+
+  //     const response = await getLogs({ platform });
+  //     setLogs(response.posts || []);
+  //   } catch (err) {
+  //     setError("Failed to fetch logs");
+  //     setLogs([]);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
   const handlePlatformSelect = async (platformLabel: string) => {
     try {
       setSelected(platformLabel);
+      setShowFilters(true);
       setLoading(true);
       setError(null);
 
@@ -227,7 +307,7 @@ export default function Logs() {
         <HStack space="md">
           {/* FROM */}
           {/*  flex={1} */}
-          <VStack style={{flex:1}}>
+          <VStack style={{ flex: 1 }}>
             <ThemedText
               style={{
                 fontSize: 11,
@@ -247,7 +327,7 @@ export default function Logs() {
                 paddingVertical: 10,
               }}
             >
-              <HStack style={{ alignItems:"center" , justifyContent:"space-between"}}>
+              <HStack style={{ alignItems: "center", justifyContent: "space-between" }}>
                 <ThemedText
                   style={{
                     fontSize: 13,
@@ -261,7 +341,7 @@ export default function Logs() {
           </VStack>
 
           {/* TO */}
-          <VStack style = {{flex:1}}>
+          <VStack style={{ flex: 1 }}>
             <ThemedText
               style={{
                 fontSize: 11,
@@ -281,7 +361,7 @@ export default function Logs() {
                 paddingVertical: 10,
               }}
             >
-              <HStack style={{alignItems:"center", justifyContent:"space-between"}} >
+              <HStack style={{ alignItems: "center", justifyContent: "space-between" }} >
                 <ThemedText
                   style={{
                     fontSize: 13,
@@ -297,7 +377,7 @@ export default function Logs() {
         </HStack>
 
         {/* ACTION BUTTONS */}
-        <HStack space="md"  style={{marginTop:14}}>
+        <HStack space="md" style={{ marginTop: 14 }}>
           <TouchableOpacity
             style={{
               flex: 1,
@@ -396,7 +476,7 @@ export default function Logs() {
 
           return (
             <ThemedView key={index} className="w-1/4 mb-5 items-center">
-              <RNView
+              {/* <RNView
                 style={{
                   width: 64,
                   height: 64,
@@ -408,8 +488,22 @@ export default function Logs() {
                   shadowRadius: isSelected ? 10 : 0,
                   elevation: isSelected ? 8 : 0,
                 }}
+              > */}
+              <RNView
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  shadowColor: icon.color,
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: isSelected ? 0.5 : 0,
+                  shadowRadius: isSelected ? 12 : 0,
+                  elevation: isSelected ? 12 : 0,
+                }}
               >
-                <TouchableOpacity
+                {/* <TouchableOpacity
                   onPress={() => handlePlatformSelect(icon.label)}
                   style={{
                     width: 64,
@@ -420,16 +514,39 @@ export default function Logs() {
                     borderWidth: 2,
                     borderColor: icon.color,
                   }}
+                > */}
+                <TouchableOpacity
+                  onPress={() => handlePlatformSelect(icon.label)}
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: 32,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: isDark ? "#161618" : "#ffffff",
+                    borderWidth: 2,
+                    borderColor: isSelected ? icon.color : "#d1d5db",
+                  }}
                 >
                   <IconComponent
                     name={icon.name as any}
                     size={28}
-                    color={icon.color}
+                    color={isDark ? "#ffffff" : icon.color}
                   />
                 </TouchableOpacity>
               </RNView>
 
-              <ThemedText className="mt-2 text-center text-sm font-medium">
+              {/* <ThemedText className="mt-2 text-center text-sm font-medium">
+                {icon.label}
+              </ThemedText> */}
+              <ThemedText
+                style={{
+                  marginTop: 8,
+                  textAlign: "center",
+                  fontSize: 14,
+                  fontWeight: "bold",
+                }}
+              >
                 {icon.label}
               </ThemedText>
             </ThemedView>
@@ -438,7 +555,9 @@ export default function Logs() {
       </ThemedView>
 
       {/* ✅ DATE FILTERS */}
-      {renderDateFilters()}
+      {/* {renderDateFilters()} */}
+      {showFilters && renderDateFilters()}
+
     </ThemedView>
   );
 
@@ -475,7 +594,7 @@ export default function Logs() {
       <ThemedView className="flex-1 p-3">
         {renderHeader()}
         <ThemedView className="items-center mt-10">
-          <ThemedText>No logs found for this platform</ThemedText>
+          <ThemedText>No logs found for {selected?.toLowerCase() ?? "this platform"}</ThemedText>
         </ThemedView>
       </ThemedView>
     );

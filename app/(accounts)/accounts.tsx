@@ -270,7 +270,7 @@ export default function Accounts() {
 
         <ScrollView showsVerticalScrollIndicator={false}>
           <ThemedView className="flex-row flex-wrap justify-between gap-y-6">
-            {Array.from({ length: 6 }).map((_, index) => (
+            {Array.from({ length: 5 }).map((_, index) => (
               <View key={index}>{renderPlatformCardSkeleton()}</View>
             ))}
           </ThemedView>

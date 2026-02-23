@@ -570,18 +570,18 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     value={imagePrompt}
                     onChangeText={setImagePrompt}
                     placeholder="Enter prompt to generate image"
-                    placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"} // gray placeholder
+                    placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
                     style={{
                       flex: 1,
                       borderWidth: 1,
-                      borderColor: isDark ? "#4b5563" : "#d1d5db", // dark/light border
-                      borderRightWidth: 0, // connect with button
+                      borderColor: isDark ? "#4b5563" : "#d1d5db",
+                      borderRightWidth: 0, 
                       borderTopLeftRadius: 25,
                       borderBottomLeftRadius: 25,
                       paddingHorizontal: 16,
                       height: 48,
-                      backgroundColor: isDark ? "#161618" : "#ffffff", // dark/light background
-                      color: isDark ? "#ffffff" : "#000000", // text color
+                      backgroundColor: isDark ? "#161618" : "#ffffff", 
+                      color: isDark ? "#ffffff" : "#000000", 
                     }}
                   />
 
@@ -593,10 +593,10 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                       backgroundColor: loadingImage
                         ? isDark
                           ? "#4b5563"
-                          : "#aaa" // gray in dark mode when loading
+                          : "#aaa" 
                         : isDark
                           ? "#1e40af"
-                          : "#2563eb", // dark blue in dark, blue in light
+                          : "#2563eb", 
                       height: 48,
                       paddingHorizontal: 16,
                       justifyContent: "center",
@@ -643,7 +643,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                       <TouchableOpacity
                         disabled={imageLoadingMap[item] || imageErrorMap[item]}
                         onPress={() => {
-                          if (imageErrorMap[item]) return; // 🛑 safety guard
+                          if (imageErrorMap[item]) return; 
 
                           setAttachments((prev) => [
                             ...prev,
@@ -658,7 +658,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                           setImageModalVisible(false);
                         }}
                         style={{
-                          opacity: imageErrorMap[item] ? 0.4 : 1, // optional visual cue
+                          opacity: imageErrorMap[item] ? 0.4 : 1,
                         }}
                       >
 
@@ -707,7 +707,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                               }));
                               setImageErrorMap((prev) => ({
                                 ...prev,
-                                [item]: true, // 🚫 mark broken image
+                                [item]: true, 
                               }));
                             }}
                           />

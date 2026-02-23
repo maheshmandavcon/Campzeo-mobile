@@ -98,7 +98,7 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
                       setShowActionsheet(true);
                     }}
                   >
-                    <ThemedView
+                    {/* <ThemedView
                       style={[
                         styles.card,
                         {
@@ -120,6 +120,38 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
                         style={[
                           styles.time,
                           { color: isDark ? "#9ca3af" : "#6b7280" },
+                        ]}
+                      >
+                        {formatReadableTime(event.start)}
+                      </ThemedText>
+                    </ThemedView> */}
+
+                    <ThemedView
+                      style={[
+                        styles.card,
+                        {
+                          backgroundColor: isDark ? "#020617" : "#ffffff",
+                          borderColor: isDark ? "#1f2933" : "#e5e7eb",
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        },
+                      ]}
+                    >
+                      <ThemedText
+                        style={[
+                          styles.title,
+                          { color: isDark ? "#f9fafb" : "#020617", flex: 1 },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {event.platform.toUpperCase()} — {event.campaign}
+                      </ThemedText>
+
+                      <ThemedText
+                        style={[
+                          styles.time,
+                          { color: isDark ? "#9ca3af" : "#6b7280", marginLeft: 12 },
                         ]}
                       >
                         {formatReadableTime(event.start)}
@@ -175,7 +207,7 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
             <>
               <VStack
                 style={{ gap: 14 }}
-                //  key ={eventDetail.id}
+              //  key ={eventDetail.id}
               >
                 {/* PLATFORM */}
                 <VStack>

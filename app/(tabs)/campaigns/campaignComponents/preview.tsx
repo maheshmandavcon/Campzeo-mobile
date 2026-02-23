@@ -26,6 +26,75 @@ const Preview: React.FC<PreviewProps> = ({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
+  const PLATFORM_CONFIG = {
+    facebook: {
+      showHeaderMenu: true,
+      showActions: true,
+      showTextAboveMedia: true,
+    },
+    linkedin: {
+      showHeaderMenu: true,
+      showActions: true,
+      showTextAboveMedia: true,
+    },
+    instagram: {
+      showHeaderMenu: false,
+      showActions: true,
+      showTextAboveMedia: false,
+    },
+    whatsapp: {
+      showHeaderMenu: false,
+      showActions: false,
+      showTextAboveMedia: false,
+    },
+    sms: {
+      showHeaderMenu: false,
+      showActions: false,
+      showTextAboveMedia: false,
+    },
+    email: {
+      showHeaderMenu: false,
+      showActions: false,
+      showTextAboveMedia: false,
+    },
+    pinterest: {
+      showHeaderMenu: false,
+      showActions: false,
+      showTextAboveMedia: false,
+    },
+    youtube: {
+      showHeaderMenu: true,
+      showActions: false,
+      showTextAboveMedia: false,
+    },
+  } as const;
+
+  const renderMedia = () => {
+    if (!images.length) return null;
+
+    switch (platform) {
+      case "facebook":
+      case "linkedin":
+        return renderFacebookPreview(images);
+      case "instagram":
+        return <InstagramPreview media={images} />;
+      case "whatsapp":
+        return renderWhatsAppPreview();
+      case "email":
+        return renderEmailPreview();
+      case "sms":
+        return renderSmsPreview();
+      case "pinterest":
+        return renderPinterestPreview();
+      case "youtube":
+        return renderYouTubePreview();
+      default:
+        return null;
+    }
+  };
+
+  const platformConfig = PLATFORM_CONFIG[platform as keyof typeof PLATFORM_CONFIG];
+
   // Facebook & LinkedIn style media renderer
   const renderFacebookPreview = (images: string[]) => (
     <View className="overflow-hidden mt-2">
@@ -133,14 +202,20 @@ const Preview: React.FC<PreviewProps> = ({
   );
 
   // Instagram style media renderer
-  const renderInstagramPreview = (media: string[]) => {
+  const InstagramPreview: React.FC<{ media: string[] }> = ({ media }) => {
     const scrollRef = useRef<ScrollView>(null);
     const [activeIndex, setActiveIndex] = useState(0);
+
     const onScroll = (event: any) => {
-      const index = Math.round(event.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+      const index = Math.round(
+        event.nativeEvent.contentOffset.x / SCREEN_WIDTH
+      );
       setActiveIndex(index);
     };
-    const isVideo = (uri: string) => uri.endsWith(".mp4") || uri.endsWith(".mov") || uri.endsWith(".mkv");
+
+    const isVideo = (uri: string) =>
+      uri.endsWith(".mp4") || uri.endsWith(".mov") || uri.endsWith(".mkv");
+
     return (
       <View style={{ marginTop: 10 }}>
         <ScrollView
@@ -153,7 +228,14 @@ const Preview: React.FC<PreviewProps> = ({
           style={{ width: SCREEN_WIDTH }}
         >
           {media.map((uri, index) => (
-            <View key={index} style={{ width: SCREEN_WIDTH, height: SCREEN_WIDTH, overflow: "hidden" }}>
+            <View
+              key={index}
+              style={{
+                width: SCREEN_WIDTH,
+                height: SCREEN_WIDTH,
+                overflow: "hidden",
+              }}
+            >
               {isVideo(uri) ? (
                 <Video
                   source={{ uri }}
@@ -164,14 +246,24 @@ const Preview: React.FC<PreviewProps> = ({
                   isMuted
                 />
               ) : (
-                <Image source={{ uri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                <Image
+                  source={{ uri }}
+                  style={{ width: "100%", height: "100%" }}
+                  resizeMode="cover"
+                />
               )}
             </View>
           ))}
         </ScrollView>
 
         {media.length > 1 && (
-          <View style={{ flexDirection: "row", justifyContent: "center", marginTop: 8 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "center",
+              marginTop: 8,
+            }}
+          >
             {media.map((_, index) => (
               <View
                 key={index}
@@ -179,7 +271,8 @@ const Preview: React.FC<PreviewProps> = ({
                   width: 8,
                   height: 8,
                   borderRadius: 4,
-                  backgroundColor: activeIndex === index ? "#3b82f6" : "#d1d5db",
+                  backgroundColor:
+                    activeIndex === index ? "#3b82f6" : "#d1d5db",
                   marginHorizontal: 4,
                 }}
               />
@@ -408,7 +501,7 @@ const Preview: React.FC<PreviewProps> = ({
     const isVideo = (uri: string) => /\.(mp4|mov|mkv)$/i.test(uri);
 
     return (
-      <View className="p-3 bg-white" style= {{backgroundColor: isDark ? "#161618" : "#fff"}}>
+      <View className="p-3 bg-white" style={{ backgroundColor: isDark ? "#161618" : "#fff" }}>
         {images.map((uri, index) => (
           <View
             key={index}
@@ -653,44 +746,45 @@ const Preview: React.FC<PreviewProps> = ({
           )}
         </View>
 
-        {(platform === "facebook" ||
-          platform === "linkedin" ||
-          platform === "youtube") && (
-            <Ionicons
-              name="ellipsis-horizontal"
-              size={20}
-              color="#555"
-              style={{ marginTop: 2 }}
-            />
-          )}
+        {platformConfig?.showHeaderMenu && (
+          <Ionicons
+            name="ellipsis-horizontal"
+            size={20}
+            color="#555"
+          />
+        )}
       </View>
 
       {/* TEXT */}
-      {(platform === "facebook" || platform === "linkedin") && (
+      {/* {(platform === "facebook" || platform === "linkedin") && (
         <Text
           className={`mt-2 text-gray-900 ${platform === "linkedin" ? "pl-3" : ""}`}
+        >
+          {text}
+        </Text>
+      )} */}
+      {platformConfig?.showTextAboveMedia && (
+        <Text
+          className="mt-2 text-gray-900"
+          style={{ color: isDark ? "#f2f2f7" : "#111827" }}
         >
           {text}
         </Text>
       )}
 
       {/* MEDIA */}
-      {(platform === "facebook" || platform === "linkedin") && images.length > 0 && renderFacebookPreview(images)}
-
-      {platform === "instagram" && images.length > 0 && renderInstagramPreview(images)}
-
+      {/* {(platform === "facebook" || platform === "linkedin") && images.length > 0 && renderFacebookPreview(images)}
+      {platform === "instagram" && images.length > 0 && ( <InstagramPreview media={images}/> )}
       {platform === "whatsapp" && renderWhatsAppPreview()}
-
       {platform === "email" && renderEmailPreview()}
-
       {platform === "sms" && renderSmsPreview()}
-
       {platform === "pinterest" && renderPinterestPreview()}
+      {platform === "youtube" && renderYouTubePreview()} */}
 
-      {platform === "youtube" && renderYouTubePreview()}
-
+      {/* MEDIA */}
+      {renderMedia()}
       {/* ACTIONS */}
-      {renderActions()}
+      {platformConfig?.showActions && renderActions()}
     </View>
   );
 };

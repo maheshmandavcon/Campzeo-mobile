@@ -10,7 +10,7 @@ import { View } from "@gluestack-ui/themed";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as ImagePicker from "expo-image-picker";
 import { Controller, useForm } from "react-hook-form";
-import { Image, Pressable, Text } from "react-native";
+import { Image, Pressable, Text, useColorScheme } from "react-native";
 
 type closeEPFType = {
   closeEPF: () => void;
@@ -88,14 +88,40 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
     },
   ];
 
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const COLORS = {
+    bg: isDark ? "#161618" : "#ffffff",
+    // card: isDark ? "#161618" : "#ffffff",
+    border: isDark ? "#fff" : "#d1d5db",
+    textPrimary: isDark ? "#ffffff" : "#111827",
+    textSecondary: isDark ? "#9ca3af" : "#6b7280",
+    label: isDark ? "#e5e7eb" : "#374151",
+    placeholder: isDark ? "#64748b" : "#9ca3af",
+  };
+
   return (
-    <View className="p-5 rounded-lg">
+    // <View className="p-5 rounded-lg">
+    <View
+      className="p-5 rounded-lg"
+      style={{ backgroundColor: COLORS.bg }}
+    >
       <VStack space="lg" className="my-5">
+        {/* <Text
+          style={{
+            fontSize: 23,
+            fontWeight: "700",
+            textAlign: "center",
+          }}
+        >
+          Edit Profile
+        </Text> */}
         <Text
           style={{
             fontSize: 23,
             fontWeight: "700",
             textAlign: "center",
+            color: COLORS.textPrimary,
           }}
         >
           Edit Profile
@@ -113,11 +139,22 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
                   height: 100,
                   borderRadius: 100,
                   borderWidth: 2,
-                  borderColor: "#dc2626",
+                  // borderColor: "#dc2626",
+                  padding: 3,
+                  borderColor: isDark ? "#ffffff" : "#dc2626",
                 }}
               />
             </Pressable>
-            <Text className="text-center text-gray-600 mt-1">
+            {/* <Text className="text-center text-gray-600 mt-1">
+              Tap to change picture
+            </Text> */}
+            <Text
+              style={{
+                textAlign: "center",
+                marginTop: 4,
+                color: COLORS.textSecondary,
+              }}
+            >
               Tap to change picture
             </Text>
           </VStack>
@@ -127,21 +164,40 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
           ====================== */}
           {fields.map((field, idx) => (
             <VStack space="xs" key={idx}>
-              <Text className="text-gray-700">{field.label}</Text>
-
+              {/* <Text className="text-gray-700">{field.label}</Text> */}
+              <Text style={{ color: COLORS.label }}>
+                {field.label}
+              </Text>
               <Controller
                 control={control}
                 name={field.name as any}
                 render={({ field: { value, onChange } }) => (
                   <>
-                    <Input className="rounded-lg px-1 py-2">
+                    {/* <Input className="rounded-lg px-1 py-2">
                       <InputField
                         placeholder={field.placeholder}
                         value={value}
                         onChangeText={onChange}
                       />
+                    </Input> */}
+                    <Input
+                      className="rounded-lg px-1 py-2"
+                      style={{
+                        backgroundColor: COLORS.bg,
+                        borderColor: COLORS.border,
+                        borderWidth: 1,
+                      }}
+                    >
+                      <InputField
+                        placeholder={field.placeholder}
+                        placeholderTextColor={COLORS.placeholder}
+                        value={value}
+                        onChangeText={onChange}
+                        style={{
+                          color: COLORS.textPrimary,
+                        }}
+                      />
                     </Input>
-
                     {/* Show validation error */}
                     {errors[field.name as keyof EditProfileSchemaType] && (
                       <Text className="text-red-500 text-sm mt-1">
@@ -171,8 +227,15 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
               </Text>
             </Pressable>
 
-            <Pressable
+            {/* <Pressable
               className="bg-slate-500 rounded-xl py-4 mt-4 items-center"
+              onPress={closeEPF}
+            > */}
+            <Pressable
+              style={{
+                backgroundColor: isDark ? "#334155" : "#64748b",
+              }}
+              className="rounded-xl py-4 mt-4 items-center"
               onPress={closeEPF}
             >
               <Text style={{ color: "white", fontWeight: "600" }}>
