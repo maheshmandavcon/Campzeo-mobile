@@ -9,12 +9,15 @@ import { HStack } from "@gluestack-ui/themed";
 import { View } from "@gluestack-ui/themed";
 import { VStack } from "@gluestack-ui/themed";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, Text } from "react-native";
+import { ActivityIndicator, ScrollView, Text, useColorScheme } from "react-native";
 
 export default function Invoices() {
   const { user, isLoaded } = useUser();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const isDark = useColorScheme() === "dark";
+  
 
   useEffect(() => {
     if (!isLoaded || !user) return;
@@ -77,11 +80,64 @@ export default function Invoices() {
     );
   }
 
+  // return (
+  //   <ScrollView className="flex-1 px-4 py-4">
+  //     {invoices.length === 0 ? (
+  //       <ThemedView className="items-center mt-10">
+  //         <ThemedText>No invoices found</ThemedText>
+  //       </ThemedView>
+  //     ) : (
+  //       invoices.map((item) => (
+  //         <ThemedView
+  //           key={item.id}
+  //           className="bg-gray-50 rounded-xl p-4 mb-4 border border-gray-200"
+  //         >
+  //           <ThemedView className="flex-row justify-between mb-2">
+  //             <ThemedText className="font-semibold text-gray-800">
+  //               Invoice ID: #{item.id}
+  //             </ThemedText>
+  //             <Text
+  //               className={`font-semibold ${
+  //                 item.status === "PAID" ? "text-green-600" : "text-yellow-600"
+  //               }`}
+  //             >
+  //               {item.status}
+  //             </Text>
+  //           </ThemedView>
+
+  //           <ThemedText className="text-sm text-gray-600 mb-1">
+  //             Date: {new Date(item.invoiceDate).toLocaleDateString()}
+  //           </ThemedText>
+
+  //           <ThemedText className="text-sm text-gray-600 mb-1">
+  //             Description: {item.description}
+  //           </ThemedText>
+
+  //           <ThemedText className="text-base font-bold text-gray-900 mt-2">
+  //             Amount: ₹{item.amount}
+  //           </ThemedText>
+  //         </ThemedView>
+  //       ))
+  //     )}
+  //   </ScrollView>
+  // );
   return (
-    <ScrollView className="flex-1 px-4 py-4">
+    <ScrollView
+      className="flex-1 px-4 py-4"
+      contentContainerStyle={{
+        flexGrow: 1,
+        justifyContent: invoices.length === 0 ? "center" : "flex-start",
+      }}
+      showsVerticalScrollIndicator
+    >
       {invoices.length === 0 ? (
-        <ThemedView className="items-center mt-10">
-          <ThemedText>No invoices found</ThemedText>
+        <ThemedView className="items-center" style={{ backgroundColor: isDark ? "#000" : "#f3f4f6" }}>
+          <ThemedText style={{ fontSize: 16, fontWeight: "600" }}>
+            No invoices yet
+          </ThemedText>
+          <ThemedText style={{ marginTop: 6, opacity: 0.7, textAlign: "center" }}>
+            Your invoices will appear here once they’re generated.
+          </ThemedText>
         </ThemedView>
       ) : (
         invoices.map((item) => (
@@ -94,9 +150,10 @@ export default function Invoices() {
                 Invoice ID: #{item.id}
               </ThemedText>
               <Text
-                className={`font-semibold ${
-                  item.status === "PAID" ? "text-green-600" : "text-yellow-600"
-                }`}
+                className={`font-semibold ${item.status === "PAID"
+                    ? "text-green-600"
+                    : "text-yellow-600"
+                  }`}
               >
                 {item.status}
               </Text>
@@ -118,4 +175,5 @@ export default function Invoices() {
       )}
     </ScrollView>
   );
+
 }

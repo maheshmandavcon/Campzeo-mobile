@@ -38,6 +38,8 @@ export default function UserProfile() {
   const colorScheme = useColorScheme();
   const routePage = useRouter();
   const { user } = useUser();
+  // const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   if (!user) return null;
 
@@ -71,9 +73,22 @@ export default function UserProfile() {
 
           {/* PROFILE */}
           <VStack className="items-center mb-8">
-            <Avatar size="xl" className="mb-4">
+            {/* <Avatar size="xl" className="mb-4">
               <AvatarImage source={{ uri: user.imageUrl }} />
-            </Avatar>
+            </Avatar> */}
+            <View
+              style={{
+                borderWidth: 2,
+                borderColor: isDark ? "#ffffff" : "#dc2626",
+                borderRadius: 999, 
+                padding: 3,      
+                marginBottom: 16,
+              }}
+            >
+              <Avatar size="xl">
+                <AvatarImage source={{ uri: user.imageUrl }} />
+              </Avatar>
+            </View>
 
             <ThemedText style={{ fontSize: 23, fontWeight: "700" }}>
               {user.firstName} {user.lastName}
@@ -176,7 +191,7 @@ export default function UserProfile() {
             alignItems: "center",
           }}
         >
-          <View
+          {/* <View
             style={{
               width: "90%",
               backgroundColor: "white",
@@ -187,13 +202,25 @@ export default function UserProfile() {
 
             <EditProfile closeEPF={() => setEditProfile(false)} />
 
+          </View> */}
+          <View
+            style={{
+              width: "95%",
+              borderRadius: 16,
+              overflow: "hidden",
+              backgroundColor: isDark ? "#161618" : "#ffffff",
+              borderWidth: 1.5,
+              borderColor: "#ffffff",
+              elevation: 0,
+            }}
+          >
+            <EditProfile closeEPF={() => setEditProfile(false)} />
           </View>
         </View>
       </Modal>
 
-
       {/* test modal change password*/}
-      <Modal
+      {/* <Modal
         visible={showChangePas}
         animationType="slide"
         transparent
@@ -218,6 +245,35 @@ export default function UserProfile() {
 
             <ChangePassword closeCP={() => setChangePas(false)} />
 
+          </View>
+        </View>
+      </Modal> */}
+      <Modal
+        visible={showChangePas}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setChangePas(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.4)",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <View
+            style={{
+              width: "95%",
+              borderRadius: 16,
+              overflow: "hidden",
+              backgroundColor: isDark ? "#161618" : "#ffffff",
+              borderWidth: 1.5,
+              borderColor: "#ffffff",
+              elevation: 0,
+            }}
+          >
+            <ChangePassword closeCP={() => setChangePas(false)} />
           </View>
         </View>
       </Modal>

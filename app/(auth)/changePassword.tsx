@@ -11,7 +11,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock } from "lucide-react-native";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { ActivityIndicator, Pressable, Text, ToastAndroid } from "react-native";
+import { ActivityIndicator, Pressable, Text, ToastAndroid, useColorScheme } from "react-native";
 
 type closeCPType = {
   closeCP: () => void;
@@ -102,10 +102,28 @@ export default function ChangePassword({ closeCP }: closeCPType) {
     setLoading(false);
   };
 
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
+  const COLORS = {
+    bg: isDark ? "#161618" : "#ffffff",
+    // card: isDark ? "#020617" : "#ffffff",
+    border: isDark ? "#fff" : "#d1d5db",
+    textPrimary: isDark ? "#ffffff" : "#111827",
+    textSecondary: isDark ? "#9ca3af" : "#6b7280",
+    label: isDark ? "#e5e7eb" : "#374151",
+    placeholder: isDark ? "#64748b" : "#9ca3af",
+    icon: isDark ? "#e5e7eb" : "#555",
+  };
+
   return (
-    <View className="p-5 rounded-lg">
+    // <View className="p-5 rounded-lg">
+    <View
+      className="p-5 rounded-lg"
+      style={{ backgroundColor: COLORS.bg }}
+    >
       <VStack space="lg" className="mt-4">
-        <Text
+        {/* <Text
           style={{
             fontSize: 23,
             fontWeight: "700",
@@ -113,18 +131,31 @@ export default function ChangePassword({ closeCP }: closeCPType) {
           }}
         >
           Change Password
+        </Text> */}
+        <Text
+          style={{
+            fontSize: 23,
+            fontWeight: "700",
+            textAlign: "center",
+            color: COLORS.textPrimary,
+          }}
+        >
+          Change Password
         </Text>
         <VStack space="lg" className="mt-4">
           {fields.map((field, idx) => (
             <VStack space="xs" key={idx}>
-              <Text className="text-gray-700">{field.label}</Text>
+              {/* <Text className="text-gray-700">{field.label}</Text> */}
+              <Text style={{ color: COLORS.label }}>
+                {field.label}
+              </Text>
 
               <Controller
                 control={control}
                 name={field.name}
                 render={({ field: { value, onChange } }) => (
                   <>
-                    <Input className="rounded-lg px-3 py-2 flex-row items-center">
+                    {/* <Input className="rounded-lg px-3 py-2 flex-row items-center">
                       {field.icon}
 
                       <InputField
@@ -133,18 +164,48 @@ export default function ChangePassword({ closeCP }: closeCPType) {
                         value={value}
                         onChangeText={onChange}
                         className="ml-2 flex-1"
-                      />
+                      /> */}
 
-                      {/* Show/Hide Eye Icon */}
-                      <Pressable onPress={() => toggleVisibility(field.name)}>
+                    {/* Show/Hide Eye Icon */}
+                    {/* <Pressable onPress={() => toggleVisibility(field.name)}>
                         {visible[field.name] ? (
                           <Eye size={20} color="#555" />
                         ) : (
                           <EyeOff size={20} color="#555" />
                         )}
                       </Pressable>
-                    </Input>
+                    </Input> */}
+                    <Input
+                      className="rounded-lg px-3 py-2 flex-row items-center"
+                      style={{
+                        backgroundColor: COLORS.bg,
+                        borderColor: COLORS.border,
+                        borderWidth: 1,
+                      }}
+                    >
+                      {/* <Lock size={18} color="#dc2626" /> */}
+                      <Lock size={18} color={isDark ? "#ffffff" : "#dc2626"} />
 
+                      <InputField
+                        placeholder={field.placeholder}
+                        placeholderTextColor={COLORS.placeholder}
+                        secureTextEntry={!visible[field.name]}
+                        value={value}
+                        onChangeText={onChange}
+                        className="ml-2 flex-1"
+                        style={{
+                          color: COLORS.textPrimary,
+                        }}
+                      />
+
+                      <Pressable onPress={() => toggleVisibility(field.name)}>
+                        {visible[field.name] ? (
+                          <Eye size={20} color={COLORS.icon} />
+                        ) : (
+                          <EyeOff size={20} color={COLORS.icon} />
+                        )}
+                      </Pressable>
+                    </Input>
                     {/* Zod Error */}
                     {errors[field.name] && (
                       <Text className="text-red-500 text-sm mt-1">
@@ -167,11 +228,16 @@ export default function ChangePassword({ closeCP }: closeCPType) {
 
           {/* Buttons */}
           <VStack>
+            {/* <Pressable
+              disabled={loading}
+              className={`rounded-xl py-4 mt-4 items-center ${loading ? "bg-gray-500" : "bg-black"
+                }`}
+              onPress={handleSubmit(onSubmit)}
+            > */}
             <Pressable
               disabled={loading}
-              className={`rounded-xl py-4 mt-4 items-center ${
-                loading ? "bg-gray-500" : "bg-black"
-              }`}
+              className="bg-[#dc2626] rounded-xl py-4 mt-4 items-center"
+
               onPress={handleSubmit(onSubmit)}
             >
               {loading ? (
