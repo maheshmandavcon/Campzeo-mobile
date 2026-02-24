@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Alert, useColorScheme } from "react-native";
 
-import type { CampaignPostData } from "@/api/campaignApi";
+import type { AIImageResponse, CampaignPostData } from "@/api/campaignApi";
 import {
   createPinterestBoardApi,
   createPostForCampaignApi,
@@ -79,6 +79,7 @@ export function useCampaignPostForm({
   const [imageErrorMap, setImageErrorMap] = useState<Record<string, boolean>>(
     {},
   );
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // ================= DATE =================
   const [showPicker, setShowPicker] = useState(false);
@@ -199,6 +200,22 @@ export function useCampaignPostForm({
     if (ext === "mp4") return "video/mp4";
     if (ext === "mov") return "video/quicktime";
     return "application/octet-stream";
+  }
+
+  function getFileNameFromUrl(url: string) {
+    try {
+      const cleanUrl = url.split("?")[0];
+      return cleanUrl.substring(cleanUrl.lastIndexOf("/") + 1);
+    } catch {
+      return `ai-image-${Date.now()}.jpg`;
+    }
+  }
+
+  function getMimeFromUrl(url: string) {
+    const ext = url.split(".").pop()?.toLowerCase();
+    if (ext === "webp") return "image/webp";
+    if (ext === "png") return "image/png";
+    return "image/jpeg";
   }
 
   // AI IMAGE LOADING
@@ -335,8 +352,8 @@ export function useCampaignPostForm({
         ...existingPost.mediaUrls.map((url: string, index: number) => ({
           uri: url,
           uploadedUrl: url,
-          name: `media-${index + 1}`,
-          type: inferMediaType(url),
+          name: getFileNameFromUrl(url),
+          type: getMimeFromUrl(url),
           uploading: false,
         })),
       );
@@ -639,6 +656,113 @@ export function useCampaignPostForm({
   };
 
   // ================= AI IMAGE =================
+  // const handleGenerateAIImage = async () => {
+  //   if (!imagePrompt.trim()) {
+  //     Alert.alert("Enter a prompt to generate an image");
+  //     return;
+  //   }
+
+  //   if (loadingImage) return;
+
+  //   setLoadingImage(true);
+
+  //   try {
+  //     const token = await getToken();
+  //     if (!token) throw new Error("Authentication token missing");
+
+  //     const response = await generateAIImageApi({ prompt: imagePrompt }, token);
+
+  //     const imageUrl = response?.images?.[0];
+
+  //     // 🚫 API responded but no image
+  //     // if (!imageUrl) {
+  //     //   const failedKey = `failed-${Date.now()}`;
+
+  //     //   setGeneratedImages((prev) => [...prev, failedKey]);
+
+  //     //   setImageLoadingMap((prev) => ({
+  //     //     ...prev,
+  //     //     [failedKey]: false,
+  //     //   }));
+
+  //     //   setImageErrorMap((prev) => ({
+  //     //     ...prev,
+  //     //     [failedKey]: true,
+  //     //   }));
+
+  //     //   // Alert.alert(
+  //     //   //   "Image Generation Failed",
+  //     //   //   "The AI could not generate an image.",
+  //     //   //   [
+  //     //   //     {
+  //     //   //       text: "OK",
+  //     //   //       onPress: () => {
+  //     //   //         setImageModalVisible(false);
+  //     //   //       },
+  //     //   //     },
+  //     //   //   ],
+  //     //   // );
+
+  //     //   return;
+  //     // }
+
+  //     // ✅ Valid image
+  //     setGeneratedImages((prev) => [...prev, imageUrl]);
+
+  //     setImageLoadingMap((prev) => ({
+  //       ...prev,
+  //       [imageUrl]: true,
+  //     }));
+
+  //     setImageErrorMap((prev) => ({
+  //       ...prev,
+  //       [imageUrl]: false,
+  //     }));
+  //   } catch (error: any) {
+  //     Alert.alert(
+  //       "Image Generation Error",
+  //       error?.message || "Something went wrong while generating the image.",
+  //     );
+  //   } finally {
+  //     setLoadingImage(false);
+  //   }
+  // };
+
+  const handleSelectGeneratedImage = (imageUrl: string) => {
+  setAttachments((prev) => {
+    // 🚫 Prevent duplicate selection
+    if (prev.some((att) => att.uri === imageUrl)) {
+      return prev;
+    }
+
+    return [
+      ...prev,
+      {
+        uri: imageUrl,
+        name: "ai-image.jpg",
+        type: "image/jpeg",
+        uploading: false,
+      },
+    ];
+  });
+
+  setImageModalVisible(false);
+};
+
+  function normalizeAIImageUrl(url: string) {
+    // if (!url) return url;
+
+    // // Remove query params temporarily
+    // const [base, query] = url.split("?");
+
+    // // Replace .webp with .jpg
+    // if (base.endsWith(".webp")) {
+    //   return base.replace(".webp", ".jpg") + (query ? "?" + query : "");
+    // }
+
+    return url;
+  }
+
   const handleGenerateAIImage = async () => {
     if (!imagePrompt.trim()) {
       Alert.alert("Enter a prompt to generate an image");
@@ -648,66 +772,71 @@ export function useCampaignPostForm({
     if (loadingImage) return;
 
     setLoadingImage(true);
+    console.log("Starting AI image generation for prompt:", imagePrompt);
 
     try {
       const token = await getToken();
+      console.log(
+        "Retrieved auth token:",
+        token ? "✅ token available" : "❌ no token",
+      );
       if (!token) throw new Error("Authentication token missing");
 
-      const response = await generateAIImageApi({ prompt: imagePrompt }, token);
+      const response: AIImageResponse = await generateAIImageApi(
+        { prompt: imagePrompt },
+        token,
+      );
+      console.log("AI Image API Response:", response);
 
-      const imageUrl = response?.images?.[0];
+      const rawImageUrl = response?.imageUrl || response?.imagePrompt;
 
-      // 🚫 API responded but no image
-      if (!imageUrl) {
-        const failedKey = `failed-${Date.now()}`;
-
-        setGeneratedImages((prev) => [...prev, failedKey]);
-
-        setImageLoadingMap((prev) => ({
-          ...prev,
-          [failedKey]: false,
-        }));
-
-        setImageErrorMap((prev) => ({
-          ...prev,
-          [failedKey]: true,
-        }));
-
-        Alert.alert(
-          "Image Generation Failed",
-          "The AI could not generate an image.",
-          [
-            {
-              text: "OK",
-              onPress: () => {
-                setImageModalVisible(false);
-              },
-            },
-          ],
-        );
-
+      if (!rawImageUrl) {
+        Alert.alert("Image Generation Failed", "No image URL returned");
         return;
       }
 
-      // ✅ Valid image
+      const imageUrl = normalizeAIImageUrl(rawImageUrl);
+      // if (!imageUrl) {
+      //   console.warn("API responded but no image returned", response);
+      //   Alert.alert("Image Generation Failed", "The AI could not generate an image.");
+      //   return;
+      // }
+
+      console.log("Generated image URL:", imageUrl);
+
+      const fileName = getFileNameFromUrl(imageUrl);
+      const mimeType = getMimeFromUrl(imageUrl);
+
+      const aiAttachment: Attachment = {
+        uri: imageUrl,
+        uploadedUrl: imageUrl, // IMPORTANT
+        name: fileName, // REAL filename
+        type: mimeType,
+        uploading: false,
+      };
+
       setGeneratedImages((prev) => [...prev, imageUrl]);
+      // setAttachments((prev) => [...prev, aiAttachment]);
+      setImageLoadingMap((prev) => ({ ...prev, [imageUrl]: true }));
+      setImageErrorMap((prev) => ({ ...prev, [imageUrl]: false }));
 
-      setImageLoadingMap((prev) => ({
-        ...prev,
-        [imageUrl]: true,
-      }));
-
-      setImageErrorMap((prev) => ({
-        ...prev,
-        [imageUrl]: false,
-      }));
+      console.log(
+        "State updated: generatedImages, imageLoadingMap, imageErrorMap",
+      );
     } catch (error: any) {
+      console.error(
+        "Error generating AI image:",
+        error?.response || error?.message || error,
+      );
       Alert.alert(
         "Image Generation Error",
         error?.message || "Something went wrong while generating the image.",
       );
     } finally {
       setLoadingImage(false);
+      console.log(
+        "Image generation process completed, loadingImage set to false",
+      );
     }
   };
 
@@ -896,7 +1025,7 @@ export function useCampaignPostForm({
     const asset = result.assets[0];
 
     try {
-      setCoverUploading(true); 
+      setCoverUploading(true);
 
       const token = await getToken();
       if (!token) {
@@ -916,7 +1045,7 @@ export function useCampaignPostForm({
       );
 
       if (uploadedUrl && typeof uploadedUrl === "string") {
-        setCoverImage(uploadedUrl); 
+        setCoverImage(uploadedUrl);
       } else {
         throw new Error("Failed to upload cover image: no URL returned");
       }
@@ -927,7 +1056,7 @@ export function useCampaignPostForm({
         error?.message || "Failed to upload cover image",
       );
     } finally {
-      setCoverUploading(false); 
+      setCoverUploading(false);
     }
   };
 
@@ -1114,7 +1243,12 @@ export function useCampaignPostForm({
 
       onCreatedNavigate ? onCreatedNavigate() : router.back();
     } catch (error: any) {
-      Alert.alert("Error", error?.message || "Something went wrong");
+      const apiMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Something went wrong";
+
+      Alert.alert("⚠️ Scheduling Error", apiMessage);
     } finally {
       setLoading(false);
     }
@@ -1226,6 +1360,7 @@ export function useCampaignPostForm({
     handleCreatePinterestBoard,
     handleCustomThumbnailUpload,
     handleCoverImageUpload,
+    handleSelectGeneratedImage,
     handleSubmit,
   };
 }

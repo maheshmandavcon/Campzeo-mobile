@@ -7,6 +7,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { Picker } from "@react-native-picker/picker";
 import { ResizeMode, Video } from "expo-av";
 import React, { useEffect, useState } from "react";
+import DraggableFlatList from "react-native-draggable-flatlist";
 import {
   ActivityIndicator,
   Alert,
@@ -112,6 +113,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     handleCoverImageUpload,
     handleCustomThumbnailUpload,
     handleCreatePinterestBoard,
+    handleSelectGeneratedImage,
   } = useCampaignPostForm({
     platform,
     campaignId,
@@ -575,13 +577,13 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                       flex: 1,
                       borderWidth: 1,
                       borderColor: isDark ? "#4b5563" : "#d1d5db",
-                      borderRightWidth: 0, 
+                      borderRightWidth: 0,
                       borderTopLeftRadius: 25,
                       borderBottomLeftRadius: 25,
                       paddingHorizontal: 16,
                       height: 48,
-                      backgroundColor: isDark ? "#161618" : "#ffffff", 
-                      color: isDark ? "#ffffff" : "#000000", 
+                      backgroundColor: isDark ? "#161618" : "#ffffff",
+                      color: isDark ? "#ffffff" : "#000000",
                     }}
                   />
 
@@ -593,10 +595,10 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                       backgroundColor: loadingImage
                         ? isDark
                           ? "#4b5563"
-                          : "#aaa" 
+                          : "#aaa"
                         : isDark
                           ? "#1e40af"
-                          : "#2563eb", 
+                          : "#2563eb",
                       height: 48,
                       paddingHorizontal: 16,
                       justifyContent: "center",
@@ -642,20 +644,24 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     renderItem={({ item }) => (
                       <TouchableOpacity
                         disabled={imageLoadingMap[item] || imageErrorMap[item]}
+                        // onPress={() => {
+                        //   if (imageErrorMap[item]) return; 
+
+                        //   setAttachments((prev) => [
+                        //     ...prev,
+                        //     {
+                        //       uri: item,
+                        //       name: "ai-image.jpg",
+                        //       type: "image/jpeg",
+                        //       uploading: false,
+                        //     },
+                        //   ]);
+
+                        //   setImageModalVisible(false);
+                        // }}
                         onPress={() => {
-                          if (imageErrorMap[item]) return; 
-
-                          setAttachments((prev) => [
-                            ...prev,
-                            {
-                              uri: item,
-                              name: "ai-image.jpg",
-                              type: "image/jpeg",
-                              uploading: false,
-                            },
-                          ]);
-
-                          setImageModalVisible(false);
+                          if (imageErrorMap[item]) return;
+                          handleSelectGeneratedImage(item);
                         }}
                         style={{
                           opacity: imageErrorMap[item] ? 0.4 : 1,
@@ -707,7 +713,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                               }));
                               setImageErrorMap((prev) => ({
                                 ...prev,
-                                [item]: true, 
+                                [item]: true,
                               }));
                             }}
                           />
@@ -749,12 +755,25 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   : "Media (Photos / Videos)"}
               </Text>
 
-              <FlatList
+              <DraggableFlatList
                 data={attachments}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 keyExtractor={(_, index) => String(index)}
-                renderItem={renderAttachmentItem}
+                onDragEnd={({ data }) => setAttachments(data)}
+                renderItem={({ item, drag, isActive }) => (
+                  <TouchableOpacity
+                    onLongPress={drag}
+                    disabled={isActive}
+                    style={{
+                      opacity: isActive ? 0.7 : 1,
+                      marginRight: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {renderAttachmentItem({ item })}
+                  </TouchableOpacity>
+                )}
                 ListHeaderComponent={
                   <TouchableOpacity
                     onPress={handleAddAttachment}
@@ -2014,7 +2033,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               }}
             />
           )}
-          
+
           {/* {showTimePicker && (
             <DateTimePicker
               value={postDate || new Date()}

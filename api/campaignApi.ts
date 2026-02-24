@@ -298,16 +298,50 @@ export const generateAIContentApi = async (
 
 // Generate AI Image
 
+// export interface AIImageRequest {
+//   prompt: string;
+//   count?: number;
+// }
+
+// export interface AIImageResponse {
+//   success: boolean;
+//   images?: string[];
+//   imagePrompt: string;
+//   message: string;
+// }
+
+// export const generateAIImageApi = async (
+//   data: AIImageRequest,
+//   token?: string,
+// ) => {
+//   try {
+//     const response = await https.post("/ai/generate-image", data, {
+//       headers: {
+//         "Content-Type": "application/json",
+//         ...(token && { Authorization: `Bearer ${token}` }),
+//       },
+//     });
+//     return response.data;
+//   } catch (error: any) {
+//     console.error(
+//       "AI Image Generation API Error:",
+//       error.response || error.message,
+//     );
+//     throw error;
+//   }
+// };
+
 export interface AIImageRequest {
   prompt: string;
   count?: number;
 }
 
 export interface AIImageResponse {
-  success: boolean;
-  images?: string[];
-  imagePrompt: string;
-  message: string;
+  imagePrompt?: string; 
+  imageUrl?: string;    
+  message?: string;
+  provider?: string;
+  success?: boolean;
 }
 
 export const generateAIImageApi = async (
@@ -321,11 +355,15 @@ export const generateAIImageApi = async (
         ...(token && { Authorization: `Bearer ${token}` }),
       },
     });
+
+    // Log the full response for debugging
+    console.log("AI Image Generation Response:", response.data);
+
     return response.data;
   } catch (error: any) {
     console.error(
       "AI Image Generation API Error:",
-      error.response || error.message,
+      error.response ? error.response.data : error.message
     );
     throw error;
   }
