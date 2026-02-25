@@ -99,9 +99,10 @@ export default function CampaignCard({
     } else {
       router.push({
         pathname: "/campaigns/campaignsDetails",
-        params: { campaign: JSON.stringify(campaign),
-        campaignStartDate: campaign.startDate,
-         },
+        params: {
+          campaign: JSON.stringify(campaign),
+          campaignStartDate: campaign.startDate,
+        },
       });
     }
   };
@@ -181,13 +182,29 @@ export default function CampaignCard({
     </View>
   );
 
+  const finalBorderColor = campaign.show
+    ? isDark
+      ? "#ffffff"
+      : "#e5e7eb"
+    : borderColorStyle; // 👈 status-based color when hidden
+
   return (
+    // <ThemedView
+    //   className="p-4 rounded-xl mb-4"
+    //   style={{
+    //     backgroundColor: isDark ? "#161618" : "#fff",
+    //     borderWidth: 2,
+    //     borderColor: highlightBorder ? borderColorStyle : isDark ? "#ffffff" : "#e5e7eb",
+    //   }}
+    // >
     <ThemedView
       className="p-4 rounded-xl mb-4"
       style={{
-        backgroundColor: isDark ? "#161618" : "#fff",
+        backgroundColor: isDark ? "#161618" : "#ffffff", // unchanged
         borderWidth: 2,
-        borderColor: highlightBorder ? borderColorStyle : isDark ? "#ffffff" : "#e5e7eb",
+        borderColor: highlightBorder
+          ? borderColorStyle
+          : finalBorderColor,
       }}
     >
       {/* Title + Actions */}
