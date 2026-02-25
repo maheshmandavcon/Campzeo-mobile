@@ -148,6 +148,15 @@ export function useCampaignPostForm({
     destinationLink?: string;
   }>({});
 
+  const PLATFORM_LABELS: Record<string, string> = {
+    INSTAGRAM: "Instagram",
+    YOUTUBE: "YouTube",
+    PINTEREST: "Pinterest",
+    FACEBOOK: "Facebook",
+    LINKEDIN: "LinkedIn",
+    EMAIL: "Email",
+  };
+
   // ================= PREVIEW TIMESTEMP =================
   const previewTimestamp = postDate
     ? postDate.toLocaleString([], {
@@ -729,25 +738,25 @@ export function useCampaignPostForm({
   // };
 
   const handleSelectGeneratedImage = (imageUrl: string) => {
-  setAttachments((prev) => {
-    // 🚫 Prevent duplicate selection
-    if (prev.some((att) => att.uri === imageUrl)) {
-      return prev;
-    }
+    setAttachments((prev) => {
+      // 🚫 Prevent duplicate selection
+      if (prev.some((att) => att.uri === imageUrl)) {
+        return prev;
+      }
 
-    return [
-      ...prev,
-      {
-        uri: imageUrl,
-        name: "ai-image.jpg",
-        type: "image/jpeg",
-        uploading: false,
-      },
-    ];
-  });
+      return [
+        ...prev,
+        {
+          uri: imageUrl,
+          name: "ai-image.jpg",
+          type: "image/jpeg",
+          uploading: false,
+        },
+      ];
+    });
 
-  setImageModalVisible(false);
-};
+    setImageModalVisible(false);
+  };
 
   function normalizeAIImageUrl(url: string) {
     // if (!url) return url;
@@ -1080,9 +1089,10 @@ export function useCampaignPostForm({
         mediaRequiredPlatforms.includes(platform) &&
         attachments.length === 0
       ) {
+        const platformName = PLATFORM_LABELS[platform] ?? platform;
         Alert.alert(
           "⚠️ Missing Media",
-          "Please add at least one image or video for this platform.",
+          `Please add at least one image or video for ${platformName}.`,
         );
         return;
       }

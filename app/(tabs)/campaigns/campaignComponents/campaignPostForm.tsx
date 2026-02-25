@@ -135,10 +135,10 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     { id: "2", name: "Personal Profile" },
   ];
 
-  const [postText, setPostText] = React.useState<string>(""); // post text input
+  const [postText, setPostText] = React.useState<string>(""); 
   const [postImageUrl, setPostImageUrl] = React.useState<string | undefined>(
     undefined,
-  ); // optional image
+  );
 
   const [userData, setUserData] = useState<any>(null);
 
@@ -171,7 +171,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               source={{ uri: item.uri }}
               style={{ width: "100%", height: "100%" }}
               resizeMode={ResizeMode.COVER}
-              shouldPlay={true} // only first frame
+              shouldPlay={true} 
               isMuted
               useNativeControls={false}
             />
