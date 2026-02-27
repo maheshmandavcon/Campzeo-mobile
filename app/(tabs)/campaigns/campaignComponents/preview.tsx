@@ -69,29 +69,31 @@ const Preview: React.FC<PreviewProps> = ({
     },
   } as const;
 
-  const renderMedia = () => {
-    if (!images.length) return null;
-
-    switch (platform) {
-      case "facebook":
-      case "linkedin":
-        return renderFacebookPreview(images);
-      case "instagram":
-        return <InstagramPreview media={images} />;
-      case "whatsapp":
-        return renderWhatsAppPreview();
-      case "email":
-        return renderEmailPreview();
-      case "sms":
-        return renderSmsPreview();
-      case "pinterest":
-        return renderPinterestPreview();
-      case "youtube":
-        return renderYouTubePreview();
-      default:
-        return null;
-    }
-  };
+const renderMedia = () => {
+  switch (platform) {
+    case "facebook":
+    case "linkedin":
+      if (!images.length) return null;
+      return renderFacebookPreview(images);
+    case "instagram":
+      if (!images.length) return null;
+      return <InstagramPreview media={images} />;
+    case "whatsapp":
+      return renderWhatsAppPreview();
+    case "sms":
+      return renderSmsPreview(); // always render SMS
+    case "email":
+      return renderEmailPreview(); // always render email
+    case "pinterest":
+      if (!images.length) return null;
+      return renderPinterestPreview();
+    case "youtube":
+      if (!images.length) return null;
+      return renderYouTubePreview();
+    default:
+      return null;
+  }
+};
 
   const platformConfig = PLATFORM_CONFIG[platform as keyof typeof PLATFORM_CONFIG];
 

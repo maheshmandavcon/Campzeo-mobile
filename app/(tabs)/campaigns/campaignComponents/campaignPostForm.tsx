@@ -135,7 +135,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     { id: "2", name: "Personal Profile" },
   ];
 
-  const [postText, setPostText] = React.useState<string>(""); 
+  const [postText, setPostText] = React.useState<string>("");
   const [postImageUrl, setPostImageUrl] = React.useState<string | undefined>(
     undefined,
   );
@@ -171,7 +171,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               source={{ uri: item.uri }}
               style={{ width: "100%", height: "100%" }}
               resizeMode={ResizeMode.COVER}
-              shouldPlay={true} 
+              shouldPlay={true}
               isMuted
               useNativeControls={false}
             />
@@ -201,7 +201,15 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           {item.name}
         </Text>
 
-        <TouchableOpacity onPress={() => handleRemoveAttachment(index)}>
+        {/* <TouchableOpacity onPress={() => handleRemoveAttachment(index)}>
+          <Ionicons name="close-circle" size={20} color="#dc2626" />
+        </TouchableOpacity> */}
+
+        <TouchableOpacity
+          onPress={() =>
+            handleRemoveAttachment(item.uploadedUrl ?? item.uri)
+          }
+        >
           <Ionicons name="close-circle" size={20} color="#dc2626" />
         </TouchableOpacity>
       </View>
@@ -414,12 +422,12 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             >
               <View
                 style={{
-                  backgroundColor: isDark ? "#161618" : "#ffffff", // dark/light background
+                  backgroundColor: isDark ? "#161618" : "#ffffff",
                   borderRadius: 12,
                   padding: 16,
                   maxHeight: "70%",
                   borderWidth: 1,
-                  borderColor: isDark ? "#ffffff" : "#d1d5db", // white border in dark, gray in light
+                  borderColor: isDark ? "#ffffff" : "#d1d5db",
                 }}
               >
                 <View
@@ -800,7 +808,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             </>
           )}
 
-          {platformState === "LINKEDIN" && (
+          {/* {platformState === "LINKEDIN" && (
             <View
               style={{
                 borderWidth: 1,
@@ -811,7 +819,6 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 backgroundColor: isDark ? "#161618" : "#f3f4f6",
               }}
             >
-              {/* Header with Icon */}
               <View
                 style={{
                   flexDirection: "row",
@@ -836,7 +843,6 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 </Text>
               </View>
 
-              {/* Dropdown */}
               <View
                 style={{
                   borderWidth: 1,
@@ -854,7 +860,6 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   }}
                   dropdownIconColor={isDark ? "#fff" : "#000"}
                 >
-                  {/* 🔹 Placeholder */}
                   <Picker.Item
                     label="Select author"
                     value={null}
@@ -862,7 +867,6 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     color={isDark ? "#9ca3af" : "#6b7280"}
                   />
 
-                  {/* 🔹 Actual accounts */}
                   {linkedinAccounts.map((account) => (
                     <Picker.Item
                       key={account.id}
@@ -873,7 +877,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 </Picker>
               </View>
             </View>
-          )}
+          )} */}
 
           {platformState === "FACEBOOK" && (
             <View

@@ -15,22 +15,24 @@ export interface CampaignData {
 }
 
 export interface CampaignPostData {
-  senderEmail: string;
+  senderEmail: string | null;
   subject: string;
   message: string;
   type: string;
   mediaUrls?: string[];
   scheduledPostTime: string;
-  pinterestBoard?: string;
 
+  // ✅ PINTEREST (ROOT LEVEL — REQUIRED)
+  pinterestBoardId?: string;
+  pinterestLink?: string;
+  thumbnailUrl?: string | null;
+
+  // ✅ OTHER PLATFORMS (keep metadata generic)
   metadata?: {
-    boardId?: string;
-    boardName?: string;
     destinationLink?: string;
     tags?: string[];
     postType?: string;
     privacy?: string;
-    thumbnailUrl?: string | null;
     playlistId?: string;
     playlistTitle?: string;
     coverImage?: string | null;
@@ -143,6 +145,10 @@ export const createPostForCampaignApi = async (
   data: CampaignPostData,
   token?: string,
 ) => {
+  console.log(
+  "🧩 [CreatePost] Payload being sent:",
+  JSON.stringify(data, null, 2)
+);
   try {
     const response = await https.post(`/campaigns/${campaignId}/posts`, data, {
       headers: {
@@ -189,8 +195,11 @@ export const shareCampaignPostApi = async (
   campaignId: number,
   postId: number,
   contactIds: number[],
-  // token: AuthToken
 ) => {
+  console.log("📤 [SharePost] campaignId:", campaignId);
+  console.log("📤 [SharePost] postId:", postId);
+  console.log("📤 [SharePost] contactIds:", contactIds);
+
   try {
     const response = await https.post(
       `/campaigns/${campaignId}/posts/${postId}/send`,
@@ -199,11 +208,12 @@ export const shareCampaignPostApi = async (
         headers: { "Content-Type": "application/json" },
       },
     );
-    console.log("Share Post API Response:", response);
+
+    console.log("✅ Share Post API Response:", response.data);
     return response.data;
   } catch (error: any) {
     console.error(
-      "Send Campaign Post API Error:",
+      "❌ Send Campaign Post API Error:",
       error.response?.data || error.message,
     );
     throw error;

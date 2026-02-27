@@ -17,6 +17,8 @@ import {
   getCampaignByIdApi,
   getPostsByCampaignIdApi,
   shareCampaignPostApi,
+  updateCampaignApi,
+  updatePostForCampaignApi,
 } from "@/api/campaignApi";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
@@ -437,100 +439,75 @@ export default function CampaignsDetails() {
   };
 
   const sharePost = async () => {
-    if (!resolvedCampaignId || !currentSharePostId) return;
+  if (!resolvedCampaignId || !currentSharePostId) return;
 
-    const post = posts.find((p) => p.id === currentSharePostId);
-    if (!post) return;
+  const post = posts.find((p) => p.id === currentSharePostId);
+  if (!post) return;
 
-    // ✅ PINTEREST VALIDATION (THIS WAS MISSING)
-    // if (post.type === "PINTEREST") {
-    //   const boardId =
-    //     post.metadata?.boardId || post.boardId;
+  try {
+    setPublishing(true);
 
-    //   const boardName =
-    //     post.metadata?.boardName || post.boardName;
+    // 🔴 REQUIRED FOR PINTEREST
+    if (post.type === "PINTEREST") {
+      const boardId =
+        post.metadata?.boardId || post.boardId;
+      const boardName =
+        post.metadata?.boardName || post.boardName;
 
-    //   if (!boardId || !boardName) {
-    //     Alert.alert(
-    //       "Pinterest Board Required",
-    //       "Please select a board or create a new board before publishing."
-    //     );
-    //     return;
-    //   }
-    // }
+      if (!boardId && !boardName) {
+        Alert.alert(
+          "Pinterest Board Required",
+          "Please select a board or create a new board before publishing."
+        );
+        setPublishing(false);
+        return;
+      }
 
+      // ✅ UPDATE POST FIRST
+      await updatePostForCampaignApi(
+        resolvedCampaignId,
+        currentSharePostId,
+        {
+          ...post,
+          metadata: {
+            ...post.metadata,
+            boardId,
+            boardName,
+          },
+        }
+      );
+    }
+
+    // ✅ CONTACT VALIDATION
     let contactsToSend: number[] = [];
-
     if (["SMS", "EMAIL", "WHATSAPP"].includes(post.type)) {
       if (selectedContacts.length === 0) {
         Alert.alert("Select contacts", "Please select at least one contact.");
+        setPublishing(false);
         return;
       }
       contactsToSend = selectedContacts;
     }
 
-    try {
-      setPublishing(true);
+    // ✅ NOW SHARE
+    const res = await shareCampaignPostApi(
+      resolvedCampaignId,
+      currentSharePostId,
+      contactsToSend
+    );
 
-      const res = await shareCampaignPostApi(
-        resolvedCampaignId,
-        currentSharePostId,
-        contactsToSend
-      );
+    Alert.alert("Success", "Post sent successfully");
 
-      // ✅ THIS IS THE FIX
-      const sent = res?.data?.sent ?? 0;
-      const failed = res?.data?.failed ?? 0;
+    setShareModalVisible(false);
+    setSelectedContacts([]);
+    await fetchPosts();
 
-      if (sent > 0) {
-        // ✅ Delivered
-        setPosts((prev) =>
-          prev.map((p) =>
-            p.id === currentSharePostId
-              ? {
-                ...p,
-                isPostSent: true,
-                publishedDate: new Date().toISOString(),
-              }
-              : p
-          )
-        );
-
-        Alert.alert("Success", "Post sent successfully");
-      } else {
-        Alert.alert(
-          "Delivery failed",
-          "Message could not be delivered. Scheduled time is preserved."
-        );
-      }
-
-      // ✅ FORCE UI UPDATE
-      // setPosts((prev) =>
-      //   prev.map((p) =>
-      //     p.id === currentSharePostId
-      //       ? {
-      //         ...p,
-      //         status: "SENT",
-      //         sentAt: new Date().toISOString(),
-      //         scheduledPostTime: null, 
-      //         isPostSent: true,
-      //         publishedDate: new Date().toISOString(),
-      //       }
-      //       : p
-      //   )
-      // );
-
-      setSelectedContacts([]);
-      setShareModalVisible(false);
-
-      await fetchPosts(); // optional but fine
-    }
-    catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to send post");
-    } finally {
-      setPublishing(false);
-    }
-  };
+  } catch (error: any) {
+    Alert.alert("Error", error.message || "Failed to send post");
+  } finally {
+    setPublishing(false);
+  }
+};
 
   // ========= RENDER POST ITEM =========
   const renderPostItem = ({ item }: { item: any }) => {
