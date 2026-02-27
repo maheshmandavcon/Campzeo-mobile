@@ -139,12 +139,12 @@ export default function Accounts() {
       setLoadingPlatform(platformKey);
       setLoadingAction("connect");
 
-      if (platformKey === "INSTAGRAM") {
-        Alert.alert(
-          "Instagram Connection",
-          "Instagram uses Facebook login to connect business accounts.",
-        );
-      }
+      // if (platformKey === "INSTAGRAM") {
+      //   Alert.alert(
+      //     "Instagram Connection",
+      //     "Instagram uses Facebook login to connect business accounts.",
+      //   );
+      // }
 
       const data = await getPlatform(platformKey);
 

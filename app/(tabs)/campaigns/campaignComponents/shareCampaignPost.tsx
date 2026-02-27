@@ -36,6 +36,15 @@ export default function ShareCampaignPost({
   onToggleContact,
   onPublish,
 }: Props) {
+
+  // ✅ ADD LOG HERE
+  console.log("[ShareCampaignPost] render", {
+    visible,
+    postId: post?.id,
+    postType: post?.type,
+    mediaUrls: post?.mediaUrls,
+  });
+
   if (!visible || !post) return null;
 
   const isManual = ["SMS", "EMAIL", "WHATSAPP"].includes(post.type);
@@ -275,7 +284,16 @@ export default function ShareCampaignPost({
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={onPublish}
+                // onPress={onPublish}
+                onPress={() => {
+                  console.log("[ShareCampaignPost] Publish pressed", {
+                    postId: post?.id,
+                    postType: post?.type,
+                    selectedContacts,
+                    mediaUrls: post?.mediaUrls,
+                  });
+                  onPublish();
+                }}
                 disabled={publishing}
                 style={{
                   paddingVertical: 10,

@@ -220,11 +220,14 @@ export function useCampaignPostForm({
     }
   }
 
+  // function getMimeFromUrl(url: string) {
+  //   const ext = url.split(".").pop()?.toLowerCase();
+  //   if (ext === "webp") return "image/webp";
+  //   if (ext === "png") return "image/png";
+  //   return "image/jpeg";
+  // }
   function getMimeFromUrl(url: string) {
-    const ext = url.split(".").pop()?.toLowerCase();
-    if (ext === "webp") return "image/webp";
-    if (ext === "png") return "image/png";
-    return "image/jpeg";
+    return "image/jpeg"; // ✅ safest
   }
 
   // AI IMAGE LOADING
@@ -620,8 +623,13 @@ export function useCampaignPostForm({
     }
   }
 
-  const handleRemoveAttachment = (index: number) => {
-    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  // const handleRemoveAttachment = (index: number) => {
+  //   setAttachments((prev) => prev.filter((_, i) => i !== index));
+  // };
+  const handleRemoveAttachment = (uri: string) => {
+    setAttachments((prev) =>
+      prev.filter((att) => att.uri !== uri && att.uploadedUrl !== uri),
+    );
   };
 
   // ================= AI TEXT =================
@@ -640,23 +648,30 @@ export function useCampaignPostForm({
 
       const payload = {
         prompt: aiPrompt,
-        context: { platform, existingContent: message || "" },
+        context: { platform, existingContent: message || "" }, // ✅ existingContent required
         mode: "generate-multiple",
       };
 
       const response = await generateAIContentApi(payload, token);
 
-      if (!response?.variations || response.variations.length === 0) {
+      if (!response) throw new Error("No AI response returned");
+
+      let aiSuggestions: { subject: string; content: string }[] = [];
+
+      if (response.variations?.length > 0) {
+        // Normal platforms: use variations
+        aiSuggestions = response.variations.slice(0, 3).map((v: any) => ({
+          subject: platform === "SMS" ? "" : (v.subject ?? ""),
+          content: v.content,
+        }));
+      } else if (platform === "SMS" && response.content) {
+        // SMS fallback: use single content
+        aiSuggestions = [{ subject: "", content: response.content }];
+      } else {
         throw new Error("No AI suggestions returned");
       }
 
-      // ✅ Store both subject and content
-      setAiResults(
-        response.variations.slice(0, 3).map((v: any) => ({
-          subject: platform === "SMS" ? "" : (v.subject ?? ""),
-          content: v.content,
-        })),
-      );
+      setAiResults(aiSuggestions);
     } catch (error: any) {
       Alert.alert("AI Error", error?.message || "Failed to generate content");
     } finally {
@@ -737,25 +752,37 @@ export function useCampaignPostForm({
   //   }
   // };
 
-  const handleSelectGeneratedImage = (imageUrl: string) => {
-    setAttachments((prev) => {
-      // 🚫 Prevent duplicate selection
-      if (prev.some((att) => att.uri === imageUrl)) {
-        return prev;
-      }
+  const handleSelectGeneratedImage = async (imageUrl: string) => {
+    try {
+      const token = await getToken();
+      if (!token) throw new Error("Token missing");
 
-      return [
-        ...prev,
+      // 1️⃣ Upload to backend
+      const uploadedUrl = await uploadMediaApi(
         {
           uri: imageUrl,
+          name: `ai-image-${Date.now()}.jpg`,
+          type: "image/jpeg",
+        },
+        token,
+      );
+
+      // 2️⃣ Save ONLY backend URL
+      setAttachments((prev) => [
+        ...prev,
+        {
+          uri: uploadedUrl,
+          uploadedUrl: uploadedUrl,
           name: "ai-image.jpg",
           type: "image/jpeg",
           uploading: false,
         },
-      ];
-    });
+      ]);
 
-    setImageModalVisible(false);
+      setSelectedImage(imageUrl);
+    } catch (error) {
+      Alert.alert("Upload failed", "Unable to upload AI image");
+    }
   };
 
   function normalizeAIImageUrl(url: string) {
@@ -816,13 +843,13 @@ export function useCampaignPostForm({
       const fileName = getFileNameFromUrl(imageUrl);
       const mimeType = getMimeFromUrl(imageUrl);
 
-      const aiAttachment: Attachment = {
-        uri: imageUrl,
-        uploadedUrl: imageUrl, // IMPORTANT
-        name: fileName, // REAL filename
-        type: mimeType,
-        uploading: false,
-      };
+      // const aiAttachment: Attachment = {
+      //   uri: imageUrl,
+      //   uploadedUrl: imageUrl, // IMPORTANT
+      //   name: fileName, // REAL filename
+      //   type: mimeType,
+      //   uploading: false,
+      // };
 
       setGeneratedImages((prev) => [...prev, imageUrl]);
       // setAttachments((prev) => [...prev, aiAttachment]);
@@ -1136,14 +1163,49 @@ export function useCampaignPostForm({
         .map((tag) => tag.trim())
         .filter((tag) => tag.length > 0);
 
+      // ✅ FILTER VALID MEDIA ONLY
+      const mediaUrls = attachments
+        .filter(
+          (a): a is typeof a & { uploadedUrl: string } =>
+            !!a.uploadedUrl &&
+            !!a.type &&
+            (a.type.startsWith("image/") || a.type.startsWith("video/")),
+        )
+        .map((a) => a.uploadedUrl);
+
+      console.log("MEDIA URLS BEING SENT:", mediaUrls);
+
+      const invalidMedia = attachments.filter(
+        (a) =>
+          !a.uploadedUrl ||
+          !a.type ||
+          (!a.type.startsWith("image/") && !a.type.startsWith("video/")),
+      );
+
+      if (invalidMedia.length > 0) {
+        Alert.alert(
+          "Invalid Media",
+          "Some media files are not uploaded properly. Please reselect them.",
+        );
+        setLoading(false);
+        return;
+      }
+
       const postData: CampaignPostData = {
         senderEmail, // working
         subject, // working
         message, // working
         type: platform, // working
-        mediaUrls: attachments.map((a) => a.uploadedUrl || a.uri), // working
+        // mediaUrls: attachments.map((a) => a.uploadedUrl || a.uri), // working
+        mediaUrls,
         scheduledPostTime: postDate?.toISOString() || "", // working
-        pinterestBoard, // working
+        // pinterestBoard, // working
+
+        ...(platform === "PINTEREST" && {
+          pinterestBoardId: PinterestBoardId,
+          pinterestLink: metadata.destinationLink || "",
+          thumbnailUrl: null,
+        }),
 
         metadata: {
           ...metadata,
@@ -1152,11 +1214,11 @@ export function useCampaignPostForm({
           tags: parsedTags, // working
 
           // ================= PINTEREST =================
-          ...(platform === "PINTEREST" && {
-            boardId: PinterestBoardId, // working
-            boardName: pinterestBoard, // working
-            destinationLink: metadata.destinationLink, // working
-          }),
+          // ...(platform === "PINTEREST" && {
+          //   boardId: PinterestBoardId, // working
+          //   boardName: pinterestBoard, // working
+          //   destinationLink: metadata.destinationLink, // working
+          // }),
 
           // ================= YOUTUBE =================
           ...(platform === "YOUTUBE" && {
