@@ -80,6 +80,7 @@ export function useCampaignPostForm({
     {},
   );
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [selectingImage, setSelectingImage] = useState<string | null>(null);
 
   // ================= DATE =================
   const [showPicker, setShowPicker] = useState(false);
@@ -754,10 +755,13 @@ export function useCampaignPostForm({
 
   const handleSelectGeneratedImage = async (imageUrl: string) => {
     try {
+      if (selectingImage) return; // prevent double tap
+
+      setSelectingImage(imageUrl); // 🔄 start spinner
+
       const token = await getToken();
       if (!token) throw new Error("Token missing");
 
-      // 1️⃣ Upload to backend
       const uploadedUrl = await uploadMediaApi(
         {
           uri: imageUrl,
@@ -767,7 +771,6 @@ export function useCampaignPostForm({
         token,
       );
 
-      // 2️⃣ Save ONLY backend URL
       setAttachments((prev) => [
         ...prev,
         {
@@ -780,7 +783,14 @@ export function useCampaignPostForm({
       ]);
 
       setSelectedImage(imageUrl);
+
+      // small delay makes UX smoother
+      setTimeout(() => {
+        setImageModalVisible(false);
+        setSelectingImage(null);
+      }, 300);
     } catch (error) {
+      setSelectingImage(null);
       Alert.alert("Upload failed", "Unable to upload AI image");
     }
   };
@@ -1100,9 +1110,10 @@ export function useCampaignPostForm({
   const handleSubmit = async () => {
     setLoading(true);
 
+    if (loading) return; 
+
     try {
-      // ================= VALIDATION =================
-      // Common required fields
+      setLoading(true);
       if (
         !message
         //  || !postDate
@@ -1343,6 +1354,7 @@ export function useCampaignPostForm({
     imageLoadingMap,
     imagePrompt,
     generatedImages,
+    selectingImage,
     imageModalVisible,
     facebookPages,
     coverImage,

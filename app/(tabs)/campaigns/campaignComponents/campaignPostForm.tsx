@@ -68,7 +68,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
     pinterestBoard, destinationLink, isCreatingPinterestBoard, pinterestModalVisible, newPinterestBoard, pinterestDescription, isPinterestBoardLoading, allPinterestBoards, loadingBoards,
 
-    showPicker, showTimePicker, minSelectableStartDate, minSelectableEndDate, maxSelectableEndDate, imageErrorMap,
+    showPicker, showTimePicker, minSelectableStartDate, minSelectableEndDate, maxSelectableEndDate, imageErrorMap, selectingImage,
 
     // setters
     setSenderEmail,
@@ -696,6 +696,23 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                               color={isDark ? "#60a5fa" : "#2563eb"}
                               style={{ position: "absolute", zIndex: 10 }}
                             />
+                          )}
+
+                          {selectingImage === item && (
+                            <View
+                              style={{
+                                position: "absolute",
+                                width: "100%",
+                                height: "100%",
+                                backgroundColor: "rgba(0,0,0,0.5)",
+                                justifyContent: "center",
+                                alignItems: "center",
+                                borderRadius: 8,
+                                zIndex: 20,
+                              }}
+                            >
+                              <ActivityIndicator size="large" color="#fff" />
+                            </View>
                           )}
 
                           <Image
@@ -2174,7 +2191,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
         <Button
           onPress={handleSubmit}
           className="rounded-full mb-8 px-4 py-3 flex-row justify-center items-center"
-          style={{ backgroundColor: "#dc2626", borderRadius: 50, height: 48 }}
+          style={{ backgroundColor: "#dc2626", borderRadius: 50, height: 48, opacity: loading ? 0.6 : 1, }}
           disabled={loading}
         >
           <View className="flex-row justify-center items-center">

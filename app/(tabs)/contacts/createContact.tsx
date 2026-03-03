@@ -153,6 +153,7 @@ useEffect(() => {
 
 // 3️⃣ Update onSubmit to check both email and mobile
 const onSubmit = async (data: Contact) => {
+  if (isSubmitting) return;
   try {
     const newEmail = data.email.trim().toLowerCase();
     const newMobile = data.mobile.trim();
@@ -559,6 +560,7 @@ const onSubmit = async (data: Contact) => {
 
         {/* Submit Button */}
         <TouchableOpacity
+          disabled={isSubmitting}
           onPress={handleSubmit(onSubmit)}
           className="w-full mt-5 mb-10 rounded-xl items-center justify-center py-4"
           style={{
@@ -568,8 +570,8 @@ const onSubmit = async (data: Contact) => {
             shadowOffset: { width: 0, height: 6 },
             shadowRadius: 12,
             elevation: 6,
+            opacity: isSubmitting ? 0.6 : 1,
           }}
-          disabled={isSubmitting}
         >
           <Text className="text-white font-semibold text-lg">
             {isSubmitting
