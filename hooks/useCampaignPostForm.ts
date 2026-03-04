@@ -56,7 +56,11 @@ export function useCampaignPostForm({
 
   // ================= ATTACHMENTS =================
   const [attachments, setAttachments] = useState<Attachment[]>([]);
-  // const [uploading, setUploading] = useState(false);
+  const hasImage = attachments.some((a) => a.type?.startsWith("image/"));
+  const hasVideo = attachments.some((a) => a.type?.startsWith("video/"));
+  const hasAttachment = attachments.length > 0;
+  const [canSelectStandard, setCanSelectStandard] = useState(hasImage);
+  const [canSelectReel, setCanSelectReel] = useState(hasVideo && !hasImage);
 
   // ================= AI TEXT =================
   const [aiPrompt, setAiPrompt] = useState("");
@@ -199,6 +203,63 @@ export function useCampaignPostForm({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadingMedia, setUploadingMedia] = useState(false);
 
+  // useEffect(() => {
+  //   const imageCount = attachments.filter((a) =>
+  //     a.type?.startsWith("image/"),
+  //   ).length;
+  //   const videoCount = attachments.filter((a) =>
+  //     a.type?.startsWith("video/"),
+  //   ).length;
+
+  //   const isCombo = imageCount > 0 && videoCount > 0;
+
+  //   // Can select STANDARD → always true if combo OR images exist
+  //   setCanSelectStandard(imageCount > 0 || isCombo);
+
+  //   // Can select REEL → only if videos exist AND NO images
+  //   setCanSelectReel(videoCount > 0 && imageCount === 0);
+
+  //   // Auto-set facebookContentType based on rules
+  //   if (isCombo) {
+  //     setFacebookContentType("STANDARD");
+  //   } else if (videoCount > 0 && imageCount === 0) {
+  //     setFacebookContentType("REEL");
+  //   } else if (imageCount > 0 && videoCount === 0) {
+  //     setFacebookContentType("STANDARD");
+  //   } else {
+  //     setFacebookContentType("STANDARD"); // default
+  //   }
+  // }, [attachments]);
+
+  useEffect(() => {
+    const imageCount = attachments.filter((a) =>
+      a.type?.startsWith("image/"),
+    ).length;
+
+    const videoCount = attachments.filter((a) =>
+      a.type?.startsWith("video/"),
+    ).length;
+
+    const isCombo = imageCount > 0 && videoCount > 0;
+
+    setCanSelectStandard(imageCount > 0 || isCombo);
+    setCanSelectReel(videoCount > 0 && imageCount === 0);
+
+    // ✅ DO NOT override content type if editing
+    if (existingPost) return;
+
+    // ✅ Only auto-detect when creating new post
+    if (isCombo) {
+      setFacebookContentType("STANDARD");
+    } else if (videoCount > 0 && imageCount === 0) {
+      setFacebookContentType("REEL");
+    } else if (imageCount > 0 && videoCount === 0) {
+      setFacebookContentType("STANDARD");
+    } else {
+      setFacebookContentType("STANDARD");
+    }
+  }, [attachments]);
+
   function inferMediaType(uri: string) {
     if (!uri) return "application/octet-stream";
     const ext = uri.split(".").pop()?.toLowerCase();
@@ -246,6 +307,15 @@ export function useCampaignPostForm({
   // ================= PREFILL =================
   useEffect(() => {
     if (!existingPost || hasPrefilledRef.current) return;
+
+    console.log("🔍 PREFILL existingPost:", existingPost);
+    console.log("🔍 PREFILL metadata:", existingPost?.metadata);
+    console.log(
+      "🔍 PREFILL coverImage from metadata:",
+      existingPost?.metadata?.coverImage,
+    );
+    console.log("🔍 PREFILL coverImage root:", existingPost?.coverImage);
+    console.log("🔍 PREFILL thumbnailUrl:", existingPost?.thumbnailUrl);
 
     hasPrefilledRef.current = true;
 
@@ -315,35 +385,92 @@ export function useCampaignPostForm({
 
     // ✅ FACEBOOK / INSTAGRAM
 
+    // if (existingPost.type === "FACEBOOK" || existingPost.type === "INSTAGRAM") {
+    //   const typeMap: Record<string, "STANDARD" | "REEL"> = {
+    //     STANDARD: "STANDARD",
+    //     POST: "STANDARD",
+
+    //     REEL: "REEL",
+    //     SHORT: "REEL",
+    //     SHORT_VIDEO: "REEL",
+    //     VIDEO: "REEL",
+    //   };
+
+    //   const savedType = existingPost.metadata?.postType ?? "STANDARD";
+
+    //   setFacebookContentType(typeMap[savedType] ?? "STANDARD");
+    //   setCoverImage(existingPost.metadata?.coverImage || null);
+    // }
     if (existingPost.type === "FACEBOOK" || existingPost.type === "INSTAGRAM") {
       const typeMap: Record<string, "STANDARD" | "REEL"> = {
         STANDARD: "STANDARD",
         POST: "STANDARD",
-
         REEL: "REEL",
         SHORT: "REEL",
         SHORT_VIDEO: "REEL",
         VIDEO: "REEL",
       };
 
-      const savedType = existingPost.metadata?.postType ?? "STANDARD";
+      // let contentType: "STANDARD" | "REEL" = "STANDARD";
 
-      setFacebookContentType(typeMap[savedType] ?? "STANDARD");
-      setCoverImage(existingPost.metadata?.coverImage || null);
+      let contentType: "STANDARD" | "REEL" = "STANDARD";
+
+      // ✅ Priority 1: If backend saved postType correctly
+      if (existingPost.metadata?.postType) {
+        contentType = existingPost.metadata.postType;
+      }
+      // ✅ Priority 2: Detect by videoUrl (FRONTEND FIX)
+      else if (existingPost.videoUrl) {
+        contentType = "REEL";
+      }
+      // ✅ Fallback
+      else {
+        contentType = "STANDARD";
+      }
+
+      // setFacebookContentType(contentType);
+
+      setFacebookContentType(contentType);
+      // let savedCover: string | null = null;
+
+      // if (existingPost.mediaUrls?.length > 1) {
+      //   savedCover = existingPost.mediaUrls[1];
+      // }
+      // Priority 1: metadata.coverImage
+      // Priority 1: metadata.thumbnailUrl (CORRECT)
+      const savedCover =
+  existingPost.metadata?.thumbnailUrl ||
+  existingPost.metadata?.coverImage ||
+  null;
+
+setCoverImage(savedCover);
+
+      console.log("🎯 SAVED COVER FROM MEDIA URLS:", savedCover);
+
+      setCoverImage(savedCover);
     }
 
     // ✅ LINKEDIN
-
     if (existingPost.type === "LINKEDIN") {
       const authorId = existingPost.metadata?.authorId;
 
       if (authorId) {
-        setSelectedAccount(String(authorId)); // must be string
+        setSelectedAccount(String(authorId));
       }
     }
 
     // ================= ATTACHMENTS =================
     const prefilledAttachments: Attachment[] = [];
+
+    // Get the cover image to exclude it from attachments (for Reel posts)
+    let coverImageToExclude: string | null = null;
+    if (existingPost.type === "FACEBOOK" || existingPost.type === "INSTAGRAM") {
+      if (existingPost.metadata?.coverImage) {
+        coverImageToExclude = existingPost.metadata.coverImage;
+      } else if (existingPost.metadata?.thumbnailUrl) {
+        coverImageToExclude = existingPost.metadata.thumbnailUrl;
+      }
+    }
 
     if (Array.isArray(existingPost.attachments)) {
       prefilledAttachments.push(
@@ -362,13 +489,22 @@ export function useCampaignPostForm({
 
     if (Array.isArray(existingPost.mediaUrls)) {
       prefilledAttachments.push(
-        ...existingPost.mediaUrls.map((url: string, index: number) => ({
-          uri: url,
-          uploadedUrl: url,
-          name: getFileNameFromUrl(url),
-          type: getMimeFromUrl(url),
-          uploading: false,
-        })),
+        ...existingPost.mediaUrls
+          .filter((url: string) => {
+            // Exclude cover image from attachments
+            if (coverImageToExclude && url === coverImageToExclude) {
+              console.log("Excluding cover image from attachments:", url);
+              return false;
+            }
+            return true;
+          })
+          .map((url: string, index: number) => ({
+            uri: url,
+            uploadedUrl: url,
+            name: getFileNameFromUrl(url),
+            type: getMimeFromUrl(url),
+            uploading: false,
+          })),
       );
     }
 
@@ -376,149 +512,6 @@ export function useCampaignPostForm({
   }, [existingPost]);
 
   // ================= ATTACHMENTS =================
-
-  // async function handleAddAttachment() {
-  //   try {
-  //     const isYouTube = platform === "YOUTUBE";
-
-  //     const result = await ImagePicker.launchImageLibraryAsync({
-  //       mediaTypes:
-  //         platform === "YOUTUBE"
-  //           ? ImagePicker.MediaTypeOptions.Videos
-  //           : ImagePicker.MediaTypeOptions.All,
-  //       quality: 0.8,
-  //     });
-
-  //     if (result.canceled) return;
-
-  //     const asset = result.assets[0];
-  //     const isVideo = asset.type === "video";
-
-  //     const tempAttachment: Attachment = {
-  //       uri: asset.uri,
-  //       name:
-  //         asset.fileName ??
-  //         `${isVideo ? "video" : "image"}-${Date.now()}.${
-  //           isVideo ? "mp4" : "jpg"
-  //         }`,
-  //       type: isVideo ? "video/mp4" : "image/jpeg",
-  //       uploading: true,
-  //     };
-
-  //     setAttachments((prev) => [...prev, tempAttachment]);
-
-  //     // ⬇️ upload
-  //     const finalUrl = await uploadMediaApi({
-  //       uri: asset.uri,
-  //       name: tempAttachment.name,
-  //       type: tempAttachment.type,
-  //     });
-
-  //     if (finalUrl == null) {
-  //       throw new Error("Upload failed: no Url returned");
-  //     }
-
-  //     setAttachments((prev) =>
-  //       prev.map((a) =>
-  //         a.uri === asset.uri ? { ...a, uri: finalUrl, uploading: false } : a,
-  //       ),
-  //     );
-  //   } catch (error) {
-  //     console.error(error);
-  //     Alert.alert("Upload failed", "Media upload failed");
-  //     setAttachments((prev) => prev.filter((a) => !a.uploading));
-  //   }
-  // }
-
-  // async function handleAddAttachment() {
-  //   try {
-  //     const isYouTube = platform === "YOUTUBE";
-
-  //     const result = await ImagePicker.launchImageLibraryAsync({
-  //       mediaTypes: isYouTube ? ["videos"] : ["images", "videos"],
-  //       quality: 0.8,
-  //     });
-
-  //     if (result.canceled) return;
-
-  //     const asset = result.assets[0];
-  //     const isVideo = asset.type === "video";
-
-  //     // ✅ Validate media limit (max 10 files)
-  //     if (attachments.length + 1 > 10) {
-  //       Alert.alert(
-  //         "Upload limit",
-  //         "You can upload a maximum of 10 media files",
-  //       );
-  //       return;
-  //     }
-
-  //     const tempAttachment: Attachment = {
-  //       uri: asset.uri,
-  //       name:
-  //         asset.fileName ??
-  //         `${isVideo ? "video" : "image"}-${Date.now()}.${
-  //           isVideo ? "mp4" : "jpg"
-  //         }`,
-  //       type: isVideo ? "video/mp4" : "image/jpeg",
-  //       uploading: true,
-  //     };
-
-  //     setAttachments((prev) => [...prev, tempAttachment]);
-  //     setUploadingMedia(true);
-  //     setUploadProgress(0);
-
-  //     // ⬇️ Upload with token using new backend endpoint
-  //     const token = await getToken();
-  //     if (!token) {
-  //       throw new Error("No authentication token available");
-  //     }
-
-  //     const finalUrl = await uploadMediaApi(
-  //       {
-  //         uri: asset.uri,
-  //         name: tempAttachment.name,
-  //         type: tempAttachment.type,
-  //       },
-  //       token,
-  //       // (progress) => setUploadProgress(progress),
-  //     );
-
-  //     if (finalUrl == null || typeof finalUrl !== "string") {
-  //       throw new Error("Upload failed: no Url returned");
-  //     }
-
-  //     setAttachments((prev) =>
-  //       prev.map((a) =>
-  //         a.uri === asset.uri
-  //           ? { ...a, uri: finalUrl, uploadedUrl: finalUrl, uploading: false }
-  //           : a,
-  //       ),
-  //     );
-
-  //     // ✅ Auto-detect Content Type for Instagram/Facebook
-  //     if (platform === "INSTAGRAM" || platform === "FACEBOOK") {
-  //       if (isVideo) {
-  //         setFacebookContentType("REEL");
-  //         Alert.alert("Success", "Video detected: Switched to Reel/Video mode");
-  //       } else if (attachments.length === 0 && !isVideo) {
-  //         // Only switch to STANDARD if it's the first upload and it's an image
-  //         setFacebookContentType("STANDARD");
-  //       }
-  //     }
-
-  //     // Alert.alert("Success", "File uploaded successfully");
-  //   } catch (error: any) {
-  //     console.error("Attachment upload error:", error);
-  //     Alert.alert("Upload failed", error?.message || "Media upload failed");
-  //     setAttachments((prev) => prev.filter((a) => !a.uploading));
-  //   } finally {
-  //     setUploadingMedia(false);
-  //     setUploadProgress(0);
-  //   }
-  // }
-
-  // permission for upload
   async function handleAddAttachment() {
     try {
       // 1️⃣ Always ask permission when user taps "+"
@@ -606,11 +599,27 @@ export function useCampaignPostForm({
       );
 
       // 6️⃣ Auto content-type detection
+      // if (platform === "INSTAGRAM" || platform === "FACEBOOK") {
+      //   if (isVideo) {
+      //     setFacebookContentType("REEL");
+      //   } else if (attachments.length === 0) {
+      //     setFacebookContentType("STANDARD");
+      //   }
+      // }
+      // 6️⃣ Auto content-type detection (FIXED)
       if (platform === "INSTAGRAM" || platform === "FACEBOOK") {
         if (isVideo) {
+          // If ANY video uploaded → force REEL
           setFacebookContentType("REEL");
-        } else if (attachments.length === 0) {
-          setFacebookContentType("STANDARD");
+        } else {
+          // If only images AND no video exists in attachments → STANDARD
+          const hasExistingVideo = attachments.some((a) =>
+            a.type?.startsWith("video/"),
+          );
+
+          if (!hasExistingVideo) {
+            setFacebookContentType("STANDARD");
+          }
         }
       }
     } catch (error: any) {
@@ -624,13 +633,27 @@ export function useCampaignPostForm({
     }
   }
 
-  // const handleRemoveAttachment = (index: number) => {
-  //   setAttachments((prev) => prev.filter((_, i) => i !== index));
+  // const handleRemoveAttachment = (uri: string) => {
+  //   setAttachments((prev) =>
+  //     prev.filter((att) => att.uri !== uri && att.uploadedUrl !== uri),
+  //   );
   // };
   const handleRemoveAttachment = (uri: string) => {
-    setAttachments((prev) =>
-      prev.filter((att) => att.uri !== uri && att.uploadedUrl !== uri),
-    );
+    setAttachments((prev) => {
+      const updated = prev.filter(
+        (att) => att.uri !== uri && att.uploadedUrl !== uri,
+      );
+
+      // 🔥 Auto revert to STANDARD if no videos left
+      if (
+        (platform === "FACEBOOK" || platform === "INSTAGRAM") &&
+        !updated.some((a) => a.type?.startsWith("video/"))
+      ) {
+        setFacebookContentType("STANDARD");
+      }
+
+      return updated;
+    });
   };
 
   // ================= AI TEXT =================
@@ -1058,7 +1081,56 @@ export function useCampaignPostForm({
     }
   };
 
+  // const handleCoverImageUpload = async () => {
+  //   const result = await ImagePicker.launchImageLibraryAsync({
+  //     mediaTypes: ["images"],
+  //     allowsEditing: true,
+  //     aspect: [9, 16],
+  //     quality: 1,
+  //   });
+
+  //   if (result.canceled) return;
+
+  //   const asset = result.assets[0];
+
+  //   try {
+  //     setCoverUploading(true);
+
+  //     const token = await getToken();
+  //     if (!token) {
+  //       throw new Error("No authentication token available");
+  //     }
+
+  //     const uploadedUrl = await uploadMediaApi(
+  //       {
+  //         uri: asset.uri,
+  //         name: `cover-${Date.now()}.jpg`,
+  //         type: "image/jpeg",
+  //       },
+  //       token,
+  //       (progress) => {
+  //         console.log("Cover Upload Progress:", progress);
+  //       },
+  //     );
+
+  //     if (uploadedUrl && typeof uploadedUrl === "string") {
+  //       setCoverImage(uploadedUrl);
+  //     } else {
+  //       throw new Error("Failed to upload cover image: no URL returned");
+  //     }
+  //   } catch (error: any) {
+  //     console.error("Cover upload error:", error);
+  //     Alert.alert(
+  //       "Upload failed",
+  //       error?.message || "Failed to upload cover image",
+  //     );
+  //   } finally {
+  //     setCoverUploading(false);
+  //   }
+  // };
+
   const handleCoverImageUpload = async () => {
+    console.log("[Cover] Image picker opened");
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       allowsEditing: true,
@@ -1066,17 +1138,24 @@ export function useCampaignPostForm({
       quality: 1,
     });
 
-    if (result.canceled) return;
+    if (result.canceled) {
+      console.log("[Cover] Image picker canceled");
+      return;
+    }
 
     const asset = result.assets[0];
+    console.log("[Cover] Image selected:", asset.uri);
 
     try {
       setCoverUploading(true);
+      console.log("[Cover] Upload started");
 
       const token = await getToken();
       if (!token) {
-        throw new Error("No authentication token available");
+        console.error("[Cover] No token available");
+        throw new Error("No token available");
       }
+      console.log("[Cover] Token retrieved");
 
       const uploadedUrl = await uploadMediaApi(
         {
@@ -1085,32 +1164,31 @@ export function useCampaignPostForm({
           type: "image/jpeg",
         },
         token,
-        (progress) => {
-          console.log("Cover Upload Progress:", progress);
-        },
       );
 
       if (uploadedUrl && typeof uploadedUrl === "string") {
-        setCoverImage(uploadedUrl);
+        console.log("[Cover] Upload finished, URL:", uploadedUrl);
+        setCoverImage(uploadedUrl); // ✅ correctly set coverImage state
       } else {
-        throw new Error("Failed to upload cover image: no URL returned");
+        console.error("[Cover] Upload finished but no URL returned");
+        throw new Error("No URL returned");
       }
     } catch (error: any) {
-      console.error("Cover upload error:", error);
+      console.error("[Cover] Upload error:", error);
       Alert.alert(
         "Upload failed",
         error?.message || "Failed to upload cover image",
       );
     } finally {
       setCoverUploading(false);
+      console.log("[Cover] Upload state set to false");
     }
   };
-
   // ================= SUBMIT =================
   const handleSubmit = async () => {
     setLoading(true);
 
-    if (loading) return; 
+    if (loading) return;
 
     try {
       setLoading(true);
@@ -1175,7 +1253,7 @@ export function useCampaignPostForm({
         .filter((tag) => tag.length > 0);
 
       // ✅ FILTER VALID MEDIA ONLY
-      const mediaUrls = attachments
+      let mediaUrls = attachments
         .filter(
           (a): a is typeof a & { uploadedUrl: string } =>
             !!a.uploadedUrl &&
@@ -1207,16 +1285,22 @@ export function useCampaignPostForm({
         subject, // working
         message, // working
         type: platform, // working
-        // mediaUrls: attachments.map((a) => a.uploadedUrl || a.uri), // working
         mediaUrls,
         scheduledPostTime: postDate?.toISOString() || "", // working
-        // pinterestBoard, // working
 
-        ...(platform === "PINTEREST" && {
-          pinterestBoardId: PinterestBoardId,
-          pinterestLink: metadata.destinationLink || "",
-          thumbnailUrl: null,
-        }),
+        ...(platform === "PINTEREST"
+          ? {
+              pinterestBoardId: PinterestBoardId,
+              pinterestLink: metadata.destinationLink || "",
+              thumbnailUrl: null,
+            }
+          : {}),
+
+        // ...((platform === "FACEBOOK" || platform === "INSTAGRAM") && coverImage
+        //   ? {
+        //       thumbnailUrl: coverImage,
+        //     }
+        //   : {}),
 
         metadata: {
           ...metadata,
@@ -1224,35 +1308,35 @@ export function useCampaignPostForm({
           // ================= COMMON =================
           tags: parsedTags, // working
 
-          // ================= PINTEREST =================
-          // ...(platform === "PINTEREST" && {
-          //   boardId: PinterestBoardId, // working
-          //   boardName: pinterestBoard, // working
-          //   destinationLink: metadata.destinationLink, // working
-          // }),
-
           // ================= YOUTUBE =================
-          ...(platform === "YOUTUBE" && {
-            postType: youTubeContentType,
-            privacy: youTubeStatus, // working
-            thumbnailUrl: customThumbnail || null,
-            playlistId,
-            playlistTitle,
-          }),
+          ...(platform === "YOUTUBE"
+            ? {
+                postType: youTubeContentType,
+                privacy: youTubeStatus, // working
+                thumbnailUrl: customThumbnail || null,
+                playlistId,
+                playlistTitle,
+              }
+            : {}),
 
           // ================= FACEBOOK / INSTAGRAM =================
           ...(platform === "FACEBOOK" || platform === "INSTAGRAM"
             ? {
                 postType: facebookContentType,
-                coverImage: coverImage || null,
+                // coverImage: coverImage || null,
+                // thumbnailUrl: coverImage || null,
+                thumbnailUrl: coverImage || null,
+                isReel: facebookContentType === "REEL",
               }
             : {}),
 
           // ================= LINKEDIN =================
-          ...(platform === "LINKEDIN" && {
-            authorId: selectedAccount,
-            authorType: "ORGANIZATION",
-          }),
+          ...(platform === "LINKEDIN"
+            ? {
+                authorId: selectedAccount,
+                authorType: "ORGANIZATION",
+              }
+            : {}),
         },
       };
 
@@ -1397,6 +1481,11 @@ export function useCampaignPostForm({
     minSelectableEndDate,
     maxSelectableEndDate,
     imageErrorMap,
+    hasVideo,
+    hasImage,
+    hasAttachment,
+    canSelectStandard,
+    canSelectReel,
 
     // setters
     setSenderEmail,
@@ -1435,6 +1524,8 @@ export function useCampaignPostForm({
     setNewPlaylistName,
     setSelectedAccount,
     setImageErrorMap,
+    setCanSelectStandard,
+    setCanSelectReel,
 
     // actions
     handleAddAttachment,

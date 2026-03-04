@@ -4,10 +4,8 @@ import { useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@gluestack-ui/themed";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { Picker } from "@react-native-picker/picker";
 import { ResizeMode, Video } from "expo-av";
 import React, { useEffect, useState } from "react";
-import DraggableFlatList from "react-native-draggable-flatlist";
 import {
   ActivityIndicator,
   Alert,
@@ -23,6 +21,7 @@ import {
   useColorScheme,
   View,
 } from "react-native";
+import DraggableFlatList from "react-native-draggable-flatlist";
 import Preview from "./preview";
 
 // ---------- Define Props Interface ----------
@@ -64,7 +63,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     facebookPages, selectedFacebookPage, facebookContentType, isFacebookPageLoading, coverImage, coverUploading,
 
     youTubeContentType, youTubeTags, youTubeStatus, showStatusDropdown, isCreatingPlaylist, customThumbnail, playlistId, playlistTitle,
-    playlists, showPlaylistDropdown, selectedPlaylist, newPlaylistName, selectedAccount,
+    playlists, showPlaylistDropdown, selectedPlaylist, newPlaylistName, selectedAccount, hasVideo, hasImage, hasAttachment, canSelectStandard, canSelectReel,
 
     pinterestBoard, destinationLink, isCreatingPinterestBoard, pinterestModalVisible, newPinterestBoard, pinterestDescription, isPinterestBoardLoading, allPinterestBoards, loadingBoards,
 
@@ -103,6 +102,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     setSelectedPlaylist,
     setNewPlaylistName,
     setImageErrorMap,
+    setCanSelectStandard,
+    setCanSelectReel,
 
     // handlers
     handleSubmit,
@@ -1002,6 +1003,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 {/* Standard Post */}
                 <TouchableOpacity
                   onPress={() => setFacebookContentType("STANDARD")}
+                  // disabled={!hasAttachment || hasVideo}
+                  disabled={!canSelectStandard || !hasAttachment}
                   style={{
                     flex: 1,
                     paddingVertical: 12,
@@ -1023,6 +1026,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                           ? "#161618"
                           : "#ffffff",
                     alignItems: "center",
+                    // opacity: !hasAttachment || hasVideo ? 0.5 : 1,
+                    opacity: (!canSelectStandard || !hasAttachment) ? 0.5 : 1,
                   }}
                 >
                   <Text
@@ -1046,6 +1051,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 {/* Reel / Short Video */}
                 <TouchableOpacity
                   onPress={() => setFacebookContentType("REEL")}
+                  // disabled={!hasAttachment || hasImage}
+                  disabled={!canSelectReel || !hasAttachment}
                   style={{
                     flex: 1,
                     paddingVertical: 12,
@@ -1067,6 +1074,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                           ? "#161618"
                           : "#ffffff",
                     alignItems: "center",
+                    // opacity: !hasAttachment || hasImage ? 0.5 : 1,
+                    opacity: (!canSelectReel || !hasAttachment) ? 0.5 : 1,
                   }}
                 >
                   <Text
@@ -1105,7 +1114,10 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   {/* Upload Button */}
                   <TouchableOpacity
                     disabled={coverUploading} // disable while uploading
-                    onPress={handleCoverImageUpload}
+                    onPress={() => {
+                      console.log("[Cover] Upload button pressed");
+                      handleCoverImageUpload();
+                    }}
                     style={{
                       backgroundColor: isDark ? "#1e3a8a" : "#eff6ff",
                       paddingVertical: 10,
@@ -1152,18 +1164,21 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
                   {/* Preview */}
                   {coverImage && !coverUploading && (
-                    <Image
-                      source={{ uri: coverImage }}
-                      style={{
-                        width: 100,
-                        height: 100,
-                        borderRadius: 8,
-                        marginTop: 8,
-                        borderWidth: 1,
-                        borderColor: isDark ? "#fff" : "#000",
-                      }}
-                      resizeMode="cover"
-                    />
+                    <>
+                      {console.log("[Cover] Preview URL:", coverImage)}
+                      <Image
+                        source={{ uri: coverImage }}
+                        style={{
+                          width: 100,
+                          height: 100,
+                          borderRadius: 8,
+                          marginTop: 8,
+                          borderWidth: 1,
+                          borderColor: isDark ? "#fff" : "#000",
+                        }}
+                        resizeMode="cover"
+                      />
+                    </>
                   )}
 
                   {/* Helper Text */}
@@ -2099,6 +2114,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               profilePic={user?.imageUrl}
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
+              coverImage={coverImage || undefined}
               images={attachments?.map((a) => a.uri)}
               timestamp={previewTimestamp}
             />
@@ -2111,6 +2127,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               profilePic={user?.imageUrl}
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
+              coverImage={coverImage || undefined}
               images={attachments?.map((a) => a.uri)}
               timestamp={previewTimestamp}
             />

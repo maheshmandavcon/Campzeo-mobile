@@ -61,11 +61,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts }) => {
           date={currentDate}
           height={500}
           onPressEvent={handleEventPress}
-          swipeEnabled={true}         
+          swipeEnabled={true}
+          // onChangeDate={(date) => setCurrentDate(date)}
         />
 
         {/* UPCOMING POSTS LIST BELOW CALENDAR */}
-        <UpcomingPostsList groupedEvents={groupedEvents} />
+        {/* <UpcomingPostsList groupedEvents={groupedEvents} /> */}
+        <UpcomingPostsList groupedEvents={groupedEvents} selectedMonth={currentDate}/>
       </ScrollView>
 
       {/* EVENT MODAL */}
@@ -73,8 +75,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts }) => {
         event={selectedEvent}
         isOpen={isModalVisible}
         onClose={() => setModalVisible(false)}
-
-/>
+      />
     </ThemedView>
   );
 };

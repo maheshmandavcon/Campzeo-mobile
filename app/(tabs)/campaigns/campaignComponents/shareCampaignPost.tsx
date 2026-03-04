@@ -10,6 +10,7 @@ import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { ContactsRecord } from "../../contacts/contactComponents/contactCard";
 import { Video, ResizeMode } from "expo-av";
+import { router } from "expo-router";
 
 type Props = {
   visible: boolean;
@@ -89,11 +90,140 @@ export default function ShareCampaignPost({
           contentContainerStyle={{ paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
         >
-          {isManual && (
+          {/* {isManual && (
             <>
               {loadingContacts ? (
                 <ActivityIndicator size="large" />
               ) : (
+                <ThemedView
+                  style={{
+                    borderWidth: 1,
+                    borderColor: isDark ? "#374151" : "#e5e7eb",
+                    borderRadius: 10,
+                    marginBottom: 12,
+                    maxHeight: 260,
+                  }}
+                >
+                  <FlatList
+                    data={contacts}
+                    keyExtractor={(item) => String(item.id)}
+                    renderItem={({ item }) => {
+                      const checked = selectedContacts.includes(item.id);
+
+                      return (
+                        <TouchableOpacity
+                          onPress={() => onToggleContact(item.id)}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            padding: 12,
+                            borderBottomWidth: 1,
+                            borderBottomColor: isDark
+                              ? "#ffffff33"
+                              : "#e5e7eb",
+                          }}
+                        >
+                          <ThemedView
+                            style={{
+                              width: 20,
+                              height: 20,
+                              borderRadius: 4,
+                              borderWidth: 1.5,
+                              borderColor: checked
+                                ? "#10b981"
+                                : "#9ca3af",
+                              backgroundColor: checked
+                                ? "#10b981"
+                                : "transparent",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              marginRight: 12,
+                            }}
+                          >
+                            {checked && (
+                              <Ionicons
+                                name="checkmark"
+                                size={14}
+                                color="#fff"
+                              />
+                            )}
+                          </ThemedView>
+
+                          <ThemedView style={{ flex: 1 }}>
+                            <ThemedText
+                              style={{
+                                color: isDark ? "#fff" : "#111",
+                                fontWeight: "600",
+                              }}
+                            >
+                              {item.name}
+                            </ThemedText>
+                            {!!item.email && (
+                              <ThemedText
+                                style={{ fontSize: 12, color: "#9ca3af" }}
+                              >
+                                {item.email}
+                              </ThemedText>
+                            )}
+                          </ThemedView>
+                        </TouchableOpacity>
+                      );
+                    }}
+                  />
+                </ThemedView>
+              )}
+            </>
+          )} */}
+          {isManual && (
+            <>
+              {loadingContacts ? (
+                <ActivityIndicator size="large" />
+              ) : contacts.length === 0 ? (
+                // ✅ EMPTY STATE UI
+                <ThemedView
+                  style={{
+                    borderWidth: 1,
+                    borderColor: isDark ? "#374151" : "#e5e7eb",
+                    borderRadius: 10,
+                    padding: 20,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: 12,
+                  }}
+                >
+                  <ThemedText
+                    style={{
+                      color: isDark ? "#fff" : "#111",
+                      marginBottom: 12,
+                      fontWeight: "600",
+                    }}
+                  >
+                    No contacts found
+                  </ThemedText>
+
+                  <TouchableOpacity
+                    onPress={() =>
+                      router.push({
+                        pathname: "/contacts/createContact",
+                        params: {
+                          fromCampaign: "true",
+                        },
+                      })
+                    }
+                    style={{
+                      backgroundColor: "#10b981",
+                      paddingVertical: 10,
+                      paddingHorizontal: 20,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <ThemedText style={{ color: "#fff", fontWeight: "600" }}>
+                      + Create Contact
+                    </ThemedText>
+                  </TouchableOpacity>
+                </ThemedView>
+              ) : (
+                // ✅ CONTACT LIST
                 <ThemedView
                   style={{
                     borderWidth: 1,
@@ -201,60 +331,66 @@ export default function ShareCampaignPost({
 
             {post.mediaUrls?.length > 0 && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {post.mediaUrls.map((url: string, idx: number) => {
-                  const isVideo = /\.(mp4|mov|webm|mkv)$/i.test(url);
+                {post.mediaUrls
+                  .filter((url: string) => {
+                    // 🔥 Remove thumbnail from preview if it's same as metadata.thumbnailUrl
+                    if (post.metadata?.thumbnailUrl) {
+                      return url !== post.metadata.thumbnailUrl;
+                    }
+                    return true;
+                  })
+                  .map((url: string, idx: number) => {
+                    const isVideo = /\.(mp4|mov|webm|mkv)$/i.test(url);
 
-                  return isVideo ? (
-                    <ThemedView
-                      key={idx}
-                      style={{
-                        width: 120,
-                        height: 120,
-                        borderRadius: 8,
-                        marginRight: 8,
-                        overflow: "hidden",
-                        position: "relative",
-                        backgroundColor: "#000",
-                      }}
-                    >
-                      {/* VIDEO */}
-                      <Video
-                        source={{ uri: url }}
-                        style={{ width: "100%", height: "100%" }}
-                        resizeMode={ResizeMode.COVER}
-                        isLooping
-                        shouldPlay={false}
-                      />
-
-                      {/* PLAY ICON OVERLAY */}
+                    return isVideo ? (
                       <ThemedView
+                        key={idx}
                         style={{
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          justifyContent: "center",
-                          alignItems: "center",
-                          backgroundColor: "rgba(0,0,0,0.25)",
+                          width: 120,
+                          height: 120,
+                          borderRadius: 8,
+                          marginRight: 8,
+                          overflow: "hidden",
+                          position: "relative",
+                          backgroundColor: "#000",
                         }}
                       >
-                        <Ionicons name="play-circle" size={44} color="#fff" />
+                        <Video
+                          source={{ uri: url }}
+                          style={{ width: "100%", height: "100%" }}
+                          resizeMode={ResizeMode.COVER}
+                          isLooping
+                          shouldPlay={false}
+                        />
+
+                        <ThemedView
+                          style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            backgroundColor: "rgba(0,0,0,0.25)",
+                          }}
+                        >
+                          <Ionicons name="play-circle" size={44} color="#fff" />
+                        </ThemedView>
                       </ThemedView>
-                    </ThemedView>
-                  ) : (
-                    <Image
-                      key={idx}
-                      source={{ uri: url }}
-                      style={{
-                        width: 120,
-                        height: 120,
-                        borderRadius: 8,
-                        marginRight: 8,
-                      }}
-                    />
-                  );
-                })}
+                    ) : (
+                      <Image
+                        key={idx}
+                        source={{ uri: url }}
+                        style={{
+                          width: 120,
+                          height: 120,
+                          borderRadius: 8,
+                          marginRight: 8,
+                        }}
+                      />
+                    );
+                  })}
               </ScrollView>
             )}
 

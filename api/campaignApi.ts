@@ -36,6 +36,7 @@ export interface CampaignPostData {
     playlistId?: string;
     playlistTitle?: string;
     coverImage?: string | null;
+    isReel?: boolean;
   };
 }
 

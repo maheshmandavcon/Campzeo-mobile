@@ -3,8 +3,8 @@ import { getCampaignsApi } from "@/api/campaignApi";
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { FormControl, Input, InputField } from "@gluestack-ui/themed";
-import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   Alert,
@@ -70,46 +70,46 @@ export default function CreateContact() {
   const hasResetRef = useRef(false);
 
   const [existingEmails, setExistingEmails] = useState<string[]>([]);
-useEffect(() => {
-  const fetchContactsEmails = async () => {
-    try {
-      const token = await getToken();
-      if (!token) throw new Error("Token missing");
+  useEffect(() => {
+    const fetchContactsEmails = async () => {
+      try {
+        const token = await getToken();
+        if (!token) throw new Error("Token missing");
 
-      const data = await getContactsApi(1, 1000); // fetch all contacts
-      const emails = data.contacts?.map((c: any) => c.contactEmail.toLowerCase()) || [];
-      setExistingEmails(emails);
-    } catch (err) {
-      console.error("Failed to fetch contact emails:", err);
-    }
-  };
+        const data = await getContactsApi(1, 1000); // fetch all contacts
+        const emails = data.contacts?.map((c: any) => c.contactEmail.toLowerCase()) || [];
+        setExistingEmails(emails);
+      } catch (err) {
+        console.error("Failed to fetch contact emails:", err);
+      }
+    };
 
-  fetchContactsEmails();
-}, []);
+    fetchContactsEmails();
+  }, []);
 
-// 1️⃣ Add state for mobile numbers
-const [existingNumbers, setExistingNumbers] = useState<string[]>([]);
+  // 1️⃣ Add state for mobile numbers
+  const [existingNumbers, setExistingNumbers] = useState<string[]>([]);
 
-// 2️⃣ Fetch both emails and numbers
-useEffect(() => {
-  const fetchContacts = async () => {
-    try {
-      const token = await getToken();
-      if (!token) throw new Error("Token missing");
+  // 2️⃣ Fetch both emails and numbers
+  useEffect(() => {
+    const fetchContacts = async () => {
+      try {
+        const token = await getToken();
+        if (!token) throw new Error("Token missing");
 
-      const data = await getContactsApi(1, 1000); // fetch all contacts
-      const emails = data.contacts?.map((c: any) => c.contactEmail.toLowerCase()) || [];
-      const numbers = data.contacts?.map((c: any) => c.contactMobile) || [];
+        const data = await getContactsApi(1, 1000); // fetch all contacts
+        const emails = data.contacts?.map((c: any) => c.contactEmail.toLowerCase()) || [];
+        const numbers = data.contacts?.map((c: any) => c.contactMobile) || [];
 
-      setExistingEmails(emails);
-      setExistingNumbers(numbers);
-    } catch (err) {
-      console.error("Failed to fetch contacts:", err);
-    }
-  };
+        setExistingEmails(emails);
+        setExistingNumbers(numbers);
+      } catch (err) {
+        console.error("Failed to fetch contacts:", err);
+      }
+    };
 
-  fetchContacts();
-}, []);
+    fetchContacts();
+  }, []);
 
   /* Populate form if editing */
   useEffect(() => {
@@ -151,50 +151,62 @@ useEffect(() => {
     fetchCampaigns();
   }, []);
 
-// 3️⃣ Update onSubmit to check both email and mobile
-const onSubmit = async (data: Contact) => {
-  if (isSubmitting) return;
-  try {
-    const newEmail = data.email.trim().toLowerCase();
-    const newMobile = data.mobile.trim();
+  const { fromCampaign } = useLocalSearchParams<{ fromCampaign?: string }>();
 
-    // Exclude current contact if editing
-    const otherEmails = existingEmails.filter(
-      (e) => e.toLowerCase() !== editingContact?.email.toLowerCase()
-    );
-    const otherNumbers = existingNumbers.filter(
-      (n) => n !== editingContact?.mobile
-    );
+  // 3️⃣ Update onSubmit to check both email and mobile
+  const onSubmit = async (data: Contact) => {
+    if (isSubmitting) return;
+    try {
+      const newEmail = data.email.trim().toLowerCase();
+      const newMobile = data.mobile.trim();
 
-    // Check duplicates
-    if (otherEmails.includes(newEmail)) {
-      Alert.alert("Error", "Email already exists");
-      return;
+      // Exclude current contact if editing
+      const otherEmails = existingEmails.filter(
+        (e) => e.toLowerCase() !== editingContact?.email.toLowerCase()
+      );
+      const otherNumbers = existingNumbers.filter(
+        (n) => n !== editingContact?.mobile
+      );
+
+      // Check duplicates
+      if (otherEmails.includes(newEmail)) {
+        Alert.alert("Error", "Email already exists");
+        return;
+      }
+
+      if (otherNumbers.includes(newMobile)) {
+        Alert.alert("Error", "Mobile number already exists");
+        return;
+      }
+
+      const token = await getToken();
+      if (!token) throw new Error("Authentication token not found");
+
+      if (isEdit) {
+        await updateContactApi(Number(contactId), data);
+        Alert.alert("Success", "Contact updated successfully");
+      } else {
+        await createContactApi(data);
+        Alert.alert("Success", "Contact created successfully");
+      }
+
+      // create contact from the shareCampaignPost
+      if (fromCampaign === "true") {
+        // First reset Contacts tab to index
+        router.replace("/(tabs)/contacts");
+
+        // Then immediately go to CampaignDetails
+        setTimeout(() => {
+          router.replace("/(tabs)/campaigns/campaignsDetails");
+        }, 1);
+      } else {
+        router.replace("/(tabs)/contacts");
+      }
+    } catch (error: any) {
+      console.error("Contact Error:", error.response || error);
+      Alert.alert("Error", error.message || "Something went wrong");
     }
-
-    if (otherNumbers.includes(newMobile)) {
-      Alert.alert("Error", "Mobile number already exists");
-      return;
-    }
-
-    const token = await getToken();
-    if (!token) throw new Error("Authentication token not found");
-
-    if (isEdit) {
-      await updateContactApi(Number(contactId), data);
-      Alert.alert("Success", "Contact updated successfully");
-    } else {
-      await createContactApi(data);
-      Alert.alert("Success", "Contact created successfully");
-    }
-
-    router.back();
-  } catch (error: any) {
-    console.error("Contact Error:", error.response || error);
-    Alert.alert("Error", error.message || "Something went wrong");
-  }
-};
-
+  };
 
   const requiredLabel = (label: string) => (
     <ThemedText

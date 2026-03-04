@@ -393,27 +393,38 @@ export default function CampaignsDetails() {
     };
   }, [posts, currentSharePostId]);
 
-  const fetchContactsForShare = async () => {
-    try {
-      setLoadingContacts(true);
-      const res = await getContactsApi(1, 100, "");
-      const mapped: ContactsRecord[] = (res.contacts ?? []).map((c: any) => ({
-        id: c.id,
-        name: c.contactName,
-        email: c.contactEmail,
-        mobile: c.contactMobile,
-        whatsapp: c.contactWhatsApp,
-        show: true,
-        campaigns: c.campaigns ?? [],
-      }));
-      setContacts(mapped);
-    } catch (e) {
-      console.error("Failed to fetch contacts", e);
-      setContacts([]);
-    } finally {
-      setLoadingContacts(false);
+  const fetchContactsForShare = useCallback(async () => {
+  try {
+    setLoadingContacts(true);
+
+    const res = await getContactsApi(1, 100, "");
+
+    const mapped: ContactsRecord[] = (res.contacts ?? []).map((c: any) => ({
+      id: c.id,
+      name: c.contactName,
+      email: c.contactEmail,
+      mobile: c.contactMobile,
+      whatsapp: c.contactWhatsApp,
+      show: true,
+      campaigns: c.campaigns ?? [],
+    }));
+
+    setContacts(mapped);
+  } catch (e) {
+    console.error("Failed to fetch contacts", e);
+    setContacts([]);
+  } finally {
+    setLoadingContacts(false);
+  }
+}, []);
+
+useFocusEffect(
+  useCallback(() => {
+    if (shareModalVisible) {
+      fetchContactsForShare();
     }
-  };
+  }, [shareModalVisible, fetchContactsForShare])
+);
 
   const handleOpenShareModal = async (postId: number) => {
     const post = posts.find((p) => p.id === postId);
