@@ -60,7 +60,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
     imageModalVisible, imagePrompt, generatedImages, loadingImage,
 
-    facebookPages, selectedFacebookPage, facebookContentType, isFacebookPageLoading, coverImage, coverUploading,
+    facebookPages, selectedFacebookPage, facebookContentType, isFacebookPageLoading, coverImage, coverUploading, setCoverImage,
 
     youTubeContentType, youTubeTags, youTubeStatus, showStatusDropdown, isCreatingPlaylist, customThumbnail, playlistId, playlistTitle,
     playlists, showPlaylistDropdown, selectedPlaylist, newPlaylistName, selectedAccount, hasVideo, hasImage, hasAttachment, canSelectStandard, canSelectReel,
@@ -1164,21 +1164,44 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
                   {/* Preview */}
                   {coverImage && !coverUploading && (
-                    <>
-                      {console.log("[Cover] Preview URL:", coverImage)}
+                    <View
+                      style={{
+                        position: "relative",
+                        width: 100,
+                        height: 100,
+                        marginTop: 8,
+                      }}
+                    >
                       <Image
                         source={{ uri: coverImage }}
                         style={{
-                          width: 100,
-                          height: 100,
+                          width: "100%",
+                          height: "100%",
                           borderRadius: 8,
-                          marginTop: 8,
                           borderWidth: 1,
                           borderColor: isDark ? "#fff" : "#000",
                         }}
                         resizeMode="cover"
                       />
-                    </>
+                      <TouchableOpacity
+                        onPress={() => setCoverImage(null)}
+                        style={{
+                          position: "absolute",
+                          top: -8,
+                          right: -8,
+                          backgroundColor: "#ef4444",
+                          borderRadius: 12,
+                          padding: 4,
+                          elevation: 5,
+                          shadowColor: "#000",
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.25,
+                          shadowRadius: 3.84,
+                        }}
+                      >
+                        <Ionicons name="close" size={16} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
                   )}
 
                   {/* Helper Text */}

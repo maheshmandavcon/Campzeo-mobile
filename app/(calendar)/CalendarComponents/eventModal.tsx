@@ -1,22 +1,22 @@
-import React from "react";
-import { CalendarEvent } from "@/types/types";
-import {
-  formatReadableDate,
-  formatReadableTime,
-} from "../../../utils/dateHelpers";
+import { Button, ButtonText } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { Text } from "@/components/ui/text";
-import { Button, ButtonText } from "@/components/ui/button";
+import { CalendarEvent } from "@/types/types";
 import {
   Modal,
   ModalBackdrop,
   ModalBody,
+  ModalCloseButton,
+  ModalContent,
   ModalFooter,
   ModalHeader,
+  View,
 } from "@gluestack-ui/themed";
-import { ModalContent } from "@gluestack-ui/themed";
-import { ModalCloseButton } from "@gluestack-ui/themed";
-import { View } from "@gluestack-ui/themed";
+import React from "react";
+import {
+  formatReadableDate,
+  formatReadableTime,
+} from "../../../utils/dateHelpers";
 
 interface EventModalProps {
   event: CalendarEvent | null;
@@ -64,28 +64,30 @@ const EventModal: React.FC<EventModalProps> = ({ event, isOpen, onClose }) => {
             </View>
 
             {/* SUBJECT */}
-            <View>
-              <Text
-                style={{
-                  fontSize: 13,
-                  color: "#64748b",
-                  marginBottom: 2,
-                  lineHeight: 20,
-                }}
-              >
-                Subject
-              </Text>
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: "500",
-                  color: "#020617",
-                  lineHeight: 20,
-                }}
-              >
-                {event.subject}
-              </Text>
-            </View>
+            {event.platform?.toLowerCase() !== "sms" && (
+              <View>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: "#64748b",
+                    marginBottom: 2,
+                    lineHeight: 20,
+                  }}
+                >
+                  Subject
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "500",
+                    color: "#020617",
+                    lineHeight: 20,
+                  }}
+                >
+                  {event.subject}
+                </Text>
+              </View>
+            )}
 
             {/* DATE & TIME */}
             <View style={{ flexDirection: "row", gap: 16 }}>

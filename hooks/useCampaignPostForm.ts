@@ -383,24 +383,6 @@ export function useCampaignPostForm({
       setPlaylistTitle(existingPost.metadata?.playlistTitle || "");
     }
 
-    // ✅ FACEBOOK / INSTAGRAM
-
-    // if (existingPost.type === "FACEBOOK" || existingPost.type === "INSTAGRAM") {
-    //   const typeMap: Record<string, "STANDARD" | "REEL"> = {
-    //     STANDARD: "STANDARD",
-    //     POST: "STANDARD",
-
-    //     REEL: "REEL",
-    //     SHORT: "REEL",
-    //     SHORT_VIDEO: "REEL",
-    //     VIDEO: "REEL",
-    //   };
-
-    //   const savedType = existingPost.metadata?.postType ?? "STANDARD";
-
-    //   setFacebookContentType(typeMap[savedType] ?? "STANDARD");
-    //   setCoverImage(existingPost.metadata?.coverImage || null);
-    // }
     if (existingPost.type === "FACEBOOK" || existingPost.type === "INSTAGRAM") {
       const typeMap: Record<string, "STANDARD" | "REEL"> = {
         STANDARD: "STANDARD",
@@ -411,42 +393,21 @@ export function useCampaignPostForm({
         VIDEO: "REEL",
       };
 
-      // let contentType: "STANDARD" | "REEL" = "STANDARD";
-
       let contentType: "STANDARD" | "REEL" = "STANDARD";
-
-      // ✅ Priority 1: If backend saved postType correctly
       if (existingPost.metadata?.postType) {
         contentType = existingPost.metadata.postType;
-      }
-      // ✅ Priority 2: Detect by videoUrl (FRONTEND FIX)
-      else if (existingPost.videoUrl) {
+      } else if (existingPost.videoUrl) {
         contentType = "REEL";
-      }
-      // ✅ Fallback
-      else {
+      } else {
         contentType = "STANDARD";
       }
-
-      // setFacebookContentType(contentType);
-
       setFacebookContentType(contentType);
-      // let savedCover: string | null = null;
 
-      // if (existingPost.mediaUrls?.length > 1) {
-      //   savedCover = existingPost.mediaUrls[1];
-      // }
-      // Priority 1: metadata.coverImage
-      // Priority 1: metadata.thumbnailUrl (CORRECT)
       const savedCover =
-  existingPost.metadata?.thumbnailUrl ||
-  existingPost.metadata?.coverImage ||
-  null;
-
-setCoverImage(savedCover);
-
+        existingPost.metadata?.coverImage ||
+        existingPost.metadata?.thumbnailUrl ||
+        null;
       console.log("🎯 SAVED COVER FROM MEDIA URLS:", savedCover);
-
       setCoverImage(savedCover);
     }
 
@@ -1185,241 +1146,240 @@ setCoverImage(savedCover);
     }
   };
   // ================= SUBMIT =================
-  const handleSubmit = async () => {
-    setLoading(true);
+ const handleSubmit = async () => {
+  if (loading) return;
+  setLoading(true);
 
-    if (loading) return;
+  try {
+    // ================= BASIC VALIDATION =================
+    if (!message) {
+      Alert.alert("⚠️ Please fill in all fields.");
+      return;
+    }
 
-    try {
-      setLoading(true);
-      if (
-        !message
-        //  || !postDate
-      ) {
-        Alert.alert("⚠️ Please fill in all fields.");
-        return;
-      }
+    const mediaRequiredPlatforms = ["INSTAGRAM", "YOUTUBE", "PINTEREST"];
 
-      const mediaRequiredPlatforms = ["INSTAGRAM", "YOUTUBE", "PINTEREST"];
-      if (
-        mediaRequiredPlatforms.includes(platform) &&
-        attachments.length === 0
-      ) {
-        const platformName = PLATFORM_LABELS[platform] ?? platform;
-        Alert.alert(
-          "⚠️ Missing Media",
-          `Please add at least one image or video for ${platformName}.`,
-        );
-        return;
-      }
+    if (
+      mediaRequiredPlatforms.includes(platform) &&
+      attachments.length === 0
+    ) {
+      const platformName = PLATFORM_LABELS[platform] ?? platform;
+      Alert.alert(
+        "⚠️ Missing Media",
+        `Please add at least one image or video for ${platformName}.`
+      );
+      return;
+    }
 
-      // Email-specific validation
-      if (platform === "EMAIL" && (!subject || !senderEmail)) {
-        Alert.alert("⚠️ Please fill in all fields.");
-        return;
-      }
+    if (platform === "EMAIL" && (!subject || !senderEmail)) {
+      Alert.alert("⚠️ Please fill in all fields.");
+      return;
+    }
 
-      // Platforms that require subject
-      const subjectRequiredPlatforms = [
-        "FACEBOOK",
-        "INSTAGRAM",
-        "LINKEDIN",
-        "YOUTUBE",
-        "PINTEREST",
-      ];
+    const subjectRequiredPlatforms = [
+      "FACEBOOK",
+      "INSTAGRAM",
+      "LINKEDIN",
+      "YOUTUBE",
+      "PINTEREST",
+    ];
 
-      if (subjectRequiredPlatforms.includes(platform) && !subject) {
-        Alert.alert("⚠️ Please fill in all fields.");
-        return;
-      }
+    if (subjectRequiredPlatforms.includes(platform) && !subject) {
+      Alert.alert("⚠️ Please fill in all fields.");
+      return;
+    }
 
-      // ================= CAMPAIGN ID =================
-      // ✅ Use campaignId prop OR fallback to existingPost.campaignId
-      const campaignIdToUse =
-        Number(campaignId) ||
-        Number(existingPost?.campaignId) ||
-        Number(existingPost?.campaign?.id);
+    // ================= CAMPAIGN ID =================
+    const campaignIdToUse =
+      Number(campaignId) ||
+      Number(existingPost?.campaignId) ||
+      Number(existingPost?.campaign?.id);
 
-      if (!campaignIdToUse) {
-        Alert.alert("Campaign ID missing");
-        setLoading(false);
-        return;
-      }
+    if (!campaignIdToUse) {
+      Alert.alert("Campaign ID missing");
+      return;
+    }
 
-      // ================= TAGS =================
-      const parsedTags = youTubeTags
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter((tag) => tag.length > 0);
+    // ================= TAGS =================
+    const parsedTags = youTubeTags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter((tag) => tag.length > 0);
 
-      // ✅ FILTER VALID MEDIA ONLY
-      let mediaUrls = attachments
-        .filter(
-          (a): a is typeof a & { uploadedUrl: string } =>
-            !!a.uploadedUrl &&
-            !!a.type &&
-            (a.type.startsWith("image/") || a.type.startsWith("video/")),
-        )
-        .map((a) => a.uploadedUrl);
+    // ================= MEDIA VALIDATION =================
+    const mediaUrls = attachments
+      .filter(
+        (a): a is typeof a & { uploadedUrl: string } =>
+          !!a.uploadedUrl &&
+          !!a.type &&
+          (a.type.startsWith("image/") || a.type.startsWith("video/"))
+      )
+      .map((a) => a.uploadedUrl);
 
-      console.log("MEDIA URLS BEING SENT:", mediaUrls);
+    console.log("MEDIA URLS BEING SENT:", mediaUrls);
 
-      const invalidMedia = attachments.filter(
-        (a) =>
-          !a.uploadedUrl ||
-          !a.type ||
-          (!a.type.startsWith("image/") && !a.type.startsWith("video/")),
+    const invalidMedia = attachments.filter(
+      (a) =>
+        !a.uploadedUrl ||
+        !a.type ||
+        (!a.type.startsWith("image/") && !a.type.startsWith("video/"))
+    );
+
+    if (invalidMedia.length > 0) {
+      Alert.alert(
+        "Invalid Media",
+        "Some media files are not uploaded properly. Please reselect them."
+      );
+      return;
+    }
+
+    // ================= BUILD CLEAN METADATA =================
+    let finalMetadata: any = {};
+    const socialPlatforms = ["FACEBOOK", "INSTAGRAM", "YOUTUBE", "PINTEREST", "LINKEDIN"];
+    if (socialPlatforms.includes(platform)) {
+      finalMetadata.tags = parsedTags;
+    }
+
+    // YOUTUBE
+    if (platform === "YOUTUBE") {
+      finalMetadata = {
+        ...finalMetadata,
+        postType: youTubeContentType,
+        privacy: youTubeStatus,
+        thumbnailUrl: customThumbnail || null,
+        playlistId,
+        playlistTitle,
+      };
+    }
+
+    // FACEBOOK / INSTAGRAM
+    if (platform === "FACEBOOK" || platform === "INSTAGRAM") {
+       const isActuallyReel = facebookContentType === "REEL";
+       finalMetadata = {
+         ...finalMetadata,
+         postType: facebookContentType,
+         isReel: isActuallyReel,
+         coverImage: coverImage || null,
+         coverUrl: coverImage || null,
+         thumbnailUrl: coverImage || null,
+       };
+    }
+
+    // LINKEDIN
+    if (platform === "LINKEDIN") {
+      finalMetadata = {
+        ...finalMetadata,
+        authorId: selectedAccount,
+        authorType: "ORGANIZATION",
+      };
+    }
+
+    // PINTEREST
+    if (platform === "PINTEREST") {
+      finalMetadata = {
+        ...finalMetadata,
+        boardId: PinterestBoardId,
+        boardName: pinterestBoard,
+        destinationLink: metadata?.destinationLink || "",
+      };
+    }
+
+    // ================= BUILD POST DATA =================
+    const postData: CampaignPostData = {
+      senderEmail,
+      subject,
+      message,
+      type: platform,
+      mediaUrls,
+      scheduledPostTime: postDate?.toISOString() || new Date().toISOString(),
+      metadata: finalMetadata,
+      thumbnailUrl: coverImage || customThumbnail || null,
+      // Root level fields for better backend Create API compatibility
+      isReel: (platform === "FACEBOOK" || platform === "INSTAGRAM") ? (facebookContentType === "REEL") : undefined,
+      postType: (platform === "FACEBOOK" || platform === "INSTAGRAM") ? facebookContentType : undefined,
+      coverImage: (platform === "FACEBOOK" || platform === "INSTAGRAM") ? (coverImage || null) : undefined,
+
+      ...(platform === "PINTEREST"
+        ? {
+            pinterestBoardId: PinterestBoardId,
+            pinterestLink: metadata?.destinationLink || "",
+          }
+        : {}),
+    };
+
+    console.log(
+      "FINAL CREATE/UPDATE PAYLOAD:",
+      JSON.stringify(postData, null, 2)
+    );
+
+    // ================= SCHEDULE VALIDATION =================
+    const isFutureDateTime = (date: Date) =>
+      date.getTime() > Date.now();
+
+    if (postDate && !isFutureDateTime(postDate)) {
+      const now = new Date();
+      const future = new Date(now.getTime() + 60 * 1000);
+
+      Alert.alert(
+        "Invalid Time",
+        `Please select a future time (for example, ${future.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}).`
       );
 
-      if (invalidMedia.length > 0) {
-        Alert.alert(
-          "Invalid Media",
-          "Some media files are not uploaded properly. Please reselect them.",
-        );
-        setLoading(false);
-        return;
-      }
-
-      const postData: CampaignPostData = {
-        senderEmail, // working
-        subject, // working
-        message, // working
-        type: platform, // working
-        mediaUrls,
-        scheduledPostTime: postDate?.toISOString() || "", // working
-
-        ...(platform === "PINTEREST"
-          ? {
-              pinterestBoardId: PinterestBoardId,
-              pinterestLink: metadata.destinationLink || "",
-              thumbnailUrl: null,
-            }
-          : {}),
-
-        // ...((platform === "FACEBOOK" || platform === "INSTAGRAM") && coverImage
-        //   ? {
-        //       thumbnailUrl: coverImage,
-        //     }
-        //   : {}),
-
-        metadata: {
-          ...metadata,
-
-          // ================= COMMON =================
-          tags: parsedTags, // working
-
-          // ================= YOUTUBE =================
-          ...(platform === "YOUTUBE"
-            ? {
-                postType: youTubeContentType,
-                privacy: youTubeStatus, // working
-                thumbnailUrl: customThumbnail || null,
-                playlistId,
-                playlistTitle,
-              }
-            : {}),
-
-          // ================= FACEBOOK / INSTAGRAM =================
-          ...(platform === "FACEBOOK" || platform === "INSTAGRAM"
-            ? {
-                postType: facebookContentType,
-                // coverImage: coverImage || null,
-                // thumbnailUrl: coverImage || null,
-                thumbnailUrl: coverImage || null,
-                isReel: facebookContentType === "REEL",
-              }
-            : {}),
-
-          // ================= LINKEDIN =================
-          ...(platform === "LINKEDIN"
-            ? {
-                authorId: selectedAccount,
-                authorType: "ORGANIZATION",
-              }
-            : {}),
-        },
-      };
-
-      const isFutureDateTime = (date: Date) => {
-        return date.getTime() > Date.now();
-      };
-
-      // ================= SCHEDULE VALIDATION =================
-      if (postDate) {
-        if (!isFutureDateTime(postDate)) {
-          const now = new Date();
-
-          const currentTime = now.toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-
-          const future = new Date(now.getTime() + 60 * 1000);
-
-          const futureTime = future.toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-
-          Alert.alert(
-            "Invalid Time",
-            `Please select a future time (for example, ${futureTime} instead of ${currentTime}).`,
-          );
-
-          setLoading(false);
-          return;
-        }
-      }
-
-      // ================= API CALL =================
-      const token = await getToken();
-      if (!token) throw new Error("Authentication token missing");
-
-      let response;
-      console.log("post data is", postData);
-      if (existingPost?.id) {
-        // ✅ Edit existing post
-        response = await updatePostForCampaignApi(
-          Number(campaignIdToUse),
-          Number(existingPost.id),
-          postData,
-          token,
-        );
-      } else {
-        // ✅ Create new post
-        response = await createPostForCampaignApi(
-          Number(campaignIdToUse),
-          postData,
-          token,
-        );
-      }
-      onClose?.(response);
-
-      // ================= RESET (ONLY CREATE) =================
-      if (!existingPost) {
-        setSenderEmail("");
-        setSubject("");
-        setMessage("");
-        setAiPrompt("");
-        setPostDate(null);
-        setImagePrompt("");
-        setGeneratedImages([]);
-        setSelectedImage(undefined);
-        setCoverImage(null);
-      }
-
-      onCreatedNavigate ? onCreatedNavigate() : router.back();
-    } catch (error: any) {
-      const apiMessage =
-        error?.response?.data?.error ||
-        error?.message ||
-        "Something went wrong";
-
-      Alert.alert("⚠️ Scheduling Error", apiMessage);
-    } finally {
-      setLoading(false);
+      return;
     }
-  };
+
+    // ================= API CALL =================
+    const token = await getToken();
+    if (!token) throw new Error("Authentication token missing");
+
+    let response;
+
+    if (existingPost?.id) {
+      response = await updatePostForCampaignApi(
+        Number(campaignIdToUse),
+        Number(existingPost.id),
+        postData,
+        token
+      );
+    } else {
+      response = await createPostForCampaignApi(
+        Number(campaignIdToUse),
+        postData,
+        token
+      );
+    }
+
+    onClose?.(response);
+
+    // ================= RESET (ONLY CREATE) =================
+    if (!existingPost) {
+      setSenderEmail("");
+      setSubject("");
+      setMessage("");
+      setAiPrompt("");
+      setPostDate(null);
+      setImagePrompt("");
+      setGeneratedImages([]);
+      setSelectedImage(undefined);
+      setCoverImage(null);
+    }
+
+    onCreatedNavigate ? onCreatedNavigate() : router.back();
+
+  } catch (error: any) {
+    const apiMessage =
+      error?.response?.data?.error ||
+      error?.message ||
+      "Something went wrong";
+
+    Alert.alert("⚠️ Scheduling Error", apiMessage);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ================= RETURN =================
   return {
@@ -1526,6 +1486,7 @@ setCoverImage(savedCover);
     setImageErrorMap,
     setCanSelectStandard,
     setCanSelectReel,
+    setCoverImage,
 
     // actions
     handleAddAttachment,

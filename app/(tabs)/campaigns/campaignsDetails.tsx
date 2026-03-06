@@ -1,29 +1,28 @@
-import { FontAwesome, Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
-import { useEffect, useMemo, useState, useCallback } from "react";
-import {
-  Alert,
-  FlatList,
-  TouchableOpacity,
-  View,
-  ActivityIndicator,
-  useColorScheme,
-  TextInput,
-} from "react-native";
-import CampaignCard, { Campaign } from "./campaignComponents/campaignCard";
-import { useAuth } from "@clerk/clerk-expo";
 import {
   deletePostForCampaignApi,
   getCampaignByIdApi,
   getPostsByCampaignIdApi,
   shareCampaignPostApi,
-  updateCampaignApi,
-  updatePostForCampaignApi,
+  updatePostForCampaignApi
 } from "@/api/campaignApi";
-import { ThemedView } from "@/components/themed-view";
-import { ThemedText } from "@/components/themed-text";
 import { getContactsApi } from "@/api/contactApi";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { useAuth } from "@clerk/clerk-expo";
+import { FontAwesome, Ionicons } from "@expo/vector-icons";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  TextInput,
+  TouchableOpacity,
+  useColorScheme,
+  View,
+} from "react-native";
 import { ContactsRecord } from "../contacts/contactComponents/contactCard";
+import CampaignCard, { Campaign } from "./campaignComponents/campaignCard";
 import ShareCampaignPost from "./campaignComponents/shareCampaignPost";
 
 
@@ -394,37 +393,37 @@ export default function CampaignsDetails() {
   }, [posts, currentSharePostId]);
 
   const fetchContactsForShare = useCallback(async () => {
-  try {
-    setLoadingContacts(true);
+    try {
+      setLoadingContacts(true);
 
-    const res = await getContactsApi(1, 100, "");
+      const res = await getContactsApi(1, 100, "");
 
-    const mapped: ContactsRecord[] = (res.contacts ?? []).map((c: any) => ({
-      id: c.id,
-      name: c.contactName,
-      email: c.contactEmail,
-      mobile: c.contactMobile,
-      whatsapp: c.contactWhatsApp,
-      show: true,
-      campaigns: c.campaigns ?? [],
-    }));
+      const mapped: ContactsRecord[] = (res.contacts ?? []).map((c: any) => ({
+        id: c.id,
+        name: c.contactName,
+        email: c.contactEmail,
+        mobile: c.contactMobile,
+        whatsapp: c.contactWhatsApp,
+        show: true,
+        campaigns: c.campaigns ?? [],
+      }));
 
-    setContacts(mapped);
-  } catch (e) {
-    console.error("Failed to fetch contacts", e);
-    setContacts([]);
-  } finally {
-    setLoadingContacts(false);
-  }
-}, []);
-
-useFocusEffect(
-  useCallback(() => {
-    if (shareModalVisible) {
-      fetchContactsForShare();
+      setContacts(mapped);
+    } catch (e) {
+      console.error("Failed to fetch contacts", e);
+      setContacts([]);
+    } finally {
+      setLoadingContacts(false);
     }
-  }, [shareModalVisible, fetchContactsForShare])
-);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (shareModalVisible) {
+        fetchContactsForShare();
+      }
+    }, [shareModalVisible, fetchContactsForShare])
+  );
 
   const handleOpenShareModal = async (postId: number) => {
     const post = posts.find((p) => p.id === postId);
@@ -450,75 +449,75 @@ useFocusEffect(
   };
 
   const sharePost = async () => {
-  if (!resolvedCampaignId || !currentSharePostId) return;
+    if (!resolvedCampaignId || !currentSharePostId) return;
 
-  const post = posts.find((p) => p.id === currentSharePostId);
-  if (!post) return;
+    const post = posts.find((p) => p.id === currentSharePostId);
+    if (!post) return;
 
-  try {
-    setPublishing(true);
+    try {
+      setPublishing(true);
 
-    // 🔴 REQUIRED FOR PINTEREST
-    if (post.type === "PINTEREST") {
-      const boardId =
-        post.metadata?.boardId || post.boardId;
-      const boardName =
-        post.metadata?.boardName || post.boardName;
+      // 🔴 REQUIRED FOR PINTEREST
+      if (post.type === "PINTEREST") {
+        const boardId =
+          post.metadata?.boardId || post.boardId;
+        const boardName =
+          post.metadata?.boardName || post.boardName;
 
-      if (!boardId && !boardName) {
-        Alert.alert(
-          "Pinterest Board Required",
-          "Please select a board or create a new board before publishing."
+        if (!boardId && !boardName) {
+          Alert.alert(
+            "Pinterest Board Required",
+            "Please select a board or create a new board before publishing."
+          );
+          setPublishing(false);
+          return;
+        }
+
+        // ✅ UPDATE POST FIRST
+        await updatePostForCampaignApi(
+          resolvedCampaignId,
+          currentSharePostId,
+          {
+            ...post,
+            metadata: {
+              ...post.metadata,
+              boardId,
+              boardName,
+            },
+          }
         );
-        setPublishing(false);
-        return;
       }
 
-      // ✅ UPDATE POST FIRST
-      await updatePostForCampaignApi(
+      // ✅ CONTACT VALIDATION
+      let contactsToSend: number[] = [];
+      if (["SMS", "EMAIL", "WHATSAPP"].includes(post.type)) {
+        if (selectedContacts.length === 0) {
+          Alert.alert("Select contacts", "Please select at least one contact.");
+          setPublishing(false);
+          return;
+        }
+        contactsToSend = selectedContacts;
+      }
+
+      // ✅ NOW SHARE
+      const res = await shareCampaignPostApi(
         resolvedCampaignId,
         currentSharePostId,
-        {
-          ...post,
-          metadata: {
-            ...post.metadata,
-            boardId,
-            boardName,
-          },
-        }
+        contactsToSend
       );
+
+      Alert.alert("Success", "Post sent successfully");
+
+      setShareModalVisible(false);
+      setSelectedContacts([]);
+      await fetchPosts();
+
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Failed to send post");
+    } finally {
+      setPublishing(false);
     }
-
-    // ✅ CONTACT VALIDATION
-    let contactsToSend: number[] = [];
-    if (["SMS", "EMAIL", "WHATSAPP"].includes(post.type)) {
-      if (selectedContacts.length === 0) {
-        Alert.alert("Select contacts", "Please select at least one contact.");
-        setPublishing(false);
-        return;
-      }
-      contactsToSend = selectedContacts;
-    }
-
-    // ✅ NOW SHARE
-    const res = await shareCampaignPostApi(
-      resolvedCampaignId,
-      currentSharePostId,
-      contactsToSend
-    );
-
-    Alert.alert("Success", "Post sent successfully");
-
-    setShareModalVisible(false);
-    setSelectedContacts([]);
-    await fetchPosts();
-
-  } catch (error: any) {
-    Alert.alert("Error", error.message || "Failed to send post");
-  } finally {
-    setPublishing(false);
-  }
-};
+  };
 
   // ========= RENDER POST ITEM =========
   const renderPostItem = ({ item }: { item: any }) => {
@@ -665,14 +664,14 @@ useFocusEffect(
         )}
 
         <ThemedText className="font-semibold mb-1">Schedule</ThemedText>
-        {item.scheduledPostTime ? (
+        {(item.scheduledPostTime || item.publishedDate || item.createdAt) ? (
           <ThemedText
             className="mb-2"
             style={{
               color: isDark ? "#e5e7eb" : "#111",
             }}
           >
-            {new Date(item.scheduledPostTime).toLocaleString()}
+            {new Date(item.scheduledPostTime || item.publishedDate || item.createdAt).toLocaleString()}
           </ThemedText>
         ) : (
           <ThemedView className="flex-row items-center mb-2">

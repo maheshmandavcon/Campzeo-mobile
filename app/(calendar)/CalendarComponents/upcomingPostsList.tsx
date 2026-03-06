@@ -2,20 +2,17 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { CalendarEvent } from "@/types/types";
 import React, { useState } from "react";
-import { StyleSheet, useColorScheme, ScrollView } from "react-native";
-import { formatReadableTime, getDateLabel } from "../../../utils/dateHelpers";
+import { ScrollView, StyleSheet, useColorScheme } from "react-native";
+import { formatReadableDate, formatReadableTime, getDateLabel } from "../../../utils/dateHelpers";
 
 import {
   Actionsheet,
-  ActionsheetContent,
-  ActionsheetItem,
-  ActionsheetItemText,
-  ActionsheetDragIndicator,
-  ActionsheetDragIndicatorWrapper,
   ActionsheetBackdrop,
+  ActionsheetContent,
+  ActionsheetDragIndicator,
+  ActionsheetDragIndicatorWrapper
 } from "@/components/ui/actionsheet";
-import { HStack, Pressable, VStack } from "@gluestack-ui/themed";
-import { Text } from "@gluestack-ui/themed";
+import { HStack, Pressable, Text, VStack } from "@gluestack-ui/themed";
 import { Calendar } from "lucide-react-native";
 
 interface UpcomingPostsListProps {
@@ -266,58 +263,52 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
                     Scheduled Time
                   </ThemedText>
 
-                  {filteredDateKeys.map((dateKey) => {
-                    const eventsForDate = filteredGroupedEvents[dateKey];
-                    const readableDateLabel = getDateLabel(dateKey);
-
-                    return (
-                      <HStack key={dateKey} style={{ gap: 15 }}>
-                        <ThemedText
-                          style={{
-                            fontSize: 15,
-                            fontWeight: "600",
-                            color: isDark ? "#f1f5f9" : "#020617",
-                          }}
-                        >
-                          {readableDateLabel}
-                        </ThemedText>
-                        <ThemedText
-                          style={{
-                            fontSize: 15,
-                            fontWeight: "600",
-                            color: isDark ? "#f1f5f9" : "#020617",
-                          }}
-                        >
-                          {formatReadableTime(selectedEvent.start)}
-                        </ThemedText>
-                      </HStack>
-                    );
-                  })}
+                  <HStack style={{ gap: 15 }}>
+                    <ThemedText
+                      style={{
+                        fontSize: 15,
+                        fontWeight: "600",
+                        color: isDark ? "#f1f5f9" : "#020617",
+                      }}
+                    >
+                      {formatReadableDate(selectedEvent.start)}
+                    </ThemedText>
+                    <ThemedText
+                      style={{
+                        fontSize: 15,
+                        fontWeight: "600",
+                        color: isDark ? "#f1f5f9" : "#020617",
+                      }}
+                    >
+                      {formatReadableTime(selectedEvent.start)}
+                    </ThemedText>
+                  </HStack>
                 </VStack>
 
                 {/* SUBJECT */}
-                <VStack>
-                  <ThemedText
-                    style={{
-                      fontSize: 12,
-                      color: isDark ? "#94a3b8" : "#64748b",
-                      marginBottom: 2,
-                    }}
-                  >
-                    Subject
-                  </ThemedText>
-                  <ThemedText
-                    style={{
-                      fontSize: 15,
-                      fontWeight: "500",
-                      color: isDark ? "#e5e7eb" : "#020617",
-                      lineHeight: 22,
-                    }}
-                  >
-                    {selectedEvent.subject}
-                    {selectedEvent.message}
-                  </ThemedText>
-                </VStack>
+                {selectedEvent.platform?.toLowerCase() !== "sms" && (
+                  <VStack>
+                    <ThemedText
+                      style={{
+                        fontSize: 12,
+                        color: isDark ? "#94a3b8" : "#64748b",
+                        marginBottom: 2,
+                      }}
+                    >
+                      Subject
+                    </ThemedText>
+                    <ThemedText
+                      style={{
+                        fontSize: 15,
+                        fontWeight: "500",
+                        color: isDark ? "#e5e7eb" : "#020617",
+                        lineHeight: 22,
+                      }}
+                    >
+                      {selectedEvent.subject}
+                    </ThemedText>
+                  </VStack>
+                )}
 
                 {/* Message */}
                 <VStack>

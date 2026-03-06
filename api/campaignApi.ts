@@ -28,6 +28,10 @@ export interface CampaignPostData {
   thumbnailUrl?: string | null;
 
   // ✅ OTHER PLATFORMS (keep metadata generic)
+  isReel?: boolean;
+  postType?: string;
+  coverImage?: string | null;
+
   metadata?: {
     destinationLink?: string;
     tags?: string[];
@@ -37,6 +41,7 @@ export interface CampaignPostData {
     playlistTitle?: string;
     coverImage?: string | null;
     isReel?: boolean;
+    coverUrl?: string | null; // Added alias
   };
 }
 
@@ -157,6 +162,7 @@ export const createPostForCampaignApi = async (
         ...(token && { Authorization: `Bearer ${token}` }),
       },
     });
+    console.log("FINAL PAYLOAD BEFORE API:", JSON.stringify(data, null, 2));
     console.log("Create Post API Response:", response.data);
     return response.data;
   } catch (error: any) {
