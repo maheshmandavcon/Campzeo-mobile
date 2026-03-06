@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 
 const API_BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl ||
-    'https://camp-zeo-testing.vercel.app/';
+    'https://campzeo.com/';
 const MOBILE_API_KEY = Constants.expoConfig?.extra?.mobileApiKey || '';
 
 interface ApiOptions extends RequestInit {

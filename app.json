@@ -73,7 +73,7 @@
     },
     "extra": {
       "clerkPublishableKey": "pk_test_ZmFzdC1yZWRmaXNoLTUyLmNsZXJrLmFjY291bnRzLmRldiQ",
-      "apiBaseUrl": "https://camp-zeo-testing.vercel.app/api/",
+      "apiBaseUrl": "https://campzeo.com/api/",
       "router": {},
       "mobileApiKey": "YEKa-f39c7b12e84d56a1c92f0b4c77e9d3",
       "eas": {
