@@ -32,7 +32,7 @@ export default function TopBar() {
       const token = await getToken();
       if (!token) return;
 
-      const res = await getNotificationsApi(token, 1, 50);
+      const res = await getNotificationsApi(token, 1, 99);
       const notifications = Array.isArray(res?.data?.notifications)
         ? res.data.notifications
         : [];
@@ -96,7 +96,7 @@ export default function TopBar() {
                 backgroundColor: "#dc2626",
                 borderRadius: 10,
                 minWidth: 18,
-                height: 18,
+                height: 20,
                 justifyContent: "center",
                 alignItems: "center",
                 paddingHorizontal: 4,

@@ -2,28 +2,27 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { CalendarEvent } from "@/types/types";
 import React, { useState } from "react";
-import { StyleSheet, useColorScheme, ScrollView } from "react-native";
-import { formatReadableTime, getDateLabel } from "../../../utils/dateHelpers";
+import { ScrollView, StyleSheet, useColorScheme } from "react-native";
+import { formatReadableDate, formatReadableTime, getDateLabel } from "../../../utils/dateHelpers";
 
 import {
   Actionsheet,
-  ActionsheetContent,
-  ActionsheetItem,
-  ActionsheetItemText,
-  ActionsheetDragIndicator,
-  ActionsheetDragIndicatorWrapper,
   ActionsheetBackdrop,
+  ActionsheetContent,
+  ActionsheetDragIndicator,
+  ActionsheetDragIndicatorWrapper
 } from "@/components/ui/actionsheet";
-import { HStack, Pressable, VStack } from "@gluestack-ui/themed";
-import { Text } from "@gluestack-ui/themed";
+import { HStack, Pressable, Text, VStack } from "@gluestack-ui/themed";
 import { Calendar } from "lucide-react-native";
 
 interface UpcomingPostsListProps {
   groupedEvents: Record<string, CalendarEvent[]>;
+  selectedMonth: Date;
 }
 
 const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
   groupedEvents,
+  selectedMonth,
 }) => {
   const [showActionsheet, setShowActionsheet] = React.useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
@@ -36,26 +35,70 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
   const isDark = colorScheme === "dark";
   const now = new Date();
 
-  // 🔥 Filter only future events
-  const futureGroupedEvents: Record<string, CalendarEvent[]> = {};
+  const isCurrentMonth =
+    selectedMonth.getMonth() === now.getMonth() &&
+    selectedMonth.getFullYear() === now.getFullYear();
+
+  const filteredGroupedEvents: Record<string, CalendarEvent[]> = {};
 
   Object.entries(groupedEvents).forEach(([dateKey, events]) => {
-    const futureEvents = events.filter((event) => new Date(event.start) > now);
+    const eventDate = new Date(dateKey);
 
-    if (futureEvents.length > 0) {
-      futureGroupedEvents[dateKey] = futureEvents;
+    const isSameMonth =
+      eventDate.getMonth() === selectedMonth.getMonth() &&
+      eventDate.getFullYear() === selectedMonth.getFullYear();
+
+    if (!isSameMonth) return;
+
+    const filteredEvents = isCurrentMonth
+      ? events.filter((event) => new Date(event.start) > now) // future only
+      : events; // show all if not current month
+
+    if (filteredEvents.length > 0) {
+      filteredGroupedEvents[dateKey] = filteredEvents;
     }
   });
 
-  const futureDateKeys = Object.keys(futureGroupedEvents).sort();
+  const filteredDateKeys = Object.keys(filteredGroupedEvents).sort();
 
-  // ✅ No upcoming posts case
-  if (futureDateKeys.length === 0) {
+  if (filteredDateKeys.length === 0) {
     return (
-      <ThemedView>
-        <ThemedText className="text-center  my-7">
-          No upcoming posts.
+      <ThemedView style={styles.container}>
+        <ThemedText
+          style={{
+            fontSize: 25,
+            fontWeight: "700",
+            marginVertical: 10,
+            lineHeight: 36,
+          }}
+        >
+          {isCurrentMonth
+            ? "Upcoming Posts"
+            : `Posts for ${selectedMonth.toLocaleString("default", {
+              month: "long",
+              year: "numeric",
+            })}`}
         </ThemedText>
+
+        <ThemedView
+          style={{
+            paddingVertical: 30,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <ThemedText
+            style={{
+              fontSize: 15,
+              color: isDark ? "#94a3b8" : "#64748b",
+              textAlign: "center",
+            }}
+          >
+            {isCurrentMonth
+              ? "You don’t have any upcoming posts scheduled."
+              : "There are no posts scheduled for this month."}
+          </ThemedText>
+        </ThemedView>
       </ThemedView>
     );
   }
@@ -72,11 +115,16 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
               lineHeight: 36,
             }}
           >
-            Upcoming Posts
+            {isCurrentMonth
+              ? "Upcoming Posts"
+              : `Posts for ${selectedMonth.toLocaleString("default", {
+                month: "long",
+                year: "numeric",
+              })}`}
           </ThemedText>
 
-          {futureDateKeys.map((dateKey) => {
-            const eventsForDate = futureGroupedEvents[dateKey];
+          {filteredDateKeys.map((dateKey) => {
+            const eventsForDate = filteredGroupedEvents[dateKey];
             const readableDateLabel = getDateLabel(dateKey);
 
             return (
@@ -98,34 +146,6 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
                       setShowActionsheet(true);
                     }}
                   >
-                    {/* <ThemedView
-                      style={[
-                        styles.card,
-                        {
-                          backgroundColor: isDark ? "#020617" : "#ffffff",
-                          borderColor: isDark ? "#1f2933" : "#e5e7eb",
-                        },
-                      ]}
-                    >
-                      <ThemedText
-                        style={[
-                          styles.title,
-                          { color: isDark ? "#f9fafb" : "#020617" },
-                        ]}
-                      >
-                        {event.platform.toUpperCase()} — {event.campaign}
-                      </ThemedText>
-
-                      <ThemedText
-                        style={[
-                          styles.time,
-                          { color: isDark ? "#9ca3af" : "#6b7280" },
-                        ]}
-                      >
-                        {formatReadableTime(event.start)}
-                      </ThemedText>
-                    </ThemedView> */}
-
                     <ThemedView
                       style={[
                         styles.card,
@@ -243,58 +263,52 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
                     Scheduled Time
                   </ThemedText>
 
-                  {futureDateKeys.map((dateKey) => {
-                    const eventsForDate = futureGroupedEvents[dateKey];
-                    const readableDateLabel = getDateLabel(dateKey);
-
-                    return (
-                      <HStack key={dateKey} style={{ gap: 15 }}>
-                        <ThemedText
-                          style={{
-                            fontSize: 15,
-                            fontWeight: "600",
-                            color: isDark ? "#f1f5f9" : "#020617",
-                          }}
-                        >
-                          {readableDateLabel}
-                        </ThemedText>
-                        <ThemedText
-                          style={{
-                            fontSize: 15,
-                            fontWeight: "600",
-                            color: isDark ? "#f1f5f9" : "#020617",
-                          }}
-                        >
-                          {formatReadableTime(selectedEvent.start)}
-                        </ThemedText>
-                      </HStack>
-                    );
-                  })}
+                  <HStack style={{ gap: 15 }}>
+                    <ThemedText
+                      style={{
+                        fontSize: 15,
+                        fontWeight: "600",
+                        color: isDark ? "#f1f5f9" : "#020617",
+                      }}
+                    >
+                      {formatReadableDate(selectedEvent.start)}
+                    </ThemedText>
+                    <ThemedText
+                      style={{
+                        fontSize: 15,
+                        fontWeight: "600",
+                        color: isDark ? "#f1f5f9" : "#020617",
+                      }}
+                    >
+                      {formatReadableTime(selectedEvent.start)}
+                    </ThemedText>
+                  </HStack>
                 </VStack>
 
                 {/* SUBJECT */}
-                <VStack>
-                  <ThemedText
-                    style={{
-                      fontSize: 12,
-                      color: isDark ? "#94a3b8" : "#64748b",
-                      marginBottom: 2,
-                    }}
-                  >
-                    Subject
-                  </ThemedText>
-                  <ThemedText
-                    style={{
-                      fontSize: 15,
-                      fontWeight: "500",
-                      color: isDark ? "#e5e7eb" : "#020617",
-                      lineHeight: 22,
-                    }}
-                  >
-                    {selectedEvent.subject}
-                    {selectedEvent.message}
-                  </ThemedText>
-                </VStack>
+                {selectedEvent.platform?.toLowerCase() !== "sms" && (
+                  <VStack>
+                    <ThemedText
+                      style={{
+                        fontSize: 12,
+                        color: isDark ? "#94a3b8" : "#64748b",
+                        marginBottom: 2,
+                      }}
+                    >
+                      Subject
+                    </ThemedText>
+                    <ThemedText
+                      style={{
+                        fontSize: 15,
+                        fontWeight: "500",
+                        color: isDark ? "#e5e7eb" : "#020617",
+                        lineHeight: 22,
+                      }}
+                    >
+                      {selectedEvent.subject}
+                    </ThemedText>
+                  </VStack>
+                )}
 
                 {/* Message */}
                 <VStack>
@@ -349,7 +363,7 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
                 </Pressable>
 
                 {/* PRIMARY */}
-                <Pressable
+                {/* <Pressable
                   style={{
                     paddingVertical: 10,
                     paddingHorizontal: 18,
@@ -366,7 +380,7 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
                   >
                     Edit Post
                   </Text>
-                </Pressable>
+                </Pressable> */}
               </HStack>
             </>
           )}

@@ -2,7 +2,7 @@ import { CalendarEvent } from "@/types/types";
 
 export const mapEvents = (posts: any[]): CalendarEvent[] => {
   return posts.map((post) => {
-    const start = new Date(post.scheduledPostTime);
+    const start = new Date(post.scheduledPostTime || post.publishedDate || post.createdAt || new Date());
 
     return {
       id: post.id,

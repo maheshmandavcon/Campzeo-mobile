@@ -4,10 +4,8 @@ import { useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@gluestack-ui/themed";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { Picker } from "@react-native-picker/picker";
 import { ResizeMode, Video } from "expo-av";
 import React, { useEffect, useState } from "react";
-import DraggableFlatList from "react-native-draggable-flatlist";
 import {
   ActivityIndicator,
   Alert,
@@ -23,6 +21,7 @@ import {
   useColorScheme,
   View,
 } from "react-native";
+import DraggableFlatList from "react-native-draggable-flatlist";
 import Preview from "./preview";
 
 // ---------- Define Props Interface ----------
@@ -61,14 +60,14 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
     imageModalVisible, imagePrompt, generatedImages, loadingImage,
 
-    facebookPages, selectedFacebookPage, facebookContentType, isFacebookPageLoading, coverImage, coverUploading,
+    facebookPages, selectedFacebookPage, facebookContentType, isFacebookPageLoading, coverImage, coverUploading, setCoverImage,
 
     youTubeContentType, youTubeTags, youTubeStatus, showStatusDropdown, isCreatingPlaylist, customThumbnail, playlistId, playlistTitle,
-    playlists, showPlaylistDropdown, selectedPlaylist, newPlaylistName, selectedAccount,
+    playlists, showPlaylistDropdown, selectedPlaylist, newPlaylistName, selectedAccount, hasVideo, hasImage, hasAttachment, canSelectStandard, canSelectReel,
 
     pinterestBoard, destinationLink, isCreatingPinterestBoard, pinterestModalVisible, newPinterestBoard, pinterestDescription, isPinterestBoardLoading, allPinterestBoards, loadingBoards,
 
-    showPicker, showTimePicker, minSelectableStartDate, minSelectableEndDate, maxSelectableEndDate, imageErrorMap,
+    showPicker, showTimePicker, minSelectableStartDate, minSelectableEndDate, maxSelectableEndDate, imageErrorMap, selectingImage,
 
     // setters
     setSenderEmail,
@@ -103,6 +102,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     setSelectedPlaylist,
     setNewPlaylistName,
     setImageErrorMap,
+    setCanSelectStandard,
+    setCanSelectReel,
 
     // handlers
     handleSubmit,
@@ -698,6 +699,23 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                             />
                           )}
 
+                          {selectingImage === item && (
+                            <View
+                              style={{
+                                position: "absolute",
+                                width: "100%",
+                                height: "100%",
+                                backgroundColor: "rgba(0,0,0,0.5)",
+                                justifyContent: "center",
+                                alignItems: "center",
+                                borderRadius: 8,
+                                zIndex: 20,
+                              }}
+                            >
+                              <ActivityIndicator size="large" color="#fff" />
+                            </View>
+                          )}
+
                           <Image
                             source={{ uri: item }}
                             style={{
@@ -985,6 +1003,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 {/* Standard Post */}
                 <TouchableOpacity
                   onPress={() => setFacebookContentType("STANDARD")}
+                  // disabled={!hasAttachment || hasVideo}
+                  disabled={!canSelectStandard || !hasAttachment}
                   style={{
                     flex: 1,
                     paddingVertical: 12,
@@ -1006,6 +1026,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                           ? "#161618"
                           : "#ffffff",
                     alignItems: "center",
+                    // opacity: !hasAttachment || hasVideo ? 0.5 : 1,
+                    opacity: (!canSelectStandard || !hasAttachment) ? 0.5 : 1,
                   }}
                 >
                   <Text
@@ -1029,6 +1051,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 {/* Reel / Short Video */}
                 <TouchableOpacity
                   onPress={() => setFacebookContentType("REEL")}
+                  // disabled={!hasAttachment || hasImage}
+                  disabled={!canSelectReel || !hasAttachment}
                   style={{
                     flex: 1,
                     paddingVertical: 12,
@@ -1050,6 +1074,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                           ? "#161618"
                           : "#ffffff",
                     alignItems: "center",
+                    // opacity: !hasAttachment || hasImage ? 0.5 : 1,
+                    opacity: (!canSelectReel || !hasAttachment) ? 0.5 : 1,
                   }}
                 >
                   <Text
@@ -1088,7 +1114,10 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   {/* Upload Button */}
                   <TouchableOpacity
                     disabled={coverUploading} // disable while uploading
-                    onPress={handleCoverImageUpload}
+                    onPress={() => {
+                      console.log("[Cover] Upload button pressed");
+                      handleCoverImageUpload();
+                    }}
                     style={{
                       backgroundColor: isDark ? "#1e3a8a" : "#eff6ff",
                       paddingVertical: 10,
@@ -1135,18 +1164,44 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
                   {/* Preview */}
                   {coverImage && !coverUploading && (
-                    <Image
-                      source={{ uri: coverImage }}
+                    <View
                       style={{
+                        position: "relative",
                         width: 100,
                         height: 100,
-                        borderRadius: 8,
                         marginTop: 8,
-                        borderWidth: 1,
-                        borderColor: isDark ? "#fff" : "#000",
                       }}
-                      resizeMode="cover"
-                    />
+                    >
+                      <Image
+                        source={{ uri: coverImage }}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          borderColor: isDark ? "#fff" : "#000",
+                        }}
+                        resizeMode="cover"
+                      />
+                      <TouchableOpacity
+                        onPress={() => setCoverImage(null)}
+                        style={{
+                          position: "absolute",
+                          top: -8,
+                          right: -8,
+                          backgroundColor: "#ef4444",
+                          borderRadius: 12,
+                          padding: 4,
+                          elevation: 5,
+                          shadowColor: "#000",
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.25,
+                          shadowRadius: 3.84,
+                        }}
+                      >
+                        <Ionicons name="close" size={16} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
                   )}
 
                   {/* Helper Text */}
@@ -2082,6 +2137,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               profilePic={user?.imageUrl}
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
+              coverImage={coverImage || undefined}
               images={attachments?.map((a) => a.uri)}
               timestamp={previewTimestamp}
             />
@@ -2094,6 +2150,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               profilePic={user?.imageUrl}
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
+              coverImage={coverImage || undefined}
               images={attachments?.map((a) => a.uri)}
               timestamp={previewTimestamp}
             />
@@ -2174,7 +2231,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
         <Button
           onPress={handleSubmit}
           className="rounded-full mb-8 px-4 py-3 flex-row justify-center items-center"
-          style={{ backgroundColor: "#dc2626", borderRadius: 50, height: 48 }}
+          style={{ backgroundColor: "#dc2626", borderRadius: 50, height: 48, opacity: loading ? 0.6 : 1, }}
           disabled={loading}
         >
           <View className="flex-row justify-center items-center">

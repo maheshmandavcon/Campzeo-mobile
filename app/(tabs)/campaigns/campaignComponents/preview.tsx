@@ -1,12 +1,13 @@
-import React, { useRef, useState } from "react";
-import { View, Text, Image, Dimensions, ScrollView, TouchableOpacity, useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ResizeMode, Video } from 'expo-av';
+import React, { useRef, useState } from "react";
+import { Dimensions, Image, ScrollView, Text, TouchableOpacity, useColorScheme, View } from "react-native";
 
 type PreviewProps = {
   profilePic?: string;
   platform: string;
   text: string;
+  coverImage?: string;
   images?: string[];
   timestamp?: string;
   username: string;
@@ -19,6 +20,7 @@ const Preview: React.FC<PreviewProps> = ({
   platform,
   username,
   text,
+  coverImage,
   images = [],
   timestamp,
 }) => {
@@ -69,31 +71,31 @@ const Preview: React.FC<PreviewProps> = ({
     },
   } as const;
 
-const renderMedia = () => {
-  switch (platform) {
-    case "facebook":
-    case "linkedin":
-      if (!images.length) return null;
-      return renderFacebookPreview(images);
-    case "instagram":
-      if (!images.length) return null;
-      return <InstagramPreview media={images} />;
-    case "whatsapp":
-      return renderWhatsAppPreview();
-    case "sms":
-      return renderSmsPreview(); // always render SMS
-    case "email":
-      return renderEmailPreview(); // always render email
-    case "pinterest":
-      if (!images.length) return null;
-      return renderPinterestPreview();
-    case "youtube":
-      if (!images.length) return null;
-      return renderYouTubePreview();
-    default:
-      return null;
-  }
-};
+  const renderMedia = () => {
+    switch (platform) {
+      case "facebook":
+      case "linkedin":
+        if (!images.length) return null;
+        return renderFacebookPreview(images);
+      case "instagram":
+        if (!images.length) return null;
+        return <InstagramPreview media={images} coverImage={coverImage} />;
+      case "whatsapp":
+        return renderWhatsAppPreview();
+      case "sms":
+        return renderSmsPreview(); // always render SMS
+      case "email":
+        return renderEmailPreview(); // always render email
+      case "pinterest":
+        if (!images.length) return null;
+        return renderPinterestPreview();
+      case "youtube":
+        if (!images.length) return null;
+        return renderYouTubePreview();
+      default:
+        return null;
+    }
+  };
 
   const platformConfig = PLATFORM_CONFIG[platform as keyof typeof PLATFORM_CONFIG];
 
@@ -204,7 +206,7 @@ const renderMedia = () => {
   );
 
   // Instagram style media renderer
-  const InstagramPreview: React.FC<{ media: string[] }> = ({ media }) => {
+  const InstagramPreview: React.FC<{ media: string[]; coverImage?: string }> = ({ media, coverImage }) => {
     const scrollRef = useRef<ScrollView>(null);
     const [activeIndex, setActiveIndex] = useState(0);
 
@@ -216,7 +218,7 @@ const renderMedia = () => {
     };
 
     const isVideo = (uri: string) =>
-      uri.endsWith(".mp4") || uri.endsWith(".mov") || uri.endsWith(".mkv");
+      /\.(mp4|mov|mkv)$/i.test(uri);
 
     return (
       <View style={{ marginTop: 10 }}>
@@ -241,6 +243,8 @@ const renderMedia = () => {
               {isVideo(uri) ? (
                 <Video
                   source={{ uri }}
+                  posterSource={index === 0 && coverImage ? { uri: coverImage } : undefined}
+                  usePoster={index === 0 && !!coverImage}
                   style={{ width: "100%", height: "100%" }}
                   resizeMode={ResizeMode.COVER}
                   shouldPlay

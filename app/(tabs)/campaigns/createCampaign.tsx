@@ -202,6 +202,8 @@ export default function CreateCampaign() {
   };
 
   const onSubmit: SubmitHandler<CampaignFormValues> = async (data) => {
+    if (isSubmitting) return;
+    
     try {
       const token = await getToken();
       if (!token) throw new Error("Token missing");
@@ -692,6 +694,7 @@ export default function CreateCampaign() {
             shadowOffset: { width: 0, height: 6 },
             shadowRadius: 12,
             elevation: 6,
+            opacity: isSubmitting ? 0.6 : 1,
           }}
         >
           <Text className="text-lg font-semibold text-white">
