@@ -141,7 +141,7 @@ export default function CampaignPost() {
         if (!token) throw new Error("Token missing");
 
         // const url = `https://campzeo-v1-oym2.vercel.app/api/campaigns/${campaignIdStr}/posts/${postIdStr}`;
-        const url = `https://camp-zeo-testing.vercel.app/api/campaigns/${campaignIdStr}/posts/${postIdStr}`;
+        const url = `https://campzeo.com/api/campaigns/${campaignIdStr}/posts/${postIdStr}`;
 
         console.log("Fetching post details from:", url);
 
