@@ -3,6 +3,7 @@ import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Alert, useColorScheme } from "react-native";
+import { getUser } from "@/api/dashboardApi";
 
 import type { AIImageResponse, CampaignPostData } from "@/api/campaignApi";
 import {
@@ -47,6 +48,25 @@ export function useCampaignPostForm({
   const isDark = useColorScheme() === "dark";
 
   const hasPrefilledRef = useRef(false);
+
+  // ================= ORG ID =================
+  const [organisationId, setOrganisationId] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    const fetchOrgId = async () => {
+      try {
+        const user = await getUser();
+        const orgId = user?.organisation?.id;
+        if (orgId) {
+          setOrganisationId(orgId);
+          console.log("🏢 Organisation ID loaded:", orgId);
+        }
+      } catch (err) {
+        console.warn("Could not fetch organisationId:", err);
+      }
+    };
+    fetchOrgId();
+  }, []);
 
   // ================= BASIC =================
   const [senderEmail, setSenderEmail] = useState("");
@@ -532,6 +552,7 @@ export function useCampaignPostForm({
         throw new Error("No authentication token available");
       }
 
+      console.log(`🖼️ Initiating upload for media (${tempAttachment.type}):`, tempAttachment.name);
       const finalUrl = await uploadMediaApi(
         {
           uri: asset.uri,
@@ -539,7 +560,15 @@ export function useCampaignPostForm({
           type: tempAttachment.type,
         },
         token,
+        undefined,
+        {
+          organisationId,
+          campaignId,
+          isReel: isVideo,
+          platform,
+        }
       );
+      console.log(`✅ Upload complete. Attachment URI:`, finalUrl);
 
       if (!finalUrl) {
         throw new Error("Upload failed: no URL returned");
@@ -739,13 +768,14 @@ export function useCampaignPostForm({
 
   const handleSelectGeneratedImage = async (imageUrl: string) => {
     try {
-      if (selectingImage) return; // prevent double tap
+      if (selectingImage) return; 
 
-      setSelectingImage(imageUrl); // 🔄 start spinner
+      setSelectingImage(imageUrl); 
 
       const token = await getToken();
       if (!token) throw new Error("Token missing");
 
+      console.log(`🤖 Initiating upload for AI generated image:`, imageUrl);
       const uploadedUrl = await uploadMediaApi(
         {
           uri: imageUrl,
@@ -753,7 +783,15 @@ export function useCampaignPostForm({
           type: "image/jpeg",
         },
         token,
+        undefined,
+        {
+          organisationId,
+          campaignId,
+          isReel: false,
+          platform,
+        }
       );
+      console.log(`✅ AI image upload complete. Attachment URI:`, uploadedUrl);
 
       setAttachments((prev) => [
         ...prev,

@@ -3,6 +3,9 @@ import { getCampaignsApi } from "@/api/campaignApi";
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { FormControl, Input, InputField } from "@gluestack-ui/themed";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { contactSchema } from "@/validations/contactSchema";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -18,7 +21,6 @@ import {
 } from "react-native";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
-import { View } from "lucide-react-native";
 
 type Contact = {
   id?: number;
@@ -26,7 +28,7 @@ type Contact = {
   email: string;
   mobile: string;
   whatsapp: string;
-  campaignIds: number[];
+  campaignIds?: number[];
   campaigns?: { id: number; name: string }[];
 };
 
@@ -55,18 +57,19 @@ export default function CreateContact() {
     watch,
     formState: { errors, isSubmitting },
     reset,
-  } = useForm<Contact>({
+  } = useForm<z.infer<typeof contactSchema>>({
+    resolver: zodResolver(contactSchema),
     defaultValues: {
       name: "",
       email: "",
-      mobile: "",
-      whatsapp: "",
+      mobile: "+91",
+      whatsapp: "+91",
       campaignIds: [],
     },
     mode: "onChange",
   });
 
-  const selectedCampaigns = watch("campaignIds");
+  const selectedCampaigns = watch("campaignIds") || [];
   const hasResetRef = useRef(false);
 
   const [existingEmails, setExistingEmails] = useState<string[]>([]);
@@ -76,7 +79,7 @@ export default function CreateContact() {
         const token = await getToken();
         if (!token) throw new Error("Token missing");
 
-        const data = await getContactsApi(1, 1000); // fetch all contacts
+        const data = await getContactsApi(1, 1000); 
         const emails = data.contacts?.map((c: any) => c.contactEmail.toLowerCase()) || [];
         setExistingEmails(emails);
       } catch (err) {
@@ -87,17 +90,15 @@ export default function CreateContact() {
     fetchContactsEmails();
   }, []);
 
-  // 1️⃣ Add state for mobile numbers
   const [existingNumbers, setExistingNumbers] = useState<string[]>([]);
 
-  // 2️⃣ Fetch both emails and numbers
   useEffect(() => {
     const fetchContacts = async () => {
       try {
         const token = await getToken();
         if (!token) throw new Error("Token missing");
 
-        const data = await getContactsApi(1, 1000); // fetch all contacts
+        const data = await getContactsApi(1, 1000); 
         const emails = data.contacts?.map((c: any) => c.contactEmail.toLowerCase()) || [];
         const numbers = data.contacts?.map((c: any) => c.contactMobile) || [];
 
@@ -118,8 +119,8 @@ export default function CreateContact() {
     reset({
       name: editingContact.name ?? "",
       email: editingContact.email ?? "",
-      mobile: editingContact.mobile ?? "",
-      whatsapp: editingContact.whatsapp ?? "",
+      mobile: editingContact.mobile || "+91",
+      whatsapp: editingContact.whatsapp || "+91",
       campaignIds: editingContact.campaigns
         ? editingContact.campaigns.map((c) => c.id)
         : editingContact.campaignIds ?? [],
@@ -154,7 +155,7 @@ export default function CreateContact() {
   const { fromCampaign } = useLocalSearchParams<{ fromCampaign?: string }>();
 
   // 3️⃣ Update onSubmit to check both email and mobile
-  const onSubmit = async (data: Contact) => {
+  const onSubmit = async (data: z.infer<typeof contactSchema>) => {
     if (isSubmitting) return;
     try {
       const newEmail = data.email.trim().toLowerCase();
@@ -162,7 +163,7 @@ export default function CreateContact() {
 
       // Exclude current contact if editing
       const otherEmails = existingEmails.filter(
-        (e) => e.toLowerCase() !== editingContact?.email.toLowerCase()
+        (e) => e.toLowerCase() !== editingContact?.email?.toLowerCase()
       );
       const otherNumbers = existingNumbers.filter(
         (n) => n !== editingContact?.mobile
@@ -294,11 +295,6 @@ export default function CreateContact() {
             <Controller
               control={control}
               name="name"
-              rules={{
-                required: "Name is required",
-                minLength: { value: 3, message: "Minimum 3 letters" },
-                pattern: { value: /^[A-Za-z\s]+$/i, message: "Only letters allowed" },
-              }}
               render={({ field: { onChange, value } }) => (
                 <Input
                   size="md"
@@ -332,10 +328,6 @@ export default function CreateContact() {
             <Controller
               control={control}
               name="email"
-              rules={{
-                required: "Email is required",
-                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Invalid email" },
-              }}
               render={({ field: { onChange, value } }) => (
                 <Input
                   style={{
@@ -370,10 +362,6 @@ export default function CreateContact() {
             <Controller
               control={control}
               name="mobile"
-              rules={{
-                required: "Mobile is required",
-                pattern: { value: /^\d{7,15}$/, message: "Not a valid number" },
-              }}
               render={({ field: { onChange, value } }) => (
                 <Input
                   style={{
@@ -407,10 +395,6 @@ export default function CreateContact() {
             <Controller
               control={control}
               name="whatsapp"
-              rules={{
-                required: "WhatsApp is required",
-                pattern: { value: /^\d{10,15}$/, message: "Not a valid number" },
-              }}
               render={({ field: { onChange, value } }) => (
                 <Input
                   style={{

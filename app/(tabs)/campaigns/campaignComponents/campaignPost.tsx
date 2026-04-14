@@ -40,10 +40,14 @@ export default function CampaignPost() {
     | "LINKEDIN"
     | "PINTEREST";
 
+  const restrictedPlatforms: PlatformType[] = ["SMS", "WHATSAPP"];
   const [selected, setSelected] = useState<PlatformType | null>(null);
-
   const [existingPost, setExistingPost] = useState<any>(null);
   const [loadingPost, setLoadingPost] = useState(false);
+
+  const [twilioAccessStatus, setTwilioAccessStatus] = useState<string | null>(null);
+  const [smsCredits, setSmsCredits] = useState<number>(0);
+  const [whatsappCredits, setWhatsappCredits] = useState<number>(0);
 
   const [connectedPlatforms, setConnectedPlatforms] = useState<Record<string, boolean>>({});
   const [loadingConnections, setLoadingConnections] = useState(true);
@@ -107,6 +111,15 @@ export default function CampaignPost() {
         try {
           setLoadingConnections(true);
           const data = await getSocialStatus();
+
+          if (data?.twilioAccess) {
+            setTwilioAccessStatus(data.twilioAccess.twilioAccessStatus);
+          }
+          if (data?.wallet) {
+            setSmsCredits(data.wallet.smsCreditsAvailable || 0);
+            setWhatsappCredits(data.wallet.whatsappCreditsAvailable || 0);
+          }
+
           setConnectedPlatforms({
             FACEBOOK: data.facebook?.connected ?? false,
             INSTAGRAM: data.instagram?.connected ?? false,
@@ -286,6 +299,15 @@ export default function CampaignPost() {
     );
   };
 
+  const getPlatformOrder = (label: string) => {
+    if (restrictedPlatforms.includes(label as any)) return 1;
+    if (label === "EMAIL") return 2;
+    if (connectedPlatforms[label] === true) return 3;
+    return 4;
+  };
+
+  const sortedIcons = [...icons].sort((a, b) => getPlatformOrder(a.label) - getPlatformOrder(b.label));
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -315,23 +337,23 @@ export default function CampaignPost() {
           className="flex-row flex-wrap justify-between mb-4"
           style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
         >
-
-          {/* To hide all disconnected accounts */}
-          {icons
+          {sortedIcons
             .filter((icon) => connectedPlatforms[icon.label] !== false)
             .map((icon, index) => {
-              {/* {icons.map((icon, index) => { */ }
-              const IconComponent = icon.library;
-              const isSelected = selected === icon.label;
-              const isConnected = connectedPlatforms[icon.label] ?? false;
-              const isEditingThisPlatform =
-                isEditMode &&
-                !loadingPost &&
-                !!existingPost &&
-                existingPost.type === icon.label;
-
-              // Disable everything if in edit mode, except the platform being edited
+            const IconComponent = icon.library;
+            const isSelected = selected === icon.label;
+            const isConnected = connectedPlatforms[icon.label] ?? false;
+            const isEditingThisPlatform =
+              isEditMode &&
+              !loadingPost &&
+              !!existingPost &&
+              existingPost.type === icon.label;
               const isDisabled = loadingConnections || !isConnected || (isEditMode && !isEditingThisPlatform);
+
+              const isRestrictedPlatform = restrictedPlatforms.includes(icon.label as any);
+              const credits = icon.label === "SMS" ? smsCredits : whatsappCredits;
+              const isFullyApprovedAndFunded = isRestrictedPlatform && twilioAccessStatus === "APPROVED" && credits > 0;
+              const visuallyRestricted = isRestrictedPlatform && !isFullyApprovedAndFunded;
 
               return (
                 <ThemedView
@@ -348,14 +370,41 @@ export default function CampaignPost() {
                       justifyContent: "center",
                       shadowColor: icon.color,
                       shadowOffset: { width: 0, height: 0 },
-                      shadowOpacity: isSelected && !isDisabled ? 0.5 : 0,
-                      shadowRadius: isSelected && !isDisabled ? 12 : 0,
-                      elevation: isSelected && !isDisabled ? 12 : 0,
+                      shadowOpacity: isSelected && !isDisabled && !visuallyRestricted ? 0.5 : 0,
+                      shadowRadius: isSelected && !isDisabled && !visuallyRestricted ? 12 : 0,
+                      elevation: isSelected && !isDisabled && !visuallyRestricted ? 12 : 0,
                     }}
                   >
                     <TouchableOpacity
-                      disabled={isDisabled}
+                      disabled={!isRestrictedPlatform && isDisabled}
                       onPress={() => {
+                        if (isRestrictedPlatform) {
+                          if (twilioAccessStatus === "APPROVED") {
+                            if (credits <= 0) {
+                              Alert.alert(
+                                "No Credits Available",
+                                `You have 0 ${icon.label} credits. Please purchase a pack to use this channel.`,
+                                [
+                                  { text: "Cancel", style: "cancel" },
+                                  { text: "Add Credits", onPress: () => router.push("/(billing)/billingPage") },
+                                ]
+                              );
+                              return;
+                            }
+                            // Has credits, can proceed to select 
+                          } else {
+                            Alert.alert(
+                              "Admin Approval Required",
+                              "SMS and WhatsApp messaging requires admin approval and credit purchase.",
+                              [
+                                { text: "Cancel", style: "cancel" },
+                                { text: "Purchase Pack", onPress: () => router.push("/(billing)/billingPage") },
+                              ]
+                            );
+                            return;
+                          }
+                        }
+
                         if (isDisabled) {
                           Alert.alert(
                             "Platform not connected",
@@ -363,7 +412,7 @@ export default function CampaignPost() {
                           );
                           return;
                         }
-                        setSelected(icon.label);
+                        setSelected(icon.label as any);
                       }}
                       style={{
                         width: 64,
@@ -372,19 +421,21 @@ export default function CampaignPost() {
                         alignItems: "center",
                         justifyContent: "center",
                         borderWidth: 2,
-                        borderColor: isDisabled
+                        borderColor: visuallyRestricted
                           ? "#9ca3af"
-                          : isSelected
-                            ? icon.color
-                            : "#d1d5db",
+                          : isDisabled
+                            ? "#9ca3af"
+                            : isSelected
+                              ? icon.color
+                              : "#d1d5db",
                         backgroundColor: isDark ? "#161618" : "#ffffff",
-                        opacity: isDisabled ? 0.4 : 1,
+                        opacity: visuallyRestricted ? 0.6 : (isDisabled ? 0.4 : 1),
                       }}
                     >
                       <IconComponent
                         name={icon.name as any}
                         size={28}
-                        color={isDark ? "#ffffff" : icon.color}
+                        color={isDark ? "#ffffff" : (visuallyRestricted ? "#9ca3af" : icon.color)}
                       />
                     </TouchableOpacity>
                   </RNView>
@@ -395,6 +446,7 @@ export default function CampaignPost() {
                       textAlign: "center",
                       fontSize: 14,
                       fontWeight: "bold",
+                      opacity: visuallyRestricted ? 0.6 : 1,
                     }}
                   >
                     {icon.label}
