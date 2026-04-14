@@ -21,6 +21,7 @@ import { Pressable } from "@/components/ui/pressable";
 import { Button, ButtonText } from "@/components/ui/button";
 import { ThemedText } from "@/components/themed-text";
 import { View, Text } from "@gluestack-ui/themed";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function Sidebar() {
   const sidebarOpen = useSidebarStore((state) => state.sidebarOpen);
@@ -118,6 +119,18 @@ export default function Sidebar() {
             >
               <Wallet size={24} color={"#dc2626"} />
               <Text style={styles.menuText}>Billing History</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.menuItem}
+              onPress={() => navigate("/templet")}
+            >
+              {/* <Wallet size={24} color={"#dc2626"} /> */}
+              {/* <Ionicons name="grid-outline" size={24} color="#dc2626" /> */}
+              {/* <Ionicons name="copy-outline" size={24} color="#dc2626" /> */}
+              <Ionicons name="layers-outline" size={24} color="#dc2626" />
+              {/* <Ionicons name="document-text-outline" size={24} color="#dc2626" /> */}
+              <Text style={styles.menuText}>Templates</Text>
             </Pressable>
           </View>
         </DrawerBody>

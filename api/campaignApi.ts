@@ -3,7 +3,6 @@ import https from "./https";
 // import * as FileSystem from "expo-file-system";
 
 // ---------------------- Types ---------------------- //
-// export type AuthToken = string;
 
 export interface CampaignData {
   id?: number;
@@ -22,12 +21,10 @@ export interface CampaignPostData {
   mediaUrls?: string[];
   scheduledPostTime: string;
 
-  // ✅ PINTEREST (ROOT LEVEL — REQUIRED)
   pinterestBoardId?: string;
   pinterestLink?: string;
   thumbnailUrl?: string | null;
 
-  // ✅ OTHER PLATFORMS (keep metadata generic)
   isReel?: boolean;
   postType?: string;
   coverImage?: string | null;
@@ -41,7 +38,7 @@ export interface CampaignPostData {
     playlistTitle?: string;
     coverImage?: string | null;
     isReel?: boolean;
-    coverUrl?: string | null; // Added alias
+    coverUrl?: string | null;
   };
 }
 
@@ -143,7 +140,6 @@ export const getPostsByCampaignIdApi = async (campaignId: number) => {
   }
 };
 
-
 // Create a post for a specific campaign
 
 export const createPostForCampaignApi = async (
@@ -152,9 +148,9 @@ export const createPostForCampaignApi = async (
   token?: string,
 ) => {
   console.log(
-  "🧩 [CreatePost] Payload being sent:",
-  JSON.stringify(data, null, 2)
-);
+    "🧩 [CreatePost] Payload being sent:",
+    JSON.stringify(data, null, 2),
+  );
   try {
     const response = await https.post(`/campaigns/${campaignId}/posts`, data, {
       headers: {
@@ -354,8 +350,8 @@ export interface AIImageRequest {
 }
 
 export interface AIImageResponse {
-  imagePrompt?: string; 
-  imageUrl?: string;    
+  imagePrompt?: string;
+  imageUrl?: string;
   message?: string;
   provider?: string;
   success?: boolean;
@@ -380,7 +376,7 @@ export const generateAIImageApi = async (
   } catch (error: any) {
     console.error(
       "AI Image Generation API Error:",
-      error.response ? error.response.data : error.message
+      error.response ? error.response.data : error.message,
     );
     throw error;
   }
@@ -473,7 +469,9 @@ export interface YouTubePlaylist {
   title: string;
 }
 
-export const getYouTubePlaylistsApi = async (token?: string): Promise<YouTubePlaylist[]> => {
+export const getYouTubePlaylistsApi = async (
+  token?: string,
+): Promise<YouTubePlaylist[]> => {
   try {
     const response = await https.get("/youtube/playlists", {
       headers: {
@@ -495,93 +493,121 @@ export const getYouTubePlaylistsApi = async (token?: string): Promise<YouTubePla
 export const uploadMediaApi = async (
   attachment: { uri: string; name: string; type: string },
   token: string,
-  onProgress?: (percentage: number) => void
+  onProgress?: (percentage: number) => void,
+  options?: {
+    organisationId?: number | string;
+    campaignId?: string | number;
+    isReel?: boolean;
+    platform?: string;
+  },
 ): Promise<string> => {
   try {
     console.log("🔄 Starting upload process for:", attachment.name);
 
     // Get Base URL from env and ensure correct formatting
-    const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
-    const uploadRefUrl = `${baseUrl}/upload`;
-    
+    const baseUrl =
+      process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
+    const uploadRefUrl = `${baseUrl}/upload/google-drive/resumable`;
+
     console.log("📍 Token Endpoint:", uploadRefUrl);
 
-    // 1️⃣ Get upload token and details from backend using FETCH
+    // 1️⃣ Initialize resumable upload
     const payload = {
-      type: "blob.generate-client-token",
-      payload: {
-        pathname: attachment.name,
-        clientPayload: JSON.stringify({ token }),
-        multipart: false,
-      },
+      fileName: attachment.name,
+      mimeType: attachment.type,
+
+      ...(options?.organisationId !== undefined && {
+        organisationId: options.organisationId,
+      }),
+
+      ...(options?.campaignId !== undefined && {
+        campaignId: String(options.campaignId),
+      }),
+
+      ...(options?.isReel !== undefined && {
+        isReel: options.isReel,
+      }),
+
+      ...(options?.platform && {
+        platform: options.platform,
+      }),
     };
 
-    const tokenRes = await fetch(uploadRefUrl, {
+    const initRes = await fetch(uploadRefUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`, 
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(payload),
     });
 
-    if (!tokenRes.ok) {
-        const errorText = await tokenRes.text();
-        throw new Error(`Token request failed: ${tokenRes.status} ${errorText}`);
+    if (!initRes.ok) {
+      const errorText = await initRes.text();
+      throw new Error(`Upload init failed: ${initRes.status} ${errorText}`);
     }
 
-    const data = await tokenRes.json();
+    const initData = await initRes.json();
 
-    if (!data.clientToken) {
-        throw new Error("Upload failed: No clientToken returned from backend");
+    // Extract upload URL from initData
+    const uploadUrl =
+      initData.data?.uploadUrl ||
+      initData.uploadUrl ||
+      initData.url ||
+      initData.resumableUrl;
+
+    if (!uploadUrl) {
+      console.error("No uploadUrl returned from POST init:", initData);
+      throw new Error(
+        "Upload failed: No upload URL returned from backend init step",
+      );
     }
 
     // 2️⃣ Read file as Blob
     const fileResponse = await fetch(attachment.uri);
     const blob = await fileResponse.blob();
 
-    // 3️⃣ Upload to Vercel Blob directly
-    // If backend didn't give a URL, we construct the standard Vercel Blob upload URL
-    const uploadBase = "https://blob.vercel-storage.com";
-    const pathname = attachment.name.startsWith("/") ? attachment.name : `/${attachment.name}`;
-    
-    // Vercel Blob often requires the token in the query params for direct client uploads
-    const clientToken = data.clientToken;
-    const urlWithToken = data.url || `${uploadBase}${pathname}?token=${clientToken}`;
+    console.log("📤 Uploading bytes to:", uploadUrl);
 
-    const putHeaders: any = {
-      ...(data.headers || {}),
-      "Content-Type": attachment.type,
-      "x-vercel-blob-token": clientToken, 
-      "x-vercel-blob-add-random-suffix": "1",
-      "Authorization": `Bearer ${clientToken}`, // Explicitly adding Authorization header as requested by 403 error
-    };
-
-    console.log("📤 Uploading to Blob Store:", urlWithToken);
-
-    const uploadRes = await fetch(urlWithToken, {
+    // 3️⃣ Upload bytes to Google Drive directly (or proxy URL) via PUT
+    const uploadRes = await fetch(uploadUrl, {
       method: "PUT",
-      headers: putHeaders,
+      headers: {
+        "Content-Type": attachment.type,
+      },
       body: blob,
     });
 
     if (!uploadRes.ok) {
-        const text = await uploadRes.text();
-        throw new Error(`Upload to Vercel Blob failed: ${uploadRes.status} ${text}`);
+      const text = await uploadRes.text();
+      throw new Error(`Upload PUT failed: ${uploadRes.status} ${text}`);
     }
-    
-    // 4️⃣ Get public URL from response
-    // The successful PUT response from Vercel Blob contains the file metadata
-    const uploadResult = await uploadRes.json();
-    const publicUrl = uploadResult.url;
 
-    if (!publicUrl) {
-       throw new Error("Upload succeeded but no URL returned in body");
+    // 4️⃣ Get result from response
+    let uploadResult: any = {};
+    try {
+      const respText = await uploadRes.text();
+      if (respText) {
+        uploadResult = JSON.parse(respText);
+      }
+    } catch {
+      console.log("PUT response is not JSON");
     }
-    
+
+    const resultData = uploadResult.data || uploadResult;
+    const fileId = resultData?.id || initData.data?.id;
+    let publicUrl = "";
+
+    if (fileId) {
+      publicUrl = `https://drive.google.com/file/d/${fileId}/view`;
+    } else if (resultData?.url) {
+      publicUrl = resultData.url;
+    } else {
+      publicUrl = uploadUrl;
+    }
+
     console.log("✅ File uploaded successfully:", publicUrl);
     return publicUrl;
-
   } catch (error: any) {
     console.error("Upload Media API Error:", error.message);
     throw error;
