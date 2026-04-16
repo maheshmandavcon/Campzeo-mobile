@@ -13,7 +13,8 @@ import {
 import { Platform } from "react-native";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useAuth } from "@clerk/clerk-expo";
@@ -22,13 +23,10 @@ import * as DocumentPicker from "expo-document-picker";
 import { uploadMediaApi } from "@/api/campaignApi";
 import { getUser } from "@/api/dashboardApi";
 import { Video, ResizeMode } from "expo-av";
+import { templetApi, TemplateData } from "@/api/templetApi";
 
-
-// ─── Constants ─────────────────────────────────────────────────────────────
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = SCREEN_WIDTH - 32;
-
-// ─── Types ──────────────────────────────────────────────────────────────────
 
 type PlatformType =
   | "EMAIL"
@@ -39,8 +37,6 @@ type PlatformType =
   | "YOUTUBE"
   | "WHATSAPP"
   | "PINTEREST";
-
-// ─── Platform config ─────────────────────────────────────────────────────────
 
 const PLATFORMS: {
   value: PlatformType;
@@ -58,8 +54,6 @@ const PLATFORMS: {
     { value: "SMS", label: "SMS", icon: "chatbubble-ellipses-outline", iconLib: "ionicons", color: "#10b981" },
     { value: "WHATSAPP", label: "WhatsApp", icon: "logo-whatsapp", iconLib: "ionicons", color: "#25D366" },
   ];
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const getPlatformConfig = (p: PlatformType) => PLATFORMS.find((x) => x.value === p)!;
 
@@ -80,10 +74,11 @@ const PlatformIcon = ({
   return <Ionicons name={cfg.icon as any} size={size} color={c} />;
 };
 
-// ─── Component ───────────────────────────────────────────────────────────────
-
 export default function CreateTemplet() {
   const isDark = useColorScheme() === "dark";
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const isEdit = !!id;
+
 
   const [templateName, setTemplateName] = useState("");
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformType>("EMAIL");
@@ -119,7 +114,39 @@ export default function CreateTemplet() {
     fetchOrgId();
   }, []);
 
-  // ── style helpers ──────────────────────────────────────────────────────────
+  React.useEffect(() => {
+    if (isEdit) {
+      const loadTemplate = async () => {
+        try {
+          const response = await templetApi.getTemplateById(Number(id));
+          if (response.success && response.data) {
+            const t = response.data;
+            setTemplateName(t.name || "");
+            setSelectedPlatform((t.platform as PlatformType) || "EMAIL");
+            setContent(t.content || "");
+            setEmailSubject(t.subject || "");
+            if (t.mediaUrls && t.mediaUrls.length > 0) {
+              setMedia(t.mediaUrls.map(url => ({ uri: url, uploadedUrl: url, type: "image", name: "Existing Media" })));
+            }
+            if (t.metadata) {
+              setPreHeader(t.metadata.preHeader || "");
+              setFacebookContentType(t.metadata.facebookContentType || "STANDARD");
+              setYoutubeContentType(t.metadata.youtubeContentType || "VIDEO");
+              setTags(t.metadata.tags || "");
+              setPrivacyStatus(t.metadata.privacyStatus || "PUBLIC");
+              setPlaylist(t.metadata.playlist || "");
+              setDestinationLink(t.metadata.destinationLink || "");
+            }
+          }
+        } catch (err) {
+          console.error("Failed to load template for edit:", err);
+          Alert.alert("Error", "Could not load template data.");
+        }
+      };
+      loadTemplate();
+    }
+  }, [id]);
+
 
   const bg = isDark ? "#161618" : "#f3f4f6";
   const card = isDark ? "#1f2937" : "#ffffff";
@@ -148,8 +175,6 @@ export default function CreateTemplet() {
     letterSpacing: 0.5,
   };
 
-  // ── handlers ──────────────────────────────────────────────────────────────
-
   const handleCreate = async () => {
     if (!templateName.trim()) {
       Alert.alert("Validation", "Please enter a template name.");
@@ -166,29 +191,47 @@ export default function CreateTemplet() {
 
     setSubmitting(true);
     try {
-    console.log("Creating template:", {
-      templateName,
-      selectedPlatform,
-      preHeader,
-      emailSubject,
-      content,
-      facebookContentType,
-      youtubeContentType,
-      tags,
-      privacyStatus,
-      playlist,
-      destinationLink,
-      mediaCount: media.length,
-    });
-      Alert.alert("Success", "Template created successfully!", [
-        { text: "OK", onPress: () => router.back() },
-      ]);
+      const payload: TemplateData = {
+        name: templateName.trim(),
+        subject: emailSubject.trim(),
+        content: content.trim(),
+        platform: selectedPlatform,
+        category: "CUSTOM",
+        isActive: true,
+        mediaUrls: media.map((m) => m.uploadedUrl).filter((url): url is string => !!url),
+        metadata: {
+          preHeader,
+          facebookContentType,
+          youtubeContentType,
+          tags,
+          privacyStatus,
+          playlist,
+          destinationLink,
+        },
+      };
+
+      const response = isEdit
+        ? await templetApi.updateTemplate(Number(id), payload)
+        : await templetApi.createTemplate(payload);
+
+      if (response.success) {
+        Alert.alert("Success", response.message || `Template ${isEdit ? "updated" : "created"} successfully!`, [
+          { text: "OK", onPress: () => router.back() },
+        ]);
+      } else {
+        throw new Error(response.message || `Failed to ${isEdit ? "update" : "create"} template.`);
+      }
     } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to create template.");
+      console.error("Template submission error:", e);
+      Alert.alert(
+        "Error",
+        e.response?.data?.message || e.message || `Failed to ${isEdit ? "update" : "create"} template.`
+      );
     } finally {
       setSubmitting(false);
     }
   };
+
 
   const handleUpload = async () => {
     try {
@@ -262,30 +305,13 @@ export default function CreateTemplet() {
   };
 
   const handlePlatformSelect = (platform: PlatformType) => {
-    if (platform === "SMS" || platform === "WHATSAPP") {
-      Alert.alert(
-        "Admin Approval Required",
-        "You need admin approval and a credits pack to create templates for SMS/WhatsApp.",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Purchase Pack",
-            onPress: () => router.push("/(tabs)/accounts" as any),
-          },
-        ]
-      );
-      return;
-    }
     setSelectedPlatform(platform);
   };
 
-  // ── preview label ─────────────────────────────────────────────────────────
 
   const contentPlaceholder = selectedPlatform
     ? `Enter your content for ${getPlatformConfig(selectedPlatform).label}...`
     : "Select a platform to start typing...";
-
-  // ── render ────────────────────────────────────────────────────────────────
 
   return (
     <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: bg }}>
@@ -294,7 +320,6 @@ export default function CreateTemplet() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        {/* ── Header ── */}
         <View
           style={{
             flexDirection: "row",
@@ -321,8 +346,9 @@ export default function CreateTemplet() {
           <ThemedText
             style={{ fontSize: 20, fontWeight: "700", color: textPrimary, flex: 1 }}
           >
-            Create New Template
+            {isEdit ? "Edit Template" : "Create New Template"}
           </ThemedText>
+
         </View>
 
         <ScrollView
@@ -330,7 +356,6 @@ export default function CreateTemplet() {
           contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
           keyboardShouldPersistTaps="handled"
         >
-          {/* ── Template Name ── */}
           <ThemedText style={labelStyle}>Template Name</ThemedText>
           <TextInput
             value={templateName}
@@ -340,7 +365,6 @@ export default function CreateTemplet() {
             style={[inputStyle, { marginBottom: 20 }]}
           />
 
-          {/* ── Select Platform ── */}
           <ThemedText style={labelStyle}>Select Platform</ThemedText>
           <ScrollView
             horizontal
@@ -348,8 +372,9 @@ export default function CreateTemplet() {
             contentContainerStyle={{
               flexDirection: "row",
               gap: 8,
-              paddingBottom: 4,
+              paddingVertical: 5,
             }}
+
             style={{ marginBottom: 20 }}
           >
             {PLATFORMS.map((p) => {
@@ -361,14 +386,17 @@ export default function CreateTemplet() {
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
+                    height: 40,
+                    justifyContent: "center",
                     gap: 6,
-                    paddingHorizontal: 14,
-                    paddingVertical: 9,
-                    borderRadius: 20,
+                    paddingHorizontal: 16,
+                    borderRadius: 24,
                     borderWidth: 1.5,
                     borderColor: isActive ? p.color : border,
                     backgroundColor: isActive ? `${p.color}22` : card,
                   }}
+
+
                 >
                   <PlatformIcon
                     platform={p.value}
@@ -380,6 +408,8 @@ export default function CreateTemplet() {
                       fontSize: 13,
                       fontWeight: isActive ? "700" : "500",
                       color: isActive ? p.color : textMuted,
+                      includeFontPadding: false,
+                      textAlignVertical: "center",
                     }}
                   >
                     {p.label}
@@ -389,7 +419,6 @@ export default function CreateTemplet() {
             })}
           </ScrollView>
 
-          {/* ── Pre-header Text (Email only) ── */}
           {selectedPlatform === "EMAIL" && (
             <>
               <ThemedText style={labelStyle}>Pre-header Text</ThemedText>
@@ -408,7 +437,6 @@ export default function CreateTemplet() {
             </>
           )}
 
-          {/* ── Content Type (Facebook/Instagram only) ── */}
           {(selectedPlatform === "FACEBOOK" || selectedPlatform === "INSTAGRAM") && (
             <View style={{ marginBottom: 20 }}>
               <ThemedText style={labelStyle}>Content Type</ThemedText>
@@ -427,8 +455,8 @@ export default function CreateTemplet() {
                       alignItems: "center",
                     }}
                   >
-                    <ThemedText style={{ 
-                      fontSize: 13, 
+                    <ThemedText style={{
+                      fontSize: 13,
                       fontWeight: "600",
                       color: facebookContentType === type ? getPlatformConfig(selectedPlatform).color : textMuted
                     }}>
@@ -440,7 +468,6 @@ export default function CreateTemplet() {
             </View>
           )}
 
-          {/* ── Content Type (YouTube only) ── */}
           {selectedPlatform === "YOUTUBE" && (
             <View style={{ marginBottom: 20 }}>
               <ThemedText style={labelStyle}>Content Type</ThemedText>
@@ -459,8 +486,8 @@ export default function CreateTemplet() {
                       alignItems: "center",
                     }}
                   >
-                    <ThemedText style={{ 
-                      fontSize: 13, 
+                    <ThemedText style={{
+                      fontSize: 13,
                       fontWeight: "600",
                       color: youtubeContentType === type ? getPlatformConfig("YOUTUBE").color : textMuted
                     }}>
@@ -472,7 +499,6 @@ export default function CreateTemplet() {
             </View>
           )}
 
-          {/* ── Playlist & Privacy (YouTube only) ── */}
           {selectedPlatform === "YOUTUBE" && (
             <View style={{ flexDirection: "row", gap: 12, marginBottom: 20 }}>
               <View style={{ flex: 1 }}>
@@ -497,7 +523,6 @@ export default function CreateTemplet() {
             </View>
           )}
 
-          {/* ── Tags (YouTube only) ── */}
           {selectedPlatform === "YOUTUBE" && (
             <View style={{ marginBottom: 20 }}>
               <ThemedText style={labelStyle}>Tags (comma separated)</ThemedText>
@@ -511,7 +536,6 @@ export default function CreateTemplet() {
             </View>
           )}
 
-          {/* ── Destination Link (Pinterest only) ── */}
           {selectedPlatform === "PINTEREST" && (
             <View style={{ marginBottom: 20 }}>
               <ThemedText style={labelStyle}>Destination Link</ThemedText>
@@ -528,7 +552,6 @@ export default function CreateTemplet() {
             </View>
           )}
 
-          {/* ── Custom Thumbnail (YouTube only) ── */}
           {selectedPlatform === "YOUTUBE" && (
             <View style={{ marginBottom: 20 }}>
               <ThemedText style={labelStyle}>Custom Thumbnail</ThemedText>
@@ -552,134 +575,136 @@ export default function CreateTemplet() {
             </View>
           )}
 
-          {/* ── Upload Media ── */}
-          <ThemedText style={labelStyle}>Upload Media (Optional)</ThemedText>
-          <ThemedText style={{ fontSize: 12, color: textMuted, marginBottom: 10 }}>
-            Upload Images/Videos
-          </ThemedText>
-          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6, gap: 10 }}>
-            <TouchableOpacity
-              onPress={handleUpload}
-              disabled={uploading}
-              style={{
-                width: 70,
-                height: 70,
-                borderWidth: 1.5,
-                borderStyle: "dashed",
-                borderColor: isDark ? "#4b5563" : "#d1d5db",
-                borderRadius: 12,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: card,
-                opacity: uploading ? 0.6 : 1,
-              }}
-            >
-              {uploading ? (
-                <View style={{ alignItems: "center" }}>
-                  <Ionicons name="hourglass-outline" size={20} color={textMuted} />
-                  <ThemedText style={{ fontSize: 8, color: textMuted }}>UPLOADING</ThemedText>
-                </View>
-              ) : (
-                <Ionicons name="add" size={28} color={textMuted} />
-              )}
-            </TouchableOpacity>
+          {selectedPlatform !== "SMS" && (
+            <>
+              <ThemedText style={labelStyle}>Upload Media (Optional)</ThemedText>
+              <ThemedText style={{ fontSize: 12, color: textMuted, marginBottom: 10 }}>
+                Upload Images/Videos
+              </ThemedText>
+              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6, gap: 10 }}>
 
-             <ScrollView 
-               horizontal 
-               showsHorizontalScrollIndicator={false} 
-               contentContainerStyle={{ gap: 12, paddingVertical: 10, paddingHorizontal: 4 }}
-             >
-               {media.map((item, index) => (
-                 <View key={index} style={{ position: "relative", marginRight: 4 }}>
-                   <View
-                     style={{
-                       width: 70,
-                       height: 70,
-                      borderRadius: 12,
-                      overflow: "hidden",
-                      backgroundColor: inputBg,
-                      borderWidth: 1,
-                      borderColor: border,
-                    }}
-                  >
-                    {/* Placeholder for actual image component */}
-                    {item.type === "image" ? (
-                      <Image
-                        source={{ uri: item.uri || item.uploadedUrl }}
-                        style={{ width: "100%", height: "100%" }}
-                        resizeMode="cover"
-                      />
-                    ) : item.type === "video" ? (
-                      <View style={{ flex: 1 }}>
-                        <Video
-                          source={{ uri: item.uri || item.uploadedUrl || "" }}
-                          style={{ width: "100%", height: "100%" }}
-                          resizeMode={ResizeMode.COVER}
-                          shouldPlay={true}
-                          isLooping={true}
-                          isMuted={true}
-                          useNativeControls={false}
-                        />
-                        <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.2)" }}>
-                           <Ionicons name="play" size={24} color="#fff" />
-                        </View>
-                      </View>
-                    ) : (
+                <TouchableOpacity
+                  onPress={handleUpload}
+                  disabled={uploading}
+                  style={{
+                    width: 70,
+                    height: 70,
+                    borderWidth: 1.5,
+                    borderStyle: "dashed",
+                    borderColor: isDark ? "#4b5563" : "#d1d5db",
+                    borderRadius: 12,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: card,
+                    opacity: uploading ? 0.6 : 1,
+                  }}
+                >
+                  {uploading ? (
+                    <View style={{ alignItems: "center" }}>
+                      <Ionicons name="hourglass-outline" size={20} color={textMuted} />
+                      <ThemedText style={{ fontSize: 8, color: textMuted }}>UPLOADING</ThemedText>
+                    </View>
+                  ) : (
+                    <Ionicons name="add" size={28} color={textMuted} />
+                  )}
+                </TouchableOpacity>
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 12, paddingVertical: 10, paddingHorizontal: 4 }}
+                >
+                  {media.map((item, index) => (
+                    <View key={index} style={{ position: "relative", marginRight: 4 }}>
                       <View
                         style={{
-                          flex: 1,
-                          backgroundColor: "#ef444411",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: 4,
+                          width: 70,
+                          height: 70,
+                          borderRadius: 12,
+                          overflow: "hidden",
+                          backgroundColor: inputBg,
+                          borderWidth: 1,
+                          borderColor: border,
                         }}
                       >
-                        <Ionicons
-                          name="document-text-outline"
-                          size={24}
-                          color="#ef4444"
-                        />
-                        <ThemedText style={{ fontSize: 9, fontWeight: "700", color: "#ef4444" }}>
-                          PDF
-                        </ThemedText>
+                        {item.type === "image" ? (
+                          <Image
+                            source={{ uri: item.uri || item.uploadedUrl }}
+                            style={{ width: "100%", height: "100%" }}
+                            resizeMode="cover"
+                          />
+                        ) : item.type === "video" ? (
+                          <View style={{ flex: 1 }}>
+                            <Video
+                              source={{ uri: item.uri || item.uploadedUrl || "" }}
+                              style={{ width: "100%", height: "100%" }}
+                              resizeMode={ResizeMode.COVER}
+                              shouldPlay={true}
+                              isLooping={true}
+                              isMuted={true}
+                              useNativeControls={false}
+                            />
+                            <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.2)" }}>
+                              <Ionicons name="play" size={24} color="#fff" />
+                            </View>
+                          </View>
+                        ) : (
+                          <View
+                            style={{
+                              flex: 1,
+                              backgroundColor: "#ef444411",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 4,
+                            }}
+                          >
+                            <Ionicons
+                              name="document-text-outline"
+                              size={24}
+                              color="#ef4444"
+                            />
+                            <ThemedText style={{ fontSize: 9, fontWeight: "700", color: "#ef4444" }}>
+                              PDF
+                            </ThemedText>
+                          </View>
+                        )}
                       </View>
-                    )}
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => removeMedia(index)}
-                    style={{
-                      position: "absolute",
-                      top: -8,
-                      right: -8,
-                      backgroundColor: "#ef4444",
-                      width: 22,
-                      height: 22,
-                      borderRadius: 11,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      zIndex: 20,
-                      borderWidth: 2,
-                      borderColor: "#fff",
-                      shadowColor: "#000",
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.25,
-                      shadowRadius: 3.84,
-                      elevation: 5,
-                    }}
-                  >
-                    <Ionicons name="close" size={14} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-          <ThemedText
-            style={{ fontSize: 12, color: textMuted, marginBottom: 20 }}
-          >
-            Images and videos can be changed when creating posts
-          </ThemedText>
+                      <TouchableOpacity
+                        onPress={() => removeMedia(index)}
+                        style={{
+                          position: "absolute",
+                          top: -8,
+                          right: -8,
+                          backgroundColor: "#ef4444",
+                          width: 22,
+                          height: 22,
+                          borderRadius: 11,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          zIndex: 20,
+                          borderWidth: 2,
+                          borderColor: "#fff",
+                          shadowColor: "#000",
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.25,
+                          shadowRadius: 3.84,
+                          elevation: 5,
+                        }}
+                      >
+                        <Ionicons name="close" size={14} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+              <ThemedText
+                style={{ fontSize: 12, color: textMuted, marginBottom: 20 }}
+              >
+                Images and videos can be changed when creating posts
+              </ThemedText>
+            </>
+          )}
 
-          {/* ── Subject / Title ── */}
           {(selectedPlatform === "EMAIL" || selectedPlatform === "FACEBOOK" || selectedPlatform === "INSTAGRAM" || selectedPlatform === "LINKEDIN" || selectedPlatform === "PINTEREST" || selectedPlatform === "YOUTUBE") && (
             <>
               <ThemedText style={labelStyle}>
@@ -689,9 +714,9 @@ export default function CreateTemplet() {
                 value={emailSubject}
                 onChangeText={setEmailSubject}
                 placeholder={
-                  selectedPlatform === "EMAIL" ? "Enter email subject" : 
-                  selectedPlatform === "YOUTUBE" ? "Enter video title" : 
-                  "Enter post title"
+                  selectedPlatform === "EMAIL" ? "Enter email subject" :
+                    selectedPlatform === "YOUTUBE" ? "Enter video title" :
+                      "Enter post title"
                 }
                 placeholderTextColor={textMuted}
                 style={[inputStyle, { marginBottom: 20 }]}
@@ -699,9 +724,6 @@ export default function CreateTemplet() {
             </>
           )}
 
-
-
-          {/* ── Live Preview ── */}
           <ThemedText style={labelStyle}>Live Preview</ThemedText>
           <ThemedText style={{ fontSize: 12, color: textMuted, marginBottom: 10 }}>
             Type directly in the preview to see how your content will appear on {selectedPlatform}
@@ -732,6 +754,7 @@ export default function CreateTemplet() {
                 </ThemedText>
               </View>
 
+
               <View style={{ padding: 14, gap: 8 }}>
                 <View style={{ flexDirection: "row", gap: 6 }}>
                   <ThemedText style={{ fontSize: 12, color: textMuted, width: 50 }}>Subject:</ThemedText>
@@ -743,21 +766,21 @@ export default function CreateTemplet() {
                   <ThemedText style={{ fontSize: 12, color: textMuted, width: 50 }}>From:</ThemedText>
                   <ThemedText style={{ fontSize: 12, color: textMuted }}>your-brand@company.com</ThemedText>
                 </View>
-                
+
                 <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: border, paddingTop: 10 }}>
-                   <TextInput
-                     value={content}
-                     onChangeText={setContent}
-                     placeholder="Email content..."
-                     placeholderTextColor={textMuted}
-                     multiline
-                     style={{
-                       fontSize: 14,
-                       color: textPrimary,
-                       lineHeight: 20,
-                       minHeight: 100,
-                     }}
-                   />
+                  <TextInput
+                    value={content}
+                    onChangeText={setContent}
+                    placeholder="Email content..."
+                    placeholderTextColor={textMuted}
+                    multiline
+                    style={{
+                      fontSize: 14,
+                      color: textPrimary,
+                      lineHeight: 20,
+                      minHeight: 100,
+                    }}
+                  />
                 </View>
               </View>
             </ThemedView>
@@ -772,10 +795,9 @@ export default function CreateTemplet() {
                 marginBottom: 20,
               }}
             >
-              {/* FB Preview Header */}
               <View style={{ padding: 12, flexDirection: "row", alignItems: "center", gap: 10 }}>
                 <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: "#E4E6EB", alignItems: "center", justifyContent: "center" }}>
-                   <Ionicons name="person" size={20} color="#8A8D91" />
+                  <Ionicons name="person" size={20} color="#8A8D91" />
                 </View>
                 <View>
                   <ThemedText style={{ fontWeight: "700", fontSize: 14 }}>Your Brand</ThemedText>
@@ -786,7 +808,6 @@ export default function CreateTemplet() {
                 </View>
               </View>
 
-              {/* FB Content */}
               <View style={{ padding: 12, paddingTop: 0 }}>
                 <TextInput
                   value={content}
@@ -803,18 +824,17 @@ export default function CreateTemplet() {
                 />
               </View>
 
-              {/* FB Media */}
               {media.length > 0 && (
-                <View style={{ 
-                  aspectRatio: facebookContentType === "REEL" ? 9/16 : 1.91, 
+                <View style={{
+                  aspectRatio: facebookContentType === "REEL" ? 9 / 16 : 1.91,
                   maxHeight: facebookContentType === "REEL" ? 400 : undefined,
                   backgroundColor: inputBg,
                   overflow: "hidden"
                 }}>
                   {media[0].type === "video" ? (
-                    <TouchableOpacity 
-                      activeOpacity={0.9} 
-                      onPress={() => setIsPlayingPreview(!isPlayingPreview)} 
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      onPress={() => setIsPlayingPreview(!isPlayingPreview)}
                       style={{ flex: 1 }}
                     >
                       <Video
@@ -833,8 +853,8 @@ export default function CreateTemplet() {
                       )}
                     </TouchableOpacity>
                   ) : media[0].type === "image" ? (
-                    <Image 
-                      source={{ uri: media[0].uri || media[0].uploadedUrl || "" }} 
+                    <Image
+                      source={{ uri: media[0].uri || media[0].uploadedUrl || "" }}
                       style={{ width: "100%", height: "100%" }}
                       resizeMode="cover"
                     />
@@ -867,7 +887,6 @@ export default function CreateTemplet() {
                 marginBottom: 20,
               }}
             >
-              {/* Instagram Header */}
               <View style={{ padding: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
                   <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: "#E4E6EB", alignItems: "center", justifyContent: "center" }}>
@@ -878,20 +897,19 @@ export default function CreateTemplet() {
                 <Ionicons name="ellipsis-horizontal" size={18} color={textPrimary} />
               </View>
 
-              {/* Instagram Media */}
-              <View style={{ 
-                aspectRatio: facebookContentType === "REEL" ? 9/16 : 1, 
+              <View style={{
+                aspectRatio: facebookContentType === "REEL" ? 9 / 16 : 1,
                 maxHeight: facebookContentType === "REEL" ? 400 : undefined,
-                backgroundColor: isDark ? "#1f2937" : "#f1f5f9", 
-                alignItems: "center", 
+                backgroundColor: isDark ? "#1f2937" : "#f1f5f9",
+                alignItems: "center",
                 justifyContent: "center",
                 overflow: "hidden"
               }}>
                 {media.length > 0 ? (
                   media[0].type === "video" ? (
-                    <TouchableOpacity 
-                      activeOpacity={0.9} 
-                      onPress={() => setIsPlayingPreview(!isPlayingPreview)} 
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      onPress={() => setIsPlayingPreview(!isPlayingPreview)}
                       style={{ flex: 1, width: "100%" }}
                     >
                       <Video
@@ -910,8 +928,8 @@ export default function CreateTemplet() {
                       )}
                     </TouchableOpacity>
                   ) : (
-                    <Image 
-                      source={{ uri: media[0].uri || media[0].uploadedUrl || "" }} 
+                    <Image
+                      source={{ uri: media[0].uri || media[0].uploadedUrl || "" }}
                       style={{ width: "100%", height: "100%" }}
                       resizeMode="cover"
                     />
@@ -921,17 +939,15 @@ export default function CreateTemplet() {
                 )}
               </View>
 
-              {/* Instagram Interactions */}
               <View style={{ padding: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                 <View style={{ flexDirection: "row", gap: 16 }}>
-                   <Ionicons name="heart-outline" size={24} color={textPrimary} />
-                   <Ionicons name="chatbubble-outline" size={24} color={textPrimary} />
-                   <Ionicons name="paper-plane-outline" size={24} color={textPrimary} />
+                  <Ionicons name="heart-outline" size={24} color={textPrimary} />
+                  <Ionicons name="chatbubble-outline" size={24} color={textPrimary} />
+                  <Ionicons name="paper-plane-outline" size={24} color={textPrimary} />
                 </View>
                 <Ionicons name="bookmark-outline" size={24} color={textPrimary} />
               </View>
 
-              {/* Instagram Caption Editor */}
               <View style={{ paddingHorizontal: 12, paddingBottom: 12, gap: 4 }}>
                 <ThemedText style={{ fontWeight: "700", fontSize: 13 }}>yourbrand</ThemedText>
                 <TextInput
@@ -960,10 +976,9 @@ export default function CreateTemplet() {
                 marginBottom: 20,
               }}
             >
-              {/* LinkedIn Header */}
               <View style={{ padding: 12, flexDirection: "row", gap: 10 }}>
                 <View style={{ width: 48, height: 48, backgroundColor: "#0077B5", borderRadius: 4, alignItems: "center", justifyContent: "center" }}>
-                   <Ionicons name="business" size={24} color="#fff" />
+                  <Ionicons name="business" size={24} color="#fff" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <ThemedText style={{ fontWeight: "700", fontSize: 14 }}>Your Brand</ThemedText>
@@ -975,7 +990,6 @@ export default function CreateTemplet() {
                 </View>
               </View>
 
-              {/* LinkedIn Content */}
               <View style={{ padding: 12, paddingTop: 0, gap: 8 }}>
                 {emailSubject && (
                   <ThemedText style={{ fontWeight: "700", fontSize: 15, color: textPrimary }}>
@@ -997,13 +1011,12 @@ export default function CreateTemplet() {
                 />
               </View>
 
-              {/* LinkedIn Media */}
               {media.length > 0 && (
                 <View style={{ aspectRatio: 1.91, backgroundColor: inputBg, overflow: "hidden" }}>
                   {media[0].type === "video" ? (
-                    <TouchableOpacity 
-                      activeOpacity={0.9} 
-                      onPress={() => setIsPlayingPreview(!isPlayingPreview)} 
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      onPress={() => setIsPlayingPreview(!isPlayingPreview)}
                       style={{ flex: 1 }}
                     >
                       <Video
@@ -1022,8 +1035,8 @@ export default function CreateTemplet() {
                       )}
                     </TouchableOpacity>
                   ) : media[0].type === "image" ? (
-                    <Image 
-                      source={{ uri: media[0].uri || media[0].uploadedUrl || "" }} 
+                    <Image
+                      source={{ uri: media[0].uri || media[0].uploadedUrl || "" }}
                       style={{ width: "100%", height: "100%" }}
                       resizeMode="cover"
                     />
@@ -1044,8 +1057,8 @@ export default function CreateTemplet() {
                   <ThemedText style={{ fontSize: 11, color: textMuted, fontWeight: "600" }}>Repost</ThemedText>
                 </View>
                 <View style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                   <Ionicons name="paper-plane-outline" size={18} color={textMuted} />
-                   <ThemedText style={{ fontSize: 11, color: textMuted, fontWeight: "600" }}>Send</ThemedText>
+                  <Ionicons name="paper-plane-outline" size={18} color={textMuted} />
+                  <ThemedText style={{ fontSize: 11, color: textMuted, fontWeight: "600" }}>Send</ThemedText>
                 </View>
               </View>
             </ThemedView>
@@ -1060,20 +1073,19 @@ export default function CreateTemplet() {
                 marginBottom: 20,
               }}
             >
-              {/* YouTube Video Header (Player Mock) */}
-              <View style={{ 
-                aspectRatio: youtubeContentType === "SHORT" ? 9/16 : 16/9, 
+              <View style={{
+                aspectRatio: youtubeContentType === "SHORT" ? 9 / 16 : 16 / 9,
                 maxHeight: youtubeContentType === "SHORT" ? 400 : undefined,
-                backgroundColor: "#000", 
-                alignItems: "center", 
+                backgroundColor: "#000",
+                alignItems: "center",
                 justifyContent: "center",
                 overflow: "hidden"
               }}>
                 {media.length > 0 ? (
                   media[0].type === "video" ? (
-                    <TouchableOpacity 
-                      activeOpacity={0.9} 
-                      onPress={() => setIsPlayingPreview(!isPlayingPreview)} 
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      onPress={() => setIsPlayingPreview(!isPlayingPreview)}
                       style={{ flex: 1, width: "100%" }}
                     >
                       <Video
@@ -1092,8 +1104,8 @@ export default function CreateTemplet() {
                       )}
                     </TouchableOpacity>
                   ) : (
-                    <Image 
-                      source={{ uri: media[0].uri || media[0].uploadedUrl || "" }} 
+                    <Image
+                      source={{ uri: media[0].uri || media[0].uploadedUrl || "" }}
                       style={{ width: "100%", height: "100%" }}
                       resizeMode="cover"
                     />
@@ -1103,7 +1115,6 @@ export default function CreateTemplet() {
                 )}
               </View>
 
-              {/* YouTube Info Area */}
               <View style={{ padding: 12 }}>
                 <ThemedText style={{ fontWeight: "700", fontSize: 16 }}>
                   {emailSubject || "Video title..."}
@@ -1121,7 +1132,6 @@ export default function CreateTemplet() {
                   </View>
                 </View>
 
-                {/* Description Area */}
                 <View style={{ marginTop: 16, backgroundColor: isDark ? "#2d3748" : "#f1f5f9", borderRadius: 12, padding: 12 }}>
                   <ThemedText style={{ fontSize: 12, fontWeight: "700", color: textPrimary, marginBottom: 4 }}>
                     Description
@@ -1153,11 +1163,10 @@ export default function CreateTemplet() {
                 marginBottom: 20,
               }}
             >
-              {/* Pinterest Image/Video Paging Carousel */}
-              <View style={{ aspectRatio: 2/3, backgroundColor: isDark ? "#1f2937" : "#f1f5f9" }}>
-                <ScrollView 
-                  horizontal 
-                  pagingEnabled 
+              <View style={{ aspectRatio: 2 / 3, backgroundColor: isDark ? "#1f2937" : "#f1f5f9" }}>
+                <ScrollView
+                  horizontal
+                  pagingEnabled
                   showsHorizontalScrollIndicator={false}
                   onMomentumScrollEnd={(e) => {
                     const index = Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width);
@@ -1166,11 +1175,11 @@ export default function CreateTemplet() {
                 >
                   {media.length > 0 ? (
                     media.map((item, index) => (
-                      <View key={index} style={{ width: CARD_WIDTH, height: CARD_WIDTH * (3/2) }}> 
+                      <View key={index} style={{ width: CARD_WIDTH, height: CARD_WIDTH * (3 / 2) }}>
                         {item.type === "video" ? (
-                          <TouchableOpacity 
-                            activeOpacity={0.9} 
-                            onPress={() => setIsPlayingPreview(!isPlayingPreview)} 
+                          <TouchableOpacity
+                            activeOpacity={0.9}
+                            onPress={() => setIsPlayingPreview(!isPlayingPreview)}
                             style={{ flex: 1 }}
                           >
                             <Video
@@ -1189,8 +1198,8 @@ export default function CreateTemplet() {
                             )}
                           </TouchableOpacity>
                         ) : (
-                          <Image 
-                            source={{ uri: item.uri || item.uploadedUrl || "" }} 
+                          <Image
+                            source={{ uri: item.uri || item.uploadedUrl || "" }}
                             style={{ width: "100%", height: "100%" }}
                             resizeMode="cover"
                           />
@@ -1198,7 +1207,7 @@ export default function CreateTemplet() {
                       </View>
                     ))
                   ) : (
-                    <View style={{ width: CARD_WIDTH, height: CARD_WIDTH * (3/2), alignItems: "center", justifyContent: "center" }}>
+                    <View style={{ width: CARD_WIDTH, height: CARD_WIDTH * (3 / 2), alignItems: "center", justifyContent: "center" }}>
                       <Ionicons name="image-outline" size={64} color={textMuted} />
                     </View>
                   )}
@@ -1206,32 +1215,32 @@ export default function CreateTemplet() {
 
                 {/* Save Button (Static Overlay) */}
                 <View style={{ position: "absolute", top: 16, right: 16, backgroundColor: "#E60023", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 }}>
-                   <ThemedText style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>Save</ThemedText>
+                  <ThemedText style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>Save</ThemedText>
                 </View>
 
                 {/* Pagination Dots */}
                 {media.length > 1 && (
-                  <View style={{ 
-                    position: "absolute", 
-                    bottom: 12, 
-                    left: 0, 
-                    right: 0, 
-                    flexDirection: "row", 
-                    justifyContent: "center", 
+                  <View style={{
+                    position: "absolute",
+                    bottom: 12,
+                    left: 0,
+                    right: 0,
+                    flexDirection: "row",
+                    justifyContent: "center",
                     gap: 6,
-                    paddingHorizontal: 20 
+                    paddingHorizontal: 20
                   }}>
                     {media.map((_, i) => (
-                      <View 
-                        key={i} 
-                        style={{ 
-                          width: 6, 
-                          height: 6, 
-                          borderRadius: 3, 
+                      <View
+                        key={i}
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: 3,
                           backgroundColor: pinterestActiveIndex === i ? "#fff" : "rgba(255,255,255,0.5)",
                           borderWidth: 0.5,
                           borderColor: "rgba(0,0,0,0.1)"
-                        }} 
+                        }}
                       />
                     ))}
                   </View>
@@ -1241,7 +1250,7 @@ export default function CreateTemplet() {
               {/* Pinterest Info Area */}
               <View style={{ padding: 16, gap: 10 }}>
                 <ThemedText style={{ fontWeight: "700", fontSize: 20, color: textPrimary }}>
-                   {emailSubject || "Add a title"}
+                  {emailSubject || "Add a title"}
                 </ThemedText>
 
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -1252,19 +1261,19 @@ export default function CreateTemplet() {
                 </View>
 
                 <View style={{ marginTop: 4 }}>
-                   <TextInput
-                     value={content}
-                     onChangeText={setContent}
-                     placeholder="Add a detailed description..."
-                     placeholderTextColor={textMuted}
-                     multiline
-                     style={{
-                       fontSize: 14,
-                       color: textPrimary,
-                       lineHeight: 20,
-                       minHeight: 60,
-                     }}
-                   />
+                  <TextInput
+                    value={content}
+                    onChangeText={setContent}
+                    placeholder="Add a detailed description..."
+                    placeholderTextColor={textMuted}
+                    multiline
+                    style={{
+                      fontSize: 14,
+                      color: textPrimary,
+                      lineHeight: 20,
+                      minHeight: 60,
+                    }}
+                  />
                 </View>
               </View>
             </ThemedView>
@@ -1277,10 +1286,12 @@ export default function CreateTemplet() {
                 borderColor: border,
                 overflow: "hidden",
                 marginBottom: 20,
-                padding: 16,
+                paddingVertical: 16,
+                paddingHorizontal: 8,
               }}
+
             >
-              <View style={{ alignSelf: "flex-start", maxWidth: "85%", backgroundColor: "#E9E9EB", borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8 }}>
+              <View style={{ alignSelf: "flex-end", maxWidth: "88%", backgroundColor: "#007AFF", borderRadius: 18, borderBottomRightRadius: 2, paddingHorizontal: 12, paddingVertical: 8 }}>
                 <TextInput
                   value={content}
                   onChangeText={setContent}
@@ -1289,13 +1300,14 @@ export default function CreateTemplet() {
                   multiline
                   style={{
                     fontSize: 15,
-                    color: "#000",
+                    color: "#fff",
                     lineHeight: 20,
                   }}
                 />
-                <ThemedText style={{ fontSize: 10, color: "#8e8e93", alignSelf: "flex-end", marginTop: 2 }}>
+                <ThemedText style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", alignSelf: "flex-end", marginTop: 2 }}>
                   12:34 PM
                 </ThemedText>
+
               </View>
             </ThemedView>
           ) : selectedPlatform === "WHATSAPP" ? (
@@ -1307,10 +1319,23 @@ export default function CreateTemplet() {
                 borderColor: border,
                 overflow: "hidden",
                 marginBottom: 20,
-                padding: 16,
+                paddingVertical: 16,
+                paddingHorizontal: 8,
               }}
+
             >
-              <View style={{ alignSelf: "flex-start", maxWidth: "85%", backgroundColor: isDark ? "#056162" : "#DCF8C6", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
+              <View style={{ alignSelf: "flex-end", maxWidth: "88%", backgroundColor: isDark ? "#056162" : "#DCF8C6", borderRadius: 10, borderBottomRightRadius: 2, paddingHorizontal: 10, paddingVertical: 6 }}>
+
+                {media.length > 0 && (
+                  <View style={{ marginBottom: 6, borderRadius: 6, overflow: "hidden", width: "100%" }}>
+                    {media[0].type === "image" ? (
+                      <Image source={{ uri: media[0].uri || media[0].uploadedUrl }} style={{ width: "100%", aspectRatio: 4 / 3 }} resizeMode="cover" />
+                    ) : media[0].type === "video" ? (
+                      <Video source={{ uri: media[0].uri || media[0].uploadedUrl || "" }} style={{ width: "100%", aspectRatio: 4 / 3 }} resizeMode={ResizeMode.COVER} shouldPlay isLooping isMuted />
+                    ) : null}
+                  </View>
+                )}
+
                 <TextInput
                   value={content}
                   onChangeText={setContent}
@@ -1324,8 +1349,8 @@ export default function CreateTemplet() {
                   }}
                 />
                 <View style={{ flexDirection: "row", alignItems: "center", alignSelf: "flex-end", gap: 4, marginTop: 2 }}>
-                   <ThemedText style={{ fontSize: 10, color: isDark ? "#91a3a2" : "#8696a0" }}>12:34 PM</ThemedText>
-                   <Ionicons name="checkmark-done" size={14} color="#34B7F1" />
+                  <ThemedText style={{ fontSize: 10, color: isDark ? "#91a3a2" : "#8696a0" }}>12:34 PM</ThemedText>
+                  <Ionicons name="checkmark-done" size={14} color="#34B7F1" />
                 </View>
               </View>
             </ThemedView>
@@ -1365,31 +1390,8 @@ export default function CreateTemplet() {
               />
             </ThemedView>
           )}
-
-          {/* ── Variables tip ── */}
-          {/* <View
-            style={{
-              flexDirection: "row",
-              alignItems: "flex-start",
-              gap: 8,
-              backgroundColor: isDark ? "#1e3a5f" : "#eff6ff",
-              borderRadius: 10,
-              padding: 12,
-              marginBottom: 24,
-            }}
-          >
-            <ThemedText style={{ fontSize: 16 }}>💡</ThemedText>
-            <ThemedText style={{ fontSize: 12, color: isDark ? "#93c5fd" : "#1e40af", flex: 1, lineHeight: 18 }}>
-              Use variables like{" "}
-              <ThemedText style={{ fontWeight: "700" }}>{"{{firstName}}"}</ThemedText>
-              {" "}or{" "}
-              <ThemedText style={{ fontWeight: "700" }}>{"{{companyName}}"}</ThemedText>
-              {" "}to personalize your template.
-            </ThemedText>
-          </View> */}
         </ScrollView>
 
-        {/* ── Footer Buttons ── */}
         <View
           style={{
             flexDirection: "row",
@@ -1438,7 +1440,7 @@ export default function CreateTemplet() {
               <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
             )}
             <ThemedText style={{ color: "#fff", fontWeight: "700", fontSize: 15 }}>
-              {submitting ? "Creating..." : "Create Template"}
+              {submitting ? (isEdit ? "Updating..." : "Creating...") : (isEdit ? "Update Template" : "Create Template")}
             </ThemedText>
           </TouchableOpacity>
         </View>

@@ -15,7 +15,12 @@ import {
   getPinterestBoardsApi,
   updatePostForCampaignApi,
   uploadMediaApi,
+  getMetaAdsAccountsApi,
+  MetaAdsAccount,
 } from "@/api/campaignApi";
+
+import { templetApi, TemplateData } from "@/api/templetApi";
+
 
 export interface Attachment {
   uri: string;
@@ -121,11 +126,12 @@ export function useCampaignPostForm({
 
   // Minimum start date
   const minSelectableStartDate = (() => {
-    if (campaignStartDate && campaignStartDate > today) {
+    if (campaignStartDate) {
       return campaignStartDate;
     }
     return today;
   })();
+
 
   // -------- END DATE --------
   const campaignEndDate = existingPost?.campaign?.endDate
@@ -217,6 +223,84 @@ export function useCampaignPostForm({
   } | null>(null);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
+
+  // ================= TEMPLATES =================
+  const [templates, setTemplates] = useState<TemplateData[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [templateModalVisible, setTemplateModalVisible] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateData | null>(null);
+
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      setLoadingTemplates(true);
+      try {
+        const response = await templetApi.getTemplatesByPlatform(platform);
+        if (response.success) {
+          setTemplates(response.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch templates:", err);
+      } finally {
+        setLoadingTemplates(false);
+      }
+    };
+    fetchTemplates();
+  }, [platform]);
+
+  const handleSelectTemplate = (template: TemplateData | null) => {
+    setSelectedTemplate(template);
+    if (template) {
+      if (template.subject) setSubject(template.subject);
+      if (template.content) setMessage(template.content);
+
+      if (template.mediaUrls && template.mediaUrls.length > 0) {
+        const templateAttachments = template.mediaUrls.map((url, index) => ({
+          uri: url,
+          uploadedUrl: url,
+          name: `template-media-${index + 1}`,
+          type: url.toLowerCase().endsWith(".mp4") ? "video/mp4" : "image/jpeg",
+          uploading: false,
+        }));
+        setAttachments(templateAttachments);
+      }
+    }
+  };
+  // ================= META BOOSTING =================
+  const [metaAccounts, setMetaAccounts] = useState<MetaAdsAccount[]>([]);
+  const [loadingMetaAccounts, setLoadingMetaAccounts] = useState(false);
+  const [isBoosting, setIsBoosting] = useState(false);
+  const [selectedMetaAccount, setSelectedMetaAccount] = useState<MetaAdsAccount | null>(null);
+  const [boostingGoal, setBoostingGoal] = useState<"POST_ENGAGEMENT" | "LEADS">("POST_ENGAGEMENT");
+  const [dailyBudget, setDailyBudget] = useState(5);
+  const [boostingDuration, setBoostingDuration] = useState(7);
+
+  useEffect(() => {
+    const fetchMetaAccounts = async () => {
+      if (platform !== "FACEBOOK" && platform !== "INSTAGRAM") return;
+      setLoadingMetaAccounts(true);
+      try {
+        const token = await getToken();
+        if (token) {
+          const accounts = await getMetaAdsAccountsApi(token);
+          setMetaAccounts(accounts);
+          if (accounts.length > 0) {
+            setSelectedMetaAccount(accounts[0]);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to fetch meta ads accounts:", err);
+      } finally {
+        setLoadingMetaAccounts(false);
+      }
+    };
+    fetchMetaAccounts();
+  }, [platform]);
+
+  const totalBudget = dailyBudget * boostingDuration;
+  const estimatedReach = {
+    min: Math.floor(dailyBudget * 60),
+    max: Math.floor(dailyBudget * 80)
+  };
 
   // ================= LOADING =================
   const [loading, setLoading] = useState(false);
@@ -560,7 +644,15 @@ export function useCampaignPostForm({
           type: tempAttachment.type,
         },
         token,
-        undefined,
+        (progress) => {
+          const visualProgress = Math.min(Math.round(progress), 99);
+          setUploadProgress(visualProgress);
+          setAttachments((prev) =>
+            prev.map((a) =>
+              a.uri === asset.uri ? { ...a, progress: visualProgress } : a
+            )
+          );
+        },
         {
           organisationId,
           campaignId,
@@ -580,12 +672,12 @@ export function useCampaignPostForm({
           a.uri === asset.uri
             ? {
                 ...a,
-                uri: finalUrl,
                 uploadedUrl: finalUrl,
+                progress: 100, // Explicitly mark as 100% now that it's truly done
                 uploading: false,
               }
             : a,
-        ),
+        )
       );
 
       // 6️⃣ Auto content-type detection
@@ -1293,15 +1385,28 @@ export function useCampaignPostForm({
     // FACEBOOK / INSTAGRAM
     if (platform === "FACEBOOK" || platform === "INSTAGRAM") {
        const isActuallyReel = facebookContentType === "REEL";
-       finalMetadata = {
-         ...finalMetadata,
-         postType: facebookContentType,
-         isReel: isActuallyReel,
-         coverImage: coverImage || null,
-         coverUrl: coverImage || null,
-         thumbnailUrl: coverImage || null,
-       };
-    }
+        finalMetadata = {
+          ...finalMetadata,
+          postType: facebookContentType,
+          isReel: isActuallyReel,
+          coverImage: coverImage || null,
+          coverUrl: coverImage || null,
+          thumbnailUrl: coverImage || null,
+        };
+
+        if (isBoosting && selectedMetaAccount) {
+          finalMetadata.boosting = {
+            accountId: selectedMetaAccount.id,
+            accountName: selectedMetaAccount.name,
+            goal: boostingGoal,
+            dailyBudget: dailyBudget,
+            durationDays: boostingDuration,
+            totalBudget: totalBudget,
+            currency: selectedMetaAccount.currency,
+          };
+        }
+      }
+
 
     // LINKEDIN
     if (platform === "LINKEDIN") {
@@ -1350,24 +1455,7 @@ export function useCampaignPostForm({
       JSON.stringify(postData, null, 2)
     );
 
-    // ================= SCHEDULE VALIDATION =================
-    const isFutureDateTime = (date: Date) =>
-      date.getTime() > Date.now();
-
-    if (postDate && !isFutureDateTime(postDate)) {
-      const now = new Date();
-      const future = new Date(now.getTime() + 60 * 1000);
-
-      Alert.alert(
-        "Invalid Time",
-        `Please select a future time (for example, ${future.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}).`
-      );
-
-      return;
-    }
+    // ================= API CALL =================
 
     // ================= API CALL =================
     const token = await getToken();
@@ -1470,6 +1558,21 @@ export function useCampaignPostForm({
     existingPost,
     uploadProgress,
     uploadingMedia,
+    templates,
+    loadingTemplates,
+    templateModalVisible,
+    selectedTemplate,
+    metaAccounts,
+    loadingMetaAccounts,
+    isBoosting,
+    selectedMetaAccount,
+    boostingGoal,
+    dailyBudget,
+    boostingDuration,
+    totalBudget,
+    estimatedReach,
+
+
     playlists,
     showPlaylistDropdown,
     selectedPlaylist,
@@ -1498,7 +1601,9 @@ export function useCampaignPostForm({
     setImageModalVisible,
     setFacebookContentType,
     setSelectedFacebookPage,
+    setTemplateModalVisible,
     setPinterestModalVisible,
+
     setPinterestBoard,
     setPinterestBoardId,
     setNewPinterestBoard,
@@ -1525,6 +1630,12 @@ export function useCampaignPostForm({
     setCanSelectStandard,
     setCanSelectReel,
     setCoverImage,
+    setIsBoosting,
+    setSelectedMetaAccount,
+    setBoostingGoal,
+    setDailyBudget,
+    setBoostingDuration,
+
 
     // actions
     handleAddAttachment,
@@ -1535,6 +1646,8 @@ export function useCampaignPostForm({
     handleCustomThumbnailUpload,
     handleCoverImageUpload,
     handleSelectGeneratedImage,
+    handleSelectTemplate,
     handleSubmit,
   };
+
 }
