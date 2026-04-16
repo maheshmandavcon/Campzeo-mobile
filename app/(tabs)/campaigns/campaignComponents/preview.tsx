@@ -1,14 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import { ResizeMode, Video } from 'expo-av';
 import React, { useRef, useState } from "react";
-import { Dimensions, Image, ScrollView, Text, TouchableOpacity, useColorScheme, View } from "react-native";
+import { Dimensions, Image, ScrollView, Text, TouchableOpacity, useColorScheme, View, Modal, SafeAreaView, FlatList } from "react-native";
 
 type PreviewProps = {
   profilePic?: string;
   platform: string;
   text: string;
   coverImage?: string;
-  images?: string[];
+  images?: string[]; 
+  media?: { uri: string; type: string }[];
   timestamp?: string;
   username: string;
 };
@@ -22,8 +23,21 @@ const Preview: React.FC<PreviewProps> = ({
   text,
   coverImage,
   images = [],
+  media,
   timestamp,
 }) => {
+  const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
+
+  
+  // Normalize media for internal use
+  const normalizedMedia = media || images.map(uri => ({
+    uri,
+    type: uri.match(/\.(mp4|mov|mkv)($|\?)/i) ? "video/mp4" : "image/jpeg"
+  }));
+
+  const isVideo = (item: { uri: string; type: string }) => 
+    item.type.startsWith("video/") || item.uri.match(/\.(mp4|mov|mkv)($|\?)/i);
+
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -71,116 +85,68 @@ const Preview: React.FC<PreviewProps> = ({
     },
   } as const;
 
-  const renderMedia = () => {
-    switch (platform) {
-      case "facebook":
-      case "linkedin":
-        if (!images.length) return null;
-        return renderFacebookPreview(images);
-      case "instagram":
-        if (!images.length) return null;
-        return <InstagramPreview media={images} coverImage={coverImage} />;
-      case "whatsapp":
-        return renderWhatsAppPreview();
-      case "sms":
-        return renderSmsPreview(); // always render SMS
-      case "email":
-        return renderEmailPreview(); // always render email
-      case "pinterest":
-        if (!images.length) return null;
-        return renderPinterestPreview();
-      case "youtube":
-        if (!images.length) return null;
-        return renderYouTubePreview();
-      default:
-        return null;
-    }
-  };
 
   const platformConfig = PLATFORM_CONFIG[platform as keyof typeof PLATFORM_CONFIG];
 
   // Facebook & LinkedIn style media renderer
-  const renderFacebookPreview = (images: string[]) => (
+  const renderFacebookPreview = (media: { uri: string; type: string }[]) => (
     <View className="overflow-hidden mt-2">
-      {images.length === 1 && (
-        images[0].match(/\.(mp4|mov|mkv)$/i) ? (
-          <Video
-            source={{ uri: images[0] }}
-            style={{ width: "100%", height: 300 }}
-            resizeMode={ResizeMode.COVER}
-            shouldPlay
-            isLooping
-            isMuted
-          />
+      {media.length === 1 && (
+        isVideo(media[0]) ? (
+          <TouchableOpacity onPress={() => setFullscreenIndex(0)}>
+            <Video
+              source={{ uri: media[0].uri }}
+              style={{ width: "100%", height: 300 }}
+              resizeMode={ResizeMode.COVER}
+              shouldPlay
+              isLooping
+              isMuted
+            />
+          </TouchableOpacity>
         ) : (
-          <Image source={{ uri: images[0] }} className="w-full h-[300px]" />
+          <TouchableOpacity onPress={() => setFullscreenIndex(0)}>
+            <Image source={{ uri: media[0].uri }} className="w-full h-[300px]" />
+          </TouchableOpacity>
         )
       )}
 
-      {images.length === 2 && (
+      {media.length === 2 && (
         <View className="w-full h-[300px] flex-row">
-          {images.map((uri, index) => (
-            uri.match(/\.(mp4|mov|mkv)$/i) ? (
-              <Video
-                key={index}
-                source={{ uri }}
-                style={{ width: "50%", height: "100%" }}
-                resizeMode={ResizeMode.COVER}
-                shouldPlay
-                isLooping
-                isMuted
-              />
-            ) : (
-              <Image key={index} source={{ uri }} className="w-1/2 h-full" />
-            )
-          ))}
-        </View>
-      )}
-
-      {images.length === 3 && (
-        <View>
-          <View className="flex-row h-[150px]">
-            {images.slice(0, 2).map((uri, index) =>
-              uri.match(/\.(mp4|mov|mkv)$/i) ? (
+          {media.map((item, index) => (
+            <TouchableOpacity 
+              key={index} 
+              onPress={() => setFullscreenIndex(index)}
+              style={{ width: "50%", height: "100%" }}
+            >
+              {isVideo(item) ? (
                 <Video
-                  key={index}
-                  source={{ uri }}
-                  style={{ width: "50%", height: "100%" }}
+                  source={{ uri: item.uri }}
+                  style={{ width: "100%", height: "100%" }}
                   resizeMode={ResizeMode.COVER}
                   shouldPlay
                   isLooping
                   isMuted
                 />
               ) : (
-                <Image key={index} source={{ uri }} className="w-1/2 h-full" />
-              )
-            )}
-          </View>
-          {images[2].match(/\.(mp4|mov|mkv)$/i) ? (
-            <Video
-              source={{ uri: images[2] }}
-              style={{ width: "100%", height: 150 }}
-              resizeMode={ResizeMode.COVER}
-              shouldPlay
-              isLooping
-              isMuted
-            />
-          ) : (
-            <Image source={{ uri: images[2] }} className="w-full h-[150px]" />
-          )}
+                <Image source={{ uri: item.uri }} className="w-full h-full" />
+              )}
+            </TouchableOpacity>
+          ))}
         </View>
       )}
 
-      {images.length >= 4 && (
-        <View className="flex-row flex-wrap h-[300px]">
-          {images.slice(0, 4).map((uri, index) => {
-            const remaining = images.length - 4;
-            const isLast = index === 3;
-            return (
-              <View key={index} className="w-1/2 h-1/2 relative">
-                {uri.match(/\.(mp4|mov|mkv)$/i) ? (
+      {media.length === 3 && (
+        <View>
+          <View className="flex-row h-[150px]">
+            {media.slice(0, 2).map((item, index) => (
+              <TouchableOpacity 
+                key={index} 
+                onPress={() => setFullscreenIndex(index)}
+                style={{ width: "50%", height: "100%" }}
+              >
+                {isVideo(item) ? (
                   <Video
-                    source={{ uri }}
+                    source={{ uri: item.uri }}
                     style={{ width: "100%", height: "100%" }}
                     resizeMode={ResizeMode.COVER}
                     shouldPlay
@@ -188,7 +154,50 @@ const Preview: React.FC<PreviewProps> = ({
                     isMuted
                   />
                 ) : (
-                  <Image source={{ uri }} className="w-full h-full" />
+                  <Image source={{ uri: item.uri }} className="w-full h-full" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TouchableOpacity onPress={() => setFullscreenIndex(2)}>
+            {isVideo(media[2]) ? (
+              <Video
+                source={{ uri: media[2].uri }}
+                style={{ width: "100%", height: 150 }}
+                resizeMode={ResizeMode.COVER}
+                shouldPlay
+                isLooping
+                isMuted
+              />
+            ) : (
+              <Image source={{ uri: media[2].uri }} className="w-full h-[150px]" />
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {media.length >= 4 && (
+        <View className="flex-row flex-wrap h-[300px]">
+          {media.slice(0, 4).map((item, index) => {
+            const remaining = media.length - 4;
+            const isLast = index === 3;
+            return (
+              <TouchableOpacity 
+                key={index} 
+                onPress={() => setFullscreenIndex(index)}
+                className="w-1/2 h-1/2 relative"
+              >
+                {isVideo(item) ? (
+                  <Video
+                    source={{ uri: item.uri }}
+                    style={{ width: "100%", height: "100%" }}
+                    resizeMode={ResizeMode.COVER}
+                    shouldPlay
+                    isLooping
+                    isMuted
+                  />
+                ) : (
+                  <Image source={{ uri: item.uri }} className="w-full h-full" />
                 )}
                 {isLast && remaining > 0 && (
                   <View className="absolute inset-0 bg-black/60 items-center justify-center">
@@ -197,7 +206,7 @@ const Preview: React.FC<PreviewProps> = ({
                     </Text>
                   </View>
                 )}
-              </View>
+              </TouchableOpacity>
             );
           })}
         </View>
@@ -205,8 +214,7 @@ const Preview: React.FC<PreviewProps> = ({
     </View>
   );
 
-  // Instagram style media renderer
-  const InstagramPreview: React.FC<{ media: string[]; coverImage?: string }> = ({ media, coverImage }) => {
+  const InstagramPreview: React.FC<{ media: { uri: string; type: string }[]; coverImage?: string }> = ({ media, coverImage }) => {
     const scrollRef = useRef<ScrollView>(null);
     const [activeIndex, setActiveIndex] = useState(0);
 
@@ -216,9 +224,6 @@ const Preview: React.FC<PreviewProps> = ({
       );
       setActiveIndex(index);
     };
-
-    const isVideo = (uri: string) =>
-      /\.(mp4|mov|mkv)$/i.test(uri);
 
     return (
       <View style={{ marginTop: 10 }}>
@@ -231,18 +236,19 @@ const Preview: React.FC<PreviewProps> = ({
           scrollEventThrottle={16}
           style={{ width: SCREEN_WIDTH }}
         >
-          {media.map((uri, index) => (
-            <View
-              key={index}
+          {media.map((item, index) => (
+            <TouchableOpacity 
+              key={index} 
+              onPress={() => setFullscreenIndex(index)}
               style={{
                 width: SCREEN_WIDTH,
                 height: SCREEN_WIDTH,
                 overflow: "hidden",
               }}
             >
-              {isVideo(uri) ? (
+              {isVideo(item) ? (
                 <Video
-                  source={{ uri }}
+                  source={{ uri: item.uri }}
                   posterSource={index === 0 && coverImage ? { uri: coverImage } : undefined}
                   usePoster={index === 0 && !!coverImage}
                   style={{ width: "100%", height: "100%" }}
@@ -253,12 +259,12 @@ const Preview: React.FC<PreviewProps> = ({
                 />
               ) : (
                 <Image
-                  source={{ uri }}
+                  source={{ uri: item.uri }}
                   style={{ width: "100%", height: "100%" }}
                   resizeMode="cover"
                 />
               )}
-            </View>
+            </TouchableOpacity>
           ))}
         </ScrollView>
 
@@ -289,41 +295,40 @@ const Preview: React.FC<PreviewProps> = ({
     );
   };
 
-  // WhatsApp style media renderer 
   const renderWhatsAppPreview = () => {
-    const isVideo = (uri: string) => /\.(mp4|mov|mkv)$/i.test(uri);
-    const media = images.slice(0, 4);
-    const remaining = images.length - 4;
+    const media = normalizedMedia.slice(0, 4);
+    const remaining = normalizedMedia.length - 4;
 
     const MediaItem = ({
-      uri,
+      item,
+      index,
       style,
       showOverlay,
     }: {
-      uri: string;
+      item: { uri: string; type: string };
+      index: number;
       style: any;
       showOverlay?: boolean;
     }) => {
-      const video = isVideo(uri);
+      const video = isVideo(item);
 
       return (
-        <View style={[style, { overflow: "hidden" }]}>
+        <TouchableOpacity onPress={() => setFullscreenIndex(index)} style={[style, { overflow: "hidden" }]}>
           {video ? (
             <Video
-              source={{ uri }}
+              source={{ uri: item.uri }}
               style={{ width: "100%", height: "100%" }}
               resizeMode={ResizeMode.COVER}
               useNativeControls
             />
           ) : (
             <Image
-              source={{ uri }}
+              source={{ uri: item.uri }}
               style={{ width: "100%", height: "100%" }}
               resizeMode="cover"
             />
           )}
 
-          {/* ▶ PLAY ICON FOR VIDEO */}
           {video && (
             <View className="absolute inset-0 items-center justify-center">
               <View className="bg-black/50 rounded-full p-3">
@@ -340,7 +345,7 @@ const Preview: React.FC<PreviewProps> = ({
               </Text>
             </View>
           )}
-        </View>
+        </TouchableOpacity>
       );
     };
 
@@ -350,19 +355,21 @@ const Preview: React.FC<PreviewProps> = ({
       }}>
         <View className="self-end max-w-[85%] bg-[#dcf8c6] rounded-xl p-2">
           {/* MEDIA */}
-          {images.length === 1 && (
+          {normalizedMedia.length === 1 && (
             <MediaItem
-              uri={images[0]}
+              item={normalizedMedia[0]}
+              index={0}
               style={{ width: 220, height: 220, borderRadius: 12 }}
             />
           )}
 
-          {images.length === 2 && (
+          {normalizedMedia.length === 2 && (
             <View>
-              {media.map((uri, i) => (
+              {media.map((item, i) => (
                 <MediaItem
                   key={i}
-                  uri={uri}
+                  item={item}
+                  index={i}
                   style={{
                     width: 220,
                     height: 110,
@@ -374,10 +381,11 @@ const Preview: React.FC<PreviewProps> = ({
             </View>
           )}
 
-          {images.length === 3 && (
+          {normalizedMedia.length === 3 && (
             <View className="flex-row">
               <MediaItem
-                uri={media[0]}
+                item={media[0]}
+                index={0}
                 style={{
                   width: 110,
                   height: 220,
@@ -387,7 +395,8 @@ const Preview: React.FC<PreviewProps> = ({
               />
               <View>
                 <MediaItem
-                  uri={media[1]}
+                  item={media[1]}
+                  index={1}
                   style={{
                     width: 110,
                     height: 108,
@@ -396,7 +405,8 @@ const Preview: React.FC<PreviewProps> = ({
                   }}
                 />
                 <MediaItem
-                  uri={media[2]}
+                  item={media[2]}
+                  index={2}
                   style={{
                     width: 110,
                     height: 108,
@@ -407,9 +417,9 @@ const Preview: React.FC<PreviewProps> = ({
             </View>
           )}
 
-          {images.length >= 4 && (
+          {normalizedMedia.length >= 4 && (
             <View className="flex-row flex-wrap">
-              {media.slice(0, 4).map((uri, i) => (
+              {media.slice(0, 4).map((item, i) => (
                 <View
                   key={i}
                   style={{
@@ -420,7 +430,8 @@ const Preview: React.FC<PreviewProps> = ({
                   }}
                 >
                   <MediaItem
-                    uri={uri}
+                    item={item}
+                    index={i}
                     showOverlay={i === 3}
                     style={{
                       width: "100%",
@@ -433,12 +444,10 @@ const Preview: React.FC<PreviewProps> = ({
             </View>
           )}
 
-          {/* TEXT */}
           {!!text && (
             <Text className="text-gray-900 mt-2">{text}</Text>
           )}
 
-          {/* TIME + TICKS */}
           <View className="flex-row justify-end items-center mt-1">
             <Text className="text-[10px] text-gray-500 mr-1">
               {timestamp || "12:30 PM"}
@@ -450,7 +459,6 @@ const Preview: React.FC<PreviewProps> = ({
     );
   };
 
-  // Email style media renderer
   const renderEmailPreview = () => (
     <View
       className="border border-gray-300 rounded-lg p-4 bg-white"
@@ -478,15 +486,14 @@ const Preview: React.FC<PreviewProps> = ({
 
       <Text className="text-gray-900 mb-3">{text}</Text>
 
-      {images.length > 0 && renderFacebookPreview(images)}
+      {normalizedMedia.length > 0 && renderFacebookPreview(normalizedMedia)}
     </View>
+
   );
 
-  // SMS style preview
   const renderSmsPreview = () => {
     return (
       <View className="px-3 py-4 bg-[#f2f2f7]" style={{ backgroundColor: isDark ? "#161618" : "#f2f2f7" }}>
-        {/* Message bubble */}
         <View className="self-end max-w-[85%] bg-[#007AFF] rounded-2xl px-3 py-2">
           <Text className="text-white text-[15px] leading-5">
             {text || "Your SMS message will appear here"}
@@ -500,40 +507,40 @@ const Preview: React.FC<PreviewProps> = ({
     );
   };
 
-  // Pinterest style preview
   const renderPinterestPreview = () => {
-    if (!images || images.length === 0) return null; // early exit
-
-    const isVideo = (uri: string) => /\.(mp4|mov|mkv)$/i.test(uri);
+    if (!normalizedMedia || normalizedMedia.length === 0) return null; // early exit
 
     return (
       <View className="p-3 bg-white" style={{ backgroundColor: isDark ? "#161618" : "#fff" }}>
-        {images.map((uri, index) => (
+        {normalizedMedia.map((item, index) => (
           <View
             key={index}
             className="mb-4 rounded-lg overflow-hidden border border-gray-200"
             style={{ minHeight: 200, position: "relative" }}
           >
-            {/* MEDIA */}
-            {isVideo(uri) ? (
-              <Video
-                source={{ uri }}
-                style={{ width: "100%", height: 200 }}
-                resizeMode={ResizeMode.COVER}
-                shouldPlay={false}
-                isLooping
-                isMuted
-              />
+            {isVideo(item) ? (
+              <TouchableOpacity onPress={() => setFullscreenIndex(index)}>
+                <Video
+                  source={{ uri: item.uri }}
+                  style={{ width: "100%", height: 200 }}
+                  resizeMode={ResizeMode.COVER}
+                  shouldPlay={false}
+                  isLooping
+                  isMuted
+                />
+              </TouchableOpacity>
             ) : (
-              <Image
-                source={{ uri }}
-                style={{ width: "100%", height: 200 }}
-                resizeMode="cover"
-              />
+              <TouchableOpacity onPress={() => setFullscreenIndex(index)}>
+                <Image
+                  source={{ uri: item.uri }}
+                  style={{ width: "100%", height: 200 }}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
             )}
 
-            {/* Play icon overlay */}
-            {isVideo(uri) && (
+            {isVideo(item) && (
+
               <View
                 style={{
                   position: "absolute",
@@ -550,7 +557,6 @@ const Preview: React.FC<PreviewProps> = ({
               </View>
             )}
 
-            {/* TOP-RIGHT SAVE BUTTON */}
             <View
               style={{
                 position: "absolute",
@@ -570,7 +576,6 @@ const Preview: React.FC<PreviewProps> = ({
               </TouchableOpacity>
             </View>
 
-            {/* BOTTOM-RIGHT UPLOAD + 3-DOT BUTTONS */}
             <View
               style={{
                 position: "absolute",
@@ -606,41 +611,38 @@ const Preview: React.FC<PreviewProps> = ({
     );
   };
 
-  // YouTube style media renderer
   const renderYouTubePreview = () => {
-    if (!images || images.length === 0) return null;
-
-    const thumbnail = images[0]; // first image as thumbnail
+    if (!normalizedMedia || normalizedMedia.length === 0) return null;
+    const thumbnail = normalizedMedia[0].uri;
 
     return (
       <View className="px-3 py-4 bg-black rounded-lg">
-        <View className="relative w-full h-56 overflow-hidden rounded-lg">
+        <TouchableOpacity
+          onPress={() => setFullscreenIndex(0)}
+          className="relative w-full h-56 overflow-hidden rounded-lg"
+        >
           <Image
             source={{ uri: thumbnail }}
             style={{ width: "100%", height: "100%" }}
             resizeMode="cover"
           />
 
-          {/* Play button overlay */}
           <View className="absolute inset-0 items-center justify-center">
             <View className="bg-black/50 rounded-full p-4">
               <Ionicons name="play" size={32} color="white" />
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
 
-        {/* Optional text */}
         {!!text && (
           <Text className="text-white mt-2">{text}</Text>
         )}
 
-        {/* Timestamp */}
         <Text className="text-xs text-gray-300 mt-1">{timestamp || "Just now"}</Text>
       </View>
     );
   };
 
-  // Determine which action buttons to render
   const renderActions = () => {
     if (platform === "facebook") {
       return (
@@ -716,12 +718,40 @@ const Preview: React.FC<PreviewProps> = ({
     return null;
   };
 
+  const renderMedia = () => {
+    switch (platform) {
+      case "facebook":
+      case "linkedin":
+        if (!normalizedMedia.length) return null;
+        return renderFacebookPreview(normalizedMedia);
+      case "instagram":
+        if (!normalizedMedia.length) return null;
+        return <InstagramPreview media={normalizedMedia} coverImage={coverImage} />;
+
+      case "whatsapp":
+        return renderWhatsAppPreview();
+      case "sms":
+        return renderSmsPreview();
+      case "email":
+        return renderEmailPreview();
+      case "pinterest":
+        if (!normalizedMedia.length) return null;
+        return renderPinterestPreview();
+      case "youtube":
+        if (!normalizedMedia.length) return null;
+        return renderYouTubePreview();
+
+      default:
+        return null;
+    }
+  };
+
   return (
+
     <View
       className={`my-2 bg-white border border-gray-300 rounded-lg pb-2 ${platform === "sms" ? "" : "overflow-hidden"
         } ${platform === "facebook" ? "p-3" : ""}`}
       style={{ backgroundColor: isDark ? "#161618" : "#fff" }}>
-      {/* HEADER */}
       <View className="flex-row items-center px-4 py-4">
 
         {profilePic && (
@@ -761,14 +791,6 @@ const Preview: React.FC<PreviewProps> = ({
         )}
       </View>
 
-      {/* TEXT */}
-      {/* {(platform === "facebook" || platform === "linkedin") && (
-        <Text
-          className={`mt-2 text-gray-900 ${platform === "linkedin" ? "pl-3" : ""}`}
-        >
-          {text}
-        </Text>
-      )} */}
       {platformConfig?.showTextAboveMedia && (
         <Text
           className="mt-2 text-gray-900"
@@ -778,19 +800,67 @@ const Preview: React.FC<PreviewProps> = ({
         </Text>
       )}
 
-      {/* MEDIA */}
-      {/* {(platform === "facebook" || platform === "linkedin") && images.length > 0 && renderFacebookPreview(images)}
-      {platform === "instagram" && images.length > 0 && ( <InstagramPreview media={images}/> )}
-      {platform === "whatsapp" && renderWhatsAppPreview()}
-      {platform === "email" && renderEmailPreview()}
-      {platform === "sms" && renderSmsPreview()}
-      {platform === "pinterest" && renderPinterestPreview()}
-      {platform === "youtube" && renderYouTubePreview()} */}
-
-      {/* MEDIA */}
       {renderMedia()}
-      {/* ACTIONS */}
+
       {platformConfig?.showActions && renderActions()}
+
+      {/* Fullscreen Media Modal */}
+      <Modal
+        visible={fullscreenIndex !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setFullscreenIndex(null)}
+      >
+        <SafeAreaView className="flex-1 bg-black">
+          <TouchableOpacity
+            style={{
+              position: "absolute",
+              top: 50,
+              right: 20,
+              zIndex: 10,
+              padding: 10,
+            }}
+            onPress={() => setFullscreenIndex(null)}
+          >
+            <Ionicons name="close" size={32} color="white" />
+          </TouchableOpacity>
+
+          <View className="flex-1 items-center justify-center">
+            <FlatList
+              data={normalizedMedia}
+              horizontal
+              pagingEnabled
+              keyExtractor={(_, i) => i.toString()}
+              initialScrollIndex={fullscreenIndex ?? 0}
+              getItemLayout={(_, index) => ({
+                length: SCREEN_WIDTH,
+                offset: SCREEN_WIDTH * index,
+                index,
+              })}
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <View style={{ width: SCREEN_WIDTH, height: "100%", justifyContent: "center" }}>
+                  {isVideo(item) ? (
+                    <Video
+                      source={{ uri: item.uri }}
+                      style={{ width: "100%", height: "80%" }}
+                      resizeMode={ResizeMode.CONTAIN}
+                      useNativeControls
+                      shouldPlay
+                    />
+                  ) : (
+                    <Image
+                      source={{ uri: item.uri }}
+                      style={{ width: "100%", height: "100%" }}
+                      resizeMode="contain"
+                    />
+                  )}
+                </View>
+              )}
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 };

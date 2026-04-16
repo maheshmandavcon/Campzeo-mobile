@@ -2,7 +2,7 @@ import { getUser } from "@/api/dashboardApi";
 import { useCampaignPostForm } from "@/hooks/useCampaignPostForm";
 import { useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
-import { Button } from "@gluestack-ui/themed";
+import { Button, Switch } from "@gluestack-ui/themed";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { ResizeMode, Video } from "expo-av";
 import React, { useEffect, useState } from "react";
@@ -23,6 +23,9 @@ import {
 } from "react-native";
 import DraggableFlatList from "react-native-draggable-flatlist";
 import Preview from "./preview";
+import { ThemedText } from "@/components/themed-text";
+import * as Linking from "expo-linking";
+
 
 // ---------- Define Props Interface ----------
 interface CampaignPostFormProps {
@@ -60,6 +63,13 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
     imageModalVisible, imagePrompt, generatedImages, loadingImage,
 
+    templates, loadingTemplates, templateModalVisible, selectedTemplate,
+
+    metaAccounts, loadingMetaAccounts, isBoosting, selectedMetaAccount,
+    boostingGoal, dailyBudget, boostingDuration, totalBudget, estimatedReach,
+
+
+
     facebookPages, selectedFacebookPage, facebookContentType, isFacebookPageLoading, coverImage, coverUploading, setCoverImage,
 
     youTubeContentType, youTubeTags, youTubeStatus, showStatusDropdown, isCreatingPlaylist, customThumbnail, playlistId, playlistTitle,
@@ -87,7 +97,9 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     setIsCreatingPlaylist,
     setPlaylistId,
     setPlaylistTitle,
+    setTemplateModalVisible,
     setIsCreatingPinterestBoard,
+
     setPinterestBoard,
     setPinterestBoardId,
     setPinterestModalVisible,
@@ -105,6 +117,13 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     setCanSelectStandard,
     setCanSelectReel,
 
+    setIsBoosting,
+    setSelectedMetaAccount,
+    setBoostingGoal,
+    setDailyBudget,
+    setBoostingDuration,
+
+
     // handlers
     handleSubmit,
     handleAddAttachment,
@@ -115,6 +134,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     handleCustomThumbnailUpload,
     handleCreatePinterestBoard,
     handleSelectGeneratedImage,
+    handleSelectTemplate,
+
   } = useCampaignPostForm({
     platform,
     campaignId,
@@ -142,76 +163,80 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
   );
 
   const [userData, setUserData] = useState<any>(null);
+  const [metaAccountModalVisible, setMetaAccountModalVisible] = useState(false);
+
+  const openMetaBilling = (accountId: string) => {
+    const url = `https://business.facebook.com/latest/billing_hub/payment_settings/?payment_account_id=${accountId}&nav_ref=bizweb_billing_hub_accounts_details_page&asset_id=${accountId}&placement=standalone`;
+    Linking.openURL(url);
+  };
 
   // ================= RENDER ATTACHMENTS =================
-
-  const renderAttachmentItem = ({ item, index }: any) => {
-    const isImage = item.type.startsWith("image/");
-    const isVideo = item.type.startsWith("video/");
+  const renderAttachmentItem = ({ item }: any) => {
+    const isImage = item.type?.startsWith("image/");
+    const isVideo = item.type?.startsWith("video/");
 
     return (
-      <View className="flex-row items-center bg-gray-200 rounded-lg px-2 py-1 mr-2 mb-2">
-        {isImage && (
-          <Image
-            source={{ uri: item.uri }}
-            style={{ width: 50, height: 50, borderRadius: 5, marginRight: 5 }}
-          />
-        )}
-
-        {isVideo && (
-          <View
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: 5,
-              marginRight: 5,
-              overflow: "hidden",
-            }}
-          >
-            <Video
+      <View style={{ width: 60, height: 60, position: "relative" }}>
+        {/* Media Thumbnail */}
+        <View className="overflow-hidden rounded-lg bg-gray-200" style={{ width: 60, height: 60, backgroundColor: isDark ? "#1f2937" : "#e5e7eb" }}>
+          {isImage ? (
+            <Image
               source={{ uri: item.uri }}
               style={{ width: "100%", height: "100%" }}
-              resizeMode={ResizeMode.COVER}
-              shouldPlay={true}
-              isMuted
-              useNativeControls={false}
+              resizeMode="cover"
             />
-            {/* Play icon overlay */}
-            <View
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "100%",
-                justifyContent: "center",
-                alignItems: "center",
-                backgroundColor: "rgba(0,0,0,0.2)",
-              }}
-            >
-              <Ionicons name="play-circle" size={24} color="#fff" />
+          ) : isVideo ? (
+            <View style={{ width: "100%", height: "100%" }}>
+              <Video
+                source={{ uri: item.uri }}
+                style={{ width: "100%", height: "100%" }}
+                resizeMode={ResizeMode.COVER}
+                shouldPlay={false}
+                isMuted
+              />
+              <View className="absolute inset-0 items-center justify-center bg-black/20">
+                <Ionicons name="play-circle" size={24} color="#fff" />
+              </View>
             </View>
-          </View>
-        )}
+          ) : (
+             <View className="flex-1 items-center justify-center">
+               <Ionicons name="document-outline" size={24} color={isDark ? "#9ca3af" : "#4b5563"} />
+             </View>
+          )}
 
-        <Text
-          className="mr-2 text-gray-700"
-          numberOfLines={1}
-          style={{ maxWidth: 80 }}
-        >
-          {item.name}
-        </Text>
+          {/* Uploading Overlay */}
+          {item.uploading && (
+            <View className="absolute inset-0 items-center justify-center bg-black/60">
+              <ActivityIndicator size="small" color="#fff" />
+              <Text className="text-white text-[10px] font-bold mt-1">
+                {Math.min(item.progress || 0, 100)}%
+              </Text>
+            </View>
+          )}
+        </View>
 
-        {/* <TouchableOpacity onPress={() => handleRemoveAttachment(index)}>
-          <Ionicons name="close-circle" size={20} color="#dc2626" />
-        </TouchableOpacity> */}
-
+        {/* Remove Button - Top Right */}
         <TouchableOpacity
-          onPress={() =>
-            handleRemoveAttachment(item.uploadedUrl ?? item.uri)
-          }
+          onPress={() => item.uploading ? Alert.alert("Wait", "Please wait for upload to complete") : handleRemoveAttachment(item.uploadedUrl ?? item.uri)}
+          style={{
+            position: "absolute",
+            top: -5,
+            right: -5,
+            zIndex: 10,
+            backgroundColor: "#fff",
+            borderRadius: 10,
+            elevation: 2,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.2,
+            shadowRadius: 1.41,
+          }}
         >
-          <Ionicons name="close-circle" size={20} color="#dc2626" />
+          <Ionicons 
+            name={item.uploading ? "hourglass-outline" : "close-circle"} 
+            size={20} 
+            color={item.uploading ? "#0668E1" : "#dc2626"} 
+          />
         </TouchableOpacity>
       </View>
     );
@@ -249,7 +274,111 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           className="flex-1"
           style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
         >
+          {/* QUICK START WITH TEMPLATE */}
+          <Text
+            style={{
+              color: isDark ? "#ffffff" : "#000000",
+              fontWeight: "bold",
+              marginBottom: 8,
+              marginLeft: 4,
+            }}
+          >
+            Quick start with template
+          </Text>
+          <TouchableOpacity
+            onPress={() => setTemplateModalVisible(true)}
+            style={{
+              borderWidth: 1,
+              borderColor: isDark ? "#374151" : "#d1d5db",
+              borderRadius: 9999,
+              paddingHorizontal: 12,
+              height: 48,
+              marginBottom: 16,
+              backgroundColor: isDark ? "#161618" : "#ffffff",
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Text style={{ color: selectedTemplate ? (isDark ? "#e5e7eb" : "#111111") : (isDark ? "#9ca3af" : "#6b7280"), fontSize: 13 }}>
+              {selectedTemplate ? selectedTemplate.name : "None (Start from scratch)"}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color={isDark ? "#9ca3af" : "#6b7280"} />
+          </TouchableOpacity>
+
+          {/* TEMPLATE SELECTION MODAL */}
+          <Modal visible={templateModalVisible} transparent animationType="fade">
+            <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 20 }}>
+              <View style={{ backgroundColor: isDark ? "#161618" : "#ffffff", borderRadius: 16, padding: 16, maxHeight: "80%", borderWidth: 1, borderColor: isDark ? "#374151" : "#d1d5db" }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <Text style={{ fontSize: 18, fontWeight: "bold", color: isDark ? "#ffffff" : "#000000" }}>Select Template</Text>
+                  <TouchableOpacity onPress={() => setTemplateModalVisible(false)}>
+                    <Ionicons name="close" size={24} color={isDark ? "#ffffff" : "#000000"} />
+                  </TouchableOpacity>
+                </View>
+
+                {loadingTemplates ? (
+                  <ActivityIndicator size="large" color="#dc2626" style={{ marginVertical: 40 }} />
+                ) : (
+                  <ScrollView>
+                    <TouchableOpacity
+                      onPress={() => {
+                        handleSelectTemplate(null);
+                        setTemplateModalVisible(false);
+                      }}
+                      style={{
+                        paddingVertical: 14,
+                        borderBottomWidth: 1,
+                        borderBottomColor: isDark ? "#374151" : "#f3f4f6",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between"
+                      }}
+                    >
+                      <Text style={{ color: isDark ? "#ffffff" : "#000000", fontWeight: "600" }}>None (Start from scratch)</Text>
+                      {!selectedTemplate && <Ionicons name="checkmark" size={20} color="#dc2626" />}
+                    </TouchableOpacity>
+
+                    {templates.map((tpl) => (
+                      <TouchableOpacity
+                        key={tpl.id}
+                        onPress={() => {
+                          handleSelectTemplate(tpl);
+                          setTemplateModalVisible(false);
+                        }}
+                        style={{
+                          paddingVertical: 14,
+                          borderBottomWidth: 1,
+                          borderBottomColor: isDark ? "#374151" : "#f3f4f6",
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between"
+                        }}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: isDark ? "#ffffff" : "#000000", fontWeight: "600" }}>{tpl.name}</Text>
+                          {tpl.description && (
+                            <Text style={{ color: isDark ? "#9ca3af" : "#6b7280", fontSize: 12, marginTop: 2 }}>{tpl.description}</Text>
+                          )}
+                        </View>
+                        {selectedTemplate?.id === tpl.id && <Ionicons name="checkmark" size={20} color="#dc2626" />}
+                      </TouchableOpacity>
+                    ))}
+
+                    {templates.length === 0 && (
+                      <View style={{ paddingVertical: 40, alignItems: "center" }}>
+                        <Ionicons name="document-text-outline" size={40} color={isDark ? "#374151" : "#d1d5db"} />
+                        <Text style={{ color: isDark ? "#9ca3af" : "#6b7280", marginTop: 10 }}>No templates found for this platform.</Text>
+                      </View>
+                    )}
+                  </ScrollView>
+                )}
+              </View>
+            </View>
+          </Modal>
+
           {platformState === "EMAIL" && (
+
             <>
               <Text
                 style={{
@@ -767,7 +896,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
           {/* MEDIA */}
           {platformState !== "SMS" && (
-            <>
+            <View style={{ marginBottom: 20 }}>
               <Text
                 style={{
                   color: isDark ? "#ffffff" : "#000000",
@@ -780,7 +909,6 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   ? "Media (Videos)"
                   : "Media (Photos / Videos)"}
               </Text>
-
               <DraggableFlatList
                 data={attachments}
                 horizontal
@@ -793,8 +921,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     disabled={isActive}
                     style={{
                       opacity: isActive ? 0.7 : 1,
-                      marginRight: 8,
-                      marginBottom: 8,
+                      marginRight: 12,
+                      marginTop: 8,
                     }}
                   >
                     {renderAttachmentItem({ item })}
@@ -808,22 +936,22 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                       width: 60,
                       height: 60,
                       borderRadius: 8,
-                      backgroundColor: "#dbeafe",
+                      backgroundColor: isDark ? "#1e3a8a" : "#dbeafe",
                       justifyContent: "center",
                       alignItems: "center",
-                      marginRight: 8,
-                      marginBottom: 8,
+                      marginRight: 12,
+                      marginTop: 8,
                     }}
                   >
                     {loading ? (
-                      <ActivityIndicator size="small" color="#2563eb" />
+                      <ActivityIndicator size="small" color={isDark ? "#fff" : "#2563eb"} />
                     ) : (
-                      <Ionicons name="add" size={28} color="#2563eb" />
+                      <Ionicons name="add" size={28} color={isDark ? "#fff" : "#2563eb"} />
                     )}
                   </TouchableOpacity>
                 }
               />
-            </>
+            </View>
           )}
 
           {/* {platformState === "LINKEDIN" && (
@@ -1971,7 +2099,294 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             </View>
           )}
 
+          {/* META BOOSTING SECTION */}
+          {(platformState === "FACEBOOK" || platformState === "INSTAGRAM") && (
+            <View style={{
+              borderWidth: 1,
+              borderColor: isDark ? "#374151" : "#d1d5db",
+              borderRadius: 16,
+              padding: 16,
+              marginBottom: 20,
+              backgroundColor: isDark ? "#111827" : "#faebed",
+            }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <View>
+                  <ThemedText style={{ fontSize: 18, fontWeight: "bold" }}>Meta Boosting</ThemedText>
+                  <ThemedText style={{ fontSize: 13, opacity: 0.7 }}>Reach more people on Facebook & Instagram</ThemedText>
+                </View>
+                <Switch
+                  value={isBoosting}
+                  onValueChange={setIsBoosting}
+                  trackColor={{ false: "#767577", true: "#0668E1" }}
+                  thumbColor={isBoosting ? "#ffffff" : "#f4f3f4"}
+                />
+              </View>
+
+              {isBoosting && (
+                <View>
+                  <ThemedText style={{ fontSize: 14, fontWeight: "600", marginBottom: 8 }}>Ad Account</ThemedText>
+                  {loadingMetaAccounts ? (
+                    <ActivityIndicator size="small" color="#0668E1" style={{ marginVertical: 10 }} />
+                  ) : metaAccounts.length > 0 ? (
+                    <TouchableOpacity
+                      onPress={() => setMetaAccountModalVisible(true)}
+                      style={{
+                        backgroundColor: isDark ? "#1f2937" : "#fff",
+                        borderRadius: 12,
+                        padding: 14,
+                        borderWidth: 1,
+                        borderColor: isDark ? "#374151" : "#e5e7eb",
+                        marginBottom: 16,
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center"
+                      }}
+                    >
+                      <View>
+                        <ThemedText style={{ fontWeight: "600" }}>{selectedMetaAccount?.name}</ThemedText>
+                        <ThemedText style={{ fontSize: 12, opacity: 0.7 }}>
+                          {selectedMetaAccount?.currency} • ID: {selectedMetaAccount?.account_id}
+                        </ThemedText>
+                      </View>
+                      <Ionicons name="chevron-down" size={20} color={isDark ? "#9ca3af" : "#6b7280"} />
+                    </TouchableOpacity>
+                  ) : (
+                    <ThemedText style={{ fontSize: 13, color: "#ef4444", marginBottom: 16 }}>No Ad accounts linked</ThemedText>
+                  )}
+
+                  {/* Financial Status Section */}
+                  {selectedMetaAccount && (
+                    <View style={{ marginBottom: 20 }}>
+                      <ThemedText style={{ fontSize: 14, fontWeight: "600", marginBottom: 12 }}>Financial Status</ThemedText>
+
+                      <View style={{ flexDirection: "row", gap: 10, marginBottom: 16 }}>
+                        <TouchableOpacity
+                          onPress={() => openMetaBilling(selectedMetaAccount.account_id)}
+                          style={{
+                            flex: 1,
+                            backgroundColor: isDark ? "#1f2937" : "#fff",
+                            borderRadius: 12,
+                            padding: 12,
+                            borderWidth: 1,
+                            borderColor: isDark ? "#374151" : "#e5e7eb"
+                          }}
+                        >
+                          <ThemedText style={{ fontSize: 11, opacity: 0.6, marginBottom: 4 }}>Available Funds</ThemedText>
+                          <ThemedText style={{ fontSize: 15, fontWeight: "bold", color: "#6b7280" }}>Not Linked</ThemedText>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => openMetaBilling(selectedMetaAccount.account_id)}
+                          style={{
+                            flex: 1,
+                            backgroundColor: isDark ? "#1f2937" : "#fff",
+                            borderRadius: 12,
+                            padding: 12,
+                            borderWidth: 1,
+                            borderColor: isDark ? "#374151" : "#e5e7eb"
+                          }}
+                        >
+                          <ThemedText style={{ fontSize: 11, opacity: 0.6, marginBottom: 4 }}>Lifetime Spent</ThemedText>
+                          <ThemedText style={{ fontSize: 15, fontWeight: "bold" }}>{selectedMetaAccount.currency} 0.00</ThemedText>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Action Buttons */}
+                      <View style={{ flexDirection: "row", gap: 8 }}>
+                        <TouchableOpacity
+                          onPress={() => openMetaBilling(selectedMetaAccount.account_id)}
+                          style={{
+                            flex: 1,
+                            backgroundColor: "#0668E1",
+                            paddingVertical: 10,
+                            borderRadius: 10,
+                            alignItems: "center"
+                          }}
+                        >
+                          <Text style={{ color: "#fff", fontWeight: "600", fontSize: 13 }}>Add Funds</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => openMetaBilling(selectedMetaAccount.account_id)}
+                          style={{
+                            flex: 1.2,
+                            backgroundColor: isDark ? "#374151" : "#f3f4f6",
+                            paddingVertical: 10,
+                            borderRadius: 10,
+                            alignItems: "center",
+                            borderWidth: 1,
+                            borderColor: isDark ? "#4b5563" : "#e5e7eb"
+                          }}
+                        >
+                          <ThemedText style={{ fontWeight: "600", fontSize: 13 }}>Link Payment Method</ThemedText>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Account Selection Modal */}
+                  <Modal
+                    visible={metaAccountModalVisible}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setMetaAccountModalVisible(false)}
+                  >
+                    <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 20 }}>
+                      <View style={{ backgroundColor: isDark ? "#1f2937" : "#fff", borderRadius: 16, padding: 16, maxHeight: "70%" }}>
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                          <ThemedText style={{ fontSize: 18, fontWeight: "bold" }}>Select Ad Account</ThemedText>
+                          <TouchableOpacity onPress={() => setMetaAccountModalVisible(false)}>
+                            <Ionicons name="close" size={24} color={isDark ? "#fff" : "#000"} />
+                          </TouchableOpacity>
+                        </View>
+
+                        <FlatList
+                          data={metaAccounts}
+                          keyExtractor={(item) => item.id}
+                          renderItem={({ item }) => (
+                            <TouchableOpacity
+                              onPress={() => {
+                                setSelectedMetaAccount(item);
+                                setMetaAccountModalVisible(false);
+                              }}
+                              style={{
+                                padding: 16,
+                                borderRadius: 12,
+                                marginBottom: 10,
+                                backgroundColor: selectedMetaAccount?.id === item.id ? (isDark ? "#1e3a8a" : "#eff6ff") : (isDark ? "#111827" : "#f9fafb"),
+                                borderWidth: 1,
+                                borderColor: selectedMetaAccount?.id === item.id ? "#0668E1" : (isDark ? "#374151" : "#e5e7eb")
+                              }}
+                            >
+                              <ThemedText style={{ fontWeight: "600" }}>{item.name}</ThemedText>
+                              <ThemedText style={{ fontSize: 12, opacity: 0.7 }}>{item.currency} • {item.account_id}</ThemedText>
+                            </TouchableOpacity>
+                          )}
+                        />
+                      </View>
+                    </View>
+                  </Modal>
+
+
+                  {/* Goal Selection */}
+                  <ThemedText style={{ fontSize: 14, fontWeight: "600", marginBottom: 8 }}>Goal</ThemedText>
+                  <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
+                    <TouchableOpacity
+                      onPress={() => setBoostingGoal("POST_ENGAGEMENT")}
+                      style={{
+                        flex: 1,
+                        padding: 12,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: boostingGoal === "POST_ENGAGEMENT" ? "#0668E1" : (isDark ? "#374151" : "#e5e7eb"),
+                        backgroundColor: boostingGoal === "POST_ENGAGEMENT" ? (isDark ? "#1e3a8a" : "#eff6ff") : "transparent"
+                      }}
+                    >
+                      <ThemedText style={{ fontSize: 14, fontWeight: "bold", textAlign: "center" }}>Engagement</ThemedText>
+                      <ThemedText style={{ fontSize: 11, textAlign: "center", opacity: 0.7 }}>Likes, Shares & Comments</ThemedText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setBoostingGoal("LEADS")}
+                      style={{
+                        flex: 1,
+                        padding: 12,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: boostingGoal === "LEADS" ? "#0668E1" : (isDark ? "#374151" : "#e5e7eb"),
+                        backgroundColor: boostingGoal === "LEADS" ? (isDark ? "#1e3a8a" : "#eff6ff") : "transparent"
+                      }}
+                    >
+                      <ThemedText style={{ fontSize: 14, fontWeight: "bold", textAlign: "center" }}>Leads</ThemedText>
+                      <ThemedText style={{ fontSize: 11, textAlign: "center", opacity: 0.7 }}>Customer Form Capture</ThemedText>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Budget & Duration */}
+                  <View style={{ flexDirection: "row", gap: 12, marginBottom: 16 }}>
+                    <View style={{ flex: 1 }}>
+                      <ThemedText style={{ fontSize: 14, fontWeight: "600", marginBottom: 8 }}>Daily Budget</ThemedText>
+                      <View style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: isDark ? "#1f2937" : "#fff",
+                        borderRadius: 12,
+                        paddingHorizontal: 12,
+                        borderWidth: 1,
+                        borderColor: isDark ? "#374151" : "#e5e7eb"
+                      }}>
+                        <ThemedText style={{ opacity: 0.5 }}>{selectedMetaAccount?.currency || "INR"} </ThemedText>
+                        <TextInput
+                          value={String(dailyBudget)}
+                          onChangeText={(v) => setDailyBudget(Number(v) || 0)}
+                          keyboardType="numeric"
+                          style={{ color: isDark ? "#fff" : "#000", padding: 10, flex: 1, fontWeight: "bold" }}
+                        />
+                      </View>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <ThemedText style={{ fontSize: 14, fontWeight: "600", marginBottom: 8 }}>Days</ThemedText>
+                      <View style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: isDark ? "#1f2937" : "#fff",
+                        borderRadius: 12,
+                        paddingHorizontal: 12,
+                        borderWidth: 1,
+                        borderColor: isDark ? "#374151" : "#e5e7eb"
+                      }}>
+                        <TextInput
+                          value={String(boostingDuration)}
+                          onChangeText={(v) => setBoostingDuration(Number(v) || 0)}
+                          keyboardType="numeric"
+                          style={{ color: isDark ? "#fff" : "#000", padding: 10, flex: 1, fontWeight: "bold" }}
+                        />
+                        <ThemedText style={{ opacity: 0.5 }}>days</ThemedText>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Reach Estimates */}
+                  <View style={{
+                    backgroundColor: isDark ? "#1f2937" : "#f8fafc",
+                    borderRadius: 12,
+                    padding: 14,
+                    marginBottom: 16
+                  }}>
+                    <ThemedText style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>Estimated Daily Reach</ThemedText>
+                    <ThemedText style={{ fontSize: 20, fontWeight: "bold" }}>{estimatedReach.min.toLocaleString()} - {estimatedReach.max.toLocaleString()}</ThemedText>
+                    <ThemedText style={{ fontSize: 12, opacity: 0.6 }}>people / day</ThemedText>
+
+                    <View style={{ height: 1, backgroundColor: isDark ? "#374151" : "#e5e7eb", marginVertical: 12 }} />
+
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                      <ThemedText style={{ fontSize: 13, fontWeight: "600" }}>Total Spend</ThemedText>
+                      <ThemedText style={{ fontSize: 16, fontWeight: "bold", color: "#0668E1" }}>{selectedMetaAccount?.currency || "INR"} {totalBudget}</ThemedText>
+                    </View>
+                  </View>
+
+                  <ThemedText style={{ fontSize: 10, opacity: 0.5, fontStyle: "italic", marginBottom: 16 }}>
+                    * Estimates are based on Meta's historical performance data. Figures are in your local account currency.
+                  </ThemedText>
+
+                  {/* Warning Box */}
+                  <View style={{
+                    backgroundColor: isDark ? "#374151" : "#fffbeb",
+                    padding: 12,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: "#f59e0b"
+                  }}>
+                    <ThemedText style={{ fontSize: 13, fontWeight: "bold", color: "#b45309", marginBottom: 4 }}>Scheduled Auto-Boost</ThemedText>
+                    <ThemedText style={{ fontSize: 12, color: "#b45309" }}>
+                      Since this post isn't published yet, CampZeo will automatically apply these settings when the post goes live on Meta.
+                    </ThemedText>
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+
           {/* DATE & TIME PICKER */}
+
           <TouchableOpacity
             onPress={() => setShowPicker(true)}
             style={{
@@ -2027,37 +2442,6 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   0,
                   0
                 );
-
-                // 🚨 STRICT FUTURE CHECK (not now, not past)
-                // if (selectedDateTime.getTime() <= Date.now()) {
-                //   Alert.alert(
-                //     "Invalid Time",
-                //     "Please select a future time (for example, 10:01 instead of 10:00)."
-                //   );
-                //   return;
-                // }
-
-                if (selectedDateTime.getTime() <= Date.now()) {
-                  const now = new Date();
-
-                  const currentTime = now.toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  });
-
-                  const future = new Date(now.getTime() + 60 * 1000);
-
-                  const futureTime = future.toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  });
-
-                  Alert.alert(
-                    "Invalid Time",
-                    `Please select a future time (for example, ${futureTime} instead of ${currentTime}).`
-                  );
-                  return;
-                }
 
                 setPostDate(selectedDateTime);
               }}
@@ -2139,8 +2523,10 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               text={message}
               coverImage={coverImage || undefined}
               images={attachments?.map((a) => a.uri)}
+              media={attachments?.map((a) => ({ uri: a.uri, type: a.type }))}
               timestamp={previewTimestamp}
             />
+
           )}
 
           {/* ✅ Instagram Preview */}
@@ -2152,8 +2538,10 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               text={message}
               coverImage={coverImage || undefined}
               images={attachments?.map((a) => a.uri)}
+              media={attachments?.map((a) => ({ uri: a.uri, type: a.type }))}
               timestamp={previewTimestamp}
             />
+
           )}
 
           {/* ✅ LinkedIn Preview */}
@@ -2164,8 +2552,10 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map((a) => a.uri)}
+              media={attachments?.map((a) => ({ uri: a.uri, type: a.type }))}
               timestamp={previewTimestamp}
             />
+
           )}
 
           {/* ✅ WhatsApp Preview */}
@@ -2176,8 +2566,10 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map((a) => a.uri)}
+              media={attachments?.map((a) => ({ uri: a.uri, type: a.type }))}
               timestamp={previewTimestamp}
             />
+
           )}
 
           {/* ✅ Email Preview */}
@@ -2188,8 +2580,10 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map((a) => a.uri)}
+              media={attachments?.map((a) => ({ uri: a.uri, type: a.type }))}
               timestamp={previewTimestamp}
             />
+
           )}
 
           {/* ✅ SMS Preview */}
@@ -2211,8 +2605,10 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map(a => a.uri)}
+              media={attachments?.map((a) => ({ uri: a.uri, type: a.type }))}
             // timestamp={previewTimestamp}
             />
+
           )}
 
           {/* ✅ YouTube Preview */}
@@ -2223,8 +2619,10 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map((a) => a.uri)}
+              media={attachments?.map((a) => ({ uri: a.uri, type: a.type }))}
               timestamp={previewTimestamp}
             />
+
           )}
         </View>
 

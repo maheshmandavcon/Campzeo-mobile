@@ -1,7 +1,5 @@
 import https from "./https";
 
-// import * as FileSystem from "expo-file-system";
-
 // ---------------------- Types ---------------------- //
 
 export interface CampaignData {
@@ -249,8 +247,6 @@ export const updatePostForCampaignApi = async (
   }
 };
 
-// Delete a post for a specific campaign
-
 export const deletePostForCampaignApi = async (
   campaignId: number,
   postId: number,
@@ -454,13 +450,38 @@ export const getFacebookPagesApi = async (
     if (response.data.error) throw new Error(response.data.error);
     return response.data.pages || [];
   } catch (error: any) {
+    throw error;
+  }
+};
+
+// ---------------------- Meta Ads APIs ---------------------- //
+
+export interface MetaAdsAccount {
+  name: string;
+  account_id: string;
+  account_status: number;
+  currency: string;
+  balance: string;
+  id: string;
+}
+
+export const getMetaAdsAccountsApi = async (token?: string): Promise<MetaAdsAccount[]> => {
+  try {
+    const response = await https.get("/socialmedia/meta-ads/accounts", {
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+    return response.data.accounts || [];
+  } catch (error: any) {
     console.error(
-      "Get Facebook Pages API Error:",
+      "Get Meta Ads Accounts API Error:",
       error.response?.data || error.message,
     );
     throw error;
   }
 };
+
 
 // ---------------------- YouTube APIs ---------------------- //
 
@@ -568,27 +589,40 @@ export const uploadMediaApi = async (
     const blob = await fileResponse.blob();
 
     console.log("📤 Uploading bytes to:", uploadUrl);
+    
+    const responseContent = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", uploadUrl);
+      xhr.setRequestHeader("Content-Type", attachment.type);
 
-    // 3️⃣ Upload bytes to Google Drive directly (or proxy URL) via PUT
-    const uploadRes = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: {
-        "Content-Type": attachment.type,
-      },
-      body: blob,
+      if (onProgress) {
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percentComplete = (event.loaded / event.total) * 100;
+            onProgress(percentComplete);
+          }
+        };
+      }
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(xhr.response);
+        } else {
+          reject(new Error(`Upload PUT failed: ${xhr.status} ${xhr.responseText}`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Upload PUT network error"));
+      xhr.send(blob);
     });
-
-    if (!uploadRes.ok) {
-      const text = await uploadRes.text();
-      throw new Error(`Upload PUT failed: ${uploadRes.status} ${text}`);
-    }
 
     // 4️⃣ Get result from response
     let uploadResult: any = {};
     try {
-      const respText = await uploadRes.text();
-      if (respText) {
-        uploadResult = JSON.parse(respText);
+      if (responseContent && typeof responseContent === "string") {
+        uploadResult = JSON.parse(responseContent);
+      } else if (responseContent && typeof responseContent === "object") {
+        uploadResult = responseContent;
       }
     } catch {
       console.log("PUT response is not JSON");
@@ -598,13 +632,14 @@ export const uploadMediaApi = async (
     const fileId = resultData?.id || initData.data?.id;
     let publicUrl = "";
 
-    if (fileId) {
-      publicUrl = `https://drive.google.com/file/d/${fileId}/view`;
-    } else if (resultData?.url) {
+    if (resultData?.url) {
       publicUrl = resultData.url;
+    } else if (fileId) {
+      publicUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
     } else {
       publicUrl = uploadUrl;
     }
+
 
     console.log("✅ File uploaded successfully:", publicUrl);
     return publicUrl;

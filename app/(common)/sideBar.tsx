@@ -32,12 +32,6 @@ export default function Sidebar() {
   const { user } = useUser();
 
   if (!user) return null;
-
-  /**
-   * IMPORTANT:
-   * The type below makes this function compatible with `typedRoutes: true`
-   * and prevents invalid routes at compile time.
-   */
   const navigate = (pathname: Parameters<typeof router.push>[0]) => {
     closeSidebar();
     router.push(pathname);
@@ -121,15 +115,19 @@ export default function Sidebar() {
               <Text style={styles.menuText}>Billing History</Text>
             </Pressable>
 
+            {/* <Pressable
+              style={styles.menuItem}
+              onPress={() => navigate("/analytics")}
+            >
+              <Ionicons name="bar-chart-outline" size={24} color="#dc2626" />
+              <Text style={styles.menuText}>Analytics</Text>
+            </Pressable> */}
+
             <Pressable
               style={styles.menuItem}
               onPress={() => navigate("/templet")}
             >
-              {/* <Wallet size={24} color={"#dc2626"} /> */}
-              {/* <Ionicons name="grid-outline" size={24} color="#dc2626" /> */}
-              {/* <Ionicons name="copy-outline" size={24} color="#dc2626" /> */}
               <Ionicons name="layers-outline" size={24} color="#dc2626" />
-              {/* <Ionicons name="document-text-outline" size={24} color="#dc2626" /> */}
               <Text style={styles.menuText}>Templates</Text>
             </Pressable>
           </View>
