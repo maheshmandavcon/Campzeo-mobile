@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import GoogleAuth from "./googleAuth";
 import { Input, InputField } from "@/components/ui/input";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function LoginScreen() {
   console.log("[Login] Component rendering");
@@ -23,6 +24,7 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -119,16 +121,34 @@ export default function LoginScreen() {
           </Input>
 
           {/* Password */}
-          <Input style={styles.inputWrapper}>
-            <InputField
-              placeholder="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              style={styles.inputText}
-            />
-          </Input>
+          <View style={{ position: "relative", alignItems: "center" }}>
+            <Input style={styles.inputWrapper}>
+              <InputField
+                placeholder="Password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                style={styles.inputText}
+              />
+            </Input>
 
+            <Pressable
+              onPress={() => setShowPassword(!showPassword)}
+              style={{
+                position: "absolute",
+                right: 15,
+                top: "35%",
+                transform: [{ translateY: -10 }],
+              }}
+            >
+              <Ionicons
+                name={showPassword ? "eye-off" : "eye"}
+                size={20}
+                color="gray"
+                style={{ alignSelf: "center" }}
+              />
+            </Pressable>
+          </View>
           {/* Error */}
           {error !== "" && <Text style={styles.errorText}>{error}</Text>}
 

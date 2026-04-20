@@ -1,6 +1,6 @@
 import { getUsage } from "@/api/billingApi";
-import { getCampaigns, getContacts, getUser } from "@/api/dashboardApi";
-import { Text, TouchableOpacity, View } from "react-native";
+import { getUser } from "@/api/dashboardApi";
+import { TouchableOpacity, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
@@ -16,15 +16,8 @@ import { router, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { StyleSheet, ScrollView } from "react-native";
 import { Divider } from "@gluestack-ui/themed";
+import { Ionicons } from "@expo/vector-icons";
 
-/* ================= TYPES ================= */
-
-type UsageItem = {
-  current?: number;
-  limit?: number;
-  percentage?: number;
-  isNearLimit?: boolean;
-};
 
 /* ================= COMPONENT ================= */
 
@@ -32,8 +25,6 @@ export default function Insights() {
   const routePage = useRouter();
 
   const [userData, setUserData] = useState<any>(null);
-  const [campaignData, setCampaignData] = useState<any>(null);
-  const [contactsData, setContactsData] = useState<any>(null);
   const [usageData, setUsageData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -42,14 +33,9 @@ export default function Insights() {
     const fetchInsights = async () => {
       try {
         const user = await getUser();
-        const campaigns = await getCampaigns();
-        const contacts = await getContacts();
         const usage = await getUsage();
-        // const notification = await getNotifications();
 
         setUserData(user);
-        setCampaignData(campaigns);
-        setContactsData(contacts);
         setUsageData(usage);
       } catch (error) {
         console.error("Dashboard fetch error:", error);
@@ -161,69 +147,16 @@ export default function Insights() {
 
   const organisationName = userData?.organisation?.name ?? "Organisation";
 
-  const totalCampaigns =
-    campaignData?.pagination?.total ?? campaignData?.campaigns?.length ?? "-";
+  const totalCampaigns = usageData?.usage?.campaigns?.current ?? "-";
 
-  const totalContacts =
-    contactsData?.pagination?.total ?? contactsData?.contacts?.length ?? "-";
+  const totalContacts = usageData?.usage?.contacts?.current ?? "-";
 
-  const teamSize =
-    usageData?.usage?.users?.current ??
-    userData?.organisation?.users?.length ??
-    1;
+  const connectedAccounts = usageData?.usage?.platforms?.current ?? "-";
 
   const planName =
     userData?.organisation?.subscriptions?.[0]?.plan?.name ?? "FREE TRIAL";
 
   const isApproved = userData?.organisation?.isApproved ?? null;
-
-  // console.log("isapp check",isApproved);
-
-  // const trialEndDate = userData?.organisation?.trialEndDate
-  //   ? new Date(userData.organisation.trialEndDate).toLocaleDateString()
-  //   : "N/A";
-
-  // const notifications: NotificationItem[] =
-  //   notificationData?.data?.notifications ?? [];
-
-  /* ================= HELPERS ================= */
-
-  // const formatDate = (date: string) =>
-  //   new Date(date).toLocaleString();
-
-  const renderUsageItem = (label: string, data?: UsageItem) => {
-    const current = data?.current ?? "-";
-    const limit = data?.limit ?? "-";
-    const percentage =
-      typeof data?.percentage === "number" ? data.percentage : 0;
-
-    // const progressColor = data?.isNearLimit ? "#f97316" : "#22c55e";
-
-    return (
-      <VStack style={{ marginBottom: 16 }}>
-        <HStack style={{ justifyContent: "space-between" }}>
-          <ThemedText>{label}</ThemedText>
-          <ThemedText>
-            {current}/{limit}
-          </ThemedText>
-        </HStack>
-
-        <Center style={{ marginTop: 6 }}>
-          {/* <Progress size="sm">
-  <ProgressFilledTrack value={percentage} />
-</Progress> */}
-
-          <Progress value={percentage} size="sm">
-            <ProgressFilledTrack
-              style={{
-                backgroundColor: "#dc2626",
-              }}
-            />
-          </Progress>
-        </Center>
-      </VStack>
-    );
-  };
 
   /* ================= UI ================= */
 
@@ -276,44 +209,34 @@ export default function Insights() {
         {/* ================= STATS ================= */}
         <VStack style={styles.section}>
           <HStack style={styles.statsRow}>
-            
             <TouchableOpacity
               style={{ flex: 1 }}
               activeOpacity={0.8}
               onPress={() => router.push("/(tabs)/campaigns")}
             >
               <Box style={styles.statCard}>
-                <ThemedText style={styles.statLabel}>Total Campaigns</ThemedText>
-                <ThemedText style={styles.statValue}>{totalCampaigns}</ThemedText>
+                <ThemedText style={styles.statLabel}>
+                  Total Campaigns
+                </ThemedText>
+                <ThemedText style={styles.statValue}>
+                  {totalCampaigns}
+                </ThemedText>
                 <ThemedText style={styles.statSubtext}>
                   Total Active Campaigns
                 </ThemedText>
               </Box>
             </TouchableOpacity>
 
-            {/* <Box style={styles.statCard}>
-              <ThemedText style={styles.statLabel}>Total Campaigns</ThemedText>
-              <ThemedText style={styles.statValue}>{totalCampaigns}</ThemedText>
-              <ThemedText style={styles.statSubtext}>
-                Total Active Campaigns
-              </ThemedText>
-            </Box> */}
-
-            {/* <Box style={styles.statCard}>
-              <ThemedText style={styles.statLabel}>Total Contacts</ThemedText>
-              <ThemedText style={styles.statValue}>{totalContacts}</ThemedText>
-              <ThemedText style={styles.statSubtext}>
-                Audience Reached
-              </ThemedText>
-            </Box> */}
-
             <TouchableOpacity
               style={{ flex: 1 }}
               activeOpacity={0.8}
-              onPress={() => router.push("/(tabs)/contacts")}>
+              onPress={() => router.push("/(tabs)/contacts")}
+            >
               <Box style={styles.statCard}>
                 <ThemedText style={styles.statLabel}>Total Contacts</ThemedText>
-                <ThemedText style={styles.statValue}>{totalContacts}</ThemedText>
+                <ThemedText style={styles.statValue}>
+                  {totalContacts}
+                </ThemedText>
                 <ThemedText style={styles.statSubtext}>
                   Audience Reached
                 </ThemedText>
@@ -322,10 +245,12 @@ export default function Insights() {
           </HStack>
 
           <Box style={[styles.statCard, styles.statCardFull]}>
-            <ThemedText style={styles.statLabel}>Team Size</ThemedText>
-            <ThemedText style={styles.statValue}>{teamSize}</ThemedText>
+            <ThemedText style={styles.statLabel}>Connected Accounts</ThemedText>
+            <ThemedText style={styles.statValue}>
+              {connectedAccounts}
+            </ThemedText>
             <ThemedText style={styles.statSubtext}>
-              Active team members
+              Active social connections
             </ThemedText>
           </Box>
         </VStack>
@@ -336,12 +261,104 @@ export default function Insights() {
           <ThemedText style={styles.usageLabel}>
             Detailed breakdown of your usage and limits
           </ThemedText>
+          <VStack style={{ marginBottom: 16 }}>
+            <HStack style={{ justifyContent: "space-between" }}>
+              <VStack className="gap-3">
+                <ThemedText>Monthly Posts</ThemedText>
+                <HStack className="gap-3 items-center">
+                  <ThemedText style={{ fontSize: 27, fontWeight: "700" }}>
+                    {usageData?.usage?.postsThisMonth?.current}
+                  </ThemedText>
+                  <HStack className="items-center gap-1">
+                    <Ionicons
+                      name="arrow-up"
+                      size={17}
+                      color={"#00c950"}
+                    />
+                    <ThemedText style={{ color: "#00c950" }}>{usageData?.usage?.postsThisMonth?.growth}%</ThemedText>
+                  </HStack>
+                </HStack>
+              </VStack>
 
-          {renderUsageItem("Monthly Posts", usageData?.usage?.postsThisMonth)}
-          {renderUsageItem("Total Contacts", usageData?.usage?.contacts)}
-          {renderUsageItem("Campaigns", usageData?.usage?.campaigns)}
-          {renderUsageItem("Platform Connections", usageData?.usage?.platforms)}
-          {renderUsageItem("Team Members", usageData?.usage?.users)}
+              <ThemedText>
+                {usageData?.usage?.postsThisMonth?.current} (vs {usageData?.usage?.postsThisMonth?.lastMonth} last month)
+              </ThemedText>
+            </HStack>
+
+            <Center style={{ marginTop: 6 }}>
+            </Center>
+          </VStack>
+          <VStack style={{ marginBottom: 16 }}>
+            <HStack style={{ justifyContent: "space-between" }}>
+              <ThemedText>Total Contacts</ThemedText>
+
+              <ThemedText>
+                {usageData?.usage?.contacts?.current}/
+                {usageData?.usage?.contacts?.limit}
+              </ThemedText>
+            </HStack>
+
+            <Center style={{ marginTop: 6 }}>
+              <Progress
+                value={usageData?.usage?.contacts?.percentage}
+                size="sm"
+              >
+                <ProgressFilledTrack
+                  style={{
+                    backgroundColor: "#dc2626",
+                  }}
+                />
+              </Progress>
+            </Center>
+          </VStack>
+          <VStack style={{ marginBottom: 16 }}>
+            <HStack style={{ justifyContent: "space-between" }}>
+              <ThemedText>Campaigns</ThemedText>
+
+              <ThemedText>
+                {usageData?.usage?.campaigns?.current}/
+                {usageData?.usage?.campaigns?.limit}
+              </ThemedText>
+            </HStack>
+
+            <Center style={{ marginTop: 6 }}>
+              
+              <Progress
+                value={usageData?.usage?.campaigns?.percentage}
+                size="sm"
+              >
+                <ProgressFilledTrack
+                  style={{
+                    backgroundColor: "#dc2626",
+                  }}
+                />
+              </Progress>
+            </Center>
+          </VStack>
+          <VStack style={{ marginBottom: 16 }}>
+            <HStack style={{ justifyContent: "space-between" }}>
+              <ThemedText>Connected Platform</ThemedText>
+
+              <ThemedText>
+                {usageData?.usage?.platforms?.current}/
+                {usageData?.usage?.platforms.limit}
+              </ThemedText>
+            </HStack>
+
+            <Center style={{ marginTop: 6 }}>
+             
+              <Progress
+                value={usageData?.usage?.platforms?.percentage}
+                size="sm"
+              >
+                <ProgressFilledTrack
+                  style={{
+                    backgroundColor:usageData?.usage?.platforms?.current < usageData?.usage?.platforms.limit ? "#00c950" : "#dc2626",
+                  }}
+                />
+              </Progress>
+            </Center>
+          </VStack>
         </Box>
 
         {/* ================= TEAM ================= */}

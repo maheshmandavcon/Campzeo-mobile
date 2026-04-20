@@ -4,6 +4,8 @@ import {
   getPayments,
   getPlans,
   getUsage,
+  getWalletBalance,
+  requestTwilioAccess,
   updateAutoRenew,
 } from "@/api/billingApi";
 import { ThemedText } from "@/components/themed-text";
@@ -15,11 +17,21 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Alert, Pressable, useColorScheme, ScrollView } from "react-native";
+import {
+  Alert,
+  Pressable,
+  useColorScheme,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  TextInput,
+  Linking,
+} from "react-native";
+import Toast from "react-native-toast-message";
 import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
 import { Center } from "@/components/ui/center";
-import { Divider } from "@gluestack-ui/themed";
+import { Box, Divider } from "@gluestack-ui/themed";
 
 import { Progress, ProgressFilledTrack } from "@gluestack-ui/themed";
 import { View } from "@gluestack-ui/themed";
@@ -54,6 +66,7 @@ export interface PaymentsResponse {
 }
 
 const ACCENT = "#dc2626";
+const SUCCESS = "#00c950";
 const MUTED = "#6b7280";
 
 export default function BillingPage() {
@@ -67,118 +80,112 @@ export default function BillingPage() {
 
   const [usageData, setusageData] = useState<any>(null);
   const [subscriptionData, setSubscriptionData] = useState<any>(null);
+  const [balanceData, setBalanceData] = useState<any>(null);
   const [plansData, setPlansData] = useState<any>(null);
   // const [paymentsData, setPaymentsData] = useState<any>(null);
+  const [reason, setReason] = useState("");
 
   const [paymentsData, setPaymentsData] = useState<PaymentsResponse | null>(
     null,
   );
 
-  const { signOut } = useAuth();
-  // Status color logic
-  // const statusColor =
-  //    paymentsData.payments.status === "COMPLETED"
-  //     ? "#dc2626"
-  //     : paymentsData.payments.status === "PENDING"
-  //     ? "#f59e0b"
-  //     : "#ef4444";
+  // const handleAutoRenew = async (value: boolean) => {
+  //   setAutoRenew(value);
 
-  // Format date
-  // const formattedDate = new Date(paymentsData.payments.createdAt).toLocaleDateString(
-  //   "en-IN",
-  //   {
-  //     day: "2-digit",
-  //     month: "short",
-  //     year: "numeric",
+  //   try {
+  //     await updateAutoRenew(value);
+  //     console.log("Auto renew updated:", value);
+  //   } catch (error) {
+  //     console.error("Failed to update auto renew", error);
   //   }
-  // );
-  //     const cardStyle = {
-  //   backgroundColor: isDark ? "#020617" : "#ffffff",
   // };
 
-  const {
-    control,
-    handleSubmit,
-    setValue,
-    formState: { errors },
-  } = useForm<CancelFormValues>({
-    resolver: zodResolver(cancelSchema),
-    defaultValues: {
-      cancelImmediately: null,
-      reason: "",
-    },
-  });
+  // const onSubmit = async (data: CancelFormValues) => {
+  //   try {
+  //     const { cancelImmediately, reason } = data;
 
-  const handleAutoRenew = async (value: boolean) => {
-    setAutoRenew(value);
+  //     if (cancelImmediately === null) return;
 
-    try {
-      await updateAutoRenew(value);
-      console.log("Auto renew updated:", value);
-    } catch (error) {
-      console.error("Failed to update auto renew", error);
-    }
-  };
+  //     const safeReason = reason?.trim() || "";
 
-  const onSubmit = async (data: CancelFormValues) => {
-    try {
-      const { cancelImmediately, reason } = data;
+  //     await cancelSubscription(cancelImmediately, safeReason);
 
-      if (cancelImmediately === null) return;
+  //     Alert.alert(
+  //       "Subscription Cancelled",
+  //       cancelImmediately
+  //         ? "Your subscription has been cancelled immediately."
+  //         : "Your subscription will be cancelled at the end of the billing period.",
+  //     );
 
-      const safeReason = reason?.trim() || "";
+  //     setShowModal(false);
 
-      await cancelSubscription(cancelImmediately, safeReason);
+  //     const subscription = await getCurrentSubscription();
+  //     setSubscriptionData(subscription);
 
-      Alert.alert(
-        "Subscription Cancelled",
-        cancelImmediately
-          ? "Your subscription has been cancelled immediately."
-          : "Your subscription will be cancelled at the end of the billing period.",
-      );
+  //     await signOut();
+  //     router.replace("/(auth)/login");
+  //   } catch (error) {
+  //     console.error("Cancel subscription failed:", error);
+  //     Alert.alert(
+  //       "Cancellation Failed",
+  //       "Something went wrong. Please try again.",
+  //     );
+  //   }
+  // };
 
-      setShowModal(false);
-
-      const subscription = await getCurrentSubscription();
-      setSubscriptionData(subscription);
-
-      await signOut();
-      router.replace("/(auth)/login");
-    } catch (error) {
-      console.error("Cancel subscription failed:", error);
-      Alert.alert(
-        "Cancellation Failed",
-        "Something went wrong. Please try again.",
-      );
-    }
-  };
-
-  const currentPlanName = subscriptionData?.subscription?.plan?.name ?? null;
+  // const currentPlanName = subscriptionData?.subscription?.plan?.name ?? null;
 
   // const hasPaidPlan =
   //   currentPlanName === "PROFESSIONAL" || currentPlanName === "ENTERPRISE";
 
-  useEffect(() => {
-    const fetchBillingDetails = async () => {
-      try {
-        const usage = await getUsage();
-        const subscription = await getCurrentSubscription();
-        const plan = await getPlans();
-        const payment = await getPayments();
-                
-        setusageData(usage);
-        setSubscriptionData(subscription);
-        setPlansData(plan);
-        setPaymentsData(payment);
-      } catch (error) {
-        console.error("Dashboard fetch error:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  //       ToastAndroid.show("Password updated successfully!", ToastAndroid.SHORT);
 
+  const fetchBillingDetails = async () => {
+    try {
+      const usage = await getUsage();
+      const subscription = await getCurrentSubscription();
+      const plan = await getPlans();
+      const payment = await getPayments();
+      const balance = await getWalletBalance();
+
+      // console.log("bbbdata",balance);
+
+      setusageData(usage);
+      setSubscriptionData(subscription);
+      console.log("bbbb", balance);
+
+      setBalanceData(balance);
+      setPlansData(plan);
+      setPaymentsData(payment);
+    } catch (error) {
+      console.error("Dashboard fetch error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchBillingDetails();
   }, []);
+
+  const onRequestTwilio = async () => {
+    try {
+      const response = await requestTwilioAccess(reason);
+      // console.log("Response: ", response);
+      setReason("");
+      fetchBillingDetails();
+      Toast.show({
+        type: "success",
+        text1: "Request sent successfully!",
+      });
+    } catch (error) {
+      Toast.show({
+        type: "error",
+        text1: "Request failed!",
+      });
+      console.error("Request failed:", error);
+    }
+  };
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return "-";
@@ -187,6 +194,23 @@ export default function BillingPage() {
       month: "short",
       year: "numeric",
     });
+  };
+
+  const subscriptionValidity = (endDate: string) => {
+    const today = new Date();
+    const end = new Date(endDate);
+
+    const diffTime = end.getTime() - today.getTime();
+console.log("end",end.getTime(), "today", today.getTime());
+
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    console.log("diffDays", diffDays);
+
+    if (diffDays == 1) {
+      return diffDays + " day";
+    } else {
+      return diffDays + " days";
+    }
   };
 
   const cardStyle = {
@@ -199,13 +223,7 @@ export default function BillingPage() {
   };
 
   function SkeletonCard({ children }: { children: React.ReactNode }) {
-    return (
-      <ThemedView
-         style={cardStyle}
-      >
-        {children}
-      </ThemedView>
-    );
+    return <ThemedView style={cardStyle}>{children}</ThemedView>;
   }
 
   function Spacer({ h }: { h: number }) {
@@ -217,32 +235,31 @@ export default function BillingPage() {
       <ThemedView className="flex-1 px-3 pt-16">
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* HEADER */}
-          {/* HEADER */}
-      <HStack style={{ marginBottom: 24, alignItems: "center" }}>
-        <Pressable onPress={() => router.back()}>
-          <Ionicons
-            name="arrow-back-outline"
-            size={22}
-            color={isDark ? "#ffffff" : "#020617"}
-          />
-        </Pressable>
+          <HStack style={{ marginBottom: 24, alignItems: "center" }}>
+            <Pressable onPress={() => router.back()}>
+              <Ionicons
+                name="arrow-back-outline"
+                size={22}
+                color={isDark ? "#ffffff" : "#020617"}
+              />
+            </Pressable>
 
-        <ThemedText
-          style={{
-            flex: 1,
-            fontSize: 24,
-            fontWeight: "700",
-            textAlign: "center",
-            lineHeight: 30,
-          }}
-        >
-          Billing & Subscription
-        </ThemedText>
-        {/* RIGHT: Spacer */}
-        <View style={{ width: 34 }} />
-      </HStack>
+            <ThemedText
+              style={{
+                flex: 1,
+                fontSize: 24,
+                fontWeight: "700",
+                textAlign: "center",
+                lineHeight: 30,
+              }}
+            >
+              Billing & Subscription
+            </ThemedText>
+            {/* RIGHT: Spacer */}
+            <View style={{ width: 34 }} />
+          </HStack>
 
-          {/* USAGE OVERVIEW CARD */}
+          {/* USAGE Metrics CARD */}
           <SkeletonCard>
             <ShimmerSkeleton width={160} height={20} />
             <Spacer h={10} />
@@ -329,10 +346,95 @@ export default function BillingPage() {
       </HStack>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* ================= USAGE OVERVIEW ================= */}
+        <VStack className="bg-[#fff7ed] border border-[#fed7aa] rounded-xl p-3 gap-3 mb-3">
+          {/* Top Row */}
+          <HStack className="items-start gap-2">
+            {/* Icon */}
+            <Ionicons name="warning-outline" size={20} color="#ea580c" />
+
+            {/* Text Content */}
+            <VStack className="flex-1 gap-1">
+              <Text className="text-[14px] font-semibold text-[#9a3412]">
+                Plan Expiring Soon
+              </Text>
+
+              <Text className="text-[13px] text-[#7c2d12] leading-5">
+                Your <Text className="font-semibold">ENTERPRISE</Text> plan
+                expires in{" "}
+                <Text className="font-semibold">
+                  {subscriptionValidity(
+                    subscriptionData?.subscription?.endDate,
+                  )}
+                </Text>{" "}
+                on{" "}
+                <Text className="font-semibold">
+                  {formatDate(subscriptionData?.subscription?.endDate)}
+                </Text>
+                . Please renew your subscription to maintain full access.
+              </Text>
+            </VStack>
+          </HStack>
+
+          {/* Button */}
+          <TouchableOpacity
+            onPress={() => {
+              Linking.openURL("https://campzeo.com/organisation/billing");
+            }}
+            className="bg-[#ea580c] py-3 rounded-lg items-center"
+            activeOpacity={0.8}
+          >
+            <Text className="text-white font-semibold text-lg gap-5 items-center">
+              <Ionicons name="card" size={15} color="#fff" /> Pay Now & Renew
+            </Text>
+          </TouchableOpacity>
+        </VStack>
+
+        {subscriptionData?.subscription?.plan?.name === "FREE_TRIAL" && (
+          <ThemedView style={cardStyle}>
+            <HStack
+              style={{ justifyContent: "space-between", alignItems: "center" }}
+            >
+              <HStack className="gap-2 items-start">
+                <Ionicons
+                  name="time"
+                  size={22}
+                  color={isDark ? "#ffffff" : "#020617"}
+                />
+                <VStack>
+                  <ThemedText style={{ fontSize: 15, fontWeight: "700" }}>
+                    {subscriptionData?.subscription?.plan?.price > 0
+                      ? "₹" + subscriptionData?.subscription?.plan?.price
+                      : "Free Trial"}
+                    - 12 Days Remaining
+                  </ThemedText>
+                  <ThemedText style={{ fontSize: 13, color: MUTED }}>
+                    Your trial ends on{" "}
+                    {formatDate(subscriptionData?.subscription?.endDate)}.
+                  </ThemedText>
+                  <ThemedText></ThemedText>
+                </VStack>
+              </HStack>
+
+              <ThemedText
+                style={{
+                  fontSize: 12,
+                  fontWeight: "600",
+                  color:
+                    subscriptionData?.subscription?.status === "ACTIVE"
+                      ? ACCENT
+                      : "#6b7280",
+                }}
+              >
+                {subscriptionData?.subscription?.status ?? "—"}
+              </ThemedText>
+            </HStack>
+          </ThemedView>
+        )}
+
+        {/* ================= USAGE Metrics ================= */}
         <ThemedView style={cardStyle}>
           <ThemedText style={{ fontSize: 20, fontWeight: "600" }}>
-            Usage Overview
+            Usage Metrics
           </ThemedText>
 
           <ThemedText
@@ -342,16 +444,22 @@ export default function BillingPage() {
               marginBottom: 12,
             }}
           >
-            Current usage vs plan limits
+            Current usage and performance
           </ThemedText>
 
           {[
             { label: "Campaigns", key: "campaigns" },
             { label: "Contacts", key: "contacts" },
-            { label: "Team Members", key: "users" },
-            { label: "Connected Platforms", key: "platforms" },
-            { label: "Posts This Month", key: "postsThisMonth" },
-          ].map(({ label, key }) => {
+            // { label: "Team Members", key: "users" },
+            {
+              label: "Connected Platforms",
+              key: "platforms",
+              showInfo: true,
+              showPills: true,
+              suffix: " connected",
+            },
+            { label: "Posts This Month", key: "postsThisMonth", isTrend: true },
+          ].map(({ label, key, showInfo, showPills, suffix, isTrend }) => {
             const item = usageData?.usage?.[key];
 
             const current = item?.current ?? 0;
@@ -360,27 +468,161 @@ export default function BillingPage() {
               item?.percentage ??
               (limit > 0 ? Math.round((current / limit) * 100) : 0);
 
+            if (isTrend) {
+              return (
+                <View key={key} style={{ marginTop: 12 }}>
+                  <HStack
+                    style={{
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <VStack>
+                      <ThemedText style={{ fontSize: 14, fontWeight: "500" }}>
+                        {label}
+                      </ThemedText>
+                      <ThemedText style={{ fontSize: 12, color: MUTED }}>
+                        vs {item?.lastMonth ?? 0} last month
+                      </ThemedText>
+                    </VStack>
+
+                    <HStack style={{ alignItems: "center", gap: 8 }}>
+                      <ThemedText style={{ fontSize: 24, fontWeight: "700" }}>
+                        {current}
+                      </ThemedText>
+                      <Box
+                        style={{
+                          backgroundColor: "#e8f5e9",
+                          paddingHorizontal: 6,
+                          paddingVertical: 4,
+                          borderRadius: 6,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 2,
+                        }}
+                      >
+                        <Ionicons
+                          name="trending-up"
+                          size={14}
+                          color="#2e7d32"
+                        />
+                        <ThemedText
+                          style={{
+                            color: "#2e7d32",
+                            fontSize: 12,
+                            fontWeight: "600",
+                          }}
+                        >
+                          {usageData
+                            ? usageData?.usage?.postsThisMonth?.growth + "%"
+                            : "0%"}{" "}
+                          up
+                        </ThemedText>
+                      </Box>
+                    </HStack>
+                  </HStack>
+                </View>
+              );
+            }
+
             return (
-              <VStack key={key} style={{ marginBottom: 12 }}>
+              <VStack key={key} style={{ marginBottom: 16 }}>
                 <HStack style={{ justifyContent: "space-between" }}>
-                  <ThemedText style={{ fontSize: 14 }}>{label}</ThemedText>
+                  <HStack style={{ alignItems: "center", gap: 4 }}>
+                    <ThemedText style={{ fontSize: 14, fontWeight: "500" }}>
+                      {label}
+                    </ThemedText>
+                    {/* {showInfo && (
+                      <Ionicons
+                        name="information-circle-outline"
+                        size={14}
+                        color={MUTED}
+                      />
+                    )} */}
+                  </HStack>
 
                   <ThemedText style={{ fontSize: 13, color: MUTED }}>
                     {current} / {limit}
+                    {suffix || ` (${percentage}% used)`}
                   </ThemedText>
                 </HStack>
 
-                <Center style={{ marginTop: 6 }}>
+                <Center style={{ marginTop: 8 }}>
                   <Progress value={percentage} size="sm">
                     <ProgressFilledTrack
                       style={{
-                        backgroundColor: 
-                        // item?.isNearLimit ? "#ef4444" :
-                         ACCENT,
+                        backgroundColor: current < limit ? SUCCESS : ACCENT,
+                        overflow: "hidden",
                       }}
                     />
                   </Progress>
                 </Center>
+
+                {showPills && usageData?.usage?.platforms?.connectedNames && (
+                  <HStack style={{ marginTop: 10, gap: 8, flexWrap: "wrap" }}>
+                    {usageData?.usage?.platforms?.connectedNames.map(
+                      (name: string) => {
+                        const platformColors: Record<
+                          string,
+                          { bg: string; text: string }
+                        > = {
+                          Facebook: { bg: "#b2c8f7ff", text: "#2563eb" },
+                          Instagram: { bg: "#f7b2e0ff", text: "#c6005c" },
+                          LinkedIn: { bg: "#b2bff7ff", text: "#2d63d7ff" },
+                          YouTube: { bg: "#f7b2b2ff", text: "#c10007" },
+                          Pinterest: { bg: "#f7d1b2ff", text: "#c70036" },
+                        };
+                        const colors = platformColors[name] || {
+                          bg: "#e2e8f0",
+                          text: "#64748b",
+                        };
+
+                        return (
+                          <Box
+                            key={name}
+                            style={{
+                              alignItems: "center",
+                              justifyContent: "center",
+                              borderRadius: 20,
+                              paddingHorizontal: 10,
+                              paddingVertical: 4,
+                              backgroundColor: colors.bg,
+                            }}
+                          >
+                            <HStack style={{ alignItems: "center", gap: 4 }}>
+                              <Ionicons
+                                name={
+                                  name == "Facebook"
+                                    ? "logo-facebook"
+                                    : name == "Instagram"
+                                      ? "logo-instagram"
+                                      : name == "LinkedIn"
+                                        ? "logo-linkedin"
+                                        : name == "YouTube"
+                                          ? "logo-youtube"
+                                          : name == "Pinterest"
+                                            ? "logo-pinterest"
+                                            : ""
+                                }
+                                size={14}
+                                color={colors.text}
+                              />
+                              <ThemedText
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: "600",
+                                  color: colors.text,
+                                }}
+                              >
+                                {name}
+                              </ThemedText>
+                            </HStack>
+                          </Box>
+                        );
+                      },
+                    )}
+                  </HStack>
+                )}
               </VStack>
             );
           })}
@@ -391,14 +633,16 @@ export default function BillingPage() {
           <HStack style={{ justifyContent: "space-between" }}>
             <VStack>
               <ThemedText style={{ fontSize: 20, fontWeight: "600" }}>
-                {subscriptionData?.subscription?.plan?.name ?? "—"}
+                {subscriptionData?.subscription?.plan?.name ?? "—"} Plan
               </ThemedText>
 
               <ThemedText style={{ fontSize: 14 }}>
-                <ThemedText style={{ fontWeight: "700", fontSize: 20 }}>
-                  ₹{subscriptionData?.subscription?.plan?.price ?? 0}
+                <ThemedText>
+                  {subscriptionData?.subscription?.plan?.price > 0
+                    ? "₹" + subscriptionData?.subscription?.plan?.price
+                    : "Free"}
                 </ThemedText>
-                / month
+                / MONTHLY
               </ThemedText>
             </VStack>
 
@@ -428,14 +672,16 @@ export default function BillingPage() {
               </ThemedText>
             </VStack>
 
-            <VStack>
-              <ThemedText style={{ fontSize: 13, color: MUTED }}>
-                Next Billing
-              </ThemedText>
-              <ThemedText>
-                {formatDate(subscriptionData?.subscription?.renewalDate)}
-              </ThemedText>
-            </VStack>
+            {subscriptionData?.subscription?.plan?.price > 0 ? (
+              <VStack>
+                <ThemedText style={{ fontSize: 13, color: MUTED }}>
+                  Next Billing
+                </ThemedText>
+                <ThemedText>
+                  {formatDate(subscriptionData?.subscription?.renewalDate)}
+                </ThemedText>
+              </VStack>
+            ) : null}
           </HStack>
 
           {/* AUTO RENEW */}
@@ -769,6 +1015,244 @@ export default function BillingPage() {
             </ModalContent>
           </Modal> */}
         </ThemedView>
+        {/*         {/* Request form */}
+        {balanceData?.twilioAccess?.twilioAccessStatus === "REJECTED" && (
+          <VStack className="bg-white border border-gray-200 rounded-xl p-4 gap-4">
+            {/* Header */}
+            <HStack className="justify-between items-center">
+              <HStack className="items-center gap-2">
+                <Ionicons
+                  name="paper-plane-outline"
+                  size={20}
+                  color="#991b1b"
+                />
+                <Text className="text-[16px] font-semibold text-gray-900">
+                  Request Twilio Access
+                </Text>
+              </HStack>
+              balanceData?.twilioAccess?.twilioAccessReason == true && (
+              <Box
+                style={{
+                  backgroundColor: "#dc2626",
+                  padding: 5,
+                  borderRadius: 10,
+                }}
+              >
+                <Text className="text-white">Rejected</Text>
+              </Box>
+              )
+            </HStack>
+
+            {/* Description */}
+            <Text className="text-[14px] text-gray-600 leading-5">
+              Apply for SMS and WhatsApp campaign access. Please describe your
+              use case briefly.
+            </Text>
+
+            <Box
+              style={{
+                backgroundColor: "#ffe2e2",
+                padding: 10,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: "#ffe2e2",
+              }}
+            >
+              <HStack className="gap-3">
+                <Ionicons
+                  name="alert-circle-outline"
+                  size={20}
+                  color="#991b1b"
+                />
+                <VStack>
+                  <Text
+                    className="text-xl font-semibold"
+                    style={{ color: "#9f0712" }}
+                  >
+                    Request Rejected
+                  </Text>
+                  <Text className="text-sm" style={{ color: "#9f0712" }}>
+                    {balanceData?.twilioAccess?.twilioAccessReason}
+                  </Text>
+                </VStack>
+              </HStack>
+            </Box>
+
+            {/* Label */}
+            <Text className="text-[12px] font-semibold text-gray-700 uppercase">
+              Reason for Request
+            </Text>
+
+            {/* Text Area */}
+            <TextInput
+              multiline
+              numberOfLines={4}
+              value={reason}
+              onChangeText={setReason}
+              placeholder="e.g. I want to send promotional SMS and WhatsApp updates to my 5000+ customer base."
+              placeholderTextColor="#9ca3af"
+              className="border rounded-lg p-3 text-[14px] text-gray-900"
+              style={{
+                borderColor: "#dc2626",
+                borderWidth: 1,
+                textAlignVertical: "top", // important for Android
+                minHeight: 100,
+              }}
+            />
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              onPress={() => onRequestTwilio()}
+              className="bg-[#e58a8a] py-3 rounded-lg items-center"
+              style={{ backgroundColor: "#dc2626" }}
+              activeOpacity={0.8}
+            >
+              <Text className="text-white font-semibold text-[15px]">
+                Submit Request
+              </Text>
+            </TouchableOpacity>
+          </VStack>
+        )}
+
+        {/* Pending */}
+        {balanceData?.twilioAccess?.twilioAccessStatus === "PENDING" && (
+          <VStack
+            className="rounded-xl p-4 gap-4"
+            style={{
+              borderColor: "#dbeafe",
+              borderWidth: 1,
+              backgroundColor: "#eff6ff",
+            }}
+          >
+            {/* Header */}
+            <HStack className="justify-between items-center">
+              {/* Left */}
+              <HStack className="items-center gap-2">
+                <Ionicons name="time-outline" size={20} color="#2563eb" />
+                <Text className="text-[16px] font-semibold text-gray-900">
+                  Access Request Pending
+                </Text>
+              </HStack>
+
+              {/* Badge */}
+              <View
+                className="px-3 py-1 rounded-full border border-[#93c5fd] bg-[#e0edff]"
+                style={{
+                  borderColor: "#dbeafe",
+                  borderWidth: 1,
+                  backgroundColor: "#eff6ff",
+                }}
+              >
+                <Text
+                  className="text-[12px] font-medium"
+                  style={{ color: "#1447e6" }}
+                >
+                  Pending Review
+                </Text>
+              </View>
+            </HStack>
+
+            {/* Description */}
+            <Text className="text-md leading-5" style={{ color: "#193cb8" }}>
+              Our team is reviewing your request for Twilio access. You'll be
+              notified once it's approved.
+            </Text>
+
+            {/* Message Box */}
+            <View
+              className="border border-[#c7d7fe] bg-[#f5f9ff] rounded-lg p-3"
+              style={{
+                borderColor: "#155dfc",
+                borderWidth: 1,
+                backgroundColor: "#fff",
+              }}
+            >
+              <Text className="italic text-[13px]" style={{ color: "#155dfc" }}>
+                {/* "testing to get header - amit" */}
+                {balanceData?.twilioAccess?.twilioAccessReason}
+                {/* wallet/balance */}
+              </Text>
+            </View>
+          </VStack>
+        )}
+
+        {/* Approved */}
+        {balanceData?.twilioAccess?.twilioAccessStatus === "APPROVED" && (
+          <VStack
+            className="bg-[#ecfdf5] border border-[#bbf7d0] rounded-xl p-4 gap-4"
+            style={{
+              borderColor: "#dcfce7",
+              borderWidth: 1,
+              backgroundColor: "#f0fdf4",
+            }}
+          >
+            {/* Header */}
+            <HStack className="justify-between items-center">
+              {/* Left */}
+              <HStack className="items-center gap-2">
+                <Ionicons
+                  name="checkmark-circle-outline"
+                  size={20}
+                  color="#16a34a"
+                />
+                <Text className="text-[16px] font-semibold text-gray-900">
+                  Twilio SMS & WhatsApp Access
+                </Text>
+              </HStack>
+
+              {/* Badge */}
+              <View
+                className="px-3 py-1 rounded-full"
+                style={{ backgroundColor: "#00a63e", borderRadius: 10 }}
+              >
+                <Text className="text-white text-[12px] font-medium">
+                  Approved
+                </Text>
+              </View>
+            </HStack>
+
+            {/* Description */}
+            <Text
+              className="text-[14px] text-[#15803d] leading-5"
+              style={{ color: "#016630" }}
+            >
+              Your access has been approved. You can now purchase credits and
+              send campaigns.
+            </Text>
+          </VStack>
+        )}
+
+        {/* Restricted */}
+        {balanceData?.twilioAccess?.twilioAccessStatus === "NONE" && (
+          <VStack
+            className="rounded-xl p-4 gap-3"
+            style={{
+              backgroundColor: "#fdf6ec",
+              borderWidth: 1,
+              borderColor: "#f5c97a",
+            }}
+          >
+            {/* Twilio - message restricted */}
+            <HStack className="items-center gap-2">
+              <Ionicons name="alert-circle-outline" size={20} color="#d97706" />
+              <Text className="text-lg font-semibold text-[#1f2937]">
+                Access Restricted
+              </Text>
+            </HStack>
+
+            {/* Description */}
+            <Text className="text-sm text-[#374151] leading-5">
+              SMS and WhatsApp messaging is not available for free trial
+              accounts.
+            </Text>
+
+            {/* Highlight Text */}
+            <Text className="text-sm leading-5" style={{ color: "#d97706" }}>
+              Please upgrade your plan to a paid subscription to request Add-ons
+              access and start sending campaigns.
+            </Text>
+          </VStack>
+        )}
 
         {/* ================= PAYMENT HISTORY ================= */}
         <ThemedText
@@ -783,7 +1267,18 @@ export default function BillingPage() {
         </ThemedText>
 
         <ThemedView style={cardStyle}>
-          {paymentsData?.payments?.length > 0 ? (
+          {paymentsData == null ? (
+            <ThemedText
+              style={{
+                textAlign: "center",
+                fontSize: 14,
+                color: MUTED,
+                marginTop: 10,
+              }}
+            >
+              No payment history found
+            </ThemedText>
+          ) : (
             paymentsData.payments.map((payment) => {
               const formattedDate = new Date(
                 payment.createdAt,
@@ -841,17 +1336,6 @@ export default function BillingPage() {
                 </View>
               );
             })
-          ) : (
-            <ThemedText
-              style={{
-                textAlign: "center",
-                fontSize: 14,
-                color: MUTED,
-                marginTop: 10,
-              }}
-            >
-              No payment history found
-            </ThemedText>
           )}
         </ThemedView>
       </ScrollView>

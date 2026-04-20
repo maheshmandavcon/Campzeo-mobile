@@ -42,7 +42,7 @@ interface CampaignPostFormProps {
   onClose?: () => void;
 }
 
-const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
+export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
   platform,
   existingPost = null,
   campaignId,

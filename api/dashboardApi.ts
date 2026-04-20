@@ -52,6 +52,59 @@ export const getNotifications = async () => {
 };
 
 
+// Organisation/posts/insights?platform=all&startDate=&endDate=
+// platform all startDate endDate
+export const getPostsInsights = async (platform: string, startDate: string, endDate: string) => {
+  try {
+    const response = await https.get(`Organisation/posts/insights?platform=${platform || "all"}&startDate=${startDate || ""}&endDate=${endDate || ""}`);    
+    // console.log("Posts insights details: ",response.data);   
+    return response.data;
+  } 
+  catch (error) {
+    console.error("Fetching posts insights Error:", error);
+    throw error;
+  }
+};
+
+// Export posts preview
+export const getPostsExportPreview = async (platform: string, startDate: string, endDate: string) => {
+  try {
+    const response = await https.get(`Organisation/posts/export/preview?platform=${platform || "all"}&startDate=${startDate || ""}&endDate=${endDate || ""}`);    
+    return response.data;
+  } 
+  catch (error) {
+    console.error("Fetching posts export preview Error:", error);
+    throw error;
+  }
+};
+
+// Export posts as Excel
+export const exportPostsExcel = async (platform: string, startDate: string, endDate: string) => {
+  try {
+    const response = await https.get(`Organisation/posts/export/excel?platform=${platform || "all"}&startDate=${startDate || ""}&endDate=${endDate || ""}`, {
+      responseType: 'blob',
+    });    
+    return response.data;
+  } 
+  catch (error) {
+    console.error("Exporting posts as Excel Error:", error);
+    throw error;
+  }
+};
+
+// Export posts as CSV
+export const exportPostsCSV = async (platform: string, startDate: string, endDate: string) => {
+  try {
+    const response = await https.get(`Organisation/posts/export/csv?platform=${platform || "all"}&startDate=${startDate || ""}&endDate=${endDate || ""}`, {
+      responseType: 'blob',
+    });    
+    return response.data;
+  } 
+  catch (error) {
+    console.error("Exporting posts as CSV Error:", error);
+    throw error;
+  }
+};
 
 
 

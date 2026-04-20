@@ -1,73 +1,4 @@
-// import React, { useState } from "react";
-// import {
-//   View,
-//   Text,
-//   TouchableOpacity,
-//   SafeAreaView,
-//   StyleSheet,
-// } from "react-native";
-// import Insights from "./dashboardComponents/insights";
-// import CalendarWrapper from "@/app/(common)/calendarWrapper";
-// import { ThemedView } from "@/components/themed-view";
-
-// const DashboardTabs = () => {
-//   const [activeTab, setActiveTab] = useState("dashboard");
-
-//   return (
-//     <SafeAreaView style={styles.container}>
-//       {/* TOP TABS */}
-//       <ThemedView style={styles.tabsContainer}>
-//         {/* DASHBOARD TAB */}
-//         <TouchableOpacity
-//           style={styles.tab}
-//           onPress={() => setActiveTab("dashboard")}
-//           activeOpacity={0.7}
-//         >
-//           <Text
-//             style={[
-//               styles.tabText,
-//               activeTab === "dashboard" && styles.activeTabText,
-//             ]}
-//           >
-//             Dashboard
-//           </Text>
-
-//           {activeTab === "dashboard" && <View style={styles.activeIndicator} />}
-//         </TouchableOpacity>
-
-//         {/* CALENDAR TAB */}
-//         <TouchableOpacity
-//           style={styles.tab}
-//           onPress={() => setActiveTab("calendar")}
-//           activeOpacity={0.7}
-//         >
-//           <Text
-//             style={[
-//               styles.tabText,
-//               activeTab === "calendar" && styles.activeTabText,
-//             ]}
-//           >
-//             Calendar
-//           </Text>
-
-//           {activeTab === "calendar" && <View style={styles.activeIndicator} />}
-//         </TouchableOpacity>
-//       </ThemedView>
-
-//       {/* TAB CONTENT */}
-//       <View style={styles.content}>
-//         {activeTab === "dashboard" ? (
-//           <Insights />
-//         ) : (
-//           <CalendarWrapper />
-//         )}
-//       </View>
-//     </SafeAreaView>
-//   );
-// };
-
-// export default DashboardTabs;
-import React, { useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -80,6 +11,8 @@ import PagerView from "react-native-pager-view";
 import Insights from "./dashboardComponents/insights";
 import CalendarWrapper from "@/app/(common)/calendarWrapper";
 import { ThemedView } from "@/components/themed-view";
+import CalendarParent from "@/app/(calendar)/calendarTabs/calendarParent";
+import { ScrollView } from "react-native-gesture-handler";
 
 const DashboardTabs = () => {
   const [activeTab, setActiveTab] = useState(0);
@@ -128,9 +61,10 @@ const DashboardTabs = () => {
           <Insights />
         </View>
 
-        <View key="calendar">
-          <CalendarWrapper />
-        </View>
+        <ScrollView key="calendar">
+          <CalendarParent />
+          {/* <CalendarWrapper /> */}
+        </ScrollView>
       </PagerView>
     </SafeAreaView>
   );
