@@ -233,14 +233,13 @@ export default function ShareCampaignPost({
                     maxHeight: 260,
                   }}
                 >
-                  <FlatList
-                    data={contacts}
-                    keyExtractor={(item) => String(item.id)}
-                    renderItem={({ item }) => {
+                  <ThemedView>
+                    {contacts.map((item) => {
                       const checked = selectedContacts.includes(item.id);
 
                       return (
                         <TouchableOpacity
+                          key={item.id}
                           onPress={() => onToggleContact(item.id)}
                           style={{
                             flexDirection: "row",
@@ -297,8 +296,8 @@ export default function ShareCampaignPost({
                           </ThemedView>
                         </TouchableOpacity>
                       );
-                    }}
-                  />
+                    })}
+                  </ThemedView>
                 </ThemedView>
               )}
             </>
@@ -329,68 +328,111 @@ export default function ShareCampaignPost({
               </ThemedText>
             )}
 
-            {post.mediaUrls?.length > 0 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {post.mediaUrls
-                  .filter((url: string) => {
-                    // 🔥 Remove thumbnail from preview if it's same as metadata.thumbnailUrl
-                    if (post.metadata?.thumbnailUrl) {
-                      return url !== post.metadata.thumbnailUrl;
-                    }
-                    return true;
-                  })
-                  .map((url: string, idx: number) => {
-                    const isVideo = /\.(mp4|mov|webm|mkv)$/i.test(url);
+            {(post.mediaUrls?.length > 0 ||
+              post.attachments?.length > 0 ||
+              !!post.videoUrl ||
+              post.metadata?.mediaUrls?.length > 0) && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginTop: 12 }}
+              >
+                {/* COMBINE ALL MEDIA SOURCES WITH TYPE INTEL */}
+                {(() => {
+                  const items: { url: string; type?: string }[] = [
+                    ...(post.mediaUrls || []).map((url: string) => ({
+                      url,
+                      type: undefined,
+                    })),
+                    ...(post.metadata?.mediaUrls || []).map((url: string) => ({
+                      url,
+                      type: undefined,
+                    })),
+                    ...(post.attachments || []).map((a: any) => ({
+                      url: a.uploadedUrl || a.fileUrl || a.uri,
+                      type: a.mimeType || a.type,
+                    })),
+                    { url: post.videoUrl, type: "video/mp4" },
+                  ];
 
-                    return isVideo ? (
-                      <ThemedView
-                        key={idx}
-                        style={{
-                          width: 120,
-                          height: 120,
-                          borderRadius: 8,
-                          marginRight: 8,
-                          overflow: "hidden",
-                          position: "relative",
-                          backgroundColor: "#000",
-                        }}
-                      >
-                        <Video
-                          source={{ uri: url }}
-                          style={{ width: "100%", height: "100%" }}
-                          resizeMode={ResizeMode.COVER}
-                          isLooping
-                          shouldPlay={false}
-                        />
+                  return items
+                    .filter((item) => typeof item.url === "string" && !!item.url)
+                    .filter(
+                      (item, index, self) =>
+                        self.findIndex((t) => t.url === item.url) === index,
+                    ) // Unique by URL
+                    .filter((item) => {
+                      // 🔥 Remove thumbnail from preview if it's same as metadata.thumbnailUrl
+                      if (post.metadata?.thumbnailUrl) {
+                        return item.url !== post.metadata.thumbnailUrl;
+                      }
+                      return true;
+                    })
+                    .map((item, idx) => {
+                      const normalizedUrl = normalizeUrl(item.url);
+                      let mime = item.type;
+                      if (!mime || (!mime.startsWith("image/") && !mime.startsWith("video/"))) {
+                        mime = inferMediaType(item.url);
+                      }
+                      const isVideo = mime.startsWith("video/");
 
+                      return isVideo ? (
                         <ThemedView
+                          key={idx}
                           style={{
-                            position: "absolute",
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            justifyContent: "center",
-                            alignItems: "center",
-                            backgroundColor: "rgba(0,0,0,0.25)",
+                            width: 120,
+                            height: 120,
+                            borderRadius: 8,
+                            marginRight: 8,
+                            overflow: "hidden",
+                            position: "relative",
+                            backgroundColor: "#000",
                           }}
                         >
-                          <Ionicons name="play-circle" size={44} color="#fff" />
+                          <Video
+                            source={{ uri: normalizedUrl }}
+                            style={{ width: "100%", height: "100%" }}
+                            resizeMode={ResizeMode.COVER}
+                            isLooping
+                            shouldPlay={false}
+                          />
+
+                          <ThemedView
+                            style={{
+                              position: "absolute",
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              justifyContent: "center",
+                              alignItems: "center",
+                              backgroundColor: "rgba(0,0,0,0.25)",
+                            }}
+                          >
+                            <Ionicons name="play-circle" size={44} color="#fff" />
+                          </ThemedView>
                         </ThemedView>
-                      </ThemedView>
-                    ) : (
-                      <Image
-                        key={idx}
-                        source={{ uri: url }}
-                        style={{
-                          width: 120,
-                          height: 120,
-                          borderRadius: 8,
-                          marginRight: 8,
-                        }}
-                      />
-                    );
-                  })}
+                      ) : (
+                        <ThemedView
+                          key={idx}
+                          style={{
+                            width: 120,
+                            height: 120,
+                            borderRadius: 8,
+                            marginRight: 8,
+                            overflow: "hidden",
+                            backgroundColor: isDark ? "#1f2937" : "#e5e7eb",
+                          }}
+                        >
+                          <Image
+                            source={{ uri: normalizedUrl }}
+                            style={{ width: "100%", height: "100%" }}
+                            resizeMode="cover"
+                          />
+                        </ThemedView>
+                      );
+                    });
+                })()}
               </ScrollView>
             )}
 
@@ -401,6 +443,7 @@ export default function ShareCampaignPost({
                 justifyContent: "flex-end",
                 gap: 12,
                 paddingTop: 12,
+                marginTop: 12,
                 borderTopWidth: 1,
                 borderColor: isDark ? "#374151" : "#e5e7eb",
               }}
@@ -454,4 +497,90 @@ export default function ShareCampaignPost({
       </ThemedView>
     </ThemedView>
   );
+
+  function normalizeUrl(url: string) {
+    if (!url) return "";
+    if (
+      url.startsWith("http") ||
+      url.startsWith("data:") ||
+      url.startsWith("file:")
+    ) {
+      return getMediaPreviewUrl(url);
+    }
+    const baseUrl =
+      process.env.EXPO_PUBLIC_API_BASE_URL?.replace("/api/", "") ||
+      "https://campzeo.com";
+    return `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
+  }
+
+  function getMediaPreviewUrl(url: string): string {
+    if (!url) return "";
+
+    const id = extractGoogleDriveId(url);
+    if (id) {
+      const fileName = "media";
+      return `https://storage.campzeo.com/api/upload/google-drive/view?id=${id}&file=${encodeURIComponent(
+        fileName,
+      )}`;
+    }
+
+    return url;
+  }
+
+  function extractGoogleDriveId(url: string | null | undefined): string | null {
+    if (!url) return null;
+    try {
+      if (
+        url.includes("googleusercontent.com") ||
+        url.includes("drive.google.com")
+      ) {
+        if (url.includes("/d/")) {
+          const parts = url.split("/d/")[1]?.split(/[/?=]/);
+          if (parts && parts[0]) return parts[0];
+        }
+        const urlObj = new URL(url);
+        const id = urlObj.searchParams.get("id");
+        if (id) return id;
+      }
+    } catch {
+      const dMatch = url.match(/\/d\/([^/?=]+)/);
+      if (dMatch) return dMatch[1];
+      const idMatch = url.match(/[?&]id=([^?&]+)/);
+      if (idMatch) return idMatch[1];
+    }
+    return null;
+  }
+
+  function inferMediaType(uri: string) {
+    if (!uri) return "application/octet-stream";
+
+    // Check for Google Drive direct links or common storage patterns
+    if (
+      uri.includes("googleusercontent.com") ||
+      uri.includes("lh3.googleusercontent.com") ||
+      uri.includes("drive.google.com") ||
+      uri.includes("storage.campzeo.com")
+    ) {
+      // If it's explicitly in an image list, it's an image
+      const isStoredInImageField =
+        post?.mediaUrls?.includes(uri) ||
+        post?.metadata?.mediaUrls?.includes(uri) ||
+        post?.attachments?.some((a: any) => (a.uploadedUrl === uri || a.uri === uri || a.fileUrl === uri) && a.type?.startsWith("image/"));
+
+      if (uri === post?.videoUrl && !isStoredInImageField) return "video/mp4";
+      return "image/jpeg";
+    }
+
+    const ext = uri.split(".").pop()?.toLowerCase();
+    if (!ext || ext.length > 5) return "image/jpeg";
+
+    if (["jpg", "jpeg"].includes(ext)) return "image/jpeg";
+    if (ext === "png") return "image/png";
+    if (ext === "gif") return "image/gif";
+    if (ext === "webp") return "image/webp";
+    if (ext === "mp4") return "video/mp4";
+    if (ext === "mov") return "video/quicktime";
+
+    return "image/jpeg"; 
+  }
 }

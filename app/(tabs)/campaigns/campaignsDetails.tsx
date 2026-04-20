@@ -24,6 +24,9 @@ import {
 import { ContactsRecord } from "../contacts/contactComponents/contactCard";
 import CampaignCard, { Campaign } from "./campaignComponents/campaignCard";
 import ShareCampaignPost from "./campaignComponents/shareCampaignPost";
+import BoostCampaignPost from "./campaignComponents/boostCampaignPost";
+import Preview from "./campaignComponents/preview"; // ✅ Added Preview import
+import { Linking, Modal, SafeAreaView, ScrollView } from "react-native";
 
 
 // Map type to icon
@@ -266,6 +269,23 @@ export default function CampaignsDetails() {
     });
   };
 
+  const handleBoostPostAction = (post: any) => {
+    const status = getPostStatus(post);
+    if (status === "SENT") {
+      // Open external link
+      const adAccountId = post.metadata?.boosting?.adAccountId || "1237825278172670";
+      const pageId = post.metadata?.facebookPageId || "814937711712427";
+      const targetId = post.metadata?.facebookPostId || post.postId || "122129921193143563"; 
+      
+      const url = `https://www.facebook.com/ad_center/create/boostpost/?ad_account_id=${adAccountId}&page_id=${pageId}&target_id=${targetId}&entry_point=partner_campzeo`;
+      Linking.openURL(url).catch(err => Alert.alert("Error", "Could not open Facebook Boost page"));
+    } else {
+      // Open modal
+      setCurrentBoostPostId(post.id);
+      setBoostModalVisible(true);
+    }
+  };
+
   const PostSkeletonCard = ({ isDark }: { isDark: boolean }) => {
     const bg = isDark ? "#27272a" : "#e5e7eb";
 
@@ -372,6 +392,19 @@ export default function CampaignsDetails() {
   const [selectedContacts, setSelectedContacts] = useState<number[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [currentSharePostId, setCurrentSharePostId] = useState<number | null>(null);
+
+  // ========= BOOST POST MODAL =========
+  const [boostModalVisible, setBoostModalVisible] = useState(false);
+  const [currentBoostPostId, setCurrentBoostPostId] = useState<number | null>(null);
+
+  const boostPostData = useMemo(() => {
+    if (!currentBoostPostId) return null;
+    return posts.find(p => p.id === currentBoostPostId);
+  }, [posts, currentBoostPostId]);
+
+  // ========= PREVIEW POST MODAL =========
+  const [previewModalVisible, setPreviewModalVisible] = useState(false);
+  const [previewPost, setPreviewPost] = useState<any | null>(null);
 
   // 🔧 FIX: sanitize post data for share modal (Pinterest issue)
   const sharePostData = useMemo(() => {
@@ -526,6 +559,8 @@ export default function CampaignsDetails() {
     const canDelete = status !== "SENT";
     const canEdit = status !== "SENT";
     const canShare = status !== "SENT";
+    const isMeta = item.type === "FACEBOOK" || item.type === "INSTAGRAM";
+    const canBoost = isMeta;
 
     return (
       <View className="p-4 rounded-xl mb-4 relative">
@@ -535,10 +570,31 @@ export default function CampaignsDetails() {
             top: 8,
             right: 8,
             flexDirection: "row",
+            gap: 2,
             zIndex: 10,
             elevation: 10,
           }}
         >
+          {canBoost && (
+            <TouchableOpacity
+              onPress={() => handleBoostPostAction(item)}
+              activeOpacity={0.6}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Ionicons
+                name={status === "SENT" ? "rocket" : "rocket-outline"}
+                size={22}
+                color={isDark ? "#fbbf24" : "#f59e0b"}
+              />
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             onPress={() => {
               if (!canShare) return;
@@ -573,6 +629,7 @@ export default function CampaignsDetails() {
             style={{
               width: 44,
               height: 44,
+              borderRadius: 22,
               justifyContent: "center",
               alignItems: "center",
               opacity: !canEdit ? 0.4 : 1,
@@ -620,7 +677,7 @@ export default function CampaignsDetails() {
         {item.subject ? (
           <ThemedText
             className="text-lg font-bold mb-2"
-            style={{ marginRight: 120 }}
+            style={{ marginRight: canBoost ? 160 : 120 }}
             numberOfLines={1}
             ellipsizeMode="tail"
           >
@@ -754,15 +811,37 @@ export default function CampaignsDetails() {
             >
               {status}
             </ThemedText>
+
+            {(status === "SENT" || status === "SCHEDULED") && (
+              <TouchableOpacity
+                onPress={() => {
+                  setPreviewPost(item);
+                  setPreviewModalVisible(true);
+                }}
+                style={{
+                  padding: 4,
+                  marginLeft: 6,
+                }}
+              >
+                <Ionicons
+                  name="eye-outline"
+                  size={16}
+                  color={
+                    status === "SENT"
+                      ? "#16a34a"
+                      : status === "SCHEDULED"
+                        ? "#2563eb"
+                        : isDark ? "#9ca3af" : "#6b7280"
+                  }
+                />
+              </TouchableOpacity>
+            )}
           </View>
 
         </ThemedView>
       </View>
     );
   };
-
-  // const visiblePosts = posts.slice(0, visibleCount);
-  // const isAllVisible = visibleCount >= posts.length;
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -928,6 +1007,150 @@ export default function CampaignsDetails() {
         onToggleContact={toggleContactSelection}
         onPublish={sharePost}
       />
+      <BoostCampaignPost
+        visible={boostModalVisible}
+        onClose={() => setBoostModalVisible(false)}
+        post={boostPostData}
+        campaignId={resolvedCampaignId || 0}
+        isDark={isDark}
+        onSuccess={fetchPosts}
+      />
+
+      {/* Post Preview Modal (Bottom Sheet Style) */}
+      <Modal
+        visible={previewModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setPreviewModalVisible(false)}
+      >
+        <TouchableOpacity 
+          activeOpacity={1} 
+          onPress={() => setPreviewModalVisible(false)}
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}
+        >
+          <TouchableOpacity 
+            activeOpacity={1}
+            style={{ 
+              height: "75%", 
+              backgroundColor: isDark ? "#18181b" : "#fff",
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              overflow: "hidden"
+            }}
+          >
+            <View style={{ 
+              flexDirection: "row", 
+              justifyContent: "space-between", 
+              alignItems: "center", 
+              padding: 16,
+              borderBottomWidth: 1,
+              borderBottomColor: isDark ? "#333" : "#eee"
+            }}>
+              <ThemedText style={{ fontSize: 18, fontWeight: "bold" }}>Post Preview</ThemedText>
+              <TouchableOpacity onPress={() => setPreviewModalVisible(false)}>
+                <Ionicons name="close" size={24} color={isDark ? "#fff" : "#000"} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView className="flex-1">
+              {previewPost && (
+                <View className="mb-8">
+                  {/* Platform Badge + Page info */}
+                  <View className="p-4" style={{ paddingBottom: 0 }}>
+                    <View className="flex-row items-center mb-2">
+                      {platformIcons[previewPost.type] && (
+                        <>
+                          {(() => {
+                            const PlatformIconSet = platformIcons[previewPost.type].Icon;
+                            return (
+                              <PlatformIconSet 
+                                name={platformIcons[previewPost.type].name} 
+                                size={20} 
+                                color={platformIcons[previewPost.type].color} 
+                              />
+                            );
+                          })()}
+                          <ThemedText className="ml-2 font-bold text-lg">
+                            {previewPost.type}
+                          </ThemedText>
+                        </>
+                      )}
+                    </View>
+                    
+                    {(previewPost.type === "FACEBOOK" || previewPost.type === "INSTAGRAM") && (
+                      <View className="bg-blue-100/50 dark:bg-blue-900/40 p-3 rounded-xl flex-row items-center mb-4">
+                        <Ionicons name="megaphone-outline" size={18} color="#3b82f6" />
+                        <ThemedText className="ml-2 text-blue-800 dark:text-blue-200 font-semibold text-xs">
+                          Posting to: {previewPost.metadata?.facebookPageName || previewPost.metadata?.facebookPage || "Connected Page"}
+                        </ThemedText>
+                      </View>
+                    )}
+                  </View>
+
+                <View style={{ marginTop: -10 }}>
+                   <Preview
+                    platform={previewPost.type.toLowerCase()}
+                    username="Campzeo User"
+                    senderEmail={previewPost.senderEmail}
+                    subject={previewPost.subject}
+                    text={previewPost.message || ""}
+                    media={(() => {
+                      const allMedia = [
+                        ...(previewPost.mediaUrls || []).map((url: string) => ({
+                          uri: normalizeHelper(url),
+                          type: url?.match(/\.(mp4|mov|mkv)($|\?)/i) ? "video/mp4" : "image/jpeg",
+                          name: url?.split("/").pop() || "File",
+                          size: undefined
+                        })),
+                        ...(previewPost.attachments || []).map((a: any) => {
+                          const uri = normalizeHelper(a.uploadedUrl || a.fileUrl || a.uri);
+                          return {
+                            uri,
+                            type: a.mimeType || a.type || (uri?.match(/\.(mp4|mov|mkv)($|\?)/i) ? "video/mp4" : "image/jpeg"),
+                            name: a.fileName || a.name || uri?.split("/").pop() || "File",
+                            size: a.fileSize || a.size
+                          };
+                        }),
+                        ...(previewPost.videoUrl ? [{
+                          uri: normalizeHelper(previewPost.videoUrl),
+                          type: "video/mp4",
+                          name: "Video content",
+                          size: undefined
+                        }] : [])
+                      ];
+
+                      // Deduplicate by URI and filter out empty ones
+                      return allMedia.filter((item, index, self) => 
+                        item.uri && 
+                        self.findIndex(t => t.uri === item.uri) === index
+                      );
+                    })()}
+                    timestamp="Just now"
+                  />
+                </View>
+                </View>
+              )}
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </ThemedView>
   );
+
+  // local helper inside the component scope or before defined
+  function normalizeHelper(url: string) {
+    if (!url) return "";
+    if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("file:")) {
+       // Google Drive check
+       const dMatch = url.match(/\/d\/([^/?=]+)/);
+       const idMatch = url.match(/[?&]id=([^?&]+)/);
+       const id = dMatch ? dMatch[1] : (idMatch ? idMatch[1] : null);
+       if (id) {
+         return `https://storage.campzeo.com/api/upload/google-drive/view?id=${id}&file=media`;
+       }
+       return url;
+    }
+    const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace("/api/", "") || "https://campzeo.com";
+    return `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
+  }
 }

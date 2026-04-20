@@ -126,7 +126,12 @@ export default function CreateTemplet() {
             setContent(t.content || "");
             setEmailSubject(t.subject || "");
             if (t.mediaUrls && t.mediaUrls.length > 0) {
-              setMedia(t.mediaUrls.map(url => ({ uri: url, uploadedUrl: url, type: "image", name: "Existing Media" })));
+              setMedia(t.mediaUrls.map(url => ({ 
+                uri: normalizeUrl(url), 
+                uploadedUrl: url, 
+                type: url.toLowerCase().endsWith(".mp4") || url.toLowerCase().endsWith(".mov") ? "video" : "image", 
+                name: "Existing Media" 
+              })));
             }
             if (t.metadata) {
               setPreHeader(t.metadata.preHeader || "");
@@ -146,6 +151,60 @@ export default function CreateTemplet() {
       loadTemplate();
     }
   }, [id]);
+  
+  function normalizeUrl(url: string) {
+    if (!url) return "";
+    if (
+      url.startsWith("http") ||
+      url.startsWith("data:") ||
+      url.startsWith("file:")
+    ) {
+      return getMediaPreviewUrl(url);
+    }
+    const baseUrl =
+      process.env.EXPO_PUBLIC_API_BASE_URL?.replace("/api/", "") ||
+      "https://campzeo.com";
+    return `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
+  }
+
+  function getMediaPreviewUrl(url: string): string {
+    if (!url) return "";
+
+    const id = extractGoogleDriveId(url);
+    if (id) {
+      // Use the provided storage proxy URL
+      const fileName = "media";
+      return `https://storage.campzeo.com/api/upload/google-drive/view?id=${id}&file=${encodeURIComponent(
+        fileName,
+      )}`;
+    }
+
+    return url;
+  }
+
+  function extractGoogleDriveId(url: string | null | undefined): string | null {
+    if (!url) return null;
+    try {
+      if (
+        url.includes("googleusercontent.com") ||
+        url.includes("drive.google.com")
+      ) {
+        if (url.includes("/d/")) {
+          const parts = url.split("/d/")[1]?.split(/[/?=]/);
+          if (parts && parts[0]) return parts[0];
+        }
+        const urlObj = new URL(url);
+        const id = urlObj.searchParams.get("id");
+        if (id) return id;
+      }
+    } catch {
+      const dMatch = url.match(/\/d\/([^/?=]+)/);
+      if (dMatch) return dMatch[1];
+      const idMatch = url.match(/[?&]id=([^?&]+)/);
+      if (idMatch) return idMatch[1];
+    }
+    return null;
+  }
 
 
   const bg = isDark ? "#161618" : "#f3f4f6";
