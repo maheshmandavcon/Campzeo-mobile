@@ -2,7 +2,7 @@ import "react-native-gesture-handler"; // MUST BE FIRST
 import "react-native-reanimated";
 import "../global.css";
 
-import { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 
 import { Stack, usePathname, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -24,13 +24,11 @@ import { setTokenGetter } from "@/lib/authToken";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { ThemedView } from "@/components/themed-view";
 import * as Linking from "expo-linking";
-import { ActivityIndicator, AppState, Image } from "react-native";
+import { ActivityIndicator, Image } from "react-native";
 import { GluestackUIProvider } from "@gluestack-ui/themed";
 import { config } from "@gluestack-ui/config";
 import { NetworkGate } from "../network/networkGate";
 import { OverlayProvider } from "@gluestack-ui/core/overlay/creator";
-import Toast from "react-native-toast-message";
-import { useApprovalStore } from "@/store/useApprovalStore";
 
 /* ---------------- TOKEN CACHE ---------------- */
 
@@ -121,90 +119,6 @@ function AuthBridge() {
   return null;
 }
 
-function ApprovalGuard({ children }: { children: React.ReactNode }) {
-  const { isApproved, isChecking, checkApproval } = useApprovalStore();
-  const { isSignedIn } = useAuth();
-  const pathname = usePathname();
-  const router = useRouter();
-  const appState = useRef(AppState.currentState);
-
-  // Routes that should NOT be blocked by approval check
-  const bypassRoutes = ["/", "/login", "/expiredPlan", "/auth-callback", "/changePassword"];
-
-  const isBypassRoute = bypassRoutes.includes(pathname);
-
-  // 1) Check approval on mount when signed in
-  useEffect(() => {
-    if (isSignedIn) {
-      console.log("[ApprovalGuard] Checking approval on mount...");
-      checkApproval();
-    }
-  }, [isSignedIn]);
-
-  // 2) Re-check approval when app comes back to foreground (e.g., returning from browser after purchasing plan)
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (
-        appState.current.match(/inactive|background/) &&
-        nextAppState === "active" &&
-        isSignedIn
-      ) {
-        console.log("[ApprovalGuard] App returned to foreground, re-checking approval...");
-        checkApproval();
-      }
-      appState.current = nextAppState;
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, [isSignedIn]);
-
-  // 3) Handle redirects based on approval status
-  useEffect(() => {
-    if (!isSignedIn || isChecking || isApproved === null || !pathname) return;
-
-    console.log("[ApprovalGuard]", { isApproved, pathname, isBypassRoute });
-
-    if (!isApproved && !isBypassRoute) {
-      // Plan expired/not purchased — redirect to expiredPlan
-      console.log("[ApprovalGuard] Plan expired, redirecting to expiredPlan");
-      router.replace("/(auth)/expiredPlan");
-    }
-
-    if (isApproved && pathname === "/expiredPlan") {
-      // Plan is now active but user is still on expiredPlan page — redirect to dashboard
-      console.log("[ApprovalGuard] Plan active, redirecting to dashboard");
-      router.replace("/(tabs)/dashboard");
-    }
-  }, [isApproved, isChecking, isSignedIn, pathname]);
-
-  // Show loading while checking approval for signed-in users (on non-bypass routes)
-  if (isSignedIn && (isChecking || isApproved === null) && !isBypassRoute) {
-    return (
-      <ThemedView
-        className="flex-1 items-center justify-center"
-        style={{ backgroundColor: "#ffffff" }}
-      >
-        <Image
-          source={require("../assets/app-images/camp-logo.png")}
-          style={{
-            width: 200,
-            height: 80,
-            resizeMode: "contain",
-            marginBottom: 20,
-          }}
-        />
-        <ActivityIndicator size="large" color="#dc2626" />
-      </ThemedView>
-    );
-  }
-
-  return <>{children}</>;
-}
-
-
-
 /* ---------------- LINKING DEBUG ---------------- */
 
 function GlobalLinkingHandler() {
@@ -245,7 +159,6 @@ export default function RootLayout() {
 
         <NetworkGate>
           <AuthGuard>
-            <ApprovalGuard>
             <GlobalLinkingHandler />
             <GluestackUIProvider config={config}>
               <OverlayProvider>
@@ -260,7 +173,6 @@ export default function RootLayout() {
                           <Stack.Screen name="(tabs)" />
                           <Stack.Screen name="auth-callback" />
                         </Stack>
-                        <Toast />
                         <StatusBar style="auto" />
                       </QueryClientProvider>
                     </GestureHandlerRootView>
@@ -268,7 +180,6 @@ export default function RootLayout() {
                 </SafeAreaProvider>
               </OverlayProvider>
             </GluestackUIProvider>
-            </ApprovalGuard>
           </AuthGuard>
         </NetworkGate>
       </ClerkLoaded>

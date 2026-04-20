@@ -4,7 +4,7 @@ import { useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@gluestack-ui/themed";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { ResizeMode, Video } from "expo-av";
+import Video from "react-native-video";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -171,10 +171,11 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             <Video
               source={{ uri: item.uri }}
               style={{ width: "100%", height: "100%" }}
-              resizeMode={ResizeMode.COVER}
-              shouldPlay={true}
-              isMuted
-              useNativeControls={false}
+              resizeMode="cover"
+              paused={false}
+              muted
+              controls={false}
+              repeat
             />
             {/* Play icon overlay */}
             <View

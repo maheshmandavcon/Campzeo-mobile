@@ -21,7 +21,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { uploadMediaApi } from "@/api/campaignApi";
 import { getUser } from "@/api/dashboardApi";
-import { Video, ResizeMode } from "expo-av";
+import Video from "react-native-video";
 
 
 // ─── Constants ─────────────────────────────────────────────────────────────
@@ -614,11 +614,11 @@ export default function CreateTemplet() {
                         <Video
                           source={{ uri: item.uri || item.uploadedUrl || "" }}
                           style={{ width: "100%", height: "100%" }}
-                          resizeMode={ResizeMode.COVER}
-                          shouldPlay={true}
-                          isLooping={true}
-                          isMuted={true}
-                          useNativeControls={false}
+                          resizeMode="cover"
+                          paused={false}
+                          repeat
+                          muted
+                          controls={false}
                         />
                         <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.2)" }}>
                            <Ionicons name="play" size={24} color="#fff" />
@@ -820,11 +820,11 @@ export default function CreateTemplet() {
                       <Video
                         source={{ uri: media[0].uri || media[0].uploadedUrl || "" }}
                         style={{ width: "100%", height: "100%" }}
-                        resizeMode={ResizeMode.COVER}
-                        shouldPlay={isPlayingPreview}
-                        isLooping
-                        isMuted
-                        useNativeControls={false}
+                        resizeMode="cover"
+                        paused={!isPlayingPreview}
+                        repeat
+                        muted
+                        controls={false}
                       />
                       {!isPlayingPreview && (
                         <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center" }}>
@@ -897,11 +897,11 @@ export default function CreateTemplet() {
                       <Video
                         source={{ uri: media[0].uri || media[0].uploadedUrl || "" }}
                         style={{ width: "100%", height: "100%" }}
-                        resizeMode={ResizeMode.COVER}
-                        shouldPlay={isPlayingPreview}
-                        isLooping
-                        isMuted
-                        useNativeControls={false}
+                        resizeMode="cover"
+                        paused={!isPlayingPreview}
+                        repeat
+                        muted
+                        controls={false}
                       />
                       {!isPlayingPreview && (
                         <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center" }}>
@@ -1009,11 +1009,11 @@ export default function CreateTemplet() {
                       <Video
                         source={{ uri: media[0].uri || media[0].uploadedUrl || "" }}
                         style={{ width: "100%", height: "100%" }}
-                        resizeMode={ResizeMode.COVER}
-                        shouldPlay={isPlayingPreview}
-                        isLooping
-                        isMuted
-                        useNativeControls={false}
+                        resizeMode="cover"
+                        paused={!isPlayingPreview}
+                        repeat
+                        muted
+                        controls={false}
                       />
                       {!isPlayingPreview && (
                         <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center" }}>
@@ -1079,11 +1079,11 @@ export default function CreateTemplet() {
                       <Video
                         source={{ uri: media[0].uri || media[0].uploadedUrl || "" }}
                         style={{ width: "100%", height: "100%" }}
-                        resizeMode={ResizeMode.COVER}
-                        shouldPlay={isPlayingPreview}
-                        isLooping
-                        isMuted
-                        useNativeControls={false}
+                        resizeMode="cover"
+                        paused={!isPlayingPreview}
+                        repeat
+                        muted
+                        controls={false}
                       />
                       {!isPlayingPreview && (
                         <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center" }}>
@@ -1176,11 +1176,11 @@ export default function CreateTemplet() {
                             <Video
                               source={{ uri: item.uri || item.uploadedUrl || "" }}
                               style={{ width: "100%", height: "100%" }}
-                              resizeMode={ResizeMode.COVER}
-                              shouldPlay={isPlayingPreview && pinterestActiveIndex === index}
-                              isLooping
-                              isMuted
-                              useNativeControls={false}
+                              resizeMode="cover"
+                              paused={!(isPlayingPreview && pinterestActiveIndex === index)}
+                              repeat
+                              muted
+                              controls={false}
                             />
                             {(!isPlayingPreview || pinterestActiveIndex !== index) && (
                               <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center" }}>

@@ -13,7 +13,7 @@ import {
 WebBrowser.maybeCompleteAuthSession();
 
 export default function GoogleAuth() {
-  console.log("[GoogleAuth] Component rendering");
+  // console.log("[GoogleAuth] Component rendering");
   const { startSSOFlow } = useSSO();
   const [loading, setLoading] = useState(false);
 

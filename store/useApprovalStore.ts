@@ -14,7 +14,10 @@ export const useApprovalStore = create<ApprovalState>((set) => ({
   isChecking: false,
 
   checkApproval: async () => {
-    set({ isChecking: true });
+    set((s) => {
+      if (s.isChecking) return s;
+      return { ...s, isChecking: true };
+    });
 
     try {
       const user = await getUser();

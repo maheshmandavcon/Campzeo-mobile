@@ -9,7 +9,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { ContactsRecord } from "../../contacts/contactComponents/contactCard";
-import { Video, ResizeMode } from "expo-av";
+import Video from "react-native-video";
 import { router } from "expo-router";
 
 type Props = {
@@ -358,9 +358,10 @@ export default function ShareCampaignPost({
                         <Video
                           source={{ uri: url }}
                           style={{ width: "100%", height: "100%" }}
-                          resizeMode={ResizeMode.COVER}
-                          isLooping
-                          shouldPlay={false}
+                          resizeMode="cover"
+                          paused
+                          repeat
+                          controls={false}
                         />
 
                         <ThemedView

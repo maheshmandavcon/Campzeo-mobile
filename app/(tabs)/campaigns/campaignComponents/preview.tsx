@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { ResizeMode, Video } from 'expo-av';
+import Video from "react-native-video";
 import React, { useRef, useState } from "react";
 import { Dimensions, Image, ScrollView, Text, TouchableOpacity, useColorScheme, View } from "react-native";
 
@@ -107,10 +107,11 @@ const Preview: React.FC<PreviewProps> = ({
           <Video
             source={{ uri: images[0] }}
             style={{ width: "100%", height: 300 }}
-            resizeMode={ResizeMode.COVER}
-            shouldPlay
-            isLooping
-            isMuted
+            resizeMode="cover"
+            paused={false}
+            repeat
+            muted
+            controls={false}
           />
         ) : (
           <Image source={{ uri: images[0] }} className="w-full h-[300px]" />
@@ -125,10 +126,11 @@ const Preview: React.FC<PreviewProps> = ({
                 key={index}
                 source={{ uri }}
                 style={{ width: "50%", height: "100%" }}
-                resizeMode={ResizeMode.COVER}
-                shouldPlay
-                isLooping
-                isMuted
+                resizeMode="cover"
+                paused={false}
+                repeat
+                muted
+                controls={false}
               />
             ) : (
               <Image key={index} source={{ uri }} className="w-1/2 h-full" />
@@ -146,10 +148,11 @@ const Preview: React.FC<PreviewProps> = ({
                   key={index}
                   source={{ uri }}
                   style={{ width: "50%", height: "100%" }}
-                  resizeMode={ResizeMode.COVER}
-                  shouldPlay
-                  isLooping
-                  isMuted
+                  resizeMode="cover"
+                  paused={false}
+                  repeat
+                  muted
+                  controls={false}
                 />
               ) : (
                 <Image key={index} source={{ uri }} className="w-1/2 h-full" />
@@ -160,10 +163,11 @@ const Preview: React.FC<PreviewProps> = ({
             <Video
               source={{ uri: images[2] }}
               style={{ width: "100%", height: 150 }}
-              resizeMode={ResizeMode.COVER}
-              shouldPlay
-              isLooping
-              isMuted
+              resizeMode="cover"
+              paused={false}
+              repeat
+              muted
+              controls={false}
             />
           ) : (
             <Image source={{ uri: images[2] }} className="w-full h-[150px]" />
@@ -182,10 +186,11 @@ const Preview: React.FC<PreviewProps> = ({
                   <Video
                     source={{ uri }}
                     style={{ width: "100%", height: "100%" }}
-                    resizeMode={ResizeMode.COVER}
-                    shouldPlay
-                    isLooping
-                    isMuted
+                    resizeMode="cover"
+                    paused={false}
+                    repeat
+                    muted
+                    controls={false}
                   />
                 ) : (
                   <Image source={{ uri }} className="w-full h-full" />
@@ -243,13 +248,14 @@ const Preview: React.FC<PreviewProps> = ({
               {isVideo(uri) ? (
                 <Video
                   source={{ uri }}
-                  posterSource={index === 0 && coverImage ? { uri: coverImage } : undefined}
-                  usePoster={index === 0 && !!coverImage}
                   style={{ width: "100%", height: "100%" }}
-                  resizeMode={ResizeMode.COVER}
-                  shouldPlay
-                  isLooping
-                  isMuted
+                  poster={index === 0 && coverImage ? coverImage : undefined}
+                  posterResizeMode="cover"
+                  resizeMode="cover"
+                  paused={false}
+                  repeat
+                  muted
+                  controls={false}
                 />
               ) : (
                 <Image
@@ -312,8 +318,8 @@ const Preview: React.FC<PreviewProps> = ({
             <Video
               source={{ uri }}
               style={{ width: "100%", height: "100%" }}
-              resizeMode={ResizeMode.COVER}
-              useNativeControls
+              resizeMode="cover"
+              controls
             />
           ) : (
             <Image
@@ -519,10 +525,11 @@ const Preview: React.FC<PreviewProps> = ({
               <Video
                 source={{ uri }}
                 style={{ width: "100%", height: 200 }}
-                resizeMode={ResizeMode.COVER}
-                shouldPlay={false}
-                isLooping
-                isMuted
+                resizeMode="cover"
+                paused
+                repeat
+                muted
+                controls={false}
               />
             ) : (
               <Image

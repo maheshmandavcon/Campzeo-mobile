@@ -89,6 +89,8 @@ export default function BillingPage() {
     null,
   );
 
+  const [premiumAlert, setPremiumAlert] = useState(false);
+  const [isOneDay, setIsOneDay] = useState(false);
   // const handleAutoRenew = async (value: boolean) => {
   //   setAutoRenew(value);
 
@@ -152,7 +154,7 @@ export default function BillingPage() {
 
       setusageData(usage);
       setSubscriptionData(subscription);
-      console.log("bbbb", balance);
+      // console.log("bbbb", balance);
 
       setBalanceData(balance);
       setPlansData(plan);
@@ -167,6 +169,27 @@ export default function BillingPage() {
   useEffect(() => {
     fetchBillingDetails();
   }, []);
+
+  useEffect(() => {
+    if (subscriptionData?.subscription?.endDate) {
+      const today = new Date();
+      const end = new Date(subscriptionData.subscription.endDate);
+      const diffTime = end.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 1) {
+        setIsOneDay(true);
+      } else {
+        setIsOneDay(false);
+      }
+
+      if (diffDays >= 0 && diffDays <= 3) {
+        setPremiumAlert(true);
+      } else {
+        setPremiumAlert(false);
+      }
+    }
+  }, [subscriptionData]);
 
   const onRequestTwilio = async () => {
     try {
@@ -201,12 +224,9 @@ export default function BillingPage() {
     const end = new Date(endDate);
 
     const diffTime = end.getTime() - today.getTime();
-console.log("end",end.getTime(), "today", today.getTime());
-
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    console.log("diffDays", diffDays);
 
-    if (diffDays == 1) {
+    if (diffDays === 1) {
       return diffDays + " day";
     } else {
       return diffDays + " days";
@@ -346,48 +366,69 @@ console.log("end",end.getTime(), "today", today.getTime());
       </HStack>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        <VStack className="bg-[#fff7ed] border border-[#fed7aa] rounded-xl p-3 gap-3 mb-3">
-          {/* Top Row */}
-          <HStack className="items-start gap-2">
-            {/* Icon */}
-            <Ionicons name="warning-outline" size={20} color="#ea580c" />
-
-            {/* Text Content */}
-            <VStack className="flex-1 gap-1">
-              <Text className="text-[14px] font-semibold text-[#9a3412]">
-                Plan Expiring Soon
-              </Text>
-
-              <Text className="text-[13px] text-[#7c2d12] leading-5">
-                Your <Text className="font-semibold">ENTERPRISE</Text> plan
-                expires in{" "}
-                <Text className="font-semibold">
-                  {subscriptionValidity(
-                    subscriptionData?.subscription?.endDate,
-                  )}
-                </Text>{" "}
-                on{" "}
-                <Text className="font-semibold">
-                  {formatDate(subscriptionData?.subscription?.endDate)}
-                </Text>
-                . Please renew your subscription to maintain full access.
-              </Text>
-            </VStack>
-          </HStack>
-
-          {/* Button */}
-          <TouchableOpacity
-            onPress={() => {
-              Linking.openURL("https://campzeo.com/organisation/billing");
-            }}
-            className="bg-[#ea580c] py-3 rounded-lg items-center"
-            activeOpacity={0.8}
+        {subscriptionData?.subscription?.plan?.name != "FREE_TRIAL" &&
+        premiumAlert ? (
+          // isOneDay
+          // bg-[#fef2f2] border border-[#ffc9c9]
+          // bg-[#fff7ed] border border-[#fed7aa]
+          <VStack
+            className={`${isOneDay ? "bg-[#fef2f2] border border-[#ffc9c9]" : "bg-[#fff7ed] border border-[#fed7aa]"} rounded-xl p-3 gap-3 mb-3`}
           >
-            <Text className="text-white font-semibold text-lg gap-5 items-center">
-              <Ionicons name="card" size={15} color="#fff" /> Pay Now & Renew
-            </Text>
-          </TouchableOpacity>
-        </VStack>
+            <HStack className="items-start gap-2">
+              {/* Icon */}
+              <Ionicons
+                name="warning-outline"
+                size={20}
+                color={isOneDay ? "#e7000b" : "#ea580c"}
+              />
+
+              {/* Text Content */}
+              <VStack className="flex-1 gap-1">
+                <Text
+                  className={`text-[14px] font-semibold ${isOneDay ? "text-[#9f0712]" : "text-[#9a3412]"}`}
+                >
+                  Plan Expiring Soon
+                </Text>
+
+                <Text
+                  className={`text-[13px] ${isOneDay ? "text-[#9f0712]" : "text-[#7c2d12]"} leading-5`}
+                >
+                  Your{" "}
+                  <Text className="font-semibold">
+                    {subscriptionData?.subscription?.plan?.name ?? "—"}
+                  </Text>{" "}
+                  plan expires in{" "}
+                  <Text className="font-semibold">
+                    {subscriptionValidity(
+                      subscriptionData?.subscription?.endDate,
+                    )}
+                  </Text>{" "}
+                  on{" "}
+                  <Text className="font-semibold">
+                    {formatDate(subscriptionData?.subscription?.endDate)}
+                  </Text>
+                  . Please renew your subscription to maintain full access to
+                  all features.
+                </Text>
+              </VStack>
+            </HStack>
+            {/* Button */}
+            <TouchableOpacity
+              onPress={() => {
+                Linking.openURL("https://campzeo.com/organisation/billing");
+              }}
+              className={`isOneDay ? bg-[#e7000b] : bg-[#e17100] py-3 rounded-lg items-center`}
+              activeOpacity={0.8}
+            >
+              <Text className="text-white font-semibold text-lg gap-5 items-center">
+                <Ionicons name="card" size={15} color="#fff" /> Pay Now & Renew
+              </Text>
+            </TouchableOpacity>
+          </VStack>
+        ) : (
+          ""
+        )}
+        {/* Top Row */}
 
         {subscriptionData?.subscription?.plan?.name === "FREE_TRIAL" && (
           <ThemedView style={cardStyle}>
@@ -1178,48 +1219,221 @@ console.log("end",end.getTime(), "today", today.getTime());
 
         {/* Approved */}
         {balanceData?.twilioAccess?.twilioAccessStatus === "APPROVED" && (
-          <VStack
-            className="bg-[#ecfdf5] border border-[#bbf7d0] rounded-xl p-4 gap-4"
-            style={{
-              borderColor: "#dcfce7",
-              borderWidth: 1,
-              backgroundColor: "#f0fdf4",
-            }}
-          >
-            {/* Header */}
-            <HStack className="justify-between items-center">
-              {/* Left */}
-              <HStack className="items-center gap-2">
-                <Ionicons
-                  name="checkmark-circle-outline"
-                  size={20}
-                  color="#16a34a"
-                />
-                <Text className="text-[16px] font-semibold text-gray-900">
-                  Twilio SMS & WhatsApp Access
-                </Text>
+          <>
+            <VStack
+              className="bg-[#ecfdf5] border border-[#bbf7d0] rounded-xl p-4 gap-4 mb-3"
+              style={{
+                borderColor: "#dcfce7",
+                borderWidth: 1,
+                backgroundColor: "#f0fdf4",
+              }}
+            >
+              {/* Header */}
+              <HStack className="justify-between items-center">
+                {/* Left */}
+                <HStack className="items-center gap-2">
+                  <Ionicons
+                    name="checkmark-circle-outline"
+                    size={20}
+                    color="#16a34a"
+                  />
+                  <Text className="text-[16px] font-semibold text-gray-900">
+                    Twilio SMS & WhatsApp Access
+                  </Text>
+                </HStack>
+
+                {/* Badge */}
+                <View
+                  className="px-3 py-1 rounded-full"
+                  style={{ backgroundColor: "#00a63e", borderRadius: 10 }}
+                >
+                  <Text className="text-white text-[12px] font-medium">
+                    Approved
+                  </Text>
+                </View>
               </HStack>
 
-              {/* Badge */}
-              <View
-                className="px-3 py-1 rounded-full"
-                style={{ backgroundColor: "#00a63e", borderRadius: 10 }}
+              {/* Description */}
+              <Text
+                className="text-[14px] text-[#15803d] leading-5"
+                style={{ color: "#016630" }}
               >
-                <Text className="text-white text-[12px] font-medium">
-                  Approved
-                </Text>
-              </View>
-            </HStack>
+                Your access has been approved. You can now purchase credits and
+                send campaigns.
+              </Text>
+            </VStack>
+            <VStack className="gap-4">
+              {/* SMS Credits */}
+              <VStack className="bg-white border border-gray-200 rounded-xl p-4 gap-3">
+                {/* Header */}
+                <HStack className="items-center gap-2">
+                  <Ionicons name="call-outline" size={18} color="#2563eb" />
+                  <Text className="text-[14px] font-medium text-gray-700">
+                    SMS Credits
+                  </Text>
+                </HStack>
 
-            {/* Description */}
-            <Text
-              className="text-[14px] text-[#15803d] leading-5"
-              style={{ color: "#016630" }}
-            >
-              Your access has been approved. You can now purchase credits and
-              send campaigns.
-            </Text>
-          </VStack>
+                {/* Available */}
+                <HStack className="items-end gap-1">
+                  <Text className="text-2xl font-bold text-gray-900">
+                    {balanceData?.wallet?.smsCreditsAvailable}
+                  </Text>
+                  <Text className="text-gray-500 mb-1">Available</Text>
+                </HStack>
+
+                {/* Usage */}
+                <HStack className="justify-between">
+                  <Text className="text-xs text-gray-500">
+                    {balanceData?.wallet?.smsCreditsUsed} used
+                  </Text>
+                  <Text className="text-xs text-gray-500">
+                    {balanceData?.wallet?.smsCreditsUsed}%
+                  </Text>
+                </HStack>
+
+                {/* Progress */}
+                <Progress
+                  value={balanceData?.wallet?.smsCreditsUsed}
+                  className="h-2 bg-gray-200 rounded-full"
+                  size="sm"
+                >
+                  <ProgressFilledTrack
+                    style={{
+                      backgroundColor:
+                        balanceData?.wallet?.smsCreditsUsed <
+                        balanceData?.wallet?.smsCreditsAvailable
+                          ? SUCCESS
+                          : ACCENT,
+                    }}
+                  />
+                </Progress>
+
+                {/* Footer */}
+                <HStack className="items-center gap-1">
+                  <Ionicons
+                    name="trending-up-outline"
+                    size={14}
+                    color="#16a34a"
+                  />
+                  <Text className="text-xs text-gray-600">
+                    {balanceData?.wallet?.smsCreditsAvailable} Total Credits
+                  </Text>
+                </HStack>
+              </VStack>
+
+              {/* WhatsApp Credits */}
+              <VStack className="bg-white border border-gray-200 rounded-xl p-4 gap-3">
+                <HStack className="items-center gap-2">
+                  <Ionicons name="logo-whatsapp" size={18} color="#16a34a" />
+                  <Text className="text-[14px] font-medium text-gray-700">
+                    WhatsApp Credits
+                  </Text>
+                </HStack>
+
+                <HStack className="items-end gap-1">
+                  <Text className="text-2xl font-bold text-gray-900">
+                    {balanceData?.wallet?.whatsappCreditsAvailable}
+                  </Text>
+                  <Text className="text-gray-500 mb-1">Available</Text>
+                </HStack>
+
+                <HStack className="justify-between">
+                  <Text className="text-xs text-gray-500">
+                    {balanceData?.wallet?.whatsappCreditsUsed} used
+                  </Text>
+                  <Text className="text-xs text-gray-500">
+                    {balanceData?.wallet?.whatsappCreditsUsed} %
+                  </Text>
+                </HStack>
+
+                <Progress
+                  value={balanceData?.wallet?.whatsappCreditsUsed}
+                  className="h-2 bg-gray-200 rounded-full"
+                  size="sm"
+                >
+                  <ProgressFilledTrack
+                    style={{
+                      backgroundColor:
+                        balanceData?.wallet?.whatsappCreditsUsed <
+                        balanceData?.wallet?.whatsappCreditsAvailable
+                          ? SUCCESS
+                          : ACCENT,
+                    }}
+                  />
+                </Progress>
+
+                <HStack className="items-center gap-1">
+                  <Ionicons
+                    name="trending-up-outline"
+                    size={14}
+                    color="#16a34a"
+                  />
+                  <Text className="text-xs text-gray-600">
+                    {balanceData?.wallet?.whatsappCreditsAvailable} Total
+                    Credits
+                  </Text>
+                </HStack>
+              </VStack>
+
+              {/* Recent Activity */}
+              <VStack className="bg-white border border-gray-200 rounded-xl p-4 gap-4">
+                {/* Header */}
+                <HStack className="items-center gap-2">
+                  <Ionicons name="time-outline" size={18} color="#f97316" />
+                  <Text className="text-[14px] font-medium text-gray-700">
+                    Recent Activity
+                  </Text>
+                </HStack>
+
+                {/* Content */}
+                <VStack className="gap-3">
+                  {balanceData?.wallet?.transactions?.length === 0 ? (
+                    <View className="py-4 items-center">
+                      <Text className="text-gray-500 text-sm">
+                        No transactions found
+                      </Text>
+                    </View>
+                  ) : (
+                    balanceData?.wallet?.transactions?.map(
+                      (item: any, index: number) => (
+                        <VStack key={index} className="gap-2">
+                          {/* Description */}
+                          <ThemedText
+                            style={{ fontSize: 15, fontWeight: "700" }}
+                          >
+                            {item?.description}
+                          </ThemedText>
+
+                          {/* Date + Amount */}
+                          <HStack className="justify-between items-center">
+                            <ThemedText style={{ fontSize: 13, color: MUTED }}>
+                              {formatDate(item?.createdAt)}
+                            </ThemedText>
+
+                            <ThemedText
+                              style={{
+                                fontSize: 16,
+                                fontWeight: "700",
+                                color: SUCCESS,
+                              }}
+                            >
+                              +{item?.amount}
+                            </ThemedText>
+                          </HStack>
+
+                          {/* Divider (only if not last item) */}
+                          {index !==
+                            balanceData.wallet.transactions.length - 1 && (
+                            <Divider className="mt-2" />
+                          )}
+                        </VStack>
+                      ),
+                    )
+                  )}
+                </VStack>
+              </VStack>
+            </VStack>
+          </>
         )}
 
         {/* Restricted */}
