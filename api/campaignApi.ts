@@ -436,6 +436,7 @@ export interface FacebookPage {
   id: string;
   name: string;
   accessToken: string;
+  category?: string;
 }
 
 export const getFacebookPagesApi = async (
@@ -448,7 +449,13 @@ export const getFacebookPagesApi = async (
       },
     });
     if (response.data.error) throw new Error(response.data.error);
-    return response.data.pages || [];
+    const rawPages = response.data.pages || [];
+    return rawPages.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      accessToken: p.accessToken || p.access_token,
+      category: p.category,
+    }));
   } catch (error: any) {
     throw error;
   }
@@ -465,7 +472,9 @@ export interface MetaAdsAccount {
   id: string;
 }
 
-export const getMetaAdsAccountsApi = async (token?: string): Promise<MetaAdsAccount[]> => {
+export const getMetaAdsAccountsApi = async (
+  token?: string,
+): Promise<MetaAdsAccount[]> => {
   try {
     const response = await https.get("/socialmedia/meta-ads/accounts", {
       headers: {
@@ -481,7 +490,6 @@ export const getMetaAdsAccountsApi = async (token?: string): Promise<MetaAdsAcco
     throw error;
   }
 };
-
 
 // ---------------------- YouTube APIs ---------------------- //
 
@@ -525,43 +533,53 @@ export const uploadMediaApi = async (
   try {
     console.log("🔄 Starting upload process for:", attachment.name);
 
-    // Get Base URL from env and ensure correct formatting
-    const baseUrl =
-      process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
+    // const baseUrl =
+    //   process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
+    // const uploadRefUrl = `${baseUrl}/upload/google-drive/resumable`;
+    const baseUrl = "https://storage.campzeo.com";
+
     const uploadRefUrl = `${baseUrl}/upload/google-drive/resumable`;
 
     console.log("📍 Token Endpoint:", uploadRefUrl);
 
     // 1️⃣ Initialize resumable upload
-    const payload = {
+    const payload: any = {
       fileName: attachment.name,
       mimeType: attachment.type,
-
-      ...(options?.organisationId !== undefined && {
-        organisationId: options.organisationId,
-      }),
-
-      ...(options?.campaignId !== undefined && {
-        campaignId: String(options.campaignId),
-      }),
-
-      ...(options?.isReel !== undefined && {
-        isReel: options.isReel,
-      }),
-
-      ...(options?.platform && {
-        platform: options.platform,
-      }),
+      organisationId: options?.organisationId,
     };
 
-    const initRes = await fetch(uploadRefUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
+    if (options?.campaignId !== undefined) {
+      payload.campaignId = String(options.campaignId);
+    }
+    if (options?.isReel !== undefined) {
+      payload.isReel = options.isReel;
+    }
+    if (options?.platform) {
+      payload.platform = options.platform;
+    }
+
+    console.log("📤 Upload Payload:", JSON.stringify(payload, null, 2));
+
+    if (!payload.fileName || !payload.mimeType || payload.organisationId === undefined) {
+      throw new Error(`Missing local required fields: fileName=${payload.fileName}, mimeType=${payload.mimeType}, organisationId=${payload.organisationId}`);
+    }
+
+console.log("API KEY:", process.env.EXPO_PUBLIC_APP_API_KEY);
+console.log("TOKEN:", token);
+console.log("URL:", uploadRefUrl);
+
+const initRes = await fetch(uploadRefUrl, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+    "x-api-key": process.env.EXPO_PUBLIC_APP_API_KEY || "",
+  },
+  body: JSON.stringify(payload),
+});
+
+    console.log("API KEY:", process.env.EXPO_PUBLIC_APP_API_KEY);
 
     if (!initRes.ok) {
       const errorText = await initRes.text();
@@ -584,12 +602,8 @@ export const uploadMediaApi = async (
       );
     }
 
-    // 2️⃣ Read file as Blob
-    const fileResponse = await fetch(attachment.uri);
-    const blob = await fileResponse.blob();
-
     console.log("📤 Uploading bytes to:", uploadUrl);
-    
+
     const responseContent = await new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open("PUT", uploadUrl);
@@ -608,12 +622,18 @@ export const uploadMediaApi = async (
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve(xhr.response);
         } else {
-          reject(new Error(`Upload PUT failed: ${xhr.status} ${xhr.responseText}`));
+          reject(
+            new Error(`Upload PUT failed: ${xhr.status} ${xhr.responseText}`),
+          );
         }
       };
 
       xhr.onerror = () => reject(new Error("Upload PUT network error"));
-      xhr.send(blob);
+      xhr.send({
+        uri: attachment.uri,
+        type: attachment.type,
+        name: attachment.name,
+      } as any);
     });
 
     // 4️⃣ Get result from response
@@ -639,7 +659,6 @@ export const uploadMediaApi = async (
     } else {
       publicUrl = uploadUrl;
     }
-
 
     console.log("✅ File uploaded successfully:", publicUrl);
     return publicUrl;
