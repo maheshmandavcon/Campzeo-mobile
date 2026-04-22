@@ -112,7 +112,6 @@ export default function CreateContact() {
     fetchContacts();
   }, []);
 
-  /* Populate form if editing */
   useEffect(() => {
     if (!editingContact || hasResetRef.current) return;
 
@@ -129,7 +128,6 @@ export default function CreateContact() {
     hasResetRef.current = true;
   }, [editingContact, reset]);
 
-  /* Fetch campaigns dynamically */
   useEffect(() => {
     const fetchCampaigns = async () => {
       setLoadingCampaigns(true);
@@ -154,14 +152,11 @@ export default function CreateContact() {
 
   const { fromCampaign } = useLocalSearchParams<{ fromCampaign?: string }>();
 
-  // 3️⃣ Update onSubmit to check both email and mobile
   const onSubmit = async (data: z.infer<typeof contactSchema>) => {
     if (isSubmitting) return;
     try {
       const newEmail = data.email.trim().toLowerCase();
       const newMobile = data.mobile.trim();
-
-      // Exclude current contact if editing
       const otherEmails = existingEmails.filter(
         (e) => e.toLowerCase() !== editingContact?.email?.toLowerCase()
       );
@@ -169,7 +164,6 @@ export default function CreateContact() {
         (n) => n !== editingContact?.mobile
       );
 
-      // Check duplicates
       if (otherEmails.includes(newEmail)) {
         Alert.alert("Error", "Email already exists");
         return;
@@ -191,12 +185,9 @@ export default function CreateContact() {
         Alert.alert("Success", "Contact created successfully");
       }
 
-      // create contact from the shareCampaignPost
       if (fromCampaign === "true") {
-        // First reset Contacts tab to index
         router.replace("/(tabs)/contacts");
 
-        // Then immediately go to CampaignDetails
         setTimeout(() => {
           router.replace("/(tabs)/campaigns/campaignsDetails");
         }, 1);
@@ -222,7 +213,6 @@ export default function CreateContact() {
     </ThemedText>
   );
 
-  // ✅ Dynamic colors for light/dark
   const inputBg = isDark ? "#161618" : "#f3f4f6";
   const inputBorder = isDark ? "#fff" : "#d1d5db";
   const inputText = isDark ? "#fff" : "#111";
@@ -276,7 +266,6 @@ export default function CreateContact() {
           </ThemedView>
         </ThemedView>
 
-        {/* Divider */}
         <ThemedView
           style={{
             height: 1,
@@ -285,9 +274,7 @@ export default function CreateContact() {
           }}
         />
 
-        {/* Form Fields */}
         <ThemedView className="space-y-6" style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
-          {/* Name */}
           <FormControl isInvalid={!!errors.name}>
             <FormControl.Label style={{ marginLeft: 8 }}>
               {requiredLabel("Name")}
@@ -320,7 +307,6 @@ export default function CreateContact() {
             )}
           </FormControl>
 
-          {/* Email */}
           <FormControl isInvalid={!!errors.email}>
             <FormControl.Label style={{ marginLeft: 8 }}>
               {requiredLabel("Email")}
@@ -354,7 +340,6 @@ export default function CreateContact() {
             )}
           </FormControl>
 
-          {/* Mobile */}
           <FormControl isInvalid={!!errors.mobile}>
             <FormControl.Label style={{ marginLeft: 8 }}>
               {requiredLabel("Mobile")}
@@ -387,7 +372,6 @@ export default function CreateContact() {
             )}
           </FormControl>
 
-          {/* WhatsApp */}
           <FormControl isInvalid={!!errors.whatsapp}>
             <FormControl.Label style={{ marginLeft: 8 }}>
               {requiredLabel("WhatsApp")}
@@ -420,7 +404,6 @@ export default function CreateContact() {
             )}
           </FormControl>
 
-          {/* Associate with Campaigns */}
           <FormControl>
             <FormControl.Label>
               <Text
@@ -475,7 +458,6 @@ export default function CreateContact() {
                   Create a campaign first to attach it here.
                 </Text>
 
-                {/* Optional CTA */}
                 <TouchableOpacity
                   onPress={() => router.push("/campaigns/createCampaign")}
                   style={{
@@ -554,7 +536,6 @@ export default function CreateContact() {
 
         </ThemedView>
 
-        {/* Submit Button */}
         <TouchableOpacity
           disabled={isSubmitting}
           onPress={handleSubmit(onSubmit)}

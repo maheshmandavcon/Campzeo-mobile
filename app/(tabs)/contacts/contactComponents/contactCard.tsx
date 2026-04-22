@@ -51,7 +51,6 @@ export default function ContactCard({
         marginBottom: 12,
       }}
     >
-      {/* Name + Icons */}
       <ThemedView
         style={{ backgroundColor: isDark ? "transparent" : undefined }}
         className="flex-row justify-between items-center"
@@ -92,7 +91,6 @@ export default function ContactCard({
         </ThemedView>
       </ThemedView>
 
-      {/* Details */}
       {record.show && (
         <ThemedView
           style={{ backgroundColor: isDark ? "transparent" : undefined }}
@@ -137,7 +135,6 @@ export default function ContactCard({
             </ThemedView>
           ))}
 
-          {/* Campaign Count */}
           <ThemedView
             style={{ backgroundColor: isDark ? "transparent" : undefined }}
             className="flex-row justify-between items-center"

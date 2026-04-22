@@ -18,7 +18,6 @@ import { router, useFocusEffect, useLocalSearchParams, useRouter } from "expo-ro
 import { getSocialStatus } from "@/api/accountsApi";
 
 export default function CampaignPost() {
-  // ---------- SOCIAL MEDIA ICONS ----------
   const icons = [
     { name: "chatbubble-ellipses-outline", label: "SMS" as const, library: Ionicons, color: "#10b981" },
     { name: "mail", label: "EMAIL" as const, library: Ionicons, color: "#f59e0b" },
@@ -55,17 +54,14 @@ export default function CampaignPost() {
   const route = useRouter();
 
   const params = useLocalSearchParams();
-  // Get params from router
   const { campaignId, campaignStartDate: campaignStartDateStr, campaignEndDate: campaignEndDateStr } = useLocalSearchParams<{
     campaignId?: string;
     campaignStartDate?: string;
     campaignEndDate?: string;
   }>();
 
-  // Convert strings to Date objects
   const campaignStartDate = campaignStartDateStr ? new Date(campaignStartDateStr) : new Date();
   const campaignEndDate = campaignEndDateStr ? new Date(campaignEndDateStr) : undefined;
-
   // console.log("campaignStartDate on CampaignPost:", campaignStartDate);
   // console.log("campaignEndDate on CampaignPost:", campaignEndDate);
 
@@ -78,13 +74,6 @@ export default function CampaignPost() {
   const typeStr =
     typeof params.type === "string" ? params.type : params.type?.[0];
 
-  //  const { campaignId, postId, type } = route.pharmas as {
-  //   campaignId: string;
-  //   postId?: string;
-  //   type?: string;
-  // };
-
-  // const isEditMode = Boolean(postId);
   const isEditMode = !!(postIdStr && typeStr);
 
   const { getToken } = useAuth();
@@ -104,7 +93,6 @@ export default function CampaignPost() {
     ? "No social accounts are connected yet. Connect them to continue."
     : `Almost there! ${totalCount - connectedCount} account(s) still need connection.`;
 
-  // ---------- FETCH CONNECTED PLATFORMS ----------
   useFocusEffect(
     useCallback(() => {
       const fetchConnections = async () => {
@@ -141,7 +129,6 @@ export default function CampaignPost() {
     }, [])
   );
 
-  // ---------- FETCH EXISTING POST IF postId EXISTS ----------
   useEffect(() => {
     if (!campaignIdStr || !postIdStr) return;
 
@@ -209,7 +196,6 @@ export default function CampaignPost() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  // Check if any social platform is disconnected (SMS/EMAIL/WHATSAPP are always connected)
   const hasDisconnectedPlatform = ["FACEBOOK", "INSTAGRAM", "LINKEDIN", "YOUTUBE", "PINTEREST"].some(
     (key) => connectedPlatforms[key] === false
   );
@@ -262,7 +248,6 @@ export default function CampaignPost() {
           justifyContent: "center",
         }}
       >
-        {/* inner shimmer */}
         <SkeletonBlock
           height={12}
           width="60%"
@@ -283,17 +268,10 @@ export default function CampaignPost() {
           backgroundColor: isDark ? "#18181b" : "#f3f4f6",
         }}
       >
-        {/* Subject (white input) */}
         <SkeletonInput />
-
-        {/* Description */}
         <SkeletonInput />
         <SkeletonInput height={120} />
-
-        {/* Schedule */}
         <SkeletonInput />
-
-        {/* Submit button */}
         <SkeletonBlock height={44} radius={12} />
       </ThemedView>
     );
@@ -330,8 +308,8 @@ export default function CampaignPost() {
               marginBottom: 12,
               paddingVertical: 16,
               paddingHorizontal: 16,
-              marginHorizontal: -16, 
-              marginTop: -16,       
+              marginHorizontal: -16,
+              marginTop: -16,
               backgroundColor: isDark ? "#161618" : "#f3f4f6",
             }}
           >
@@ -379,28 +357,28 @@ export default function CampaignPost() {
           </ThemedView>
         ) : (
           <>
-          <ThemedView
-            style={{
-              paddingVertical: 16,
-              paddingHorizontal: 16,
-              marginHorizontal: -16,
-              marginTop: -16,
-              marginBottom: 12,
-              backgroundColor: isDark ? "#161618" : "#f3f4f6",
-              alignItems: "flex-start",
-            }}
-          >
-            <ThemedText
+            <ThemedView
               style={{
-                fontSize: 18,
-                fontWeight: "bold",
-                color: isDark ? "#ffffff" : "#111827",
-                textAlign: "left",
+                paddingVertical: 16,
+                paddingHorizontal: 16,
+                marginHorizontal: -16,
+                marginTop: -16,
+                marginBottom: 12,
+                backgroundColor: isDark ? "#161618" : "#f3f4f6",
+                alignItems: "flex-start",
               }}
             >
-              Create Campaign Post
-            </ThemedText>
-          </ThemedView>
+              <ThemedText
+                style={{
+                  fontSize: 18,
+                  fontWeight: "bold",
+                  color: isDark ? "#ffffff" : "#111827",
+                  textAlign: "left",
+                }}
+              >
+                Create Campaign Post
+              </ThemedText>
+            </ThemedView>
 
             <ThemedView
               className="flex-row flex-wrap justify-between mb-4"
@@ -564,14 +542,11 @@ export default function CampaignPost() {
           </>
         )}
 
-
-        {/* ---------- ACCOUNTS BUTTON ---------- */}
         {hasDisconnectedPlatform && (
           <ThemedView style={{
             backgroundColor: isDark ? "#1f2937" : "#fef3c7",
             padding: 12,
             borderRadius: 12,
-            // marginVertical: 12,
             marginBottom: 12,
             marginTop: -20,
             flexDirection: "row",
@@ -585,7 +560,6 @@ export default function CampaignPost() {
           </ThemedView>
         )}
 
-        {/* ---------- EMPTY STATE MESSAGE ---------- */}
         {!selected && !loadingConnections && !loadingPost && (
           <ThemedView
             style={{
@@ -627,14 +601,12 @@ export default function CampaignPost() {
                   color: isDark ? "#9ca3af" : "#164e63",
                 }}
               >
-                {/* Content, format, and preview will update automatically */}
                 We’ll tailor the content and preview for the platform you choose
               </ThemedText>
             </ThemedView>
           </ThemedView>
         )}
 
-        {/* ---------- FORM OR LOADING ---------- */}
         {selected && !isEditMode && connectedPlatforms[selected] === false ? (
           <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
             <ThemedView
@@ -660,7 +632,6 @@ export default function CampaignPost() {
                   alignItems: "center",
                 }}
               >
-                {/* Icon INSIDE card */}
                 <RNView
                   style={{
                     width: 64,
@@ -679,7 +650,6 @@ export default function CampaignPost() {
                   />
                 </RNView>
 
-                {/* Title */}
                 <ThemedText
                   style={{
                     textAlign: "center",
@@ -691,7 +661,6 @@ export default function CampaignPost() {
                   Platform Disconnected
                 </ThemedText>
 
-                {/* Description */}
                 <ThemedText
                   style={{
                     textAlign: "center",
@@ -704,7 +673,6 @@ export default function CampaignPost() {
                   Please connect it from Accounts to continue.
                 </ThemedText>
 
-                {/* CTA */}
                 <TouchableOpacity
                   style={{
                     marginTop: 18,

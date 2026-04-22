@@ -42,7 +42,6 @@ export default function Contacts() {
 
   const { getToken } = useAuth();
 
-  /* ================= FETCH ================= */
   const fetchContacts = async () => {
     try {
       setLoading(true);
@@ -86,7 +85,6 @@ export default function Contacts() {
   const visibleRecords = filteredRecords.slice(0, visibleCount);
   const isAllVisible = visibleCount >= filteredRecords.length;
 
-  /* ================= ACTIONS ================= */
   const handleEdit = (record: ContactsRecord) => {
     router.push({
       pathname: "/contacts/createContact",
@@ -96,24 +94,6 @@ export default function Contacts() {
       },
     });
   };
-  //   const handleEdit = (record: ContactsRecord) => {
-  //   // 1️⃣ Print all emails
-  //   const allEmails = records.map((r) => r.email);
-  //   console.log("Existing contact emails:", allEmails);
-
-  //   // 2️⃣ Print all mobile numbers
-  //   const allMobiles = records.map((r) => r.mobile);
-  //   console.log("Existing contact numbers:", allMobiles);
-
-  //   // 3️⃣ Navigate to edit page
-  //   router.push({
-  //     pathname: "/contacts/createContact",
-  //     params: {
-  //       contactId: String(record.id),
-  //       record: JSON.stringify(record),
-  //     },
-  //   });
-  // };
 
   const handleCopy = (record: ContactsRecord) => {
     const textToCopy = `
@@ -210,7 +190,6 @@ WhatsApp: ${record.whatsapp || "-"}
   const ContactSkeletonCard = () => (
     <ThemedView className="bg-gray-50 rounded-xl p-4 mb-3 border border-gray-200">
 
-      {/* NAME + ACTIONS */}
       <View className="flex-row items-center justify-between mb-3">
         <ShimmerSkeleton height={16} width="45%" />
 
@@ -222,25 +201,21 @@ WhatsApp: ${record.whatsapp || "-"}
         </View>
       </View>
 
-      {/* EMAIL ROW */}
       <View className="flex-row justify-between items-center mb-2">
         <ShimmerSkeleton height={12} width="20%" />
         <ShimmerSkeleton height={12} width="55%" />
       </View>
 
-      {/* MOBILE ROW */}
       <View className="flex-row justify-between items-center mb-2">
         <ShimmerSkeleton height={12} width="20%" />
         <ShimmerSkeleton height={12} width="45%" />
       </View>
 
-      {/* WHATSAPP ROW */}
       <View className="flex-row justify-between items-center mb-2">
         <ShimmerSkeleton height={12} width="25%" />
         <ShimmerSkeleton height={12} width="45%" />
       </View>
 
-      {/* CAMPAIGNS COUNT ROW */}
       <View className="flex-row justify-between items-center mt-2">
         <ShimmerSkeleton height={12} width="30%" />
         <ShimmerSkeleton height={14} width={40} borderRadius={6} />
@@ -253,43 +228,16 @@ WhatsApp: ${record.whatsapp || "-"}
     ? skeletonData
     : visibleRecords;
 
-  /* ================= UI ================= */
   return (
     <ThemedView className="flex-1">
       <ThemedView
         style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
         className="flex-1 p-4"
       >
-        {/* {loading && (
-          <ThemedView
-            className="absolute inset-0 justify-center items-center z-10"
-            style={{
-              backgroundColor: isDark ? "rgba(0,0,0,0.6)" : "rgba(0,0,0,0.2)", // darker overlay for dark mode
-            }}
-          >
-            <ActivityIndicator
-              size="large"
-              color={isDark ? "#ffffff" : "#dc2626"} // white in dark mode, red in light mode
-            />
-            <Text
-              style={{
-                marginTop: 12,
-                fontWeight: "bold",
-                color: isDark ? "#ffffff" : "#111827", // text color dynamic
-                fontSize: 16,
-              }}
-            >
-              Loading contacts...
-            </Text>
-          </ThemedView>
-        )} */}
-
-        {/* Top Bar */}
         <View
           className="flex-row items-center mb-4"
           style={{ backgroundColor: "transparent" }}
         >
-          {/* New Button */}
           <TouchableOpacity
             onPress={() => router.push("/contacts/createContact")}
             style={{
@@ -320,7 +268,6 @@ WhatsApp: ${record.whatsapp || "-"}
             </Text>
           </TouchableOpacity>
 
-          {/* Search Bar */}
           <TextInput
             value={search}
             onChangeText={(v) => {
@@ -341,7 +288,6 @@ WhatsApp: ${record.whatsapp || "-"}
             }}
           />
 
-          {/* 3-dot menu */}
           <TouchableOpacity
             onPress={() => setMenuVisible(!menuVisible)}
             className=""
@@ -359,7 +305,6 @@ WhatsApp: ${record.whatsapp || "-"}
           </TouchableOpacity>
         </View>
 
-        {/* Dropdown */}
         {menuVisible && (
           <ThemedView
             style={{
@@ -400,7 +345,6 @@ WhatsApp: ${record.whatsapp || "-"}
           </ThemedView>
         )}
 
-        {/* List */}
         <FlatList<ListItem>
           data={listData}
           keyExtractor={(item) =>
