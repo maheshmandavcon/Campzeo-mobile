@@ -6,7 +6,11 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, useColorScheme } from "react-native";
 import { getUser } from "@/api/dashboardApi";
 
-import type { AIImageResponse, CampaignPostData, FacebookPage } from "@/api/campaignApi";
+import type {
+  AIImageResponse,
+  CampaignPostData,
+  FacebookPage,
+} from "@/api/campaignApi";
 import {
   createPinterestBoardApi,
   createPostForCampaignApi,
@@ -22,7 +26,6 @@ import {
 
 import { templetApi, TemplateData } from "@/api/templetApi";
 import https from "@/api/https";
-
 
 export interface Attachment {
   uri: string;
@@ -57,8 +60,9 @@ export function useCampaignPostForm({
 
   const hasPrefilledRef = useRef(false);
 
-  // ================= ORG ID =================
-  const [organisationId, setOrganisationId] = useState<number | undefined>(undefined);
+  const [organisationId, setOrganisationId] = useState<number | undefined>(
+    undefined,
+  );
 
   useEffect(() => {
     const fetchOrgId = async () => {
@@ -76,34 +80,61 @@ export function useCampaignPostForm({
     fetchOrgId();
   }, []);
 
+  const getOrFetchOrgId = async () => {
+    if (organisationId) return organisationId;
+    try {
+      const user = await getUser();
+      const orgId = user?.organisation?.id;
+      if (orgId) {
+        setOrganisationId(orgId);
+        return orgId;
+      }
+    } catch (err) {
+      console.warn("Could not fetch organisationId:", err);
+    }
+    return undefined;
+  };
 
-  // ================= FACEBOOK =================
   const [facebookContentType, setFacebookContentType] = useState("STANDARD");
   const [facebookPages, setFacebookPages] = useState<any[]>([]);
-  const [selectedFacebookPage, setSelectedFacebookPage] = useState<
-    FacebookPage | null
-  >(null);
+  const [selectedFacebookPage, setSelectedFacebookPage] =
+    useState<FacebookPage | null>(null);
   const [isFacebookPageLoading, setIsFacebookPageLoading] = useState(false);
   const [facebookError, setFacebookError] = useState("");
   const [coverUploading, setCoverUploading] = useState(false);
 
-  // ================= LEAD FORMS =================
-  const [selectedLeadForm, setSelectedLeadForm] = useState<{ id: string, name: string } | null>(null);
-  const [allLeadForms, setAllLeadForms] = useState<{ id: string, name: string }[]>([]);
+  const [selectedLeadForm, setSelectedLeadForm] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [allLeadForms, setAllLeadForms] = useState<
+    { id: string; name: string }[]
+  >([]);
   const [isLeadFormLoading, setIsLeadFormLoading] = useState(false);
   const [leadFormModalVisible, setLeadFormModalVisible] = useState(false);
-  
-  // ================= FETCH LEAD FORMS =================
+
   useEffect(() => {
     const fetchLeadForms = async () => {
       const pageId = selectedFacebookPage?.id;
-      const pageAccessToken = selectedFacebookPage?.accessToken || (selectedFacebookPage as any)?.access_token;
-      
-      console.log("[LeadForms] selectedFacebookPage:", JSON.stringify(selectedFacebookPage));
-      console.log("[LeadForms] pageId:", pageId, "hasToken:", !!pageAccessToken);
+      const pageAccessToken =
+        selectedFacebookPage?.accessToken ||
+        (selectedFacebookPage as any)?.access_token;
+
+      console.log(
+        "[LeadForms] selectedFacebookPage:",
+        JSON.stringify(selectedFacebookPage),
+      );
+      console.log(
+        "[LeadForms] pageId:",
+        pageId,
+        "hasToken:",
+        !!pageAccessToken,
+      );
 
       if (!pageId || !pageAccessToken) {
-        console.log("[LeadForms] Skipping fetch - missing pageId or accessToken");
+        console.log(
+          "[LeadForms] Skipping fetch - missing pageId or accessToken",
+        );
         setAllLeadForms([]);
         setSelectedLeadForm(null);
         return;
@@ -113,13 +144,17 @@ export function useCampaignPostForm({
       try {
         const token = await getToken();
         const res = await https.get(`/socialmedia/facebook/lead-forms`, {
-          params: { 
-            pageId, 
-            pageAccessToken 
+          params: {
+            pageId,
+            pageAccessToken,
           },
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         });
-        console.log("[LeadForms] API response:", JSON.stringify(res.data?.forms?.length || 0), "forms");
+        console.log(
+          "[LeadForms] API response:",
+          JSON.stringify(res.data?.forms?.length || 0),
+          "forms",
+        );
         setAllLeadForms(res.data?.forms || []);
       } catch (err) {
         console.error("[LeadForms] Failed to fetch lead forms", err);
@@ -132,22 +167,25 @@ export function useCampaignPostForm({
     fetchLeadForms();
   }, [selectedFacebookPage]);
 
-  // ================= ATTACHMENTS =================
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const hasImage = attachments.some((a) => a.type?.startsWith("image/"));
   const hasVideo = attachments.some((a) => a.type?.startsWith("video/"));
-  const hasDocument = attachments.some((a) => !a.type?.startsWith("image/") && !a.type?.startsWith("video/"));
+  const hasDocument = attachments.some(
+    (a) => !a.type?.startsWith("image/") && !a.type?.startsWith("video/"),
+  );
   const hasAttachment = attachments.length > 0;
-  const [canSelectStandard, setCanSelectStandard] = useState(hasImage || hasDocument);
-  const [canSelectReel, setCanSelectReel] = useState(hasVideo && !hasImage && !hasDocument);
+  const [canSelectStandard, setCanSelectStandard] = useState(
+    hasImage || hasDocument,
+  );
+  const [canSelectReel, setCanSelectReel] = useState(
+    hasVideo && !hasImage && !hasDocument,
+  );
 
-  // ================= AI TEXT =================
   const [aiPrompt, setAiPrompt] = useState("");
   const [loadingAI, setLoadingAI] = useState(false);
   const [aiResults, setAiResults] = useState<AIVariation[]>([]);
   const [aiModalVisible, setAiModalVisible] = useState(false);
 
-  // ================= AI IMAGE =================
   const [imagePrompt, setImagePrompt] = useState("");
   const [loadingImage, setLoadingImage] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
@@ -164,29 +202,23 @@ export function useCampaignPostForm({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [selectingImage, setSelectingImage] = useState<string | null>(null);
 
-  // ================= DATE =================
   const [showPicker, setShowPicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  // ================= DATE CONSTRAINTS =================
   const today = new Date();
   today.setSeconds(0, 0);
 
-  // -------- START DATE --------
   const campaignStartDate = existingPost?.campaign?.startDate
     ? new Date(existingPost.campaign.startDate)
     : null;
 
-  // Minimum start date
   const minSelectableStartDate = (() => {
     if (campaignStartDate) {
-      return campaignStartDate;
+      return campaignStartDate > today ? campaignStartDate : today;
     }
     return today;
   })();
 
-
-  // -------- END DATE --------
   const campaignEndDate = existingPost?.campaign?.endDate
     ? new Date(existingPost.campaign.endDate)
     : null;
@@ -194,18 +226,11 @@ export function useCampaignPostForm({
   const minSelectableEndDate = minSelectableStartDate;
   const maxSelectableEndDate = campaignEndDate ?? undefined;
 
-  // console.log("campaignStartDate", campaignStartDate);
-  // console.log("minSelectableStartDate", minSelectableStartDate);
-  // console.log("campaignEndDate", campaignEndDate);
-  // console.log("minSelectableEndDate", minSelectableEndDate);
-
-  // ================= BASIC =================
   const [senderEmail, setSenderEmail] = useState("");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [postDate, setPostDate] = useState<Date | null>(null);
 
-  // ================= PINTEREST =================
   const [pinterestBoard, setPinterestBoard] = useState("");
   const [PinterestBoardId, setPinterestBoardId] = useState<string | undefined>(
     undefined,
@@ -237,7 +262,6 @@ export function useCampaignPostForm({
     EMAIL: "Email",
   };
 
-  // ================= PREVIEW TIMESTEMP =================
   const previewTimestamp = postDate
     ? postDate.toLocaleString([], {
         hour: "2-digit",
@@ -245,10 +269,8 @@ export function useCampaignPostForm({
       })
     : "Just now";
 
-  // ================= LINKEDIN =================
   const [selectedAccount, setSelectedAccount] = useState<string>();
 
-  // ================= YOUTUBE =================
   const [youTubeContentType, setYouTubeContentType] = useState<
     "VIDEO" | "SHORT" | "PLAYLIST"
   >("VIDEO");
@@ -256,7 +278,9 @@ export function useCampaignPostForm({
   const [youTubeStatus, setYouTubeStatus] = useState("Public");
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [customThumbnail, setCustomThumbnail] = useState<string | null>(null);
+  const [uploadedCustomThumbnailUrl, setUploadedCustomThumbnailUrl] = useState<string | null>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
+  const [uploadedCoverImageUrl, setUploadedCoverImageUrl] = useState<string | null>(null);
   const [playlistId, setPlaylistId] = useState<string | undefined>(undefined);
   const [playlistTitle, setPlaylistTitle] = useState<string>("");
   const [playlists, setPlaylists] = useState<{ id: string; name: string }[]>(
@@ -271,11 +295,12 @@ export function useCampaignPostForm({
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
 
-  // ================= TEMPLATES =================
   const [templates, setTemplates] = useState<TemplateData[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [templateModalVisible, setTemplateModalVisible] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateData | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateData | null>(
+    null,
+  );
 
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -306,28 +331,29 @@ export function useCampaignPostForm({
           uploadedUrl: url,
           name: `template-media-${index + 1}`,
           type: getMimeFromUrl(url),
-          size: undefined, // Template media size not typically available
+          size: undefined, 
           uploading: false,
         }));
         setAttachments(templateAttachments);
       }
     } else {
-      // Revert to original content from existingPost if editing, or clear if new
       setSubject(existingPost?.subject || "");
       setMessage(existingPost?.message || "");
-      
+
       const prefilledAttachments: Attachment[] = [];
       if (existingPost) {
-        // Re-reconstruct original attachments logic
         if (Array.isArray(existingPost.attachments)) {
           prefilledAttachments.push(
             ...existingPost.attachments.map((file: any, index: number) => ({
               uri: normalizeUrl(file.uploadedUrl || file.fileUrl || file.uri),
               uploadedUrl: file.uploadedUrl || file.fileUrl || file.uri,
               name: file.fileName || file.name || `attachment-${index + 1}`,
-              type: file.mimeType || file.type || inferMediaType(file.fileUrl || file.uri),
+              type:
+                file.mimeType ||
+                file.type ||
+                inferMediaType(file.fileUrl || file.uri),
               uploading: false,
-            }))
+            })),
           );
         }
         if (Array.isArray(existingPost.mediaUrls)) {
@@ -338,7 +364,7 @@ export function useCampaignPostForm({
               name: getFileNameFromUrl(url),
               type: getMimeFromUrl(url),
               uploading: false,
-            }))
+            })),
           );
         }
       }
@@ -366,7 +392,6 @@ export function useCampaignPostForm({
 
     const id = extractGoogleDriveId(url);
     if (id) {
-      // Use the provided storage proxy URL
       const fileName = getFileNameFromUrl(url) || "media";
       return `https://storage.campzeo.com/api/upload/google-drive/view?id=${id}&file=${encodeURIComponent(
         fileName,
@@ -379,23 +404,19 @@ export function useCampaignPostForm({
   function extractGoogleDriveId(url: string | null | undefined): string | null {
     if (!url) return null;
     try {
-      // Handle standard and subdomain patterns
       if (
         url.includes("googleusercontent.com") ||
         url.includes("drive.google.com")
       ) {
-        // Pattern: /d/ID
         if (url.includes("/d/")) {
           const parts = url.split("/d/")[1]?.split(/[/?=]/);
           if (parts && parts[0]) return parts[0];
         }
-        // Pattern: ?id=
         const urlObj = new URL(url);
         const id = urlObj.searchParams.get("id");
         if (id) return id;
       }
     } catch {
-      // Regex fallbacks
       const dMatch = url.match(/\/d\/([^/?=]+)/);
       if (dMatch) return dMatch[1];
       const idMatch = url.match(/[?&]id=([^?&]+)/);
@@ -403,12 +424,14 @@ export function useCampaignPostForm({
     }
     return null;
   }
-  // ================= META BOOSTING =================
   const [metaAccounts, setMetaAccounts] = useState<MetaAdsAccount[]>([]);
   const [loadingMetaAccounts, setLoadingMetaAccounts] = useState(false);
   const [isBoosting, setIsBoosting] = useState(false);
-  const [selectedMetaAccount, setSelectedMetaAccount] = useState<MetaAdsAccount | null>(null);
-  const [boostingGoal, setBoostingGoal] = useState<"POST_ENGAGEMENT" | "LEADS">("POST_ENGAGEMENT");
+  const [selectedMetaAccount, setSelectedMetaAccount] =
+    useState<MetaAdsAccount | null>(null);
+  const [boostingGoal, setBoostingGoal] = useState<"POST_ENGAGEMENT" | "LEADS">(
+    "POST_ENGAGEMENT",
+  );
   const [dailyBudget, setDailyBudget] = useState(5);
   const [boostingDuration, setBoostingDuration] = useState(7);
 
@@ -437,41 +460,13 @@ export function useCampaignPostForm({
   const totalBudget = dailyBudget * boostingDuration;
   const estimatedReach = {
     min: Math.floor(dailyBudget * 60),
-    max: Math.floor(dailyBudget * 80)
+    max: Math.floor(dailyBudget * 80),
   };
 
-  // ================= LOADING =================
   const [loading, setLoading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const lastProgressRef = useRef<Record<string, number>>({});
   const [uploadingMedia, setUploadingMedia] = useState(false);
-
-  // useEffect(() => {
-  //   const imageCount = attachments.filter((a) =>
-  //     a.type?.startsWith("image/"),
-  //   ).length;
-  //   const videoCount = attachments.filter((a) =>
-  //     a.type?.startsWith("video/"),
-  //   ).length;
-
-  //   const isCombo = imageCount > 0 && videoCount > 0;
-
-  //   // Can select STANDARD → always true if combo OR images exist
-  //   setCanSelectStandard(imageCount > 0 || isCombo);
-
-  //   // Can select REEL → only if videos exist AND NO images
-  //   setCanSelectReel(videoCount > 0 && imageCount === 0);
-
-  //   // Auto-set facebookContentType based on rules
-  //   if (isCombo) {
-  //     setFacebookContentType("STANDARD");
-  //   } else if (videoCount > 0 && imageCount === 0) {
-  //     setFacebookContentType("REEL");
-  //   } else if (imageCount > 0 && videoCount === 0) {
-  //     setFacebookContentType("STANDARD");
-  //   } else {
-  //     setFacebookContentType("STANDARD"); // default
-  //   }
-  // }, [attachments]);
 
   useEffect(() => {
     const imageCount = attachments.filter((a) =>
@@ -486,11 +481,7 @@ export function useCampaignPostForm({
 
     setCanSelectStandard(imageCount > 0 || isCombo);
     setCanSelectReel(videoCount > 0 && imageCount === 0);
-
-    // ✅ DO NOT override content type if editing
     if (existingPost) return;
-
-    // ✅ Only auto-detect when creating new post
     if (isCombo) {
       setFacebookContentType("STANDARD");
     } else if (videoCount > 0 && imageCount === 0) {
@@ -504,14 +495,19 @@ export function useCampaignPostForm({
 
   function inferMediaType(uri: string) {
     if (!uri) return "application/octet-stream";
-    
-    // Check for Google Drive direct links or common storage patterns
-    if (uri.includes("googleusercontent.com") || uri.includes("lh3.googleusercontent.com")) {
+    if (
+      uri.includes("googleusercontent.com") ||
+      uri.includes("lh3.googleusercontent.com") ||
+      (uri.includes("drive.google.com") && !uri.toLowerCase().includes("video") && !uri.toLowerCase().includes(".mp4"))
+    ) {
       return "image/jpeg";
+    }
+    if (uri.includes("drive.google.com") && (uri.toLowerCase().includes("video") || uri.toLowerCase().includes(".mp4"))) {
+      return "video/mp4";
     }
 
     const ext = uri.split(".").pop()?.toLowerCase();
-    if (!ext || ext.length > 5) return "image/jpeg"; // Default to image if no clear extension
+    if (!ext || ext.length > 5) return "image/jpeg";
 
     if (["jpg", "jpeg"].includes(ext)) return "image/jpeg";
     if (ext === "png") return "image/png";
@@ -519,8 +515,8 @@ export function useCampaignPostForm({
     if (ext === "webp") return "image/webp";
     if (ext === "mp4") return "video/mp4";
     if (ext === "mov") return "video/quicktime";
-    
-    return "image/jpeg"; // Default fallback for media lists
+
+    return "image/jpeg";
   }
 
   function getFileNameFromUrl(url: string) {
@@ -531,19 +527,11 @@ export function useCampaignPostForm({
       return `ai-image-${Date.now()}.jpg`;
     }
   }
-
-  // function getMimeFromUrl(url: string) {
-  //   const ext = url.split(".").pop()?.toLowerCase();
-  //   if (ext === "webp") return "image/webp";
-  //   if (ext === "png") return "image/png";
-  //   return "image/jpeg";
-  // }
   function getMimeFromUrl(url: string) {
     if (!url) return "image/jpeg";
     return inferMediaType(url);
   }
 
-  // AI IMAGE LOADING
   useEffect(() => {
     if (!generatedImages.length) return;
 
@@ -555,15 +543,12 @@ export function useCampaignPostForm({
     setImageLoadingMap(map);
   }, [generatedImages]);
 
-  // ================= PREFILL =================
   useEffect(() => {
-    // Only prefill if we have a real post object with an ID, and we haven't prefilled yet
     const isRealPost = existingPost && (existingPost.id || existingPost._id);
     if (!isRealPost || hasPrefilledRef.current) return;
 
     hasPrefilledRef.current = true;
 
-    // ✅ BASIC FIELDS
     setSenderEmail(existingPost.senderEmail || "");
     setSubject(existingPost.subject || "");
     setMessage(existingPost.message || "");
@@ -573,14 +558,12 @@ export function useCampaignPostForm({
         : null,
     );
 
-    // ✅ PINTEREST
     if (existingPost.type === "PINTEREST") {
       setPinterestBoardId(existingPost.metadata?.boardId || "");
       setPinterestBoard(existingPost.metadata?.boardName || "");
       setDestinationLink(existingPost.metadata?.destinationLink || "");
     }
 
-    // ✅ YOUTUBE
     if (existingPost.type === "YOUTUBE") {
       const typeMap: Record<string, "VIDEO" | "SHORT" | "PLAYLIST"> = {
         VIDEO: "VIDEO",
@@ -599,7 +582,6 @@ export function useCampaignPostForm({
       const savedType = existingPost.metadata?.postType || "VIDEO";
       setYouTubeContentType(typeMap[savedType] ?? "VIDEO");
 
-      // normalize privacy/status
       const savedPrivacy = existingPost.metadata?.privacy || "PUBLIC";
       setYouTubeStatus(
         savedPrivacy.toLowerCase() === "private"
@@ -609,7 +591,6 @@ export function useCampaignPostForm({
             : "Public",
       );
 
-      // handle tags (array or comma string)
       let tagsArray: string[] = [];
       if (Array.isArray(existingPost.metadata?.tags)) {
         tagsArray = existingPost.metadata.tags;
@@ -620,8 +601,8 @@ export function useCampaignPostForm({
       }
       setYouTubeTags(tagsArray.join(", "));
 
-      // other fields
       setCustomThumbnail(existingPost.metadata?.thumbnailUrl || null);
+      setUploadedCustomThumbnailUrl(existingPost.metadata?.thumbnailUrl || null);
       setPlaylistId(existingPost.metadata?.playlistId);
       setPlaylistTitle(existingPost.metadata?.playlistTitle || "");
     }
@@ -651,9 +632,9 @@ export function useCampaignPostForm({
         existingPost.metadata?.thumbnailUrl ||
         null;
       setCoverImage(savedCover);
+      setUploadedCoverImageUrl(savedCover);
     }
 
-    // ✅ LINKEDIN
     if (existingPost.type === "LINKEDIN") {
       const authorId = existingPost.metadata?.authorId;
 
@@ -662,10 +643,7 @@ export function useCampaignPostForm({
       }
     }
 
-    // ================= ATTACHMENTS =================
     const prefilledAttachments: Attachment[] = [];
-
-    // Get the cover image to exclude it from attachments (for Reel posts)
     let coverImageToExclude: string | null = null;
     if (existingPost.type === "FACEBOOK" || existingPost.type === "INSTAGRAM") {
       if (existingPost.metadata?.coverImage) {
@@ -695,13 +673,18 @@ export function useCampaignPostForm({
       prefilledAttachments.push(
         ...existingPost.mediaUrls
           .filter((url: string) => {
-            // Only exclude cover image from attachments if it's a REEL/SHORT where separate cover UI is shown
-            const isReelOrShort = 
-              facebookContentType === "REEL" || 
-              youTubeContentType === "SHORT";
+            const isReelOrShort =
+              facebookContentType === "REEL" || youTubeContentType === "SHORT";
 
-            if (isReelOrShort && coverImageToExclude && url === coverImageToExclude) {
-              console.log("Excluding cover image from attachments list (rendered separately as cover):", url);
+            if (
+              isReelOrShort &&
+              coverImageToExclude &&
+              url === coverImageToExclude
+            ) {
+              console.log(
+                "Excluding cover image from attachments list (rendered separately as cover):",
+                url,
+              );
               return false;
             }
             return true;
@@ -719,7 +702,6 @@ export function useCampaignPostForm({
     setAttachments(prefilledAttachments);
   }, [existingPost]);
 
-  // ================= ATTACHMENTS =================
   const handleAddAttachment = async () => {
     try {
       if (platform === "EMAIL") {
@@ -734,12 +716,17 @@ export function useCampaignPostForm({
 
   const handlePickMedia = async (mode: "image" | "document") => {
     try {
-      let pickedAsset: any = null;
+      const maxMediaCount = platform === "INSTAGRAM" ? 20 : 10;
+      let pickedAssets: any[] = [];
 
       if (mode === "image") {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        const { status } =
+          await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== "granted") {
-          Alert.alert("Permission required", "Please allow access to photos and videos.");
+          Alert.alert(
+            "Permission required",
+            "Please allow access to photos and videos.",
+          );
           return;
         }
 
@@ -749,136 +736,170 @@ export function useCampaignPostForm({
             ? ImagePicker.MediaTypeOptions.Videos
             : ImagePicker.MediaTypeOptions.All,
           quality: 0.8,
-          selectionLimit: 1,
+          selectionLimit: maxMediaCount,
+          allowsMultipleSelection: true,
         });
 
         if (result.canceled) return;
-        const asset = result.assets[0];
-        pickedAsset = {
+        pickedAssets = result.assets.map(asset => ({
           uri: asset.uri,
-          name: asset.fileName ?? `${asset.type === "video" ? "video" : "image"}-${Date.now()}.${asset.type === "video" ? "mp4" : "jpg"}`,
+          name:
+            asset.fileName ??
+            `${asset.type === "video" ? "video" : "image"}-${Date.now()}.${asset.type === "video" ? "mp4" : "jpg"}`,
           type: asset.type === "video" ? "video/mp4" : "image/jpeg",
           size: asset.fileSize,
-        };
+          duration: asset.duration ?? null,   // seconds (expo returns ms on some versions)
+          width: asset.width ?? null,
+          height: asset.height ?? null,
+        })); 
       } else {
-        // Document Mode
         const result = await DocumentPicker.getDocumentAsync({
           type: "*/*",
           copyToCacheDirectory: true,
-          multiple: false,
+          multiple: true,
         });
 
         if (result.canceled) return;
-        const asset = result.assets[0];
-        pickedAsset = {
+        pickedAssets = result.assets.map(asset => ({
           uri: asset.uri,
           name: asset.name,
           type: asset.mimeType ?? "application/octet-stream",
           size: asset.size,
-        };
+        }));
       }
 
-      if (!pickedAsset) return;
+      if (!pickedAssets || pickedAssets.length === 0) return;
 
-      // 3️⃣ Validate max media limit
-      if (attachments.length + 1 > 10) {
-        Alert.alert("Upload limit", "You can upload a maximum of 10 media files");
+      const availableSlots = maxMediaCount - attachments.length;
+      if (availableSlots <= 0) {
+        Alert.alert("Upload limit", `You have already reached the maximum of ${maxMediaCount} media files.`);
         return;
       }
 
-      const isVideo = pickedAsset.type.startsWith("video/");
+      if (pickedAssets.length > availableSlots) {
+        pickedAssets = pickedAssets.slice(0, availableSlots);
+      }
 
-      const tempAttachment: Attachment = {
-        uri: pickedAsset.uri,
-        name: pickedAsset.name,
-        type: pickedAsset.type,
-        size: pickedAsset.size ? `${(pickedAsset.size / 1024).toFixed(1)} KB` : undefined,
-        uploading: true,
-      };
-
-      setAttachments((prev) => [...prev, tempAttachment]);
-      setUploadingMedia(true);
-      setUploadProgress(0);
-
-      // 4️⃣ Upload to backend
       const token = await getToken();
       if (!token) throw new Error("No authentication token available");
 
-      const finalUrl = await uploadMediaApi(
-        {
-          uri: pickedAsset.uri,
-          name: pickedAsset.name,
-          type: pickedAsset.type,
-        },
-        token,
-        (progress) => {
-          const visualProgress = Math.min(Math.round(progress), 99);
-          setUploadProgress(visualProgress);
-          setAttachments((prev) =>
-            prev.map((a) =>
-              a.uri === pickedAsset.uri ? { ...a, progress: visualProgress } : a
-            )
-          );
-        },
-        { organisationId, campaignId, isReel: isVideo, platform }
+      setUploadingMedia(true);
+
+      const currentOrgId = await getOrFetchOrgId();
+      const tempAttachments: Attachment[] = pickedAssets.map(asset => ({
+        uri: asset.uri,
+        name: asset.name,
+        type: asset.type,
+        size: asset.size
+          ? `${(asset.size / 1024).toFixed(1)} KB`
+          : undefined,
+        uploading: true,
+      }));
+
+      setAttachments((prev) => [...prev, ...tempAttachments]);
+
+      let hasVideo = false;
+      await Promise.all(
+        pickedAssets.map(async (pickedAsset) => {
+          try {
+            const isVideo = pickedAsset.type.startsWith("video/");
+            if (isVideo) hasVideo = true;
+
+            const finalUrl = await uploadMediaApi(
+              {
+                uri: pickedAsset.uri,
+                name: pickedAsset.name,
+                type: pickedAsset.type,
+              },
+              token,
+              (progress) => {
+                const visualProgress = Math.min(Math.round(progress), 99);
+                if (lastProgressRef.current[pickedAsset.uri] === visualProgress) return;
+                lastProgressRef.current[pickedAsset.uri] = visualProgress;
+
+                setAttachments((prev) =>
+                  prev.map((a) =>
+                    a.uri === pickedAsset.uri
+                      ? { ...a, progress: visualProgress }
+                      : a,
+                  ),
+                );
+              },
+              { organisationId: currentOrgId, campaignId, isReel: isVideo, platform },
+
+            );
+
+            if (!finalUrl) throw new Error("Upload failed: no URL returned");
+
+            setAttachments((prev) =>
+              prev.map((a) =>
+                a.uri === pickedAsset.uri
+                  ? { ...a, uploadedUrl: finalUrl, progress: 100, uploading: false }
+                  : a,
+              ),
+            );
+          } catch (error: any) {
+            console.error("Individual attachment upload error:", error);
+            Alert.alert("Upload failed", `Failed to upload ${pickedAsset.name}`);
+            setAttachments((prev) => prev.filter((a) => a.uri !== pickedAsset.uri));
+          }
+        })
       );
 
-      if (!finalUrl) throw new Error("Upload failed: no URL returned");
-
-      // 5️⃣ Replace temp attachment with uploaded one
-      setAttachments((prev) =>
-        prev.map((a) =>
-          a.uri === pickedAsset.uri
-            ? { ...a, uploadedUrl: finalUrl, progress: 100, uploading: false }
-            : a
-        )
-      );
-
-      // 6️⃣ Auto content-type detection
       if (platform === "INSTAGRAM" || platform === "FACEBOOK") {
-        if (isVideo) {
+        if (hasVideo) {
           setFacebookContentType("REEL");
         } else {
-          const hasExistingVideo = attachments.some((a) => a.type?.startsWith("video/"));
+          const hasExistingVideo = attachments.some((a) =>
+            a.type?.startsWith("video/"),
+          );
           if (!hasExistingVideo) {
             setFacebookContentType("STANDARD");
+          }
+        }
+      }
+
+      if (platform === "YOUTUBE") {
+        const videoAsset = pickedAssets.find((a) => a.type?.startsWith("video/"));
+        if (videoAsset) {
+          const w = videoAsset.width ?? 0;
+          const h = videoAsset.height ?? 0;
+          const rawDuration = videoAsset.duration ?? 0;
+          const durationSec = rawDuration > 1000 ? rawDuration / 1000 : rawDuration;
+          const isVertical = h > w;         
+          const isShortDuration = durationSec <= 180 && durationSec > 0;
+
+          if (isVertical && isShortDuration) {
+            setYouTubeContentType("SHORT");
+          } else {
+            setYouTubeContentType("VIDEO");
           }
         }
       }
     } catch (error: any) {
       console.error("Attachment upload error:", error);
       Alert.alert("Upload failed", error?.message || "Media upload failed");
-      setAttachments((prev) => prev.filter((a) => !a.uploading));
     } finally {
       setUploadingMedia(false);
-      setUploadProgress(0);
     }
   };
 
-  // const handleRemoveAttachment = (uri: string) => {
-  //   setAttachments((prev) =>
-  //     prev.filter((att) => att.uri !== uri && att.uploadedUrl !== uri),
-  //   );
-  // };
   const handleRemoveAttachment = (uri: string) => {
     setAttachments((prev) => {
       const updated = prev.filter(
         (att) => att.uri !== uri && att.uploadedUrl !== uri,
       );
 
-      // 🔥 Auto revert to STANDARD if no videos left
       if (
         (platform === "FACEBOOK" || platform === "INSTAGRAM") &&
         !updated.some((a) => a.type?.startsWith("video/"))
       ) {
         setFacebookContentType("STANDARD");
       }
-
       return updated;
     });
   };
 
-  // ================= AI TEXT =================
   const handleGenerateAIText = async () => {
     if (!aiPrompt.trim()) {
       Alert.alert("Enter instruction like: add emoji, make promotional");
@@ -894,7 +915,7 @@ export function useCampaignPostForm({
 
       const payload = {
         prompt: aiPrompt,
-        context: { platform, existingContent: message || "" }, // ✅ existingContent required
+        context: { platform, existingContent: message || "" },
         mode: "generate-multiple",
       };
 
@@ -905,13 +926,11 @@ export function useCampaignPostForm({
       let aiSuggestions: { subject: string; content: string }[] = [];
 
       if (response.variations?.length > 0) {
-        // Normal platforms: use variations
         aiSuggestions = response.variations.slice(0, 3).map((v: any) => ({
           subject: platform === "SMS" ? "" : (v.subject ?? ""),
           content: v.content,
         }));
       } else if (platform === "SMS" && response.content) {
-        // SMS fallback: use single content
         aiSuggestions = [{ subject: "", content: response.content }];
       } else {
         throw new Error("No AI suggestions returned");
@@ -925,84 +944,11 @@ export function useCampaignPostForm({
     }
   };
 
-  // ================= AI IMAGE =================
-  // const handleGenerateAIImage = async () => {
-  //   if (!imagePrompt.trim()) {
-  //     Alert.alert("Enter a prompt to generate an image");
-  //     return;
-  //   }
-
-  //   if (loadingImage) return;
-
-  //   setLoadingImage(true);
-
-  //   try {
-  //     const token = await getToken();
-  //     if (!token) throw new Error("Authentication token missing");
-
-  //     const response = await generateAIImageApi({ prompt: imagePrompt }, token);
-
-  //     const imageUrl = response?.images?.[0];
-
-  //     // 🚫 API responded but no image
-  //     // if (!imageUrl) {
-  //     //   const failedKey = `failed-${Date.now()}`;
-
-  //     //   setGeneratedImages((prev) => [...prev, failedKey]);
-
-  //     //   setImageLoadingMap((prev) => ({
-  //     //     ...prev,
-  //     //     [failedKey]: false,
-  //     //   }));
-
-  //     //   setImageErrorMap((prev) => ({
-  //     //     ...prev,
-  //     //     [failedKey]: true,
-  //     //   }));
-
-  //     //   // Alert.alert(
-  //     //   //   "Image Generation Failed",
-  //     //   //   "The AI could not generate an image.",
-  //     //   //   [
-  //     //   //     {
-  //     //   //       text: "OK",
-  //     //   //       onPress: () => {
-  //     //   //         setImageModalVisible(false);
-  //     //   //       },
-  //     //   //     },
-  //     //   //   ],
-  //     //   // );
-
-  //     //   return;
-  //     // }
-
-  //     // ✅ Valid image
-  //     setGeneratedImages((prev) => [...prev, imageUrl]);
-
-  //     setImageLoadingMap((prev) => ({
-  //       ...prev,
-  //       [imageUrl]: true,
-  //     }));
-
-  //     setImageErrorMap((prev) => ({
-  //       ...prev,
-  //       [imageUrl]: false,
-  //     }));
-  //   } catch (error: any) {
-  //     Alert.alert(
-  //       "Image Generation Error",
-  //       error?.message || "Something went wrong while generating the image.",
-  //     );
-  //   } finally {
-  //     setLoadingImage(false);
-  //   }
-  // };
-
   const handleSelectGeneratedImage = async (imageUrl: string) => {
     try {
-      if (selectingImage) return; 
+      if (selectingImage) return;
 
-      setSelectingImage(imageUrl); 
+      setSelectingImage(imageUrl);
 
       const token = await getToken();
       if (!token) throw new Error("Token missing");
@@ -1017,11 +963,12 @@ export function useCampaignPostForm({
         token,
         undefined,
         {
-          organisationId,
+          organisationId: await getOrFetchOrgId(),
           campaignId,
           isReel: false,
           platform,
-        }
+        },
+
       );
       console.log(`✅ AI image upload complete. Attachment URI:`, uploadedUrl);
 
@@ -1038,7 +985,6 @@ export function useCampaignPostForm({
 
       setSelectedImage(imageUrl);
 
-      // small delay makes UX smoother
       setTimeout(() => {
         setImageModalVisible(false);
         setSelectingImage(null);
@@ -1050,16 +996,6 @@ export function useCampaignPostForm({
   };
 
   function normalizeAIImageUrl(url: string) {
-    // if (!url) return url;
-
-    // // Remove query params temporarily
-    // const [base, query] = url.split("?");
-
-    // // Replace .webp with .jpg
-    // if (base.endsWith(".webp")) {
-    //   return base.replace(".webp", ".jpg") + (query ? "?" + query : "");
-    // }
-
     return url;
   }
 
@@ -1096,27 +1032,11 @@ export function useCampaignPostForm({
       }
 
       const imageUrl = normalizeAIImageUrl(rawImageUrl);
-      // if (!imageUrl) {
-      //   console.warn("API responded but no image returned", response);
-      //   Alert.alert("Image Generation Failed", "The AI could not generate an image.");
-      //   return;
-      // }
-
       console.log("Generated image URL:", imageUrl);
-
       const fileName = getFileNameFromUrl(imageUrl);
       const mimeType = getMimeFromUrl(imageUrl);
 
-      // const aiAttachment: Attachment = {
-      //   uri: imageUrl,
-      //   uploadedUrl: imageUrl, // IMPORTANT
-      //   name: fileName, // REAL filename
-      //   type: mimeType,
-      //   uploading: false,
-      // };
-
       setGeneratedImages((prev) => [...prev, imageUrl]);
-      // setAttachments((prev) => [...prev, aiAttachment]);
       setImageLoadingMap((prev) => ({ ...prev, [imageUrl]: true }));
       setImageErrorMap((prev) => ({ ...prev, [imageUrl]: false }));
 
@@ -1140,7 +1060,6 @@ export function useCampaignPostForm({
     }
   };
 
-  // ================= FACEBOOK =================
   useEffect(() => {
     if (platform === "FACEBOOK" || platform === "INSTAGRAM") {
       fetchFacebookPages();
@@ -1179,7 +1098,6 @@ export function useCampaignPostForm({
     }
   };
 
-  // ================= PINTEREST =================
   const fetchBoards = async () => {
     setLoadingBoards(true);
     try {
@@ -1268,12 +1186,12 @@ export function useCampaignPostForm({
     }
   };
 
-  // ================= MEDIA UPLOADS =================
   const handleCustomThumbnailUpload = async () => {
+    const isShort = youTubeContentType === "SHORT";
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [16, 9],
+      allowsEditing: !isShort,
+      aspect: isShort ? undefined : [16, 9],
       quality: 1,
     });
 
@@ -1294,10 +1212,18 @@ export function useCampaignPostForm({
           type: "image/jpeg",
         },
         token,
+        undefined,
+        {
+          organisationId: await getOrFetchOrgId(),
+          campaignId,
+          platform,
+        }
       );
 
+
       if (uploadedUrl && typeof uploadedUrl === "string") {
-        setCustomThumbnail(uploadedUrl);
+        setCustomThumbnail(asset.uri);
+        setUploadedCustomThumbnailUrl(uploadedUrl);
       } else {
         throw new Error("Failed to upload thumbnail: no URL returned");
       }
@@ -1308,54 +1234,6 @@ export function useCampaignPostForm({
       );
     }
   };
-
-  // const handleCoverImageUpload = async () => {
-  //   const result = await ImagePicker.launchImageLibraryAsync({
-  //     mediaTypes: ["images"],
-  //     allowsEditing: true,
-  //     aspect: [9, 16],
-  //     quality: 1,
-  //   });
-
-  //   if (result.canceled) return;
-
-  //   const asset = result.assets[0];
-
-  //   try {
-  //     setCoverUploading(true);
-
-  //     const token = await getToken();
-  //     if (!token) {
-  //       throw new Error("No authentication token available");
-  //     }
-
-  //     const uploadedUrl = await uploadMediaApi(
-  //       {
-  //         uri: asset.uri,
-  //         name: `cover-${Date.now()}.jpg`,
-  //         type: "image/jpeg",
-  //       },
-  //       token,
-  //       (progress) => {
-  //         console.log("Cover Upload Progress:", progress);
-  //       },
-  //     );
-
-  //     if (uploadedUrl && typeof uploadedUrl === "string") {
-  //       setCoverImage(uploadedUrl);
-  //     } else {
-  //       throw new Error("Failed to upload cover image: no URL returned");
-  //     }
-  //   } catch (error: any) {
-  //     console.error("Cover upload error:", error);
-  //     Alert.alert(
-  //       "Upload failed",
-  //       error?.message || "Failed to upload cover image",
-  //     );
-  //   } finally {
-  //     setCoverUploading(false);
-  //   }
-  // };
 
   const handleCoverImageUpload = async () => {
     console.log("[Cover] Image picker opened");
@@ -1392,11 +1270,19 @@ export function useCampaignPostForm({
           type: "image/jpeg",
         },
         token,
+        undefined,
+        {
+          organisationId: await getOrFetchOrgId(),
+          campaignId,
+          isReel: true,
+          platform,
+        }
       );
 
       if (uploadedUrl && typeof uploadedUrl === "string") {
         console.log("[Cover] Upload finished, URL:", uploadedUrl);
-        setCoverImage(uploadedUrl); // ✅ correctly set coverImage state
+        setCoverImage(asset.uri);
+        setUploadedCoverImageUrl(uploadedUrl);
       } else {
         console.error("[Cover] Upload finished but no URL returned");
         throw new Error("No URL returned");
@@ -1412,29 +1298,18 @@ export function useCampaignPostForm({
       console.log("[Cover] Upload state set to false");
     }
   };
-  // ================= SUBMIT =================
- const handleSubmit = async () => {
-  if (loading) return;
-  setLoading(true);
+  const handleSubmit = async () => {
+    if (loading) return;
 
-  try {
-    // ================= BASIC VALIDATION =================
     if (!message) {
       Alert.alert("⚠️ Please fill in all fields.");
       return;
     }
 
     const mediaRequiredPlatforms = ["INSTAGRAM", "YOUTUBE", "PINTEREST"];
-
-    if (
-      mediaRequiredPlatforms.includes(platform) &&
-      attachments.length === 0
-    ) {
+    if (mediaRequiredPlatforms.includes(platform) && attachments.length === 0) {
       const platformName = PLATFORM_LABELS[platform] ?? platform;
-      Alert.alert(
-        "⚠️ Missing Media",
-        `Please add at least one image or video for ${platformName}.`
-      );
+      Alert.alert("⚠️ Missing Media", `Please add at least one image or video for ${platformName}.`);
       return;
     }
 
@@ -1443,94 +1318,116 @@ export function useCampaignPostForm({
       return;
     }
 
-    const subjectRequiredPlatforms = [
-      "FACEBOOK",
-      "INSTAGRAM",
-      "LINKEDIN",
-      "YOUTUBE",
-      "PINTEREST",
-    ];
-
+    const subjectRequiredPlatforms = ["FACEBOOK", "INSTAGRAM", "LINKEDIN", "YOUTUBE", "PINTEREST"];
     if (subjectRequiredPlatforms.includes(platform) && !subject) {
       Alert.alert("⚠️ Please fill in all fields.");
       return;
     }
 
-    // ================= CAMPAIGN ID =================
-    const campaignIdToUse =
-      Number(campaignId) ||
-      Number(existingPost?.campaignId) ||
-      Number(existingPost?.campaign?.id);
-
-    if (!campaignIdToUse) {
-      Alert.alert("Campaign ID missing");
-      return;
-    }
-
-    // ================= TAGS =================
-    const parsedTags = youTubeTags
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter((tag) => tag.length > 0);
-
-    // ================= MEDIA VALIDATION =================
-    const mediaUrls = attachments
-      .filter(
-        (a): a is typeof a & { uploadedUrl: string } =>
-          !!a.uploadedUrl &&
-          !!a.type &&
-          (platform === "EMAIL" || 
-           a.type.startsWith("image/") || 
-           a.type.startsWith("video/"))
-      )
-      .map((a) => a.uploadedUrl);
-
-    console.log("MEDIA URLS BEING SENT:", mediaUrls);
-
-    const invalidMedia = attachments.filter(
-      (a) =>
-        !a.uploadedUrl ||
-        !a.type ||
-        (platform !== "EMAIL" && !a.type.startsWith("image/") && !a.type.startsWith("video/"))
-    );
-
-    if (invalidMedia.length > 0) {
+    if (!postDate) {
+      const platformName = (PLATFORM_LABELS[platform] ?? platform).toLowerCase();
       Alert.alert(
-        "Invalid Media",
-        "Some media files are not uploaded properly. Please reselect them."
+        "Confirm Publication",
+        `You haven't scheduled a post date for this ${platformName} post.\n\nWithout a scheduled date, this post will be published automatically (immediately) once updated.\n\nDo you want to proceed and publish now?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: existingPost?.id ? "Confirm & Update Now" : "Confirm & Publish Now", onPress: executeSubmit }
+        ]
       );
-      return;
+    } else {
+      executeSubmit();
     }
+  };
 
-    // ================= BUILD CLEAN METADATA =================
-    let finalMetadata: any = {};
-    const socialPlatforms = ["FACEBOOK", "INSTAGRAM", "YOUTUBE", "PINTEREST", "LINKEDIN"];
-    if (socialPlatforms.includes(platform)) {
-      finalMetadata.tags = parsedTags;
-    }
+  const executeSubmit = async () => {
+    setLoading(true);
+    try {
+      const campaignIdToUse =
+        Number(campaignId) ||
+        Number(existingPost?.campaignId) ||
+        Number(existingPost?.campaign?.id);
 
-    // YOUTUBE
-    if (platform === "YOUTUBE") {
-      finalMetadata = {
-        ...finalMetadata,
-        postType: youTubeContentType,
-        privacy: youTubeStatus,
-        thumbnailUrl: customThumbnail || null,
-        playlistId,
-        playlistTitle,
-      };
-    }
+      if (!campaignIdToUse) {
+        Alert.alert("Campaign ID missing");
+        return;
+      }
 
-    // FACEBOOK / INSTAGRAM
-    if (platform === "FACEBOOK" || platform === "INSTAGRAM") {
-       const isActuallyReel = facebookContentType === "REEL";
+      const parsedTags = youTubeTags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0);
+
+      const isUploading = attachments.some((a) => a.uploading);
+      if (isUploading) {
+        Alert.alert(
+          "Upload in Progress",
+          "Please wait for all media files to finish uploading before submitting."
+        );
+        return;
+      }
+
+      const mediaUrls = attachments
+        .filter(
+          (a): a is typeof a & { uploadedUrl: string } =>
+            !!a.uploadedUrl &&
+            !!a.type &&
+            (platform === "EMAIL" ||
+              a.type.startsWith("image/") ||
+              a.type.startsWith("video/")),
+        )
+        .map((a) => a.uploadedUrl);
+
+      console.log("MEDIA URLS BEING SENT:", mediaUrls);
+
+      const invalidMedia = attachments.filter(
+        (a) =>
+          !a.uploadedUrl ||
+          !a.type ||
+          (platform !== "EMAIL" &&
+            !a.type.startsWith("image/") &&
+            !a.type.startsWith("video/")),
+      );
+
+      if (invalidMedia.length > 0) {
+        Alert.alert(
+          "Invalid Media",
+          "Some media files are not uploaded properly. Please reselect them.",
+        );
+        return;
+      }
+
+      let finalMetadata: any = {};
+      const socialPlatforms = [
+        "FACEBOOK",
+        "INSTAGRAM",
+        "YOUTUBE",
+        "PINTEREST",
+        "LINKEDIN",
+      ];
+      if (socialPlatforms.includes(platform)) {
+        finalMetadata.tags = parsedTags;
+      }
+
+      if (platform === "YOUTUBE") {
+        finalMetadata = {
+          ...finalMetadata,
+          postType: youTubeContentType,
+          privacy: youTubeStatus,
+          thumbnailUrl: uploadedCustomThumbnailUrl || customThumbnail || uploadedCoverImageUrl || coverImage || null,
+          playlistId,
+          playlistTitle,
+        };
+      }
+
+      if (platform === "FACEBOOK" || platform === "INSTAGRAM") {
+        const isActuallyReel = facebookContentType === "REEL";
         finalMetadata = {
           ...finalMetadata,
           postType: facebookContentType,
           isReel: isActuallyReel,
-          coverImage: coverImage || null,
-          coverUrl: coverImage || null,
-          thumbnailUrl: coverImage || null,
+          coverImage: uploadedCoverImageUrl || coverImage || null,
+          coverUrl: uploadedCoverImageUrl || coverImage || null,
+          thumbnailUrl: uploadedCoverImageUrl || coverImage || null,
         };
 
         if (isBoosting && selectedMetaAccount) {
@@ -1546,110 +1443,109 @@ export function useCampaignPostForm({
         }
       }
 
+      if (platform === "LINKEDIN") {
+        finalMetadata = {
+          ...finalMetadata,
+          authorId: selectedAccount,
+          authorType: "ORGANIZATION",
+        };
+      }
 
-    // LINKEDIN
-    if (platform === "LINKEDIN") {
-      finalMetadata = {
-        ...finalMetadata,
-        authorId: selectedAccount,
-        authorType: "ORGANIZATION",
+      if (platform === "PINTEREST") {
+        finalMetadata = {
+          ...finalMetadata,
+          boardId: PinterestBoardId,
+          boardName: pinterestBoard,
+          destinationLink: metadata?.destinationLink || "",
+        };
+      }
+
+      const postData: CampaignPostData = {
+        senderEmail,
+        subject,
+        message,
+        type: platform,
+        mediaUrls,
+        scheduledPostTime: postDate ? postDate.toISOString() : null,
+        metadata: finalMetadata,
+        thumbnailUrl: uploadedCustomThumbnailUrl || customThumbnail || uploadedCoverImageUrl || coverImage || null,
+        
+        ...(platform === "FACEBOOK" || platform === "INSTAGRAM" ? {
+          isReel: facebookContentType === "REEL",
+          postType: facebookContentType,
+          coverImage: uploadedCoverImageUrl || coverImage || null,
+        } : {}),
+
+        ...(platform === "YOUTUBE" ? {
+          youtubeTags: parsedTags,
+          youtubePrivacy: youTubeStatus.toLowerCase(),
+          youtubeContentType: youTubeContentType,
+          youtubePlaylistTitle: playlistTitle || "",
+          youtubePlaylistId: playlistId || "",
+          isReel: youTubeContentType === "SHORT",
+          contentType: "POST"
+        } : {}),
+
+        ...(platform === "PINTEREST" ? {
+          pinterestBoardId: PinterestBoardId,
+          pinterestLink: metadata?.destinationLink || "",
+        } : {}),
       };
-    }
 
-    // PINTEREST
-    if (platform === "PINTEREST") {
-      finalMetadata = {
-        ...finalMetadata,
-        boardId: PinterestBoardId,
-        boardName: pinterestBoard,
-        destinationLink: metadata?.destinationLink || "",
-      };
-    }
-
-    // ================= BUILD POST DATA =================
-    const postData: CampaignPostData = {
-      senderEmail,
-      subject,
-      message,
-      type: platform,
-      mediaUrls,
-      scheduledPostTime: postDate?.toISOString() || new Date().toISOString(),
-      metadata: finalMetadata,
-      thumbnailUrl: coverImage || customThumbnail || null,
-      // Root level fields for better backend Create API compatibility
-      isReel: (platform === "FACEBOOK" || platform === "INSTAGRAM") ? (facebookContentType === "REEL") : undefined,
-      postType: (platform === "FACEBOOK" || platform === "INSTAGRAM") ? facebookContentType : undefined,
-      coverImage: (platform === "FACEBOOK" || platform === "INSTAGRAM") ? (coverImage || null) : undefined,
-
-      ...(platform === "PINTEREST"
-        ? {
-            pinterestBoardId: PinterestBoardId,
-            pinterestLink: metadata?.destinationLink || "",
-          }
-        : {}),
-    };
-
-    console.log(
-      "FINAL CREATE/UPDATE PAYLOAD:",
-      JSON.stringify(postData, null, 2)
-    );
-
-    // ================= API CALL =================
-
-    // ================= API CALL =================
-    const token = await getToken();
-    if (!token) throw new Error("Authentication token missing");
-
-    let response;
-
-    if (existingPost?.id) {
-      response = await updatePostForCampaignApi(
-        Number(campaignIdToUse),
-        Number(existingPost.id),
-        postData,
-        token
+      console.log(
+        "FINAL CREATE/UPDATE PAYLOAD:",
+        JSON.stringify(postData, null, 2),
       );
-    } else {
-      response = await createPostForCampaignApi(
-        Number(campaignIdToUse),
-        postData,
-        token
-      );
+
+      const token = await getToken();
+      if (!token) throw new Error("Authentication token missing");
+
+      let response;
+
+      if (existingPost?.id) {
+        response = await updatePostForCampaignApi(
+          Number(campaignIdToUse),
+          Number(existingPost.id),
+          postData,
+          token,
+        );
+      } else {
+        response = await createPostForCampaignApi(
+          Number(campaignIdToUse),
+          postData,
+          token,
+        );
+      }
+
+      onClose?.(response);
+
+      if (!existingPost) {
+        setSenderEmail("");
+        setSubject("");
+        setMessage("");
+        setAiPrompt("");
+        setPostDate(null);
+        setImagePrompt("");
+        setGeneratedImages([]);
+        setSelectedImage(undefined);
+        setCoverImage(null);
+      }
+
+      onCreatedNavigate ? onCreatedNavigate() : router.back();
+    } catch (error: any) {
+      const apiMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Something went wrong";
+
+      Alert.alert("⚠️ Scheduling Error", apiMessage);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    onClose?.(response);
-
-    // ================= RESET (ONLY CREATE) =================
-    if (!existingPost) {
-      setSenderEmail("");
-      setSubject("");
-      setMessage("");
-      setAiPrompt("");
-      setPostDate(null);
-      setImagePrompt("");
-      setGeneratedImages([]);
-      setSelectedImage(undefined);
-      setCoverImage(null);
-    }
-
-    onCreatedNavigate ? onCreatedNavigate() : router.back();
-
-  } catch (error: any) {
-    const apiMessage =
-      error?.response?.data?.error ||
-      error?.message ||
-      "Something went wrong";
-
-    Alert.alert("⚠️ Scheduling Error", apiMessage);
-  } finally {
-    setLoading(false);
-  }
-};
-
-  // ================= RETURN =================
   return {
     isDark,
-    // state
     platform,
     previewTimestamp,
     senderEmail,
@@ -1714,7 +1610,6 @@ export function useCampaignPostForm({
     allLeadForms,
     isLeadFormLoading,
     leadFormModalVisible,
-
 
     playlists,
     showPlaylistDropdown,
@@ -1782,7 +1677,6 @@ export function useCampaignPostForm({
     setSelectedLeadForm,
     setLeadFormModalVisible,
 
-
     // actions
     handleAddAttachment,
     handleRemoveAttachment,
@@ -1795,5 +1689,4 @@ export function useCampaignPostForm({
     handleSelectTemplate,
     handleSubmit,
   };
-
 }

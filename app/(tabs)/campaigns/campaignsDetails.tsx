@@ -11,7 +11,7 @@ import { ThemedView } from "@/components/themed-view";
 import { useAuth } from "@clerk/clerk-expo";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -34,27 +34,29 @@ const platformIcons: Record<
   string,
   { Icon: any; color: string; name: string }
 > = {
+  SMS: { Icon: Ionicons, name: "chatbubble-ellipses-outline", color: "#10B981" },
+  EMAIL: { Icon: Ionicons, name: "mail", color: "#F59E0B" },
   WHATSAPP: { Icon: Ionicons, name: "logo-whatsapp", color: "#25D366" },
   INSTAGRAM: { Icon: FontAwesome, name: "instagram", color: "#C13584" },
   FACEBOOK: { Icon: FontAwesome, name: "facebook-square", color: "#1877F2" },
   YOUTUBE: { Icon: FontAwesome, name: "youtube-play", color: "#FF0000" },
   LINKEDIN: { Icon: FontAwesome, name: "linkedin-square", color: "#0A66C2" },
   PINTEREST: { Icon: FontAwesome, name: "pinterest", color: "#E60023" },
-  EMAIL: { Icon: Ionicons, name: "mail", color: "#F59E0B" },
-  SMS: { Icon: Ionicons, name: "chatbubble-ellipses-outline", color: "#10B981" },
 };
+
+const FIXED_PLATFORMS = Object.keys(platformIcons);
 
 export default function CampaignsDetails() {
   const { getToken } = useAuth();
   const params = useLocalSearchParams();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
-  /** Safe param parsing */
   const campaignStr =
     typeof params.campaign === "string" ? params.campaign : null;
   const campaignIdParam =
     typeof params.campaignId === "string" ? params.campaignId : null;
 
-  /** Try to parse campaign JSON string */
   const initialCampaign = useMemo<Campaign | null>(() => {
     if (!campaignStr) return null;
     try {
@@ -71,13 +73,17 @@ export default function CampaignsDetails() {
   const [publishing, setPublishing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [deletingPostId, setDeletingPostId] = useState<number | null>(null);
+  const [selectedPlatform, setSelectedPlatform] = useState("ALL");
+  const [platformOrder, setPlatformOrder] = useState(FIXED_PLATFORMS);
+  const platformScrollRef = useRef<ScrollView>(null);
+  const flatListRef = useRef<FlatList>(null);
 
   const refreshCallback =
     typeof params.refreshCallback === "string";
 
   const [loadingCampaign, setLoadingCampaign] = useState(false);
+  const [isCampaignCardVisible, setIsCampaignCardVisible] = useState(true);
 
-  /** Determine final campaignId */
   const resolvedCampaignId = useMemo<number | undefined>(() => {
     if (campaign?.id) return campaign.id;
 
@@ -88,7 +94,6 @@ export default function CampaignsDetails() {
     return undefined;
   }, [campaign, campaignIdParam]);
 
-  // ========= ALERT WHEN YOUR CAMAPIGN COMPLETE AND TRY TO CLICK CREATE POST =========
   const getCampaignStatus = (campaign: Campaign | null) => {
     if (!campaign?.startDate || !campaign?.endDate) return "Scheduled";
 
@@ -109,7 +114,37 @@ export default function CampaignsDetails() {
   const campaignStatus = getCampaignStatus(campaign);
   const isCompleted = campaignStatus === "Completed";
 
-  // ========= FETCH CAMPAIGN DETAILS =========
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [contacts, setContacts] = useState<ContactsRecord[]>([]);
+  const [selectedContacts, setSelectedContacts] = useState<number[]>([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [currentSharePostId, setCurrentSharePostId] = useState<number | null>(null);
+
+  const fetchContactsForShare = useCallback(async () => {
+    try {
+      setLoadingContacts(true);
+
+      const res = await getContactsApi(1, 100, "");
+
+      const mapped: ContactsRecord[] = (res.contacts ?? []).map((c: any) => ({
+        id: c.id,
+        name: c.contactName,
+        email: c.contactEmail,
+        mobile: c.contactMobile,
+        whatsapp: c.contactWhatsApp,
+        show: true,
+        campaigns: c.campaigns ?? [],
+      }));
+
+      setContacts(mapped);
+    } catch (e) {
+      console.error("Failed to fetch contacts", e);
+      setContacts([]);
+    } finally {
+      setLoadingContacts(false);
+    }
+  }, []);
+
   useEffect(() => {
     const fetchCampaign = async () => {
       if (campaign || !resolvedCampaignId) return;
@@ -157,6 +192,12 @@ export default function CampaignsDetails() {
       }));
 
       setPosts(normalizedPosts);
+      // Auto-collapse card if posts exist
+      if (normalizedPosts.length > 0) {
+        setIsCampaignCardVisible(false);
+      } else {
+        setIsCampaignCardVisible(true);
+      }
     } catch (error) {
       console.log("POSTS LOAD ERROR:", error);
       setPosts([]);
@@ -168,7 +209,8 @@ export default function CampaignsDetails() {
   useFocusEffect(
     useCallback(() => {
       fetchPosts();
-    }, [fetchPosts])
+      fetchContactsForShare();
+    }, [fetchPosts, fetchContactsForShare])
   );
 
   useEffect(() => {
@@ -179,25 +221,59 @@ export default function CampaignsDetails() {
 
 
   const filteredPosts = useMemo(() => {
-    if (!searchQuery.trim()) return posts;
+    let filtered = posts;
 
-    const q = searchQuery.toLowerCase();
-    return posts.filter(
-      (p) =>
-        p.subject?.toLowerCase().includes(q) ||
-        p.message?.toLowerCase().includes(q) ||
-        p.type?.toLowerCase().includes(q)
-    );
-  }, [posts, searchQuery]);
+    // Search filter
+    if (searchQuery.trim()) {
+      filtered = filtered.filter((post) =>
+        post.message?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        post.subject?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
 
-  const visiblePosts = filteredPosts.slice(0, visibleCount);
+    // Platform filter
+    if (selectedPlatform !== "ALL") {
+      filtered = filtered.filter((post) => post.type === selectedPlatform);
+    }
+
+    return filtered;
+  }, [posts, searchQuery, selectedPlatform]);
+
+  const visiblePosts = useMemo(() => {
+    return filteredPosts.slice(0, visibleCount);
+  }, [filteredPosts, visibleCount]);
+
+  const handlePlatformPress = (plat: string, index: number) => {
+    setSelectedPlatform(plat);
+    if (plat !== "ALL") {
+      setPlatformOrder((prev) => {
+        // index 0 is 'ALL' in the UI, but platformOrder maps to tabs AFTER 'ALL'
+        // Wait, in the UI: ['ALL', ...platformOrder]
+        // So the tab at UI index 'index' is platformOrder[index - 1]
+
+        const otherIndex = index - 1;
+        if (otherIndex < 0) return prev;
+
+        const rotated = [
+          ...prev.slice(otherIndex),
+          ...prev.slice(0, otherIndex)
+        ];
+        return rotated;
+      });
+    }
+    platformScrollRef.current?.scrollTo({ x: 0, animated: true });
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+  };
+
   const isAllVisible = visibleCount >= filteredPosts.length;
 
-  // Post Status
-  const getPostStatus = (item: any) => {
-    if (item.isPostSent === true) return "SENT";
+  const getPostCount = (platform: string) => {
+    if (platform === "ALL") return posts.length;
+    return posts.filter((p) => p.type === platform).length;
+  };
 
-    if (item.publishedDate) return "SENT";
+  const getPostStatus = (item: any) => {
+    if (item.isPostSent === true || item.publishedDate || item.status?.toUpperCase() === "SENT") return "SENT";
 
     if (item.scheduledPostTime && !item.isPostSent) {
       const scheduled = new Date(item.scheduledPostTime);
@@ -209,7 +285,6 @@ export default function CampaignsDetails() {
     return "PENDING";
   };
 
-  // ========= POST ACTIONS =========
   const handleDeletePost = async (postId: number) => {
     if (!resolvedCampaignId) return;
 
@@ -223,11 +298,8 @@ export default function CampaignsDetails() {
             setDeletingPostId(postId);
 
             await deletePostForCampaignApi(resolvedCampaignId, postId);
-
-            // ✅ Reload ALL posts after delete
             await fetchPosts();
 
-            // optional: reset visible count
             setVisibleCount(5);
           } catch (error) {
             Alert.alert("Error", "Failed to delete post. Please try again.");
@@ -240,7 +312,6 @@ export default function CampaignsDetails() {
   };
 
 
-  // ========= HANDLE CREATE / EDIT POST =========
   const handleCreatePost = (campaignId: number) => {
     // console.log("campaignStartDate:", campaign?.startDate);
     // console.log("campaignEndDate:", campaign?.endDate);
@@ -275,8 +346,8 @@ export default function CampaignsDetails() {
       // Open external link
       const adAccountId = post.metadata?.boosting?.adAccountId || "1237825278172670";
       const pageId = post.metadata?.facebookPageId || "814937711712427";
-      const targetId = post.metadata?.facebookPostId || post.postId || "122129921193143563"; 
-      
+      const targetId = post.metadata?.facebookPostId || post.postId || "122129921193143563";
+
       const url = `https://www.facebook.com/ad_center/create/boostpost/?ad_account_id=${adAccountId}&page_id=${pageId}&target_id=${targetId}&entry_point=partner_campzeo`;
       Linking.openURL(url).catch(err => Alert.alert("Error", "Could not open Facebook Boost page"));
     } else {
@@ -386,13 +457,6 @@ export default function CampaignsDetails() {
     );
   };
 
-  // ========= SHARE POST MODAL =========
-  const [shareModalVisible, setShareModalVisible] = useState(false);
-  const [contacts, setContacts] = useState<ContactsRecord[]>([]);
-  const [selectedContacts, setSelectedContacts] = useState<number[]>([]);
-  const [loadingContacts, setLoadingContacts] = useState(false);
-  const [currentSharePostId, setCurrentSharePostId] = useState<number | null>(null);
-
   // ========= BOOST POST MODAL =========
   const [boostModalVisible, setBoostModalVisible] = useState(false);
   const [currentBoostPostId, setCurrentBoostPostId] = useState<number | null>(null);
@@ -424,39 +488,6 @@ export default function CampaignsDetails() {
           : rawPost.mediaUrls,
     };
   }, [posts, currentSharePostId]);
-
-  const fetchContactsForShare = useCallback(async () => {
-    try {
-      setLoadingContacts(true);
-
-      const res = await getContactsApi(1, 100, "");
-
-      const mapped: ContactsRecord[] = (res.contacts ?? []).map((c: any) => ({
-        id: c.id,
-        name: c.contactName,
-        email: c.contactEmail,
-        mobile: c.contactMobile,
-        whatsapp: c.contactWhatsApp,
-        show: true,
-        campaigns: c.campaigns ?? [],
-      }));
-
-      setContacts(mapped);
-    } catch (e) {
-      console.error("Failed to fetch contacts", e);
-      setContacts([]);
-    } finally {
-      setLoadingContacts(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (shareModalVisible) {
-        fetchContactsForShare();
-      }
-    }, [shareModalVisible, fetchContactsForShare])
-  );
 
   const handleOpenShareModal = async (postId: number) => {
     const post = posts.find((p) => p.id === postId);
@@ -490,7 +521,6 @@ export default function CampaignsDetails() {
     try {
       setPublishing(true);
 
-      // 🔴 REQUIRED FOR PINTEREST
       if (post.type === "PINTEREST") {
         const boardId =
           post.metadata?.boardId || post.boardId;
@@ -506,7 +536,6 @@ export default function CampaignsDetails() {
           return;
         }
 
-        // ✅ UPDATE POST FIRST
         await updatePostForCampaignApi(
           resolvedCampaignId,
           currentSharePostId,
@@ -521,7 +550,6 @@ export default function CampaignsDetails() {
         );
       }
 
-      // ✅ CONTACT VALIDATION
       let contactsToSend: number[] = [];
       if (["SMS", "EMAIL", "WHATSAPP"].includes(post.type)) {
         if (selectedContacts.length === 0) {
@@ -532,7 +560,6 @@ export default function CampaignsDetails() {
         contactsToSend = selectedContacts;
       }
 
-      // ✅ NOW SHARE
       const res = await shareCampaignPostApi(
         resolvedCampaignId,
         currentSharePostId,
@@ -556,122 +583,70 @@ export default function CampaignsDetails() {
   const renderPostItem = ({ item }: { item: any }) => {
     const platform = platformIcons[item.type];
     const status = getPostStatus(item);
-    const canDelete = status !== "SENT";
-    const canEdit = status !== "SENT";
-    const canShare = status !== "SENT";
+
+    const isDirectPost = !item.scheduledPostTime;
+
+    const canDelete = status !== "SENT" && !isDirectPost;
+    const canEdit = status !== "SENT" && !isDirectPost;
+    const canShare = status !== "SENT" && !isDirectPost;
     const isMeta = item.type === "FACEBOOK" || item.type === "INSTAGRAM";
     const canBoost = isMeta;
 
     return (
       <View className="p-4 rounded-xl mb-4 relative">
+        {/* TOP RIGHT: PLATFORM + STATUS */}
         <View
           style={{
             position: "absolute",
-            top: 8,
-            right: 8,
+            top: 12,
+            right: 12,
             flexDirection: "row",
-            gap: 2,
+            alignItems: "center",
+            gap: 8,
             zIndex: 10,
-            elevation: 10,
           }}
         >
-          {canBoost && (
-            <TouchableOpacity
-              onPress={() => handleBoostPostAction(item)}
-              activeOpacity={0.6}
+
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+              borderRadius: 999,
+              backgroundColor: isDark ? "#020617" : "#f9fafb",
+              borderWidth: 1,
+              borderColor: isDark ? "#334155" : "#e2e8f0",
+            }}
+          >
+            <Ionicons
+              name={
+                status === "SENT"
+                  ? "paper-plane"
+                  : status === "SCHEDULED"
+                    ? "alarm-outline"
+                    : "hourglass-outline"
+              }
+              size={10}
+              color={
+                status === "SENT"
+                  ? "#22c55e"
+                  : status === "SCHEDULED"
+                    ? "#3b82f6"
+                    : "#fbbf24"
+              }
+            />
+            <ThemedText
               style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                justifyContent: "center",
-                alignItems: "center",
+                fontSize: 9,
+                fontWeight: "700",
+                color: isDark ? "#e5e7eb" : "#111827",
               }}
             >
-              <Ionicons
-                name={status === "SENT" ? "rocket" : "rocket-outline"}
-                size={22}
-                color={isDark ? "#fbbf24" : "#f59e0b"}
-              />
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity
-            onPress={() => {
-              if (!canShare) return;
-              handleOpenShareModal(item.id);
-            }}
-            disabled={!canShare}
-            activeOpacity={canShare ? 0.6 : 1}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              justifyContent: "center",
-              alignItems: "center",
-              opacity: !canShare ? 0.4 : 1,
-            }}
-          >
-            <Ionicons
-              name="share-social-outline"
-              size={22}
-              color={isDark ? "#73a6f9" : "#3b82f6"}
-            />
-          </TouchableOpacity>
-
-
-          <TouchableOpacity
-            onPress={() => {
-              if (!canEdit) return;
-              handleEditPost(campaign!.id, item);
-            }}
-            disabled={!canEdit}
-            activeOpacity={canEdit ? 0.6 : 1}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              justifyContent: "center",
-              alignItems: "center",
-              opacity: !canEdit ? 0.4 : 1,
-            }}
-          >
-            <Ionicons
-              name="create-outline"
-              size={22}
-              color={isDark ? "#73f3c9" : "#10b981"}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => {
-              if (!canDelete) return;
-              handleDeletePost(item.id);
-            }}
-            disabled={!canDelete || deletingPostId === item.id}
-            activeOpacity={canDelete ? 0.6 : 1}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              justifyContent: "center",
-              alignItems: "center",
-              opacity: !canDelete ? 0.4 : 1,
-            }}
-          >
-
-            {deletingPostId === item.id ? (
-              <ActivityIndicator
-                size="small"
-                color={isDark ? "#f47a7a" : "#ef4444"}
-              />
-            ) : (
-              <Ionicons
-                name="trash-outline"
-                size={22}
-                color={isDark ? "#f47a7a" : "#ef4444"}
-              />
-            )}
-          </TouchableOpacity>
+              {status}
+            </ThemedText>
+          </View>
         </View>
 
         {item.subject ? (
@@ -696,169 +671,211 @@ export default function CampaignsDetails() {
           </ThemedView>
         )}
 
-        <ThemedText className="font-semibold mb-1">Description</ThemedText>
         {item.message ? (
           <ThemedText
-            className="mb-2"
+            className="mb-3"
             style={{
               textAlign: "justify",
-              color: isDark ? "#e5e7eb" : "#111",
+              color: isDark ? "#9ca3af" : "#4b5563",
+              fontSize: 13,
+              lineHeight: 18,
             }}
           >
             {item.message}
           </ThemedText>
         ) : (
-          <ThemedView className="flex-row items-center mb-2">
+          <ThemedView className="flex-row items-center mb-3">
             <Ionicons
               name="information-circle-outline"
-              size={18}
+              size={16}
               color="#9ca3af"
             />
-            <ThemedText className="ml-2 text-gray-500 italic">
+            <ThemedText className="ml-2 text-gray-500 italic" style={{ fontSize: 13 }}>
               No description available
             </ThemedText>
           </ThemedView>
         )}
 
-        <ThemedText className="font-semibold mb-1">Schedule</ThemedText>
-        {(item.scheduledPostTime || item.publishedDate || item.createdAt) ? (
-          <ThemedText
-            className="mb-2"
-            style={{
-              color: isDark ? "#e5e7eb" : "#111",
-            }}
-          >
-            {new Date(item.scheduledPostTime || item.publishedDate || item.createdAt).toLocaleString()}
-          </ThemedText>
-        ) : (
-          <ThemedView className="flex-row items-center mb-2">
-            <Ionicons name="calendar-outline" size={18} color="#9ca3af" />
-            <ThemedText className="ml-2 text-gray-500 italic">
-              No schedule available
-            </ThemedText>
-          </ThemedView>
-        )}
-
-        {/* TYPE + STATUS ROW */}
-        <ThemedView className="flex-row items-center justify-between mt-2">
-          {/* TYPE */}
-          <ThemedView className="flex-row items-center">
-            <ThemedText
-              className="font-semibold mr-2"
-              style={{ color: isDark ? "#e5e7eb" : "#111827" }}
-            >
-              Type
-            </ThemedText>
-
-            {platform ? (
+        <ThemedView
+          className="flex-row items-center justify-between mt-4 pt-3"
+          style={{ borderTopWidth: 1, borderTopColor: isDark ? "#3f3f46" : "#f3f4f6" }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            {platform && (
               <platform.Icon
                 name={platform.name}
-                size={20}
-                color={isDark ? "#ffffff" : platform.color}
+                size={16}
+                color={isDark ? "#9ca3af" : platform.color}
               />
+            )}
+
+            {item.scheduledPostTime || item.publishedDate || item.createdAt ? (
+              <ThemedText
+                style={{
+                  color: isDark ? "#9ca3af" : "#6b7280",
+                  fontSize: 12,
+                }}
+              >
+                {new Date(
+                  item.scheduledPostTime || item.publishedDate || item.createdAt
+                ).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+              </ThemedText>
             ) : (
-              <ThemedText style={{ color: isDark ? "#e5e7eb" : "#111" }}>
-                {item.type}
+              <ThemedText style={{ color: isDark ? "#9ca3af" : "#6b7280", fontSize: 12, fontStyle: "italic" }}>
+                No schedule
               </ThemedText>
             )}
-          </ThemedView>
+          </View>
 
-          {/* STATUS */}
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 6,
-              paddingHorizontal: 14,
-              paddingVertical: 5,
-              borderRadius: 999,
-              backgroundColor: isDark ? "#020617" : "#f9fafb",
-            }}
-          >
-            <Ionicons
-              name={
-                status === "SENT"
-                  ? "paper-plane"
-                  : status === "SCHEDULED"
-                    ? "alarm-outline"
-                    // : "pencil-outline" || "hourglass-outline"
-                    : "hourglass-outline"
-              }
-              size={14}
-              style={{
-                textShadowColor:
-                  status === "SENT"
-                    ? "#16a34a"
-                    : status === "SCHEDULED"
-                      ? "#2563eb"
-                      : "#f59e0b",
-                textShadowRadius: 8,
-              }}
-              color={
-                status === "SENT"
-                  ? "#22c55e"
-                  : status === "SCHEDULED"
-                    ? "#3b82f6"
-                    : "#fbbf24"
-              }
-            />
-            <ThemedText
-              style={{
-                fontSize: 12,
-                fontWeight: "600",
-                color: isDark ? "#e5e7eb" : "#111827",
-              }}
-            >
-              {status}
-            </ThemedText>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            {canBoost && (
+              <TouchableOpacity
+                onPress={() => handleBoostPostAction(item)}
+                style={{ padding: 6 }}
+              >
+                <Ionicons
+                  name={status === "SENT" ? "rocket" : "rocket-outline"}
+                  size={20}
+                  color={isDark ? "#fbbf24" : "#f59e0b"}
+                />
+              </TouchableOpacity>
+            )}
 
-            {(status === "SENT" || status === "SCHEDULED") && (
+            {(status === "SENT" || status === "SCHEDULED" || status === "PENDING") && (
               <TouchableOpacity
                 onPress={() => {
                   setPreviewPost(item);
                   setPreviewModalVisible(true);
                 }}
-                style={{
-                  padding: 4,
-                  marginLeft: 6,
-                }}
+                style={{ padding: 6 }}
               >
                 <Ionicons
                   name="eye-outline"
-                  size={16}
-                  color={
-                    status === "SENT"
-                      ? "#16a34a"
-                      : status === "SCHEDULED"
-                        ? "#2563eb"
-                        : isDark ? "#9ca3af" : "#6b7280"
-                  }
+                  size={20}
+                  color={isDark ? "#9ca3af" : "#6b7280"}
                 />
               </TouchableOpacity>
             )}
-          </View>
 
+            <TouchableOpacity
+              onPress={() => canShare && handleOpenShareModal(item.id)}
+              disabled={!canShare}
+              style={{ padding: 6, opacity: canShare ? 1 : 0.4 }}
+            >
+              <Ionicons
+                name="share-social-outline"
+                size={20}
+                color={isDark ? "#73a6f9" : "#3b82f6"}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => canEdit && handleEditPost(campaign!.id, item)}
+              disabled={!canEdit}
+              style={{ padding: 6, opacity: canEdit ? 1 : 0.4 }}
+            >
+              <Ionicons
+                name="create-outline"
+                size={20}
+                color={isDark ? "#73f3c9" : "#10b981"}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => canDelete && handleDeletePost(item.id)}
+              disabled={!canDelete || deletingPostId === item.id}
+              style={{ padding: 6, opacity: canDelete ? 1 : 0.4 }}
+            >
+              {deletingPostId === item.id ? (
+                <ActivityIndicator size="small" color="#ef4444" />
+              ) : (
+                <Ionicons
+                  name="trash-outline"
+                  size={20}
+                  color={isDark ? "#f47a7a" : "#ef4444"}
+                />
+              )}
+            </TouchableOpacity>
+          </View>
         </ThemedView>
       </View>
     );
   };
 
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-
   return (
-    <ThemedView className="flex-1 p-4" style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
-      <ThemedText
+    <ThemedView
+      className="flex-1"
+      style={{
+        backgroundColor: isDark ? "#161618" : "#f3f4f6",
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: 16
+      }}
+    >
+      <View
         style={{
-          fontSize: 18,
-          fontWeight: "bold",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 16,
         }}
-        className="mb-3"
       >
-        Campaign Details
-      </ThemedText>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <ThemedText
+            style={{
+              fontSize: 18,
+              fontWeight: "bold",
+            }}
+          >
+            {isCampaignCardVisible ? "Campaign Details" : "Created Posts"}
+          </ThemedText>
+          {posts.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setIsCampaignCardVisible(!isCampaignCardVisible)}
+              style={{ marginLeft: 8 }}
+            >
+              <Ionicons
+                name={
+                  isCampaignCardVisible
+                    ? "chevron-up-circle-outline"
+                    : "chevron-down-circle-outline"
+                }
+                size={22}
+                color={isDark ? "#ffffff" : "#000000"}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
 
-      {campaign && (
+        {!isCampaignCardVisible && campaign && (
+          <TouchableOpacity
+            onPress={() => {
+              if (isCompleted) {
+                Alert.alert(
+                  "Campaign Completed",
+                  "You cannot create posts for a completed campaign."
+                );
+                return;
+              }
+              campaign?.id && handleCreatePost(campaign.id);
+            }}
+            style={{
+              backgroundColor: "#2563eb",
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 999,
+            }}
+          >
+            <ThemedText
+              style={{ color: "#ffffff", fontWeight: "600", fontSize: 12 }}
+            >
+              Create Post
+            </ThemedText>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {isCampaignCardVisible && campaign && (
         <CampaignCard
           campaign={campaign}
           showActions={false}
@@ -870,7 +887,6 @@ export default function CampaignsDetails() {
           onDelete={() => { }}
           onCopy={() => { }}
           onToggleShow={() => { }}
-          // onPressPost={() => campaign?.id && handleCreatePost(campaign.id)}
           onPressPost={() => {
             if (isCompleted) {
               Alert.alert(
@@ -884,57 +900,184 @@ export default function CampaignsDetails() {
         />
       )}
 
-      {/* POSTS */}
-      <ThemedView className="flex-1" style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
-        <ThemedView
-          className="flex-row items-center justify-between mb-3"
-          style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
+      <View style={{ flex: 1, justifyContent: "flex-start" }}>
+        <View
+          style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}
         >
-          {/* Title */}
-          <ThemedText
-            style={{
-              fontSize: 18,
-              fontWeight: "bold",
-              color: isDark ? "#ffffff" : "#000000",
-            }}
-          >
-            Created Posts
-          </ThemedText>
-
-          {/* Search */}
-          <ThemedView
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              borderWidth: 1,
-              borderColor: isDark ? "#3f3f46" : "#e5e7eb",
-              backgroundColor: isDark ? "#161618" : "#ffffff",
-              borderRadius: 50,
-              paddingHorizontal: 10,
-              height: 40,
-              width: 200,
-            }}
-          >
-            <Ionicons
-              name="search-outline"
-              size={16}
-              color={isDark ? "#9ca3af" : "#6b7280"}
-            />
-
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search posts"
-              placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+          {isCampaignCardVisible && (
+            <ThemedText
               style={{
-                marginLeft: 6,
-                flex: 1,
-                fontSize: 13,
+                fontSize: 18,
+                fontWeight: "bold",
                 color: isDark ? "#ffffff" : "#000000",
+                marginRight: 12,
               }}
-            />
-          </ThemedView>
-        </ThemedView>
+            >
+              Created Posts
+            </ThemedText>
+          )}
+
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
+            <ThemedView
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: isDark ? "#3f3f46" : "#e5e7eb",
+                backgroundColor: isDark ? "#161618" : "#ffffff",
+                borderRadius: 50,
+                paddingHorizontal: 10,
+                height: 40,
+                flex: 1,
+              }}
+            >
+              <Ionicons
+                name="search-outline"
+                size={16}
+                color={isDark ? "#9ca3af" : "#6b7280"}
+              />
+
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search Posts..."
+                placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+                style={{
+                  marginLeft: 6,
+                  flex: 1,
+                  fontSize: 13,
+                  color: isDark ? "#ffffff" : "#000000",
+                }}
+              />
+            </ThemedView>
+
+            <TouchableOpacity
+              onPress={() => fetchPosts()}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: isDark ? "#161618" : "#f3f4f6",
+                borderWidth: 1,
+                borderColor: isDark ? "#3f3f46" : "#e5e7eb",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="sync" size={20} color={isDark ? "#ffffff" : "#000000"} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {!isCampaignCardVisible && (
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+            <TouchableOpacity
+              onPress={() => handlePlatformPress("ALL", 0)}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                paddingHorizontal: 16,
+                height: 38,
+                justifyContent: "center",
+                borderRadius: 20,
+                backgroundColor: selectedPlatform === "ALL"
+                  ? "#2563eb"
+                  : (isDark ? "#161618" : "#ffffff"),
+                borderWidth: 1.5,
+                borderColor: selectedPlatform === "ALL" ? "#2563eb" : (isDark ? "#3f3f46" : "#e5e7eb"),
+                marginRight: 8,
+                marginLeft: 4,
+              }}
+            >
+              <ThemedText style={{ color: selectedPlatform === "ALL" ? "#ffffff" : (isDark ? "#9ca3af" : "#6b7280"), fontWeight: "600", fontSize: 12 }}>
+                All
+              </ThemedText>
+              {getPostCount("ALL") > 0 && (
+                <View style={{
+                  backgroundColor: selectedPlatform === "ALL" ? "rgba(255,255,255,0.2)" : (isDark ? "#374151" : "#f3f4f6"),
+                  paddingHorizontal: 6,
+                  height: 18,
+                  minWidth: 18,
+                  borderRadius: 9,
+                  marginLeft: 4,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}>
+                  <ThemedText style={{ fontSize: 10, fontWeight: "700", color: selectedPlatform === "ALL" ? "#fff" : (isDark ? "#fff" : "#666") }}>
+                    {getPostCount("ALL")}
+                  </ThemedText>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            <ScrollView
+              ref={platformScrollRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 8, paddingRight: 16, paddingBottom: 10, paddingTop: 2 }}
+            >
+              {platformOrder.map((plat, index) => {
+                const config = platformIcons[plat];
+                const isSelected = selectedPlatform === plat;
+                const count = getPostCount(plat);
+
+                return (
+                  <TouchableOpacity
+                    key={plat}
+                    onPress={() => handlePlatformPress(plat, index + 1)}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      paddingHorizontal: 14,
+                      height: 38,
+                      borderRadius: 20,
+                      backgroundColor: isSelected
+                        ? "#2563eb"
+                        : (isDark ? "#161618" : "#ffffff"),
+                      borderWidth: 1.5,
+                      borderColor: isSelected ? "#2563eb" : (isDark ? "#3f3f46" : "#e5e7eb"),
+                    }}
+                  >
+                    <config.Icon
+                      name={config.name}
+                      size={16}
+                      color={isSelected ? "#ffffff" : (isDark ? "#9ca3af" : config.color)}
+                    />
+                    <ThemedText style={{
+                      color: isSelected ? "#ffffff" : (isDark ? "#9ca3af" : "#6b7280"),
+                      fontWeight: "600",
+                      fontSize: 12,
+                      textTransform: "capitalize"
+                    }}>
+                      {plat.toLowerCase()}
+                    </ThemedText>
+
+                    {count > 0 && (
+                      <View style={{
+                        backgroundColor: isSelected ? "rgba(255,255,255,0.2)" : (isDark ? "#374151" : "#f3f4f6"),
+                        paddingHorizontal: 6,
+                        height: 18,
+                        minWidth: 18,
+                        borderRadius: 9,
+                        marginLeft: 4,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}>
+                        <ThemedText style={{ fontSize: 10, fontWeight: "700", color: isSelected ? "#fff" : (isDark ? "#fff" : "#666") }}>
+                          {count}
+                        </ThemedText>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
         {loadingPosts ? (
           <FlatList
@@ -943,11 +1086,26 @@ export default function CampaignsDetails() {
             renderItem={() => <PostSkeletonCard isDark={isDark} />}
             showsVerticalScrollIndicator={false}
           />
-        ) : posts.length === 0 ? (
+        ) : visiblePosts.length === 0 ? (
           <ThemedView
             className="flex-1 justify-center items-center"
-            style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
+            style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6", paddingTop: 10 }}
           >
+            <View style={{ marginBottom: 16 }}>
+              {selectedPlatform !== "ALL" ? (
+                (() => {
+                  const config = platformIcons[selectedPlatform];
+                  return (
+                    <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: isDark ? "#1e1e20" : "#ffffff", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: isDark ? "#3f3f46" : "#e5e7eb" }}>
+                      <config.Icon name={config.name} size={32} color={isDark ? "#4b5563" : "#9ca3af"} />
+                    </View>
+                  );
+                })()
+              ) : (
+                <Ionicons name="documents-outline" size={64} color={isDark ? "#4b5563" : "#9ca3af"} />
+              )}
+            </View>
+
             <ThemedText
               style={{
                 fontSize: 18,
@@ -956,7 +1114,9 @@ export default function CampaignsDetails() {
                 color: isDark ? "#ffffff" : "#000000",
               }}
             >
-              No posts yet
+              {selectedPlatform === "ALL"
+                ? (searchQuery ? "No search results" : "No posts yet")
+                : `No ${selectedPlatform.toLowerCase()} posts`}
             </ThemedText>
 
             <ThemedText
@@ -967,11 +1127,14 @@ export default function CampaignsDetails() {
                 paddingHorizontal: 24,
               }}
             >
-              Tap create post to create your first post...
+              {selectedPlatform === "ALL"
+                ? (searchQuery ? "Try a different search term." : "Tap create post to create your first post...")
+                : `You haven't created any posts for ${selectedPlatform.toLowerCase()} yet.`}
             </ThemedText>
           </ThemedView>
         ) : (
           <FlatList
+            ref={flatListRef}
             data={visiblePosts}
             keyExtractor={(item) => String(item.id)}
             renderItem={({ item }) => (
@@ -980,8 +1143,9 @@ export default function CampaignsDetails() {
               </ThemedView>
             )}
             showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 100 }}
             ListFooterComponent={
-              posts.length > 5 ? (
+              filteredPosts.length > 5 ? (
                 <TouchableOpacity
                   onPress={isAllVisible ? () => setVisibleCount(5) : () => setVisibleCount((v) => v + 5)}
                   className={`py-3 my-2 rounded-xl items-center ${isAllVisible ? isDark ? "bg-red-900/30" : "bg-red-100" : isDark ? "bg-blue-900/30" : "bg-blue-100"}`}
@@ -994,7 +1158,7 @@ export default function CampaignsDetails() {
             }
           />
         )}
-      </ThemedView>
+      </View>
       <ShareCampaignPost
         visible={shareModalVisible}
         isDark={isDark}
@@ -1016,139 +1180,172 @@ export default function CampaignsDetails() {
         onSuccess={fetchPosts}
       />
 
-      {/* Post Preview Modal (Bottom Sheet Style) */}
       <Modal
         visible={previewModalVisible}
         animationType="slide"
         transparent={true}
         onRequestClose={() => setPreviewModalVisible(false)}
       >
-        <TouchableOpacity 
-          activeOpacity={1} 
-          onPress={() => setPreviewModalVisible(false)}
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}
-        >
-          <TouchableOpacity 
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <TouchableOpacity
             activeOpacity={1}
-            style={{ 
-              height: "75%", 
+            onPress={() => setPreviewModalVisible(false)}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+
+          <View
+            style={{
+              height: "85%",
               backgroundColor: isDark ? "#18181b" : "#fff",
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
               overflow: "hidden"
             }}
           >
-            <View style={{ 
-              flexDirection: "row", 
-              justifyContent: "space-between", 
-              alignItems: "center", 
+            <View style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
               padding: 16,
               borderBottomWidth: 1,
               borderBottomColor: isDark ? "#333" : "#eee"
             }}>
-              <ThemedText style={{ fontSize: 18, fontWeight: "bold" }}>Post Preview</ThemedText>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {previewPost && platformIcons[previewPost.type] && (
+                  <>
+                    {(() => {
+                      const IconComp = platformIcons[previewPost.type].Icon;
+                      return <IconComp name={platformIcons[previewPost.type].name} size={20} color={platformIcons[previewPost.type].color} />;
+                    })()}
+                    <ThemedText style={{ fontSize: 18, fontWeight: "bold", marginLeft: 8 }}>
+                      {previewPost.type.charAt(0) + previewPost.type.slice(1).toLowerCase()} Preview
+                    </ThemedText>
+                  </>
+                )}
+                {!previewPost && <ThemedText style={{ fontSize: 18, fontWeight: "bold" }}>Post Preview</ThemedText>}
+              </View>
               <TouchableOpacity onPress={() => setPreviewModalVisible(false)}>
                 <Ionicons name="close" size={24} color={isDark ? "#fff" : "#000"} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView className="flex-1">
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ paddingBottom: 60 }}
+              showsVerticalScrollIndicator={true}
+              keyboardShouldPersistTaps="handled"
+            >
               {previewPost && (
                 <View className="mb-8">
-                  {/* Platform Badge + Page info */}
-                  <View className="p-4" style={{ paddingBottom: 0 }}>
-                    <View className="flex-row items-center mb-2">
-                      {platformIcons[previewPost.type] && (
-                        <>
-                          {(() => {
-                            const PlatformIconSet = platformIcons[previewPost.type].Icon;
-                            return (
-                              <PlatformIconSet 
-                                name={platformIcons[previewPost.type].name} 
-                                size={20} 
-                                color={platformIcons[previewPost.type].color} 
-                              />
-                            );
-                          })()}
-                          <ThemedText className="ml-2 font-bold text-lg">
-                            {previewPost.type}
-                          </ThemedText>
-                        </>
-                      )}
-                    </View>
-                    
-                    {(previewPost.type === "FACEBOOK" || previewPost.type === "INSTAGRAM") && (
-                      <View className="bg-blue-100/50 dark:bg-blue-900/40 p-3 rounded-xl flex-row items-center mb-4">
-                        <Ionicons name="megaphone-outline" size={18} color="#3b82f6" />
-                        <ThemedText className="ml-2 text-blue-800 dark:text-blue-200 font-semibold text-xs">
-                          Posting to: {previewPost.metadata?.facebookPageName || previewPost.metadata?.facebookPage || "Connected Page"}
-                        </ThemedText>
+                  {!(
+                    (previewPost.type === "INSTAGRAM" && (previewPost.mediaUrls?.length === 1 || previewPost.metadata?.mediaUrls?.length === 1)) ||
+                    (previewPost.type === "YOUTUBE" && previewPost.metadata?.postType === "SHORT" && (previewPost.mediaUrls?.length === 1 || previewPost.metadata?.mediaUrls?.length === 1))
+                  ) && (
+
+                      <View className="p-4" style={{ paddingBottom: 0 }}>
+                        {(previewPost.type === "FACEBOOK" || previewPost.type === "INSTAGRAM") && (
+                          <View className="bg-blue-100/50 dark:bg-blue-900/40 p-3 rounded-xl flex-row items-center mb-4">
+                            <Ionicons name="megaphone-outline" size={18} color="#3b82f6" />
+                            <ThemedText className="ml-2 text-blue-800 dark:text-blue-200 font-semibold text-xs">
+                              Posting to: {previewPost.metadata?.facebookPageName || previewPost.metadata?.facebookPage || "Connected Page"}
+                            </ThemedText>
+                          </View>
+                        )}
                       </View>
                     )}
+
+                  <View style={{
+                    marginTop: (
+                      (previewPost.type === "INSTAGRAM" && (previewPost.mediaUrls?.length === 1 || previewPost.metadata?.mediaUrls?.length === 1)) ||
+                      (previewPost.type === "YOUTUBE" && previewPost.metadata?.postType === "SHORT" && (previewPost.mediaUrls?.length === 1 || previewPost.metadata?.mediaUrls?.length === 1))
+                    ) ? 0 : -10
+                  }}>
+
+
+                    <Preview
+                      platform={previewPost.type.toLowerCase()}
+                      username="Campzeo User"
+                      senderEmail={previewPost.senderEmail}
+                      subject={previewPost.subject}
+                      text={previewPost.message || ""}
+                      status={getPostStatus(previewPost)}
+                      contactName={(() => {
+                        const firstContact = previewPost.contact || (typeof previewPost.contacts?.[0] === 'number' ? contacts.find(c => c.id === previewPost.contacts[0]) : previewPost.contacts?.[0]);
+                        return firstContact?.name || firstContact?.contactName || previewPost.contactName || previewPost.metadata?.contactName;
+                      })()}
+                      contactEmail={(() => {
+                        const firstContact = previewPost.contact || (typeof previewPost.contacts?.[0] === 'number' ? contacts.find(c => c.id === previewPost.contacts[0]) : previewPost.contacts?.[0]);
+                        return firstContact?.email || firstContact?.contactEmail || previewPost.contactEmail || previewPost.metadata?.contactEmail;
+                      })()}
+                      contactPhone={(() => {
+                        const firstContact = previewPost.contact || (typeof previewPost.contacts?.[0] === 'number' ? contacts.find(c => c.id === previewPost.contacts[0]) : previewPost.contacts?.[0]);
+                        return firstContact?.mobile || firstContact?.whatsapp || firstContact?.contactMobile || firstContact?.contactWhatsApp || previewPost.contactMobile || previewPost.contactWhatsApp || previewPost.metadata?.contactMobile;
+                      })()}
+                      contactCompany={(() => {
+                        const firstContact = previewPost.contact || (typeof previewPost.contacts?.[0] === 'number' ? contacts.find(c => c.id === previewPost.contacts[0]) : previewPost.contacts?.[0]);
+                        return firstContact?.organisation?.name || firstContact?.company || previewPost.contactCompany || previewPost.metadata?.contactCompany;
+                      })()}
+                      media={(() => {
+                        const allMedia = [
+                          ...(previewPost.mediaUrls || []).map((url: string) => ({
+                            uri: normalizeHelper(url),
+                            type: url?.match(/\.(mp4|mov|mkv)($|\?)/i) ? "video/mp4" : "image/jpeg",
+                            name: url?.split("/").pop() || "File",
+                            size: undefined
+                          })),
+                          ...(previewPost.metadata?.mediaUrls || []).map((url: string) => ({
+                            uri: normalizeHelper(url),
+                            type: url?.match(/\.(mp4|mov|mkv)($|\?)/i) ? "video/mp4" : "image/jpeg",
+                            name: url?.split("/").pop() || "File",
+                            size: undefined
+                          })),
+                          ...(previewPost.attachments || []).map((a: any) => {
+                            const uri = normalizeHelper(a.uploadedUrl || a.fileUrl || a.uri);
+                            return {
+                              uri,
+                              type: a.mimeType || a.type || (uri?.match(/\.(mp4|mov|mkv)($|\?)/i) ? "video/mp4" : "image/jpeg"),
+                              name: a.fileName || a.name || uri?.split("/").pop() || "File",
+                              size: a.fileSize || a.size
+                            };
+                          }),
+                          ...(previewPost.videoUrl ? [{
+                            uri: normalizeHelper(previewPost.videoUrl),
+                            type: "video/mp4",
+                            name: "Video content",
+                            size: undefined
+                          }] : [])
+                        ];
+
+                        return allMedia.filter((item, index, self) =>
+                          item.uri &&
+                          self.findIndex(t => t.uri === item.uri) === index
+                        );
+                      })()}
+                      timestamp="Just now"
+                      youtubeContentType={previewPost.metadata?.postType}
+                    />
+
                   </View>
-
-                <View style={{ marginTop: -10 }}>
-                   <Preview
-                    platform={previewPost.type.toLowerCase()}
-                    username="Campzeo User"
-                    senderEmail={previewPost.senderEmail}
-                    subject={previewPost.subject}
-                    text={previewPost.message || ""}
-                    media={(() => {
-                      const allMedia = [
-                        ...(previewPost.mediaUrls || []).map((url: string) => ({
-                          uri: normalizeHelper(url),
-                          type: url?.match(/\.(mp4|mov|mkv)($|\?)/i) ? "video/mp4" : "image/jpeg",
-                          name: url?.split("/").pop() || "File",
-                          size: undefined
-                        })),
-                        ...(previewPost.attachments || []).map((a: any) => {
-                          const uri = normalizeHelper(a.uploadedUrl || a.fileUrl || a.uri);
-                          return {
-                            uri,
-                            type: a.mimeType || a.type || (uri?.match(/\.(mp4|mov|mkv)($|\?)/i) ? "video/mp4" : "image/jpeg"),
-                            name: a.fileName || a.name || uri?.split("/").pop() || "File",
-                            size: a.fileSize || a.size
-                          };
-                        }),
-                        ...(previewPost.videoUrl ? [{
-                          uri: normalizeHelper(previewPost.videoUrl),
-                          type: "video/mp4",
-                          name: "Video content",
-                          size: undefined
-                        }] : [])
-                      ];
-
-                      // Deduplicate by URI and filter out empty ones
-                      return allMedia.filter((item, index, self) => 
-                        item.uri && 
-                        self.findIndex(t => t.uri === item.uri) === index
-                      );
-                    })()}
-                    timestamp="Just now"
-                  />
-                </View>
                 </View>
               )}
             </ScrollView>
-          </TouchableOpacity>
-        </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </ThemedView>
   );
 
-  // local helper inside the component scope or before defined
   function normalizeHelper(url: string) {
     if (!url) return "";
     if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("file:")) {
-       // Google Drive check
-       const dMatch = url.match(/\/d\/([^/?=]+)/);
-       const idMatch = url.match(/[?&]id=([^?&]+)/);
-       const id = dMatch ? dMatch[1] : (idMatch ? idMatch[1] : null);
-       if (id) {
-         return `https://storage.campzeo.com/api/upload/google-drive/view?id=${id}&file=media`;
-       }
-       return url;
+      // Google Drive check
+      const dMatch = url.match(/\/d\/([^/?=]+)/);
+      const idMatch = url.match(/[?&]id=([^?&]+)/);
+      const id = dMatch ? dMatch[1] : (idMatch ? idMatch[1] : null);
+      if (id) {
+        return `https://storage.campzeo.com/api/upload/google-drive/view?id=${id}&file=media`;
+      }
+      return url;
     }
     const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace("/api/", "") || "https://campzeo.com";
     return `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;

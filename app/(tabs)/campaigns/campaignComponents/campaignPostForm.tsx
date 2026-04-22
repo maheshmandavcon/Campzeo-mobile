@@ -28,14 +28,14 @@ import * as Linking from "expo-linking";
 
 interface CampaignPostFormProps {
   platform:
-    | "EMAIL"
-    | "SMS"
-    | "INSTAGRAM"
-    | "WHATSAPP"
-    | "FACEBOOK"
-    | "YOUTUBE"
-    | "LINKEDIN"
-    | "PINTEREST";
+  | "EMAIL"
+  | "SMS"
+  | "INSTAGRAM"
+  | "WHATSAPP"
+  | "FACEBOOK"
+  | "YOUTUBE"
+  | "LINKEDIN"
+  | "PINTEREST";
   existingPost?: any;
   campaignId?: string;
   campaignStartDate?: string;
@@ -200,8 +200,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     existingPost: existingPost
       ? existingPost
       : {
-          campaign: { startDate: campaignStartDate, endDate: campaignEndDate },
-        },
+        campaign: { startDate: campaignStartDate, endDate: campaignEndDate },
+      },
 
     onClose,
   });
@@ -215,10 +215,6 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     { label: "Playlist", value: "PLAYLIST" },
   ] as const;
 
-  const linkedinAccounts = [
-    { id: "1", name: "Company Page" },
-    { id: "2", name: "Personal Profile" },
-  ];
 
   const [postText, setPostText] = React.useState<string>("");
   const [postImageUrl, setPostImageUrl] = React.useState<string | undefined>(
@@ -228,14 +224,15 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
   const [userData, setUserData] = useState<any>(null);
   const [metaAccountModalVisible, setMetaAccountModalVisible] = useState(false);
 
+  const [linkedinPostAs, setLinkedinPostAs] = useState<"PERSONAL" | "COMPANY" | null>(null);
+  const [linkedinModalVisible, setLinkedinModalVisible] = useState(false);
+
   const openMetaBilling = (accountId: string) => {
     const url = `https://business.facebook.com/latest/billing_hub/payment_settings/?payment_account_id=${accountId}&nav_ref=bizweb_billing_hub_accounts_details_page&asset_id=${accountId}&placement=standalone`;
     Linking.openURL(url);
   };
 
-  // ================= RENDER ATTACHMENTS =================
   const renderAttachmentItem = ({ item }: any) => {
-    // Support both full MIME types ("image/jpeg") and shorthand types ("image", "video")
     const isImage =
       item.type?.startsWith("image/") || item.type === "image";
     const isVideo =
@@ -243,7 +240,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
     return (
       <View style={{ width: 60, height: 60, position: "relative" }}>
-        {}
+        { }
         <View
           className="overflow-hidden rounded-lg bg-gray-200"
           style={{
@@ -281,7 +278,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             </View>
           )}
 
-          {}
+          { }
           {item.uploading && (
             <View className="absolute inset-0 items-center justify-center bg-black/60">
               <ActivityIndicator size="small" color="#fff" />
@@ -292,7 +289,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           )}
         </View>
 
-        {}
+        { }
         <TouchableOpacity
           onPress={() =>
             item.uploading
@@ -349,7 +346,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           className="flex-1"
           style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
         >
-          {}
+          { }
           <Text
             style={{
               color: isDark ? "#ffffff" : "#000000",
@@ -398,7 +395,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             />
           </TouchableOpacity>
 
-          {}
+          { }
           <Modal
             visible={templateModalVisible}
             transparent
@@ -590,7 +587,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             </>
           )}
 
-          {}
+          { }
           {platformState !== "SMS" && (
             <>
               <Text
@@ -626,7 +623,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             </>
           )}
 
-          {}
+          { }
           <TouchableOpacity
             onPress={() => setAiModalVisible(true)}
             style={{
@@ -653,7 +650,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             </Text>
           </TouchableOpacity>
 
-          {}
+          { }
           <Text
             style={{
               color: isDark ? "#ffffff" : "#000000",
@@ -685,7 +682,68 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             }}
           />
 
-          {}
+          {platformState === "EMAIL" && (
+            <View style={{ marginBottom: 16, marginTop: 4 }}>
+              <Text
+                style={{
+                  color: isDark ? "#9ca3af" : "#6b7280",
+                  fontSize: 12,
+                  marginBottom: 8,
+                  fontWeight: "600",
+                  marginLeft: 4,
+                }}
+              >
+                Insert variables:
+              </Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                {["{{name}}", "{{email}}", "{{phone}}", "{{company}}"].map(
+                  (variable) => (
+                    <TouchableOpacity
+                      key={variable}
+                      onPress={() =>
+                        setMessage((prev) => {
+                          if (!prev) return variable;
+                          const trimmed = prev.trimEnd();
+                          if (trimmed.endsWith("}")) {
+                            return trimmed + ", " + variable;
+                          }
+                          return (prev.endsWith(" ") ? prev : prev + " ") + variable;
+                        })
+                      }
+                      style={{
+                        backgroundColor: isDark ? "#1f2937" : "#f3f4f6",
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 20,
+                        borderWidth: 1,
+                        borderColor: isDark ? "#374151" : "#e5e7eb",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: isDark ? "#e5e7eb" : "#374151",
+                          fontSize: 12,
+                          fontWeight: "500",
+                        }}
+                      >
+                        {variable}
+                      </Text>
+                    </TouchableOpacity>
+                  ),
+                )}
+              </View>
+              <Text
+                style={{
+                  color: isDark ? "#6b7280" : "#9ca3af",
+                  fontSize: 10,
+                  marginTop: 6,
+                  marginLeft: 4,
+                }}
+              >
+                Variables will be replaced with actual contact data when sent.
+              </Text>
+            </View>
+          )}
           {platformState !== "SMS" && (
             <TouchableOpacity
               onPress={() => setImageModalVisible(true)}
@@ -719,7 +777,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             </TouchableOpacity>
           )}
 
-          {}
+          { }
           <Modal visible={aiModalVisible} transparent animationType="slide">
             <View
               style={{
@@ -746,7 +804,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     marginBottom: 16,
                   }}
                 >
-                  {}
+                  { }
                   <TextInput
                     value={aiPrompt}
                     onChangeText={setAiPrompt}
@@ -766,7 +824,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     }}
                   />
 
-                  {}
+                  { }
                   <TouchableOpacity
                     disabled={loadingAI}
                     onPress={handleGenerateAIText}
@@ -857,7 +915,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             </View>
           </Modal>
 
-          {}
+          { }
           <Modal visible={imageModalVisible} transparent animationType="slide">
             <View
               style={{
@@ -884,7 +942,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     marginBottom: 16,
                   }}
                 >
-                  {}
+                  { }
                   <TextInput
                     value={imagePrompt}
                     onChangeText={setImagePrompt}
@@ -904,7 +962,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     }}
                   />
 
-                  {}
+                  { }
                   <TouchableOpacity
                     disabled={loadingImage}
                     onPress={handleGenerateAIImage}
@@ -931,7 +989,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   </TouchableOpacity>
                 </View>
 
-                {}
+                { }
                 {loadingImage ? (
                   <View
                     style={{
@@ -982,7 +1040,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                             backgroundColor: isDark ? "#1f2933" : "#f1f5f9",
                           }}
                         >
-                          {}
+                          { }
                           {imageLoadingMap[item] && (
                             <ActivityIndicator
                               size="small"
@@ -1060,7 +1118,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             </View>
           </Modal>
 
-          {}
+          { }
           {platformState !== "SMS" && (
             <View style={{ marginBottom: 20 }}>
               <Text
@@ -1129,8 +1187,6 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             </View>
           )}
 
-          {}
-
           {(platformState === "FACEBOOK" || platformState === "INSTAGRAM") && (
             <View
               style={{
@@ -1142,7 +1198,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 backgroundColor: isDark ? "#161618" : "#f3f4f6",
               }}
             >
-              {}
+              { }
               <View
                 style={{
                   flexDirection: "row",
@@ -1168,7 +1224,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 </Text>
               </View>
 
-              {}
+              { }
               {isFacebookPageLoading ? (
                 <ActivityIndicator size="small" color="#1877F2" />
               ) : facebookPages.length > 0 ? (
@@ -1204,7 +1260,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     />
                   </TouchableOpacity>
 
-                  {}
+                  { }
                   <Modal
                     visible={facebookPageModalVisible}
                     transparent
@@ -1313,7 +1369,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 </Text>
               )}
 
-              {}
+              { }
               <Text
                 style={{
                   marginTop: 6,
@@ -1324,7 +1380,6 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 Posts will be published to the selected page.
               </Text>
 
-              {/* Lead Form Selection (Inside same card) */}
               {selectedFacebookPage && (
                 <View
                   style={{
@@ -1388,14 +1443,13 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     Lead forms allow you to collect contact information directly from the post. Manage your lead forms in Leads Management.
                   </Text>
 
-                  {/* Lead Form Modal */}
                   <Modal
                     visible={leadFormModalVisible}
                     transparent
                     animationType="fade"
                     onRequestClose={() => setLeadFormModalVisible(false)}
                   >
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       activeOpacity={1}
                       onPress={() => setLeadFormModalVisible(false)}
                       style={{
@@ -1405,7 +1459,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                         padding: 20,
                       }}
                     >
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         activeOpacity={1}
                         style={{
                           backgroundColor: isDark ? "#1f2937" : "#fff",
@@ -1463,7 +1517,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             </View>
           )}
 
-          {}
+          { }
           {(platformState === "FACEBOOK" || platformState === "INSTAGRAM") && (
             <View
               style={{
@@ -1475,7 +1529,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 marginBottom: 10,
               }}
             >
-              {}
+              { }
               <Text
                 style={{
                   color: isDark ? "#ffffff" : "#000000",
@@ -1492,7 +1546,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   justifyContent: "space-between",
                 }}
               >
-                {}
+                { }
                 <TouchableOpacity
                   onPress={() => setFacebookContentType("STANDARD")}
                   disabled={!canSelectStandard || !hasAttachment}
@@ -1539,7 +1593,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   </Text>
                 </TouchableOpacity>
 
-                {}
+                { }
                 <TouchableOpacity
                   onPress={() => setFacebookContentType("REEL")}
                   disabled={!canSelectReel || !hasAttachment}
@@ -1587,10 +1641,10 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 </TouchableOpacity>
               </View>
 
-              {}
+              { }
               {facebookContentType === "REEL" && (
                 <View style={{ marginTop: 12 }}>
-                  {}
+                  { }
                   <Text
                     style={{
                       color: isDark ? "#ffffff" : "#000000",
@@ -1601,7 +1655,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     Cover Image (Optional)
                   </Text>
 
-                  {}
+                  { }
                   <TouchableOpacity
                     disabled={coverUploading}
                     onPress={() => {
@@ -1652,7 +1706,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     )}
                   </TouchableOpacity>
 
-                  {}
+                  { }
                   {coverImage && !coverUploading && (
                     <View
                       style={{
@@ -1694,7 +1748,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     </View>
                   )}
 
-                  {}
+                  { }
                   <Text
                     style={{
                       fontSize: 10,
@@ -1716,7 +1770,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 borderRadius: 12,
               }}
             >
-              {}
+              { }
               <Text
                 style={{
                   color: isDark ? "#ffffff" : "#000000",
@@ -1728,7 +1782,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 YouTube Settings
               </Text>
 
-              {}
+              { }
               <View
                 style={{
                   borderWidth: 1,
@@ -1806,10 +1860,10 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     })}
                   </View>
 
-                  {}
+                  { }
                   {youTubeContentType === "PLAYLIST" && (
                     <View style={{ marginTop: 12 }}>
-                      {}
+                      { }
                       <TouchableOpacity
                         onPress={() =>
                           setShowPlaylistDropdown(!showPlaylistDropdown)
@@ -1841,7 +1895,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                         </Text>
                       </TouchableOpacity>
 
-                      {}
+                      { }
                       {showPlaylistDropdown && !isCreatingPlaylist && (
                         <View
                           style={{
@@ -1852,7 +1906,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                             backgroundColor: isDark ? "#1f2933" : "#f3f4f6",
                           }}
                         >
-                          {}
+                          { }
                           <TouchableOpacity
                             onPress={() => {
                               setIsCreatingPlaylist(true);
@@ -1873,7 +1927,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                             </Text>
                           </TouchableOpacity>
 
-                          {}
+                          { }
                           {playlists.map((playlist) => (
                             <TouchableOpacity
                               key={playlist.id}
@@ -1903,7 +1957,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                         </View>
                       )}
 
-                      {}
+                      { }
                       {isCreatingPlaylist && (
                         <View style={{ marginTop: 12 }}>
                           <TextInput
@@ -1924,7 +1978,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                               marginBottom: 8,
                             }}
                           />
-                          {}
+                          { }
                         </View>
                       )}
                     </View>
@@ -1932,7 +1986,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 </View>
               </View>
 
-              {}
+              { }
               <Text
                 style={{
                   color: isDark ? "#ffffff" : "#000",
@@ -1959,7 +2013,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 }}
               />
 
-              {}
+              { }
               <Text
                 style={{
                   color: isDark ? "#ffffff" : "#000",
@@ -2021,7 +2075,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 </View>
               )}
 
-              {}
+              { }
               <Text
                 style={{
                   color: isDark ? "#ffffff" : "#000",
@@ -2052,7 +2106,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 </Text>
               </TouchableOpacity>
 
-              {}
+              { }
               {customThumbnail && (
                 <Image
                   source={{ uri: customThumbnail }}
@@ -2072,7 +2126,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
           {platformState === "PINTEREST" && (
             <View style={{ borderRadius: 8 }}>
-              {}
+              { }
               <Text
                 style={{
                   fontWeight: "bold",
@@ -2084,7 +2138,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 Pinterest Settings
               </Text>
 
-              {}
+              { }
               <View
                 style={{
                   borderWidth: 1,
@@ -2094,7 +2148,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   marginBottom: 16,
                 }}
               >
-                {}
+                { }
                 <Text
                   style={{
                     fontWeight: "600",
@@ -2104,7 +2158,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 >
                   Select Board
                 </Text>
-                {}
+                { }
                 <TouchableOpacity
                   onPress={() => setPinterestModalVisible(true)}
                   style={{
@@ -2122,22 +2176,25 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   </Text>
                 </TouchableOpacity>
 
-                {}
+                { }
                 <Modal
                   visible={pinterestModalVisible}
                   animationType="slide"
                   transparent
                   onRequestClose={() => setPinterestModalVisible(false)}
                 >
-                  <View
+                  <TouchableOpacity
                     style={{
                       flex: 1,
                       backgroundColor: "rgba(0,0,0,0.5)",
                       justifyContent: "center",
                       padding: 20,
                     }}
+                    activeOpacity={1}
+                    onPress={() => setPinterestModalVisible(false)}
                   >
-                    <View
+                    <TouchableOpacity
+                      activeOpacity={1}
                       style={{
                         backgroundColor: isDark ? "#1f2937" : "#fff",
                         borderRadius: 12,
@@ -2145,7 +2202,15 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                         padding: 16,
                       }}
                     >
-                      {}
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                        <Text style={{ fontWeight: "bold", fontSize: 18, color: isDark ? "#ffffff" : "#000000" }}>
+                          Select Board
+                        </Text>
+                        <TouchableOpacity onPress={() => setPinterestModalVisible(false)}>
+                          <Ionicons name="close" size={24} color={isDark ? "#ffffff" : "#000000"} />
+                        </TouchableOpacity>
+                      </View>
+                      { }
                       <TouchableOpacity
                         onPress={() => setIsCreatingPinterestBoard(true)}
                         style={{
@@ -2161,7 +2226,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                         </Text>
                       </TouchableOpacity>
 
-                      {}
+                      { }
                       {isCreatingPinterestBoard && (
                         <View style={{ marginBottom: 16 }}>
                           <TextInput
@@ -2212,7 +2277,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                         </View>
                       )}
 
-                      {}
+                      { }
                       <View style={{ maxHeight: 250 }}>
                         {loadingBoards ? (
                           <ActivityIndicator
@@ -2265,11 +2330,11 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                           />
                         )}
                       </View>
-                    </View>
-                  </View>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
                 </Modal>
 
-                {}
+                { }
                 <Text
                   style={{
                     fontWeight: "600",
@@ -2297,7 +2362,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 />
               </View>
 
-              {}
+              { }
               {isCreatingPinterestBoard && (
                 <Modal
                   visible={pinterestModalVisible}
@@ -2305,7 +2370,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   animationType="fade"
                   onRequestClose={() => setPinterestModalVisible(false)}
                 >
-                  <View
+                  <TouchableOpacity
                     style={{
                       flex: 1,
                       justifyContent: "center",
@@ -2313,8 +2378,11 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                       backgroundColor: "rgba(0,0,0,0.5)",
                       padding: 20,
                     }}
+                    activeOpacity={1}
+                    onPress={() => setPinterestModalVisible(false)}
                   >
-                    <View
+                    <TouchableOpacity
+                      activeOpacity={1}
                       style={{
                         width: "100%",
                         backgroundColor: isDark ? "#161618" : "#fff",
@@ -2324,16 +2392,22 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                         padding: 16,
                       }}
                     >
-                      {}
-                      <Text
-                        style={{
-                          fontWeight: "bold",
-                          fontSize: 20,
-                          color: isDark ? "#ffffff" : "#000000",
-                        }}
-                      >
-                        Create New Pinterest Board
-                      </Text>
+                      { }
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+                        <Text
+                          style={{
+                            fontWeight: "bold",
+                            fontSize: 20,
+                            color: isDark ? "#ffffff" : "#000000",
+                            flex: 1,
+                          }}
+                        >
+                          Create New Pinterest Board
+                        </Text>
+                        <TouchableOpacity onPress={() => setIsCreatingPinterestBoard(false)}>
+                          <Ionicons name="close" size={24} color={isDark ? "#ffffff" : "#000000"} />
+                        </TouchableOpacity>
+                      </View>
                       <Text
                         style={{
                           fontSize: 14,
@@ -2344,7 +2418,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                         Create a new board to organize your pins
                       </Text>
 
-                      {}
+                      { }
                       <Text
                         style={{
                           fontWeight: "bold",
@@ -2370,7 +2444,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                         }}
                       />
 
-                      {}
+                      { }
                       <Text
                         style={{
                           fontWeight: "bold",
@@ -2400,7 +2474,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                         }}
                       />
 
-                      {}
+                      { }
                       <View
                         style={{
                           flexDirection: "row",
@@ -2436,14 +2510,14 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                           )}
                         </TouchableOpacity>
                       </View>
-                    </View>
-                  </View>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
                 </Modal>
               )}
             </View>
           )}
 
-          {}
+          { }
           {(platformState === "FACEBOOK" || platformState === "INSTAGRAM") && (
             <View
               style={{
@@ -2534,7 +2608,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     </ThemedText>
                   )}
 
-                  {}
+                  { }
                   {selectedMetaAccount && (
                     <View style={{ marginBottom: 20 }}>
                       <ThemedText
@@ -2617,7 +2691,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                         </TouchableOpacity>
                       </View>
 
-                      {}
+                      { }
                       <View style={{ flexDirection: "row", gap: 8 }}>
                         <TouchableOpacity
                           onPress={() =>
@@ -2665,7 +2739,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     </View>
                   )}
 
-                  {}
+                  { }
                   <Modal
                     visible={metaAccountModalVisible}
                     transparent
@@ -2757,7 +2831,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     </View>
                   </Modal>
 
-                  {}
+                  { }
                   <ThemedText
                     style={{ fontSize: 14, fontWeight: "600", marginBottom: 8 }}
                   >
@@ -2848,7 +2922,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     </TouchableOpacity>
                   </View>
 
-                  {}
+                  { }
                   <View
                     style={{ flexDirection: "row", gap: 12, marginBottom: 16 }}
                   >
@@ -2928,7 +3002,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     </View>
                   </View>
 
-                  {}
+                  { }
                   <View
                     style={{
                       backgroundColor: isDark ? "#1f2937" : "#f8fafc",
@@ -2992,7 +3066,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     Figures are in your local account currency.
                   </ThemedText>
 
-                  {}
+                  { }
                   <View
                     style={{
                       backgroundColor: isDark ? "#374151" : "#fffbeb",
@@ -3022,7 +3096,112 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               )}
             </View>
           )}
-          {}
+
+          {platformState === "LINKEDIN" && (
+            <View style={{ marginBottom: 20 }}>
+              <Text
+                style={{
+                  fontWeight: "bold",
+                  marginBottom: 8,
+                  fontSize: 16,
+                  color: isDark ? "#ffffff" : "#000000",
+                }}
+              >
+                Post as
+              </Text>
+
+              <TouchableOpacity
+                onPress={() => setLinkedinModalVisible(true)}
+                style={{
+                  borderWidth: 1,
+                  borderColor: isDark ? "#374151" : "#d1d5db",
+                  backgroundColor: isDark ? "#161618" : "#fff",
+                  borderRadius: 9999,
+                  paddingVertical: 12,
+                  paddingHorizontal: 16,
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ color: linkedinPostAs ? (isDark ? "#e5e7eb" : "#000000") : (isDark ? "#9ca3af" : "#6b7280") }}>
+                  {linkedinPostAs === "PERSONAL" ? (
+                    [userData?.firstName, userData?.lastName].filter(Boolean).join(" ")
+                      ? `Personal Profile (${[userData?.firstName, userData?.lastName].filter(Boolean).join(" ")})`
+                      : "Personal Profile"
+                  ) : "Select author"}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color={isDark ? "#9ca3af" : "#6b7280"} />
+              </TouchableOpacity>
+
+              <Modal
+                visible={linkedinModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setLinkedinModalVisible(false)}
+              >
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    backgroundColor: "rgba(0,0,0,0.5)",
+                    padding: 20,
+                  }}
+                  activeOpacity={1}
+                  onPress={() => setLinkedinModalVisible(false)}
+                >
+                  <TouchableOpacity
+                    activeOpacity={1}
+                    style={{
+                      width: "100%",
+                      backgroundColor: isDark ? "#161618" : "#fff",
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: isDark ? "#374151" : "#d1d5db",
+                      padding: 16,
+                    }}
+                  >
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+                      <Text style={{ fontWeight: "bold", fontSize: 20, color: isDark ? "#ffffff" : "#000000", flex: 1 }}>
+                        Post as
+                      </Text>
+                      <TouchableOpacity onPress={() => setLinkedinModalVisible(false)}>
+                        <Ionicons name="close" size={24} color={isDark ? "#ffffff" : "#000000"} />
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={{ fontSize: 14, color: isDark ? "#9ca3af" : "#6b7280", marginBottom: 16 }}>
+                      Select the profile to post to.
+                    </Text>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        setLinkedinPostAs(linkedinPostAs === "PERSONAL" ? null : "PERSONAL");
+                        setLinkedinModalVisible(false);
+                      }}
+                      style={{
+                        paddingVertical: 12,
+                        paddingHorizontal: 16,
+                        borderRadius: 8,
+                        marginBottom: 8,
+                        backgroundColor: linkedinPostAs === "PERSONAL" ? (isDark ? "#1e3a8a" : "#eff6ff") : (isDark ? "#1f2937" : "#f3f4f6"),
+                        borderWidth: 1,
+                        borderColor: linkedinPostAs === "PERSONAL" ? "#3b82f6" : "transparent"
+                      }}
+                    >
+                      <Text style={{ color: linkedinPostAs === "PERSONAL" ? "#2563eb" : (isDark ? "#e5e7eb" : "#000000"), fontWeight: linkedinPostAs === "PERSONAL" ? "bold" : "normal" }}>
+                        {[userData?.firstName, userData?.lastName].filter(Boolean).join(" ")
+                          ? `Personal Profile (${[userData?.firstName, userData?.lastName].filter(Boolean).join(" ")})`
+                          : "Personal Profile"}
+                      </Text>
+                    </TouchableOpacity>
+
+
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              </Modal>
+            </View>
+          )}
 
           <TouchableOpacity
             onPress={() => setShowPicker(true)}
@@ -3060,7 +3239,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             )}
           </TouchableOpacity>
 
-          {}
+          { }
           {showTimePicker && (
             <DateTimePicker
               value={postDate ?? minSelectableEndDate}
@@ -3085,7 +3264,7 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             />
           )}
 
-          {}
+          { }
           {showPicker && (
             <DateTimePicker
               value={postDate ?? minSelectableEndDate}
@@ -3216,6 +3395,8 @@ const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               images={attachments?.map((a) => a.uri)}
               media={attachments?.map((a) => ({ uri: a.uri, type: a.type, name: a.name, size: a.size }))}
               timestamp={previewTimestamp}
+              youtubeContentType={youTubeContentType}
+              coverImage={customThumbnail ?? undefined}
             />
           )}
         </View>

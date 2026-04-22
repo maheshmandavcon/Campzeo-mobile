@@ -17,7 +17,7 @@ export interface CampaignPostData {
   message: string;
   type: string;
   mediaUrls?: string[];
-  scheduledPostTime: string;
+  scheduledPostTime?: string | null;
 
   pinterestBoardId?: string;
   pinterestLink?: string;
@@ -532,10 +532,6 @@ export const uploadMediaApi = async (
 ): Promise<string> => {
   try {
     console.log("🔄 Starting upload process for:", attachment.name);
-
-    // const baseUrl =
-    //   process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
-    // const uploadRefUrl = `${baseUrl}/upload/google-drive/resumable`;
     const baseUrl = "https://storage.campzeo.com";
 
     const uploadRefUrl = `${baseUrl}/upload/google-drive/resumable`;
@@ -561,23 +557,29 @@ export const uploadMediaApi = async (
 
     console.log("📤 Upload Payload:", JSON.stringify(payload, null, 2));
 
-    if (!payload.fileName || !payload.mimeType || payload.organisationId === undefined) {
-      throw new Error(`Missing local required fields: fileName=${payload.fileName}, mimeType=${payload.mimeType}, organisationId=${payload.organisationId}`);
+    if (
+      !payload.fileName ||
+      !payload.mimeType ||
+      payload.organisationId === undefined
+    ) {
+      throw new Error(
+        `Missing local required fields: fileName=${payload.fileName}, mimeType=${payload.mimeType}, organisationId=${payload.organisationId}`,
+      );
     }
 
-console.log("API KEY:", process.env.EXPO_PUBLIC_APP_API_KEY);
-console.log("TOKEN:", token);
-console.log("URL:", uploadRefUrl);
+    console.log("API KEY:", process.env.EXPO_PUBLIC_APP_API_KEY);
+    console.log("TOKEN:", token);
+    console.log("URL:", uploadRefUrl);
 
-const initRes = await fetch(uploadRefUrl, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-    "x-api-key": process.env.EXPO_PUBLIC_APP_API_KEY || "",
-  },
-  body: JSON.stringify(payload),
-});
+    const initRes = await fetch(uploadRefUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        "x-api-key": process.env.EXPO_PUBLIC_APP_API_KEY || "",
+      },
+      body: JSON.stringify(payload),
+    });
 
     console.log("API KEY:", process.env.EXPO_PUBLIC_APP_API_KEY);
 
@@ -588,7 +590,6 @@ const initRes = await fetch(uploadRefUrl, {
 
     const initData = await initRes.json();
 
-    // Extract upload URL from initData
     const uploadUrl =
       initData.data?.uploadUrl ||
       initData.uploadUrl ||
@@ -636,7 +637,6 @@ const initRes = await fetch(uploadRefUrl, {
       } as any);
     });
 
-    // 4️⃣ Get result from response
     let uploadResult: any = {};
     try {
       if (responseContent && typeof responseContent === "string") {
@@ -647,7 +647,6 @@ const initRes = await fetch(uploadRefUrl, {
     } catch {
       console.log("PUT response is not JSON");
     }
-
     const resultData = uploadResult.data || uploadResult;
     const fileId = resultData?.id || initData.data?.id;
     let publicUrl = "";
@@ -655,12 +654,13 @@ const initRes = await fetch(uploadRefUrl, {
     if (resultData?.url) {
       publicUrl = resultData.url;
     } else if (fileId) {
-      publicUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
+      const safeName = encodeURIComponent(attachment.name);
+      publicUrl = `https://drive.google.com/uc?id=${fileId}&export=download&confirm=t&file=${safeName}`;
     } else {
       publicUrl = uploadUrl;
     }
 
-    console.log("✅ File uploaded successfully:", publicUrl);
+    console.log("File uploaded successfully:", publicUrl);
     return publicUrl;
   } catch (error: any) {
     console.error("Upload Media API Error:", error.message);
