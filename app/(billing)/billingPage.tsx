@@ -11,7 +11,7 @@ import {
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { CancelFormValues, cancelSchema } from "@/validations/billingSchema";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
@@ -417,7 +417,7 @@ export default function BillingPage() {
               onPress={() => {
                 Linking.openURL("https://campzeo.com/organisation/billing");
               }}
-              className={`isOneDay ? bg-[#e7000b] : bg-[#e17100] py-3 rounded-lg items-center`}
+              className={`isOneDay ? bg-[#dc2626] : bg-[#e17100] py-3 rounded-lg items-center`}
               activeOpacity={0.8}
             >
               <Text className="text-white font-semibold text-lg gap-5 items-center">
@@ -643,7 +643,7 @@ export default function BillingPage() {
                                           ? "logo-youtube"
                                           : name == "Pinterest"
                                             ? "logo-pinterest"
-                                            : ""
+                                            : "" as any
                                 }
                                 size={14}
                                 color={colors.text}
@@ -1264,7 +1264,7 @@ export default function BillingPage() {
             </VStack>
             <VStack className="gap-4">
               {/* SMS Credits */}
-              <VStack className="bg-white border border-gray-200 rounded-xl p-4 gap-3">
+              <ThemedView style={cardStyle} className="p-4 gap-3">
                 {/* Header */}
                 <HStack className="items-center gap-2">
                   <Ionicons name="call-outline" size={18} color="#2563eb" />
@@ -1319,10 +1319,10 @@ export default function BillingPage() {
                     {balanceData?.wallet?.smsCreditsAvailable} Total Credits
                   </Text>
                 </HStack>
-              </VStack>
+              </ThemedView>
 
               {/* WhatsApp Credits */}
-              <VStack className="bg-white border border-gray-200 rounded-xl p-4 gap-3">
+              <ThemedView style={cardStyle} className="p-4 gap-3">
                 <HStack className="items-center gap-2">
                   <Ionicons name="logo-whatsapp" size={18} color="#16a34a" />
                   <Text className="text-[14px] font-medium text-gray-700">
@@ -1373,10 +1373,10 @@ export default function BillingPage() {
                     Credits
                   </Text>
                 </HStack>
-              </VStack>
+              </ThemedView>
 
               {/* Recent Activity */}
-              <VStack className="bg-white border border-gray-200 rounded-xl p-4 gap-4">
+              <ThemedView style={cardStyle} className="p-4 gap-4">
                 {/* Header */}
                 <HStack className="items-center gap-2">
                   <Ionicons name="time-outline" size={18} color="#f97316" />
@@ -1431,7 +1431,7 @@ export default function BillingPage() {
                     )
                   )}
                 </VStack>
-              </VStack>
+              </ThemedView>
             </VStack>
           </>
         )}
@@ -1493,7 +1493,7 @@ export default function BillingPage() {
               No payment history found
             </ThemedText>
           ) : (
-            paymentsData.payments.map((payment) => {
+            paymentsData.payments.map((payment, index) => {
               const formattedDate = new Date(
                 payment.createdAt,
               ).toLocaleDateString("en-IN", {
@@ -1502,15 +1502,10 @@ export default function BillingPage() {
                 year: "numeric",
               });
 
-              const statusColor =
-                payment.status === "COMPLETED"
-                  ? "#16a34a"
-                  : payment.status === "FAILED"
-                    ? "#dc2626"
-                    : "#f59e0b";
+                
 
               return (
-                <View key={payment.id}>
+                <View key={index}>
                   <HStack style={{ justifyContent: "space-between" }}>
                     <VStack>
                       <ThemedText style={{ fontSize: 15, fontWeight: "600" }}>
@@ -1537,7 +1532,11 @@ export default function BillingPage() {
                         style={{
                           fontSize: 12,
                           fontWeight: "600",
-                          color: statusColor,
+                          color: payment.status === "COMPLETED" 
+                            ? "#16a34a"
+                            : payment.status === "FAILED"
+                            ? "#dc2626"
+                            : "#f59e0b",
                           marginTop: 2,
                         }}
                       >
@@ -1546,7 +1545,9 @@ export default function BillingPage() {
                     </VStack>
                   </HStack>
 
-                  <Divider style={{ marginVertical: 13 }} />
+                  {index !== paymentsData.payments.length - 1 && (
+                    <Divider style={{ marginVertical: 13 }} />
+                  )}
                 </View>
               );
             })

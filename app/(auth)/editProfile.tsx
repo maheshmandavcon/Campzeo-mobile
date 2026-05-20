@@ -5,7 +5,7 @@ import {
   editProfileSchema,
   EditProfileSchemaType,
 } from "@/validations/profileSchema";
-import { useUser } from "@clerk/clerk-expo";
+import { useUser } from "@/context/AuthContext";
 import { View } from "@gluestack-ui/themed";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as ImagePicker from "expo-image-picker";
@@ -66,7 +66,7 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
 
       closeEPF();
     } catch (err: any) {
-      console.log("Clerk update error:", err);
+      console.log("Profile update error:", err);
     }
   };
 

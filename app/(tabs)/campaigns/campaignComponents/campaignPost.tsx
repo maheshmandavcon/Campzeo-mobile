@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import CampaignPostForm from "./campaignPostForm";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@/context/AuthContext";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { router, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";

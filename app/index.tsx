@@ -1,5 +1,5 @@
 import { Redirect } from "expo-router";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Index() {
   const { isLoaded, isSignedIn } = useAuth();

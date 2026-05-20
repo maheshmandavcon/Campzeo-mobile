@@ -2,7 +2,7 @@ import {
   deleteCampaignApi,
   getCampaignsApi,
 } from "@/api/campaignApi";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@/context/AuthContext";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 
 import { router, useFocusEffect } from "expo-router";

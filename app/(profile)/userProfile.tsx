@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { useEffect, useState } from "react";
 import { getUser } from "@/api/dashboardApi";
-import { useUser } from "@clerk/clerk-expo";
+import { useUser } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Divider } from "@/components/ui/divider";

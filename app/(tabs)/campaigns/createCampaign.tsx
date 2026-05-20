@@ -5,7 +5,7 @@ import {
   updateCampaignApi,
 } from "@/api/campaignApi";
 import { getContactsApi } from "@/api/contactApi";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { FormControl, Input, InputField } from "@gluestack-ui/themed";
 import { useLocalSearchParams, useRouter } from "expo-router";

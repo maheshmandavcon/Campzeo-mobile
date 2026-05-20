@@ -12,7 +12,7 @@ import { StyleSheet } from "react-native";
 
 import { useSidebarStore } from "../../store/sidebarStore";
 import { useRouter } from "expo-router";
-import { useAuth, useUser } from "@clerk/clerk-expo";
+import { useAuth, useUser } from "@/context/AuthContext";
 
 import { Avatar, AvatarFallbackText, AvatarImage } from "@/components/ui/avatar";
 import { VStack } from "@/components/ui/vstack";

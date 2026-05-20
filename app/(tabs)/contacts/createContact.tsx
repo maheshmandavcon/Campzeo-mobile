@@ -1,6 +1,6 @@
 import { createContactApi, updateContactApi, getContactsApi } from "@/api/contactApi";
 import { getCampaignsApi } from "@/api/campaignApi";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { FormControl, Input, InputField } from "@gluestack-ui/themed";
 import { zodResolver } from "@hookform/resolvers/zod";

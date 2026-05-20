@@ -4,7 +4,7 @@ import { ThemedView } from "@/components/themed-view";
 import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 import { Invoice } from "@/types/types";
-import { useUser } from "@clerk/clerk-expo";
+import { useUser } from "@/context/AuthContext";
 import { HStack } from "@gluestack-ui/themed";
 import { View } from "@gluestack-ui/themed";
 import { VStack } from "@gluestack-ui/themed";

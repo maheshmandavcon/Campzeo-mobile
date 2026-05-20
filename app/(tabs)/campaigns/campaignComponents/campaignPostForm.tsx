@@ -1,6 +1,6 @@
 import { getUser } from "@/api/dashboardApi";
 import { useCampaignPostForm } from "@/hooks/useCampaignPostForm";
-import { useUser } from "@clerk/clerk-expo";
+import { useUser } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@gluestack-ui/themed";
 import DateTimePicker from "@react-native-community/datetimepicker";

@@ -1,4 +1,4 @@
-// import { useUser } from "@clerk/clerk-expo";
+// import { useUser } from "@/context/AuthContext";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";

@@ -13,7 +13,7 @@ import {
   deleteNotificationApi,
   markAllNotificationsReadApi,
 } from "@/api/notificationApi";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@/context/AuthContext";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { SafeAreaView } from "react-native-safe-area-context";
