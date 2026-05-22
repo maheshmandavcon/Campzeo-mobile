@@ -42,7 +42,7 @@ export default function CalendarInsights() {
     YOUTUBE: "#8b5cf6",
   };
   const barData =
-    insightsData?.insights?.platformMix?.map((item: any) => ({
+    insightsData?.platformMix?.map((item: any) => ({
       value: item.count,
       label: item.platform,
     })) || [];
@@ -50,7 +50,7 @@ export default function CalendarInsights() {
   const total = insightsData?.insights?.totalPosts || 1;
 
   const pieData =
-    insightsData?.insights?.platformMix?.map((item: any) => ({
+    insightsData?.platformMix?.map((item: any) => ({
       value: item.count,
       color: platformColors[item.platform] || "#999",
       text: `${Math.round((item.count / total) * 100)}%`,
@@ -62,6 +62,7 @@ export default function CalendarInsights() {
       const to = toDate ? toDate.toISOString() : "";
 
       const response = await getPostsInsights(platform, from, to);
+      console.log("Insights Data:", response);
       setInsightsData(response);
     } catch (error) {
       console.error("Error fetching insights:", error);
@@ -282,7 +283,7 @@ export default function CalendarInsights() {
               Total Posts
             </ThemedText>
             <ThemedText style={{ fontWeight: "bold", fontSize: 20 }}>
-              {insightsData?.insights?.totalPosts ?? "-"}
+              {insightsData?.totalPosts ?? "-"}
             </ThemedText>
             <HStack className="items-center gap-2">
               <Ionicons name="trending-up" size={14} color={"#6a7282"} />
@@ -307,7 +308,7 @@ export default function CalendarInsights() {
               Upcoming Posts
             </ThemedText>
             <ThemedText style={{ fontWeight: "bold", fontSize: 20 }}>
-              {insightsData?.insights?.stats?.upcoming ?? "-"}
+              {insightsData?.stats?.upcoming ?? "-"}
             </ThemedText>
             <HStack className="items-center gap-2">
               <Ionicons name="trending-up" size={14} color={"#00a63e"} />
@@ -334,7 +335,7 @@ export default function CalendarInsights() {
               Past (Published)
             </ThemedText>
             <ThemedText style={{ fontWeight: "bold", fontSize: 20 }}>
-              {insightsData?.insights?.stats?.past ?? "-"}
+              {insightsData?.stats?.past ?? "-"}
             </ThemedText>
             <HStack className="items-center gap-2">
               <Ionicons name="bar-chart" size={14} color={"#155dfcfc"} />
@@ -359,7 +360,7 @@ export default function CalendarInsights() {
               Drafts
             </ThemedText>
             <ThemedText style={{ fontWeight: "bold", fontSize: 20 }}>
-              {insightsData?.insights?.stats?.drafts ?? "-"}
+              {insightsData?.stats?.drafts ?? "-"}
             </ThemedText>
             <HStack className="items-center gap-2">
               <Ionicons name="calendar" size={14} color={"#f54a00"} />
@@ -416,9 +417,9 @@ export default function CalendarInsights() {
 
                 {/* Legend */}
                 <VStack style={{ marginLeft: 10, gap: 8 }}>
-                  {insightsData?.insights?.platformMix?.map((item: any) => {
+                  {insightsData?.platformMix?.map((item: any) => {
                     const percentage = Math.round(
-                      (item.count / (insightsData?.insights?.totalPosts || 1)) *
+                      (item.count / (insightsData?.totalPosts || 1)) *
                         100,
                     );
 
@@ -490,7 +491,7 @@ export default function CalendarInsights() {
               yAxisThickness={0}
               yAxisTextStyle={{ color: "#888" }}
               noOfSections={5}
-              maxValue={6}
+              maxValue={Math.max(...barData.map((item: any) => item.value), 1)}
             />
           
         </VStack>

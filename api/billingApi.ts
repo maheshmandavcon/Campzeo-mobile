@@ -2,7 +2,7 @@ import https from "./https";
 
 export const getUsage = async () => {
   try {
-    const response = await https.get(`subscription/usage`);    
+    const response = await https.get(`Subscriptions/usage`);    
     // console.log("usage details: ",response.data);   
     return response.data;
   } 
@@ -14,7 +14,7 @@ export const getUsage = async () => {
 
 export const getCurrentSubscription = async () => {
   try {
-    const response = await https.get(`subscription/current`);    
+    const response = await https.get(`Subscriptions/current`);    
     // console.log("Current Subscription details: ",response.data);   
     return response.data;
   } 
@@ -71,7 +71,7 @@ export const getPlans = async () => {
 
 export const getPayments = async () => {
   try {
-    const response = await https.get(`payments`);    
+    const response = await https.get(`Invoices`);    
     // console.log("Payments details: ",response.data);   
     return response.data;
   } 
@@ -136,6 +136,16 @@ export const getWalletBalance = async () => {
   } 
   catch (error) {
     console.error("Fetching wallet balance Error:", error);
+    throw error;
+  }
+};
+
+export const getCreditPackages = async () => {
+  try {
+    const response = await https.get(`Payments/credit-packages`);
+    return response.data;
+  } catch (error) {
+    console.error("Fetching credit packages Error:", error);
     throw error;
   }
 };

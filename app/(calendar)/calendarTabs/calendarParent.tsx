@@ -14,9 +14,9 @@ export default function CalendarParent() {
   const isDark = colorScheme === "dark";
   const [activeCalendarTab, setActiveCalendarTab] = useState(1);
   const tabs = [
-    { key: 1, label: "Planner", icon: "grid-outline" },
-    { key: 2, label: "Insights", icon: "people-outline" },
-    { key: 3, label: "Export", icon: "people-outline" },
+    { key: 1, label: "Planner", icon: "calendar" },
+    { key: 2, label: "Insights", icon: "stats-chart" },
+    { key: 3, label: "Export", icon: "download" },
   ];
   return (
     <>
@@ -27,10 +27,11 @@ export default function CalendarParent() {
         }}
       >
         <HStack
-          className="rounded-full p-1 mb-6"
+          className="rounded-full mb-6"
           style={{
-            paddingVertical: 7,
-            borderRadius: 150,
+            paddingVertical: 3,
+            paddingHorizontal: 3,
+            borderRadius: 130,
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "center",
@@ -46,11 +47,11 @@ export default function CalendarParent() {
                 onPress={() => {
                   setActiveCalendarTab(tab.key);
                 }}
-                className="flex-1 px-4 py-4 rounded-full flex-row items-center justify-center"
+                className="flex-1 px-4 py-3 rounded-full flex-row items-center justify-center"
                 style={active ? { backgroundColor: "#dc2626" } : {}}
               >
                 <Ionicons
-                  name="golf-outline"
+                  name={tab.icon as any}
                   size={16}
                   color={active ? "#fff" : isDark ? "#aaa" : "#6b7280"}
                   className="mr-1"

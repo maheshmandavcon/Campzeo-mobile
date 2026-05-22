@@ -1,6 +1,6 @@
 import { getUsage } from "@/api/billingApi";
 import { getUser } from "@/api/dashboardApi";
-import { TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, useColorScheme, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
@@ -12,16 +12,17 @@ import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
 import { VStack } from "@/components/ui/vstack";
 import { Progress, ProgressFilledTrack } from "@gluestack-ui/themed";
 
-import { router, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { router, useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import { StyleSheet, ScrollView } from "react-native";
 import { Divider } from "@gluestack-ui/themed";
-import { Ionicons } from "@expo/vector-icons";
-
+import { FontAwesome, Ionicons } from "@expo/vector-icons";
 
 /* ================= COMPONENT ================= */
 
 export default function Insights() {
+  const isDark = useColorScheme() === "dark";
+
   const routePage = useRouter();
 
   const [userData, setUserData] = useState<any>(null);
@@ -29,12 +30,10 @@ export default function Insights() {
   const [loading, setLoading] = useState(true);
 
   /* ================= API ================= */
-  useEffect(() => {
     const fetchInsights = async () => {
       try {
         const user = await getUser();
         const usage = await getUsage();
-
         setUserData(user);
         setUsageData(usage);
       } catch (error) {
@@ -43,10 +42,86 @@ export default function Insights() {
         setLoading(false);
       }
     };
-
+  useEffect(() => {
     fetchInsights();
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      fetchInsights();
+    }, [])
+  );
+  const COLORS = {
+    bg: isDark ? "#0f172a" : "#f8fafc",
+    card: isDark ? "#1e293b" : "#ffffff",
+    border: isDark ? "#334155" : "#e2e8f0",
+    text: isDark ? "#f8fafc" : "#0f172a",
+    textMuted: isDark ? "#94a3b8" : "#64748b",
+    accent: "#dc2626",
+    success: "#10b981",
+    warning: "#f59e0b",
+    info: "#3b82f6",
+  };
+
+  const getPlatformIcon = (platform: string) => {
+    const name = platform?.toLowerCase() || "";
+    switch (name) {
+      case "facebook":
+        return "facebook";
+      case "instagram":
+        return "instagram";
+      case "linkedin":
+        return "linkedin";
+      case "youtube":
+        return "youtube-play";
+      case "pinterest":
+        return "pinterest";
+      case "twitter":
+        return "twitter";
+      default:
+        return "globe";
+    }
+  };
+
+  const getPlatformColor = (platform: string) => {
+    const name = platform?.toLowerCase() || "";
+    switch (name) {
+      case "facebook":
+        return "#1877F2";
+      case "instagram":
+        return "#E4405F";
+      case "linkedin":
+        return "#0A66C2";
+      case "youtube":
+        return "#FF0000";
+      case "pinterest":
+        return "#E60023";
+      case "twitter":
+        return "#1DA1F2";
+      default:
+        return COLORS.textMuted;
+    }
+  };
+
+  const getPlatformBg = (platform: string) => {
+    const name = platform?.toLowerCase() || "";
+    switch (name) {
+      case "facebook":
+        return isDark ? "#172554" : "#eff6ff";
+      case "instagram":
+        return isDark ? "#4a044e" : "#fdf2f8";
+      case "linkedin":
+        return isDark ? "#172554" : "#eff6ff";
+      case "youtube":
+        return isDark ? "#450a0a" : "#fef2f2";
+      case "pinterest":
+        return isDark ? "#450a0a" : "#fef2f2";
+      case "twitter":
+        return isDark ? "#172554" : "#eff6ff";
+      default:
+        return isDark ? "#334155" : "#f1f5f9";
+    }
+  };
   /* ================= SKELETON HELPERS ================= */
 
   const renderHeaderSkeleton = () => (
@@ -270,23 +345,21 @@ export default function Insights() {
                     {usageData?.usage?.postsThisMonth?.current}
                   </ThemedText>
                   <HStack className="items-center gap-1">
-                    <Ionicons
-                      name="arrow-up"
-                      size={17}
-                      color={"#00c950"}
-                    />
-                    <ThemedText style={{ color: "#00c950" }}>{usageData?.usage?.postsThisMonth?.growth}%</ThemedText>
+                    <Ionicons name="arrow-up" size={17} color={"#00c950"} />
+                    <ThemedText style={{ color: "#00c950" }}>
+                      {usageData?.usage?.postsThisMonth?.growth}%
+                    </ThemedText>
                   </HStack>
                 </HStack>
               </VStack>
 
               <ThemedText>
-                {usageData?.usage?.postsThisMonth?.current} (vs {usageData?.usage?.postsThisMonth?.lastMonth} last month)
+                {usageData?.usage?.postsThisMonth?.current} (vs{" "}
+                {usageData?.usage?.postsThisMonth?.lastMonth} last month)
               </ThemedText>
             </HStack>
 
-            <Center style={{ marginTop: 6 }}>
-            </Center>
+            <Center style={{ marginTop: 6 }}></Center>
           </VStack>
           <VStack style={{ marginBottom: 16 }}>
             <HStack style={{ justifyContent: "space-between" }}>
@@ -305,7 +378,17 @@ export default function Insights() {
               >
                 <ProgressFilledTrack
                   style={{
-                    backgroundColor: "#dc2626",
+                    width: `${Math.min(
+                      ((usageData?.usage?.contacts?.current || 0) /
+                        (usageData?.usage?.contacts?.limit || 1)) *
+                        100,
+                      100,
+                    )}%`,
+                    backgroundColor:
+                      (usageData?.usage?.contacts?.current || 0) >=
+                      (usageData?.usage?.contacts?.limit || 0)
+                        ? COLORS.accent
+                        : COLORS.success,
                   }}
                 />
               </Progress>
@@ -322,14 +405,23 @@ export default function Insights() {
             </HStack>
 
             <Center style={{ marginTop: 6 }}>
-              
               <Progress
                 value={usageData?.usage?.campaigns?.percentage}
                 size="sm"
               >
                 <ProgressFilledTrack
                   style={{
-                    backgroundColor: "#dc2626",
+                    width: `${Math.min(
+                      ((usageData?.usage?.campaigns?.current || 0) /
+                        (usageData?.usage?.campaigns?.limit || 1)) *
+                        100,
+                      100,
+                    )}%`,
+                    backgroundColor:
+                      (usageData?.usage?.campaigns?.current || 0) >=
+                      (usageData?.usage?.campaigns?.limit || 0)
+                        ? COLORS.accent
+                        : COLORS.success,
                   }}
                 />
               </Progress>
@@ -346,19 +438,57 @@ export default function Insights() {
             </HStack>
 
             <Center style={{ marginTop: 6 }}>
-             
               <Progress
                 value={usageData?.usage?.platforms?.percentage}
                 size="sm"
               >
                 <ProgressFilledTrack
                   style={{
-                    backgroundColor:usageData?.usage?.platforms?.current < usageData?.usage?.platforms.limit ? "#00c950" : "#dc2626",
+                    width: `${Math.min(
+                      ((usageData?.usage?.platforms?.current || 0) /
+                        (usageData?.usage?.platforms?.limit || 1)) *
+                        100,
+                      100,
+                    )}%`,
+                    backgroundColor:
+                      (usageData?.usage?.platforms?.current || 0) >=
+                      (usageData?.usage?.platforms?.limit || 0)
+                        ? COLORS.accent
+                        : COLORS.success,
                   }}
                 />
               </Progress>
             </Center>
           </VStack>
+
+          {usageData?.usage?.platforms?.connectedNames?.length > 0 && (
+            <View className="flex-row flex-wrap gap-2 mt-2">
+              {usageData.usage.platforms.connectedNames.map(
+                (platform: string, index: number) => (
+                  <View
+                    key={index}
+                    className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full border shadow-sm"
+                    style={{
+                      borderColor: COLORS.border,
+                      backgroundColor: getPlatformBg(platform),
+                    }}
+                  >
+                    <FontAwesome
+                      name={getPlatformIcon(platform)}
+                      size={12}
+                      color={getPlatformColor(platform)}
+                    />
+                    <Text
+                      className="text-[10px] font-bold uppercase tracking-wider"
+                      style={{ color: COLORS.text }}
+                    >
+                      {platform}
+                    </Text>
+                  </View>
+                ),
+              )}
+            </View>
+          )}
         </Box>
 
         {/* ================= TEAM ================= */}

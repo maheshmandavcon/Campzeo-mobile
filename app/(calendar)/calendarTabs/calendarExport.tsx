@@ -19,9 +19,10 @@ import {
   getPostsExportPreview,
   exportPostsExcel,
   exportPostsCSV,
+  getDataPreview,
 } from "@/api/dashboardApi";
 import * as Sharing from "expo-sharing";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 
 interface PostPreview {
   campaign: string;
@@ -45,10 +46,14 @@ export default function CalendarExports() {
   const [pickingMode, setPickingMode] = useState<"start" | "end">("start");
 
   // Data states
-  const [previewData, setPreviewData] = useState<PostPreview[]>([]);
+  const [previewData, setPreviewData] = useState<any>({
+    summary: [],
+    posts: [],
+    analytics: [],
+  });
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
-
+  
   const formatDate = (date: Date) => {
     const d = date.getDate().toString().padStart(2, "0");
     const m = (date.getMonth() + 1).toString().padStart(2, "0");
@@ -72,11 +77,18 @@ export default function CalendarExports() {
     try {
       const from = startDate ? startDate.toISOString() : "";
       const to = endDate ? endDate.toISOString() : "";
-      const response = await getPostsExportPreview(platform, from, to);
-      setPreviewData(response?.posts || []);
+      const response = await getDataPreview();
+      console.log("resspp", response);
+
+      setPreviewData(
+        response || {
+          summary: [],
+          posts: [],
+          analytics: [],
+        },
+      );
     } catch (error) {
       console.error("Error fetching export preview:", error);
-      setPreviewData([]);
     } finally {
       setLoading(false);
     }
@@ -85,6 +97,53 @@ export default function CalendarExports() {
   useEffect(() => {
     fetchPreview();
   }, [platform, startDate, endDate]);
+
+  const handleExport = async (type: "xlsx" | "csv") => {
+    try {
+      setExporting(true);
+
+      const from = startDate ? startDate.toISOString() : "";
+      const to = endDate ? endDate.toISOString() : "";
+
+      let response;
+
+      if (type === "xlsx") {
+        response = await exportPostsExcel(platform, from, to);
+        console.log("rrrssspp1",response);
+        
+      } else {
+        response = await exportPostsCSV(platform, from, to);
+        console.log("rrrssspp2",response);
+      }
+
+      const blob = response;
+
+      const reader = new FileReader();
+
+      reader.onloadend = async () => {
+        try {
+          const base64data = (reader.result as string).split(",")[1];
+
+          const fileUri =
+            FileSystem.documentDirectory + `posts_export_${Date.now()}.${type}`;
+
+          await FileSystem.writeAsStringAsync(fileUri, base64data, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+
+          await Sharing.shareAsync(fileUri);
+        } catch (error) {
+          console.error("File Save Error:", error);
+        }
+      };
+
+      reader.readAsDataURL(blob);
+    } catch (error) {
+      console.error("Export Error:", error);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -159,9 +218,7 @@ export default function CalendarExports() {
       >
         {/* Platform Dropdown */}
         <VStack style={{ gap: 4 }}>
-          <ThemedText
-            style={{ fontSize: 12, opacity: 0.6, fontWeight: "600" }}
-          >
+          <ThemedText style={{ fontSize: 12, opacity: 0.6, fontWeight: "600" }}>
             Platform
           </ThemedText>
           <Dropdown
@@ -321,6 +378,7 @@ export default function CalendarExports() {
         {/* Download Buttons */}
         <VStack style={{ gap: 10, marginTop: 5 }}>
           <TouchableOpacity
+            onPress={() => handleExport("xlsx")}
             disabled={exporting}
             style={{
               flexDirection: "row",
@@ -349,6 +407,7 @@ export default function CalendarExports() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            onPress={() => handleExport("csv")}
             disabled={exporting}
             style={{
               flexDirection: "row",
@@ -364,20 +423,26 @@ export default function CalendarExports() {
             }}
             activeOpacity={0.8}
           >
-            <Ionicons
-              name="funnel-outline"
-              size={16}
-              color={isDark ? "#ccc" : "#333"}
-            />
-            <Text
-              style={{
-                color: isDark ? "#ccc" : "#333",
-                fontWeight: "500",
-                fontSize: 13,
-              }}
-            >
-              Download CSV (.csv)
-            </Text>
+            {exporting ? (
+              <ActivityIndicator size="small" color="#dc2626" />
+            ) : (
+              <>
+                <Ionicons
+                  name="funnel-outline"
+                  size={16}
+                  color={isDark ? "#ccc" : "#333"}
+                />
+                <Text
+                  style={{
+                    color: isDark ? "#ccc" : "#333",
+                    fontWeight: "500",
+                    fontSize: 13,
+                  }}
+                >
+                  Download CSV (.csv)
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
         </VStack>
       </VStack>
@@ -479,8 +544,8 @@ export default function CalendarExports() {
               >
                 <ActivityIndicator size="small" color="#dc2626" />
               </View>
-            ) : previewData.length > 0 ? (
-              previewData.map((post, index) => (
+            ) : previewData?.posts?.length > 0 ? (
+              previewData?.posts?.map((post: any, index: number) => (
                 <HStack
                   key={index}
                   style={{
@@ -549,7 +614,7 @@ export default function CalendarExports() {
                     }}
                     numberOfLines={1}
                   >
-                    {post.scheduled}
+                    {post.scheduledDate}
                   </Text>
                 </HStack>
               ))

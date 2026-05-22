@@ -1,8 +1,7 @@
-import { CalendarEvent } from "@/types/types";
 import { format } from "date-fns";
 
-export const groupEventsByDate = (events: CalendarEvent[]) => {
-  const grouped: Record<string, CalendarEvent[]> = {};
+export const groupEventsByDate = (events: any[]) => {
+  const grouped: Record<string, any[]> = {};
 
   events.forEach((event) => {
     // Convert event.start into a date string (YYYY-MM-DD)

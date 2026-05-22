@@ -2,7 +2,6 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import {
   Briefcase,
-  LockKeyhole,
   Mail,
   User,
   UserPen,
@@ -10,12 +9,12 @@ import {
 import {
   Modal,
   ScrollView,
+  StyleSheet,
   TouchableOpacity,
   useColorScheme,
   View,
 } from "react-native";
-import { useEffect, useState } from "react";
-import { getUser } from "@/api/dashboardApi";
+import { ReactNode, useState } from "react";
 import { useUser } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -24,151 +23,161 @@ import { HStack } from "@/components/ui/hstack";
 import { Pressable } from "@/components/ui/pressable";
 import { VStack } from "@/components/ui/vstack";
 import { Box } from "@/components/ui/box";
-import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
-import ChangePassword from "../(auth)/changePassword";
 import EditProfile from "../(auth)/editProfile";
+import { getDisplayName, getInitials } from "@/utils/userDisplay";
+import { useUserDetails } from "@/hooks/useUserDetails";
 
 export default function UserProfile() {
-  const [userData, setUserData] = useState<any>(null);
-  const [showChangePas, setChangePas] = useState(false);
-
   const [showEditProfile, setEditProfile] = useState(false);
 
   const colorScheme = useColorScheme();
   const routePage = useRouter();
   const { user } = useUser();
-  // const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const { userData, loading } = useUserDetails(Boolean(user));
 
   if (!user) return null;
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const data = await getUser();
-        setUserData(data);
-      } catch (error) {
-        console.error("Failed to fetch user", error);
-      }
-    };
-    fetchUser();
-  }, []);
+  const profileUser = userData || user;
+  const displayName = getDisplayName(profileUser);
+  const initials = getInitials(profileUser);
+  const email = profileUser?.email ?? user.primaryEmailAddress?.emailAddress ?? "-";
+  const organisation = userData?.organisation?.name ?? "-";
+
+  const COLORS = {
+    bg: isDark ? "#0f1115" : "#f8fafc",
+    card: isDark ? "#171a20" : "#ffffff",
+    border: isDark ? "#2a2f3a" : "#e5e7eb",
+    text: isDark ? "#f8fafc" : "#0f172a",
+    muted: isDark ? "#9ca3af" : "#64748b",
+    subtle: isDark ? "#20242c" : "#f1f5f9",
+  };
+
+  const DetailRow = ({
+    icon,
+    label,
+    value,
+  }: {
+    icon: ReactNode;
+    label: string;
+    value: string;
+  }) => (
+    <HStack style={styles.detailRow}>
+      <View style={[styles.detailIcon, { backgroundColor: isDark ? "#2a1515" : "#fee2e2" }]}>
+        {icon}
+      </View>
+      <VStack style={{ flex: 1 }}>
+        <ThemedText style={[styles.detailLabel, { color: COLORS.muted }]}>
+          {label}
+        </ThemedText>
+        <ThemedText style={[styles.detailValue, { color: COLORS.text }]}>
+          {value}
+        </ThemedText>
+      </VStack>
+    </HStack>
+  );
+
+  const ProfileSkeleton = () => (
+    <ThemedView style={[styles.container, { backgroundColor: COLORS.bg }]}>
+      <HStack style={styles.header}>
+        <Pressable onPress={() => routePage.back()} style={styles.backButton}>
+          <Ionicons
+            name="arrow-back-outline"
+            size={22}
+            color={COLORS.text}
+          />
+        </Pressable>
+      </HStack>
+
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <VStack style={styles.profileHeader}>
+          <ShimmerSkeleton height={112} width={112} borderRadius={56} />
+          <ShimmerSkeleton height={24} width={190} />
+          <ShimmerSkeleton height={14} width={220} />
+        </VStack>
+
+        <Box style={[styles.detailsCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
+          <VStack style={{ gap: 18 }}>
+            {Array.from({ length: 3 }).map((_, index) => (
+              <HStack key={index} style={styles.detailRow}>
+                <ShimmerSkeleton height={44} width={44} borderRadius={14} />
+                <VStack style={{ flex: 1, gap: 8 }}>
+                  <ShimmerSkeleton height={12} width={90} />
+                  <ShimmerSkeleton height={16} width={index === 1 ? "90%" : "60%"} />
+                </VStack>
+              </HStack>
+            ))}
+          </VStack>
+        </Box>
+      </ScrollView>
+    </ThemedView>
+  );
+
+  if (loading) return <ProfileSkeleton />;
 
   return (
     <>
-      <ThemedView className="flex-1 p-5 pt-20">
-        {/* ================= SCROLL CONTENT ================= */}
+      <ThemedView style={[styles.container, { backgroundColor: COLORS.bg }]}>
         <ScrollView showsVerticalScrollIndicator={false}>
-          {/* HEADER */}
-          <HStack>
-            <Pressable onPress={() => routePage.back()}>
+          <HStack style={styles.header}>
+            <Pressable onPress={() => routePage.back()} style={styles.backButton}>
               <Ionicons
                 name="arrow-back-outline"
                 size={22}
-                color={colorScheme === "dark" ? "#ffffff" : "#020617"}
+                color={COLORS.text}
               />
             </Pressable>
           </HStack>
 
-          {/* PROFILE */}
-          <VStack className="items-center mb-8">
-            {/* <Avatar size="xl" className="mb-4">
-              <AvatarImage source={{ uri: user.imageUrl }} />
-            </Avatar> */}
-            <View
-              style={{
-                borderWidth: 2,
-                borderColor: isDark ? "#ffffff" : "#dc2626",
-                borderRadius: 999, 
-                padding: 3,      
-                marginBottom: 16,
-              }}
-            >
-              <Avatar size="xl">
-                <AvatarImage source={{ uri: user.imageUrl }} />
-              </Avatar>
+          <VStack style={styles.profileHeader}>
+            <View style={styles.avatar}>
+              <ThemedText style={styles.avatarText}>{initials}</ThemedText>
             </View>
 
-            <ThemedText style={{ fontSize: 23, fontWeight: "700" }}>
-              {user.firstName} {user.lastName}
+            <ThemedText style={[styles.name, { color: COLORS.text }]}>
+              {displayName}
+            </ThemedText>
+            <ThemedText style={[styles.email, { color: COLORS.muted }]}>
+              {email}
             </ThemedText>
           </VStack>
 
-          {/* DETAILS */}
-          <Box className="bg-white/10 px-4 py-5 rounded-2xl border border-gray-200">
-            <VStack space="md">
-              <HStack className="items-center gap-3">
-                <User size={22} color="#dc2626" />
-                <VStack>
-                  <ThemedText className="text-sm text-gray-400">
-                    Username
-                  </ThemedText>
-                  <ThemedText>{user.username}</ThemedText>
-                </VStack>
-              </HStack>
+          <Box style={[styles.detailsCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
+            <VStack style={{ gap: 18 }}>
+              <DetailRow
+                icon={<User size={21} color="#dc2626" />}
+                label="Username"
+                value={displayName}
+              />
 
               <Divider />
 
-              <HStack className="items-center gap-3">
-                <Mail size={20} color="#dc2626" />
-                <VStack>
-                  <ThemedText className="text-sm text-gray-400">
-                    Email
-                  </ThemedText>
-                  <ThemedText>
-                    {user.primaryEmailAddress?.emailAddress}
-                  </ThemedText>
-                </VStack>
-              </HStack>
+              <DetailRow
+                icon={<Mail size={20} color="#dc2626" />}
+                label="Email"
+                value={email}
+              />
 
               <Divider />
 
-              <HStack className="items-center gap-3">
-                <Briefcase size={20} color="#dc2626" />
-                <VStack>
-                  <ThemedText className="text-sm text-gray-400">
-                    Organisation
-                  </ThemedText>
-                  <ThemedText>
-                    {userData?.organisation?.name ?? (
-                      <ShimmerSkeleton height={15} width={130} />
-                    )}
-                  </ThemedText>
-                </VStack>
-              </HStack>
+              <DetailRow
+                icon={<Briefcase size={20} color="#dc2626" />}
+                label="Organisation"
+                value={organisation}
+              />
             </VStack>
           </Box>
 
-          {/* BUTTONS */}
-
-          <VStack className="mt-8" space="md">
+          <VStack style={styles.actions}>
             <TouchableOpacity
               activeOpacity={0.8}
-              style={{
-                backgroundColor: "#dc2626",
-                paddingVertical: 16,
-                borderRadius: 12,
-                flexDirection: "row",
-                justifyContent: "center",
-                gap: 8,
-              }}
+              style={styles.primaryAction}
               onPress={() => setEditProfile(true)}
             >
               <UserPen size={20} color="white" />
               <ThemedText style={{ color: "white", fontWeight: "600" }}>
                 Edit Profile
-              </ThemedText>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              activeOpacity={0.8}
-              className="bg-black rounded-xl py-4 flex-row justify-center gap-2"
-              onPress={() => setChangePas(true)}
-            >
-              <LockKeyhole size={20} color="white" />
-              <ThemedText style={{ color: "white", fontWeight: "600" }}>
-                Change Password
               </ThemedText>
             </TouchableOpacity>
           </VStack>
@@ -214,69 +223,99 @@ export default function UserProfile() {
               elevation: 0,
             }}
           >
-            <EditProfile closeEPF={() => setEditProfile(false)} />
+            <EditProfile
+            // userDetails = {userData}
+             closeEPF={() => setEditProfile(false)} />
           </View>
         </View>
       </Modal>
 
-      {/* test modal change password*/}
-      {/* <Modal
-        visible={showChangePas}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setChangePas(false)}
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.4)",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <View
-            style={{
-              width: "90%",
-              backgroundColor: "white",
-              borderRadius: 16,
-              padding: 20,
-            }}
-          >
-
-            <ChangePassword closeCP={() => setChangePas(false)} />
-
-          </View>
-        </View>
-      </Modal> */}
-      <Modal
-        visible={showChangePas}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setChangePas(false)}
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.4)",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <View
-            style={{
-              width: "95%",
-              borderRadius: 16,
-              overflow: "hidden",
-              backgroundColor: isDark ? "#161618" : "#ffffff",
-              borderWidth: 1.5,
-              borderColor: "#ffffff",
-              elevation: 0,
-            }}
-          >
-            <ChangePassword closeCP={() => setChangePas(false)} />
-          </View>
-        </View>
-      </Modal>
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 64,
+  },
+  header: {
+    marginBottom: 18,
+  },
+  backButton: {
+    alignItems: "center",
+    borderRadius: 12,
+    height: 40,
+    justifyContent: "center",
+    width: 40,
+  },
+  profileHeader: {
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 28,
+  },
+  avatar: {
+    alignItems: "center",
+    backgroundColor: "#dc2626",
+    borderRadius: 56,
+    height: 112,
+    justifyContent: "center",
+    marginBottom: 6,
+    width: 112,
+  },
+  avatarText: {
+    color: "#ffffff",
+    fontSize: 34,
+    fontWeight: "800",
+  },
+  name: {
+    fontSize: 25,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  email: {
+    fontSize: 14,
+    textAlign: "center",
+  },
+  detailsCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 18,
+  },
+  detailRow: {
+    alignItems: "center",
+    gap: 12,
+  },
+  detailIcon: {
+    alignItems: "center",
+    borderRadius: 14,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
+  detailLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 3,
+    textTransform: "uppercase",
+  },
+  detailValue: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  actions: {
+    gap: 12,
+    marginTop: 24,
+    paddingBottom: 32,
+  },
+  primaryAction: {
+    alignItems: "center",
+    backgroundColor: "#dc2626",
+    borderRadius: 14,
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+    paddingVertical: 15,
+  },
+});

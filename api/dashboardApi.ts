@@ -67,9 +67,9 @@ export const getPostsInsights = async (platform: string, startDate: string, endD
 };
 
 // Export posts preview
-export const getPostsExportPreview = async (platform: string, startDate: string, endDate: string) => {
+export const getPostsExportPreview = async (format: string, platform: string, startDate: string, endDate: string) => {
   try {
-    const response = await https.get(`Organisation/posts/export/preview?platform=${platform || "all"}&startDate=${startDate || ""}&endDate=${endDate || ""}`);    
+    const response = await https.get(`Organisation/posts/export?format=${format || "xlsx"}&platform=${platform || "all"}&startDate=${startDate || ""}&endDate=${endDate || ""}`);    
     return response.data;
   } 
   catch (error) {
@@ -78,10 +78,22 @@ export const getPostsExportPreview = async (platform: string, startDate: string,
   }
 };
 
+// Data preview Export :
+export const getDataPreview = async () => {
+  try {
+    const response = await https.get(`Organisation/posts/export?preview=true`);    
+    return response.data;
+  } 
+  catch (error) {
+    console.error("Exporting preview data Error:", error);
+    throw error;
+  }
+};
+
 // Export posts as Excel
 export const exportPostsExcel = async (platform: string, startDate: string, endDate: string) => {
   try {
-    const response = await https.get(`Organisation/posts/export/excel?platform=${platform || "all"}&startDate=${startDate || ""}&endDate=${endDate || ""}`, {
+    const response = await https.get(`Organisation/posts/export?format=xlsx&platform=${platform || "all"}&startDate=${startDate || ""}&endDate=${endDate || ""}`, {
       responseType: 'blob',
     });    
     return response.data;
@@ -95,7 +107,7 @@ export const exportPostsExcel = async (platform: string, startDate: string, endD
 // Export posts as CSV
 export const exportPostsCSV = async (platform: string, startDate: string, endDate: string) => {
   try {
-    const response = await https.get(`Organisation/posts/export/csv?platform=${platform || "all"}&startDate=${startDate || ""}&endDate=${endDate || ""}`, {
+    const response = await https.get(`Organisation/posts/export?format=csv&platform=${platform || "all"}&startDate=${startDate || ""}&endDate=${endDate || ""}`, {
       responseType: 'blob',
     });    
     return response.data;

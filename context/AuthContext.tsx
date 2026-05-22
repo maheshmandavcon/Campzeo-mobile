@@ -189,6 +189,7 @@ export const removeToken = async () => {
   await deleteStorageItem(AUTH_TOKEN_KEY);
   await deleteStorageItem(AUTH_USER_KEY);
   await AsyncStorage.removeItem("token");
+  console.log("token removed");
   emitAuthChanged();
 };
 
@@ -275,7 +276,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTokenState(null);
     setUserState(null);
     setIsLoaded(true);
-  }, []);
+    
+  }, [token]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -305,6 +307,6 @@ export function useAuth() {
 }
 
 export function useUser() {
-  const { user, isLoaded } = useAuth();
+  const { user, isLoaded } = useAuth();  
   return { user, isLoaded };
 }

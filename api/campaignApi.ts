@@ -63,15 +63,13 @@ export const createCampaignApi = async (data: CampaignData) => {
 
 // Get campaigns
 
-export const getCampaignsApi = async (
+export const getCampaignsApi = async (orgId: number,
   page: number = 1,
   limit: number = 10,
-  search: string = "",
 ) => {
   try {
     const params: any = { page, limit };
-    if (search) params.search = search;
-    const response = await https.get("/campaigns", { params });
+    const response = await https.get(`/Campaigns?organisationId=${orgId}&page=${page}&limit=${limit}`);
     return response.data;
   } catch (error: any) {
     console.error("Get Campaigns API Error:", error.response || error.message);

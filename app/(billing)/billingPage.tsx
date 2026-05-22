@@ -7,16 +7,13 @@ import {
   getWalletBalance,
   requestTwilioAccess,
   updateAutoRenew,
+  getCreditPackages,
 } from "@/api/billingApi";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { CancelFormValues, cancelSchema } from "@/validations/billingSchema";
-import { useAuth } from "@/context/AuthContext";
-import { Ionicons } from "@expo/vector-icons";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
 import {
   Alert,
   Pressable,
@@ -26,141 +23,129 @@ import {
   TouchableOpacity,
   TextInput,
   Linking,
+  Switch,
+  Modal,
+  View,
 } from "react-native";
 import Toast from "react-native-toast-message";
-import { HStack } from "@/components/ui/hstack";
-import { VStack } from "@/components/ui/vstack";
-import { Center } from "@/components/ui/center";
-import { Box, Divider } from "@gluestack-ui/themed";
-
-import { Progress, ProgressFilledTrack } from "@gluestack-ui/themed";
-import { View } from "@gluestack-ui/themed";
 import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
-
-type PaymentStatus = "CREATED" | "COMPLETED" | "FAILED";
-
-type PaymentPlan = "BASIC" | "PRO" | "ENTERPRISE";
-
-export interface Payment {
-  id: string;
-  amount: string;
-  currency: "INR";
-  plan: PaymentPlan;
-  status: PaymentStatus;
-
-  organisationId: number;
-  receipt: string;
-
-  razorpayOrderId: string;
-  razorpayPaymentId: string;
-  razorpaySignature: string;
-
-  notes: Record<string, any>; // safest for now
-
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface PaymentsResponse {
-  payments: Payment[];
-}
-
-const ACCENT = "#dc2626";
-const SUCCESS = "#00c950";
-const MUTED = "#6b7280";
+import {
+  FileText,
+  ArrowLeftRight,
+  Calendar,
+  Zap,
+  AlertCircle,
+  X,
+  CheckCircle2,
+  Clock,
+  Star,
+  Info,
+  ArrowUp,
+  ArrowDown,
+  Send,
+  Share2,
+  Check,
+  Circle,
+  CircleDot,
+  Loader2,
+} from "lucide-react-native";
+import { fetchInvoices } from "@/api/invoicesApi";
 
 export default function BillingPage() {
   const router = useRouter();
   const isDark = useColorScheme() === "dark";
 
+  // Sleek Tailwind dynamic palette
+  const COLORS = {
+    bg: isDark ? "#0f172a" : "#f8fafc",
+    card: isDark ? "#1e293b" : "#ffffff",
+    border: isDark ? "#334155" : "#e2e8f0",
+    text: isDark ? "#f8fafc" : "#0f172a",
+    textMuted: isDark ? "#94a3b8" : "#64748b",
+    accent: "#dc2626",
+    success: "#10b981",
+    warning: "#f59e0b",
+    info: "#3b82f6",
+  };
+
+  // State
   const [loading, setLoading] = useState(true);
-
-  const [autoRenew, setAutoRenew] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-
-  const [usageData, setusageData] = useState<any>(null);
+  const [usageData, setUsageData] = useState<any>(null);
   const [subscriptionData, setSubscriptionData] = useState<any>(null);
   const [balanceData, setBalanceData] = useState<any>(null);
-  const [plansData, setPlansData] = useState<any>(null);
-  // const [paymentsData, setPaymentsData] = useState<any>(null);
-  const [reason, setReason] = useState("");
+  const [plansData, setPlansData] = useState<any[]>([]);
+  const [paymentsData, setPaymentsData] = useState<{ invoices: any[] }>({
+    invoices: [],
+  });
+  const [comparisonPlanColumns, setComparisonPlanColumns] = useState<any[]>([]);
+  const [comparisonFeatures, setComparisonFeatures] = useState<any[]>([]);
+  const [creditPackages, setCreditPackages] = useState<any[]>([]);
+  // UI State
+  const [activeBillingTab, setActiveBillingTab] = useState<"plans" | "credits">(
+    "plans",
+  );
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showComparePlans, setShowComparePlans] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [isUpdatingAutoRenew, setIsUpdatingAutoRenew] = useState(false);
+  const [autoRenew, setAutoRenew] = useState(false);
 
-  const [paymentsData, setPaymentsData] = useState<PaymentsResponse | null>(
+  // Form State
+  const [requestReason, setRequestReason] = useState("");
+  const [cancellationReason, setCancellationReason] = useState("");
+  const [cancelImmediately, setCancelImmediately] = useState<boolean | null>(
     null,
   );
+  const [cancellationError, setCancellationError] = useState<string | null>(
+    null,
+  );
+  const [isSubmittingTwilio, setIsSubmittingTwilio] = useState(false);
 
+  // Alert State
   const [premiumAlert, setPremiumAlert] = useState(false);
   const [isOneDay, setIsOneDay] = useState(false);
-  // const handleAutoRenew = async (value: boolean) => {
-  //   setAutoRenew(value);
-
-  //   try {
-  //     await updateAutoRenew(value);
-  //     console.log("Auto renew updated:", value);
-  //   } catch (error) {
-  //     console.error("Failed to update auto renew", error);
-  //   }
-  // };
-
-  // const onSubmit = async (data: CancelFormValues) => {
-  //   try {
-  //     const { cancelImmediately, reason } = data;
-
-  //     if (cancelImmediately === null) return;
-
-  //     const safeReason = reason?.trim() || "";
-
-  //     await cancelSubscription(cancelImmediately, safeReason);
-
-  //     Alert.alert(
-  //       "Subscription Cancelled",
-  //       cancelImmediately
-  //         ? "Your subscription has been cancelled immediately."
-  //         : "Your subscription will be cancelled at the end of the billing period.",
-  //     );
-
-  //     setShowModal(false);
-
-  //     const subscription = await getCurrentSubscription();
-  //     setSubscriptionData(subscription);
-
-  //     await signOut();
-  //     router.replace("/(auth)/login");
-  //   } catch (error) {
-  //     console.error("Cancel subscription failed:", error);
-  //     Alert.alert(
-  //       "Cancellation Failed",
-  //       "Something went wrong. Please try again.",
-  //     );
-  //   }
-  // };
-
-  // const currentPlanName = subscriptionData?.subscription?.plan?.name ?? null;
-
-  // const hasPaidPlan =
-  //   currentPlanName === "PROFESSIONAL" || currentPlanName === "ENTERPRISE";
-
-  //       ToastAndroid.show("Password updated successfully!", ToastAndroid.SHORT);
-
   const fetchBillingDetails = async () => {
     try {
-      const usage = await getUsage();
-      const subscription = await getCurrentSubscription();
-      const plan = await getPlans();
-      const payment = await getPayments();
-      const balance = await getWalletBalance();
+      const [usage, subscription, plan, payment, balance, creditPacks] =
+        await Promise.all([
+          getUsage(),
+          getCurrentSubscription(),
+          getPlans(),
+          fetchInvoices(),
+          getWalletBalance(),
+          getCreditPackages(),
+        ]);
 
-      // console.log("bbbdata",balance);
-
-      setusageData(usage);
+      setUsageData(usage);
       setSubscriptionData(subscription);
-      // console.log("bbbb", balance);
+      setAutoRenew(subscription?.subscription?.autoRenew || false);
 
+      const plansArray = Array.isArray(plan)
+        ? plan
+        : plan?.plans || plan?.data || [];
+      setPlansData(plansArray);
+      buildComparisonFromPlans(plansArray);
+      // Ensure paymentsData always contains an invoices array
+      const invoicesArray = Array.isArray(payment?.invoices)
+        ? payment.invoices
+        : payment?.data?.invoices || [];
+      setPaymentsData({ invoices: invoicesArray });
       setBalanceData(balance);
-      setPlansData(plan);
-      setPaymentsData(payment);
+
+      const creditsArray = Array.isArray(creditPacks)
+        ? creditPacks
+        : creditPacks?.packages || creditPacks?.data || [];
+      setCreditPackages(creditsArray);
+
+      if (balance?.twilioAccess?.twilioAccessStatus === "APPROVED") {
+        setActiveBillingTab("credits");
+      }
     } catch (error) {
-      console.error("Dashboard fetch error:", error);
+      console.error("Billing fetch error:", error);
+      Toast.show({
+        type: "error",
+        text1: "Failed to load billing data",
+      });
     } finally {
       setLoading(false);
     }
@@ -177,37 +162,154 @@ export default function BillingPage() {
       const diffTime = end.getTime() - today.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      if (diffDays === 1) {
-        setIsOneDay(true);
-      } else {
-        setIsOneDay(false);
-      }
-
-      if (diffDays >= 0 && diffDays <= 3) {
-        setPremiumAlert(true);
-      } else {
-        setPremiumAlert(false);
-      }
+      setIsOneDay(diffDays === 1);
+      setPremiumAlert(diffDays >= 0 && diffDays <= 3);
     }
   }, [subscriptionData]);
 
-  const onRequestTwilio = async () => {
+  const handlePaymentRedirect = (actionName: string) => {
+    Alert.alert(
+      "Redirect to Web Dashboard",
+      `Payments cannot be processed directly through the mobile application. You will be redirected to the web dashboard to ${actionName}.`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Proceed",
+          onPress: () => {
+            Linking.openURL("https://campzeo.com/organisation/billing");
+          },
+        },
+      ],
+    );
+  };
+
+  const handleAutoRenewToggle = async (value: boolean) => {
+    setIsUpdatingAutoRenew(true);
     try {
-      const response = await requestTwilioAccess(reason);
-      // console.log("Response: ", response);
-      setReason("");
-      fetchBillingDetails();
+      await updateAutoRenew(value);
+      setAutoRenew(value);
       Toast.show({
         type: "success",
-        text1: "Request sent successfully!",
+        text1: "Auto-renew status updated successfully",
       });
+      // Refresh current subscription settings
+      const subscription = await getCurrentSubscription();
+      setSubscriptionData(subscription);
+      setAutoRenew(subscription?.subscription?.autoRenew || false);
     } catch (error) {
       Toast.show({
         type: "error",
-        text1: "Request failed!",
+        text1: "Failed to update auto-renew status",
       });
-      console.error("Request failed:", error);
+      console.error(error);
+    } finally {
+      setIsUpdatingAutoRenew(false);
     }
+  };
+
+  const onSubmitTwilioRequest = async () => {
+    if (!requestReason.trim()) {
+      Toast.show({
+        type: "error",
+        text1: "Please provide a reason for the request",
+      });
+      return;
+    }
+    setIsSubmittingTwilio(true);
+    try {
+      await requestTwilioAccess(requestReason);
+      setRequestReason("");
+      Toast.show({
+        type: "success",
+        text1: "Twilio access request submitted",
+      });
+      // reload
+      const balance = await getWalletBalance();
+      setBalanceData(balance);
+    } catch (error: any) {
+      Toast.show({
+        type: "error",
+        text1: error?.message || "Failed to submit request",
+      });
+    } finally {
+      setIsSubmittingTwilio(false);
+    }
+  };
+
+  const confirmCancellation = async () => {
+    if (cancelImmediately === null) {
+      setCancellationError(
+        "Please select when the cancellation should take effect",
+      );
+      return;
+    }
+    setIsCancelling(true);
+    setCancellationError(null);
+    try {
+      await cancelSubscription(cancelImmediately, cancellationReason);
+      Toast.show({
+        type: "success",
+        text1: "Subscription cancelled successfully",
+      });
+      setShowCancelModal(false);
+      fetchBillingDetails();
+    } catch (error: any) {
+      Toast.show({
+        type: "error",
+        text1: error?.message || "Failed to cancel subscription",
+      });
+      console.error(error);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const buildComparisonFromPlans = (plans: any[]) => {
+    const planOrder = ["FREE_TRIAL", "PROFESSIONAL", "ENTERPRISE"];
+    const activePlans = (plans || []).filter((p) => p?.isActive !== false);
+    const sortedPlans = [...activePlans].sort((a, b) => {
+      const ai = planOrder.indexOf(a.name);
+      const bi = planOrder.indexOf(b.name);
+      return (
+        (ai === -1 ? planOrder.length : ai) -
+        (bi === -1 ? planOrder.length : bi)
+      );
+    });
+
+    const featureNames = new Set<string>();
+    for (const plan of sortedPlans) {
+      (plan.features || []).forEach((feature: string) =>
+        featureNames.add(feature),
+      );
+    }
+  };
+
+  const getPlanDisplayLabel = (planName: string): string => {
+    switch (planName) {
+      case "FREE_TRIAL":
+        return "Free Trial";
+      case "PROFESSIONAL":
+        return "Professional";
+      case "ENTERPRISE":
+        return "Enterprise";
+      default:
+        return planName
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+  };
+
+  const formatCurrency = (amount: any): string => {
+    const num = Number(amount);
+    if (isNaN(num)) return "₹0";
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(num);
   };
 
   const formatDate = (dateString?: string) => {
@@ -222,1338 +324,1551 @@ export default function BillingPage() {
   const subscriptionValidity = (endDate: string) => {
     const today = new Date();
     const end = new Date(endDate);
-
     const diffTime = end.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays === 1 ? "1 day" : `${diffDays} days`;
+  };
 
-    if (diffDays === 1) {
-      return diffDays + " day";
-    } else {
-      return diffDays + " days";
+  const getPlatformIcon = (platform: string) => {
+    const name = platform?.toLowerCase() || "";
+    switch (name) {
+      case "facebook":
+        return "facebook";
+      case "instagram":
+        return "instagram";
+      case "linkedin":
+        return "linkedin";
+      case "youtube":
+        return "youtube-play";
+      case "pinterest":
+        return "pinterest";
+      case "twitter":
+        return "twitter";
+      default:
+        return "globe";
     }
   };
 
-  const cardStyle = {
-    backgroundColor: isDark ? "#020617" : "#ffffff",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: isDark ? "#1e293b" : "#e5e7eb",
+  const getPlatformColor = (platform: string) => {
+    const name = platform?.toLowerCase() || "";
+    switch (name) {
+      case "facebook":
+        return "#1877F2";
+      case "instagram":
+        return "#E4405F";
+      case "linkedin":
+        return "#0A66C2";
+      case "youtube":
+        return "#FF0000";
+      case "pinterest":
+        return "#E60023";
+      case "twitter":
+        return "#1DA1F2";
+      default:
+        return COLORS.textMuted;
+    }
   };
 
-  function SkeletonCard({ children }: { children: React.ReactNode }) {
-    return <ThemedView style={cardStyle}>{children}</ThemedView>;
-  }
+  const getPlatformBg = (platform: string) => {
+    const name = platform?.toLowerCase() || "";
+    switch (name) {
+      case "facebook":
+        return isDark ? "#172554" : "#eff6ff";
+      case "instagram":
+        return isDark ? "#4a044e" : "#fdf2f8";
+      case "linkedin":
+        return isDark ? "#172554" : "#eff6ff";
+      case "youtube":
+        return isDark ? "#450a0a" : "#fef2f2";
+      case "pinterest":
+        return isDark ? "#450a0a" : "#fef2f2";
+      case "twitter":
+        return isDark ? "#172554" : "#eff6ff";
+      default:
+        return isDark ? "#334155" : "#f1f5f9";
+    }
+  };
 
-  function Spacer({ h }: { h: number }) {
-    return <View style={{ height: h }} />;
-  }
+  const currentPlanName = subscriptionData?.subscription?.plan?.name || "";
+  const currentPlanPrice = subscriptionData?.subscription?.plan?.price || 0;
+  const isTrial =
+    subscriptionData?.subscription?.plan?.name === "FREE_TRIAL" ||
+    subscriptionData?.trial;
 
-  function BillingPageSkeleton() {
+  if (loading) {
     return (
-      <ThemedView className="flex-1 px-3 pt-16">
+      <ThemedView
+        className="flex-1 px-4 pt-16"
+        style={{ backgroundColor: COLORS.bg }}
+      >
         <ScrollView showsVerticalScrollIndicator={false}>
-          {/* HEADER */}
-          <HStack style={{ marginBottom: 24, alignItems: "center" }}>
-            <Pressable onPress={() => router.back()}>
-              <Ionicons
-                name="arrow-back-outline"
-                size={22}
-                color={isDark ? "#ffffff" : "#020617"}
-              />
-            </Pressable>
+          {/* SKELETON HEADER */}
+          <View className="flex-row items-center justify-between mb-6">
+            <ShimmerSkeleton width={40} height={40} borderRadius={20} />
+            <ShimmerSkeleton width={180} height={28} />
+            <View style={{ width: 40 }} />
+          </View>
 
-            <ThemedText
-              style={{
-                flex: 1,
-                fontSize: 24,
-                fontWeight: "700",
-                textAlign: "center",
-                lineHeight: 30,
-              }}
-            >
-              Billing & Subscription
-            </ThemedText>
-            {/* RIGHT: Spacer */}
-            <View style={{ width: 34 }} />
-          </HStack>
-
-          {/* USAGE Metrics CARD */}
-          <SkeletonCard>
-            <ShimmerSkeleton width={160} height={20} />
-            <Spacer h={10} />
-
-            {[1, 2, 3, 4, 5].map((i) => (
-              <View key={i} style={{ marginBottom: 14 }}>
-                <HStack style={{ justifyContent: "space-between" }}>
-                  <ShimmerSkeleton width={120} height={14} />
-                  <ShimmerSkeleton width={60} height={14} />
-                </HStack>
-                <Spacer h={6} />
-                <ShimmerSkeleton height={8} borderRadius={6} />
+          {/* SKELETON USAGE DETAILS */}
+          <View
+            className="p-5 rounded-2xl border mb-6"
+            style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}
+          >
+            <ShimmerSkeleton width={120} height={20} />
+            <View className="h-4" />
+            <ShimmerSkeleton width={160} height={14} />
+            <View className="h-6" />
+            {[1, 2, 3].map((i) => (
+              <View key={i} className="mb-4">
+                <View className="flex-row justify-between mb-2">
+                  <ShimmerSkeleton width={100} height={14} />
+                  <ShimmerSkeleton width={50} height={14} />
+                </View>
+                <ShimmerSkeleton height={8} borderRadius={4} />
               </View>
             ))}
-          </SkeletonCard>
+          </View>
 
-          {/* CURRENT SUBSCRIPTION */}
-          <SkeletonCard>
-            <HStack style={{ justifyContent: "space-between" }}>
-              <VStack>
-                <ShimmerSkeleton width={140} height={18} />
-                <Spacer h={6} />
-                <ShimmerSkeleton width={100} height={14} />
-              </VStack>
+          {/* SKELETON CURRENT PLAN */}
+          <View
+            className="p-5 rounded-2xl border mb-6"
+            style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}
+          >
+            <View className="flex-row justify-between items-start mb-6">
+              <View>
+                <ShimmerSkeleton width={140} height={22} />
+                <View className="h-2" />
+                <ShimmerSkeleton width={80} height={14} />
+              </View>
+              <ShimmerSkeleton width={70} height={22} borderRadius={11} />
+            </View>
+            <View className="flex-row gap-4 mb-4">
+              <View className="flex-1">
+                <ShimmerSkeleton width={80} height={14} />
+                <View className="h-2" />
+                <ShimmerSkeleton width={100} height={16} />
+              </View>
+              <View className="flex-1">
+                <ShimmerSkeleton width={80} height={14} />
+                <View className="h-2" />
+                <ShimmerSkeleton width={100} height={16} />
+              </View>
+            </View>
+          </View>
 
-              <ShimmerSkeleton width={80} height={14} />
-            </HStack>
-          </SkeletonCard>
-
-          {/* PAYMENT HISTORY */}
-          <ShimmerSkeleton width={200} height={24} />
-          <Spacer h={12} />
-
-          {[1, 2].map((i) => (
-            <SkeletonCard key={i}>
-              <HStack style={{ justifyContent: "space-between" }}>
-                <VStack>
-                  <ShimmerSkeleton width={120} height={16} />
-                  <Spacer h={6} />
-                  <ShimmerSkeleton width={90} height={12} />
-                </VStack>
-
-                <VStack style={{ alignItems: "flex-end" }}>
-                  <ShimmerSkeleton width={80} height={18} />
-                  <Spacer h={6} />
+          {/* SKELETON PAYMENTS */}
+          <ShimmerSkeleton width={120} height={20} />
+          <View className="h-4" />
+          <View
+            className="p-5 rounded-2xl border mb-6"
+            style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}
+          >
+            {[1, 2].map((i) => (
+              <View key={i} className="flex-row justify-between py-3">
+                <View>
+                  <ShimmerSkeleton width={100} height={16} />
+                  <View className="h-2" />
                   <ShimmerSkeleton width={70} height={12} />
-                </VStack>
-              </HStack>
-            </SkeletonCard>
-          ))}
+                </View>
+                <View className="items-end">
+                  <ShimmerSkeleton width={60} height={16} />
+                  <View className="h-2" />
+                  <ShimmerSkeleton width={50} height={12} />
+                </View>
+              </View>
+            ))}
+          </View>
         </ScrollView>
       </ThemedView>
     );
   }
-  if (loading) {
-    return <BillingPageSkeleton />;
-  }
 
   return (
-    <ThemedView className="flex-1 px-3 pt-16">
+    <ThemedView
+      className="flex-1 px-4 pt-16"
+      style={{ backgroundColor: COLORS.bg }}
+    >
       {/* HEADER */}
-      <HStack style={{ marginBottom: 24, alignItems: "center" }}>
-        <Pressable onPress={() => router.back()}>
-          <Ionicons
-            name="arrow-back-outline"
-            size={22}
-            color={isDark ? "#ffffff" : "#020617"}
-          />
+      <View className="flex-row items-center justify-between mb-6">
+        <Pressable onPress={() => router.back()} className="p-2">
+          <Ionicons name="arrow-back-outline" size={22} color={COLORS.text} />
         </Pressable>
 
-        <ThemedText
-          style={{
-            flex: 1,
-            fontSize: 24,
-            fontWeight: "700",
-            textAlign: "center",
-            lineHeight: 30,
-          }}
+        <Text
+          className="text-xl font-bold text-center flex-1 ml-2"
+          style={{ color: COLORS.text }}
         >
           Billing & Subscription
-        </ThemedText>
-        {/* RIGHT: Spacer */}
-        <View style={{ width: 34 }} />
-      </HStack>
+        </Text>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {subscriptionData?.subscription?.plan?.name != "FREE_TRIAL" &&
-        premiumAlert ? (
-          // isOneDay
-          // bg-[#fef2f2] border border-[#ffc9c9]
-          // bg-[#fff7ed] border border-[#fed7aa]
-          <VStack
-            className={`${isOneDay ? "bg-[#fef2f2] border border-[#ffc9c9]" : "bg-[#fff7ed] border border-[#fed7aa]"} rounded-xl p-3 gap-3 mb-3`}
+        <View className="flex-row gap-2">
+          <TouchableOpacity
+            onPress={() => router.push("/(tabs)/invoices")}
+            className="flex-row items-center gap-1.5 px-3 py-1.5 border rounded-lg"
+            style={{ borderColor: COLORS.border, backgroundColor: COLORS.card }}
           >
-            <HStack className="items-start gap-2">
-              {/* Icon */}
-              <Ionicons
-                name="warning-outline"
-                size={20}
-                color={isOneDay ? "#e7000b" : "#ea580c"}
-              />
+            <FileText size={14} color={COLORS.text} />
+            <Text
+              className="text-xs font-semibold"
+              style={{ color: COLORS.text }}
+            >
+              Invoices
+            </Text>
+          </TouchableOpacity>
 
-              {/* Text Content */}
-              <VStack className="flex-1 gap-1">
+          {/* <TouchableOpacity
+            onPress={() => setShowComparePlans(true)}
+            className="flex-row items-center gap-1.5 px-3 py-1.5 border rounded-lg"
+            style={{ borderColor: COLORS.border, backgroundColor: COLORS.card }}
+          >
+            <ArrowLeftRight size={14} color={COLORS.text} />
+            <Text className="text-xs font-semibold" style={{ color: COLORS.text }}>Compare</Text>
+          </TouchableOpacity> */}
+        </View>
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
+        {/* EXPIRING ALERT */}
+        {currentPlanName !== "FREE_TRIAL" && premiumAlert && (
+          <View
+            className={`rounded-xl p-4 gap-3 mb-4 border ${
+              isOneDay
+                ? "bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-900/30"
+                : "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900/30"
+            }`}
+          >
+            <View className="flex-row items-start gap-2">
+              <AlertCircle
+                size={20}
+                color={isOneDay ? "#dc2626" : "#f59e0b"}
+                style={{ marginTop: 1 }}
+              />
+              <View className="flex-1">
                 <Text
-                  className={`text-[14px] font-semibold ${isOneDay ? "text-[#9f0712]" : "text-[#9a3412]"}`}
+                  className={`text-sm font-semibold ${
+                    isOneDay
+                      ? "text-red-900 dark:text-red-400"
+                      : "text-amber-900 dark:text-amber-400"
+                  }`}
                 >
                   Plan Expiring Soon
                 </Text>
-
                 <Text
-                  className={`text-[13px] ${isOneDay ? "text-[#9f0712]" : "text-[#7c2d12]"} leading-5`}
+                  className={`text-xs mt-1 leading-5 ${
+                    isOneDay
+                      ? "text-red-700 dark:text-red-300"
+                      : "text-amber-700 dark:text-amber-300"
+                  }`}
                 >
-                  Your{" "}
-                  <Text className="font-semibold">
-                    {subscriptionData?.subscription?.plan?.name ?? "—"}
-                  </Text>{" "}
-                  plan expires in{" "}
-                  <Text className="font-semibold">
+                  Your <Text className="font-semibold">{currentPlanName}</Text>
+                  plan expires in
+                  <Text className="font-bold">
                     {subscriptionValidity(
                       subscriptionData?.subscription?.endDate,
                     )}
-                  </Text>{" "}
-                  on{" "}
+                  </Text>
+                  on
                   <Text className="font-semibold">
                     {formatDate(subscriptionData?.subscription?.endDate)}
                   </Text>
-                  . Please renew your subscription to maintain full access to
-                  all features.
+                  . Please renew your subscription to maintain full access.
                 </Text>
-              </VStack>
-            </HStack>
-            {/* Button */}
+              </View>
+            </View>
+
             <TouchableOpacity
-              onPress={() => {
-                Linking.openURL("https://campzeo.com/organisation/billing");
-              }}
-              className={`isOneDay ? bg-[#dc2626] : bg-[#e17100] py-3 rounded-lg items-center`}
+              onPress={() => handlePaymentRedirect("renew your subscription")}
+              className={`py-3 rounded-lg items-center flex-row justify-center gap-2 ${
+                isOneDay ? "bg-red-600" : "bg-amber-600"
+              }`}
               activeOpacity={0.8}
             >
-              <Text className="text-white font-semibold text-lg gap-5 items-center">
-                <Ionicons name="card" size={15} color="#fff" /> Pay Now & Renew
+              <Ionicons name="card" size={16} color="#fff" />
+              <Text className="text-white font-semibold text-sm">
+                Pay Now & Renew
               </Text>
             </TouchableOpacity>
-          </VStack>
-        ) : (
-          ""
-        )}
-        {/* Top Row */}
-
-        {subscriptionData?.subscription?.plan?.name === "FREE_TRIAL" && (
-          <ThemedView style={cardStyle}>
-            <HStack
-              style={{ justifyContent: "space-between", alignItems: "center" }}
-            >
-              <HStack className="gap-2 items-start">
-                <Ionicons
-                  name="time"
-                  size={22}
-                  color={isDark ? "#ffffff" : "#020617"}
-                />
-                <VStack>
-                  <ThemedText style={{ fontSize: 15, fontWeight: "700" }}>
-                    {subscriptionData?.subscription?.plan?.price > 0
-                      ? "₹" + subscriptionData?.subscription?.plan?.price
-                      : "Free Trial"}
-                    - 12 Days Remaining
-                  </ThemedText>
-                  <ThemedText style={{ fontSize: 13, color: MUTED }}>
-                    Your trial ends on{" "}
-                    {formatDate(subscriptionData?.subscription?.endDate)}.
-                  </ThemedText>
-                  <ThemedText></ThemedText>
-                </VStack>
-              </HStack>
-
-              <ThemedText
-                style={{
-                  fontSize: 12,
-                  fontWeight: "600",
-                  color:
-                    subscriptionData?.subscription?.status === "ACTIVE"
-                      ? ACCENT
-                      : "#6b7280",
-                }}
-              >
-                {subscriptionData?.subscription?.status ?? "—"}
-              </ThemedText>
-            </HStack>
-          </ThemedView>
+          </View>
         )}
 
-        {/* ================= USAGE Metrics ================= */}
-        <ThemedView style={cardStyle}>
-          <ThemedText style={{ fontSize: 20, fontWeight: "600" }}>
-            Usage Metrics
-          </ThemedText>
-
-          <ThemedText
-            style={{
-              fontSize: 13,
-              color: MUTED,
-              marginBottom: 12,
-            }}
+        {/* TRIAL REMAINING */}
+        {currentPlanName === "FREE_TRIAL" && (
+          <View
+            className="p-4 rounded-xl border mb-4 flex-row items-center justify-between"
+            style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}
           >
-            Current usage and performance
-          </ThemedText>
-
-          {[
-            { label: "Campaigns", key: "campaigns" },
-            { label: "Contacts", key: "contacts" },
-            // { label: "Team Members", key: "users" },
-            {
-              label: "Connected Platforms",
-              key: "platforms",
-              showInfo: true,
-              showPills: true,
-              suffix: " connected",
-            },
-            { label: "Posts This Month", key: "postsThisMonth", isTrend: true },
-          ].map(({ label, key, showInfo, showPills, suffix, isTrend }) => {
-            const item = usageData?.usage?.[key];
-
-            const current = item?.current ?? 0;
-            const limit = item?.limit ?? 0;
-            const percentage =
-              item?.percentage ??
-              (limit > 0 ? Math.round((current / limit) * 100) : 0);
-
-            if (isTrend) {
-              return (
-                <View key={key} style={{ marginTop: 12 }}>
-                  <HStack
-                    style={{
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <VStack>
-                      <ThemedText style={{ fontSize: 14, fontWeight: "500" }}>
-                        {label}
-                      </ThemedText>
-                      <ThemedText style={{ fontSize: 12, color: MUTED }}>
-                        vs {item?.lastMonth ?? 0} last month
-                      </ThemedText>
-                    </VStack>
-
-                    <HStack style={{ alignItems: "center", gap: 8 }}>
-                      <ThemedText style={{ fontSize: 24, fontWeight: "700" }}>
-                        {current}
-                      </ThemedText>
-                      <Box
-                        style={{
-                          backgroundColor: "#e8f5e9",
-                          paddingHorizontal: 6,
-                          paddingVertical: 4,
-                          borderRadius: 6,
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 2,
-                        }}
-                      >
-                        <Ionicons
-                          name="trending-up"
-                          size={14}
-                          color="#2e7d32"
-                        />
-                        <ThemedText
-                          style={{
-                            color: "#2e7d32",
-                            fontSize: 12,
-                            fontWeight: "600",
-                          }}
-                        >
-                          {usageData
-                            ? usageData?.usage?.postsThisMonth?.growth + "%"
-                            : "0%"}{" "}
-                          up
-                        </ThemedText>
-                      </Box>
-                    </HStack>
-                  </HStack>
-                </View>
-              );
-            }
-
-            return (
-              <VStack key={key} style={{ marginBottom: 16 }}>
-                <HStack style={{ justifyContent: "space-between" }}>
-                  <HStack style={{ alignItems: "center", gap: 4 }}>
-                    <ThemedText style={{ fontSize: 14, fontWeight: "500" }}>
-                      {label}
-                    </ThemedText>
-                    {/* {showInfo && (
-                      <Ionicons
-                        name="information-circle-outline"
-                        size={14}
-                        color={MUTED}
-                      />
-                    )} */}
-                  </HStack>
-
-                  <ThemedText style={{ fontSize: 13, color: MUTED }}>
-                    {current} / {limit}
-                    {suffix || ` (${percentage}% used)`}
-                  </ThemedText>
-                </HStack>
-
-                <Center style={{ marginTop: 8 }}>
-                  <Progress value={percentage} size="sm">
-                    <ProgressFilledTrack
-                      style={{
-                        backgroundColor: current < limit ? SUCCESS : ACCENT,
-                        overflow: "hidden",
-                      }}
-                    />
-                  </Progress>
-                </Center>
-
-                {showPills && usageData?.usage?.platforms?.connectedNames && (
-                  <HStack style={{ marginTop: 10, gap: 8, flexWrap: "wrap" }}>
-                    {usageData?.usage?.platforms?.connectedNames.map(
-                      (name: string) => {
-                        const platformColors: Record<
-                          string,
-                          { bg: string; text: string }
-                        > = {
-                          Facebook: { bg: "#b2c8f7ff", text: "#2563eb" },
-                          Instagram: { bg: "#f7b2e0ff", text: "#c6005c" },
-                          LinkedIn: { bg: "#b2bff7ff", text: "#2d63d7ff" },
-                          YouTube: { bg: "#f7b2b2ff", text: "#c10007" },
-                          Pinterest: { bg: "#f7d1b2ff", text: "#c70036" },
-                        };
-                        const colors = platformColors[name] || {
-                          bg: "#e2e8f0",
-                          text: "#64748b",
-                        };
-
-                        return (
-                          <Box
-                            key={name}
-                            style={{
-                              alignItems: "center",
-                              justifyContent: "center",
-                              borderRadius: 20,
-                              paddingHorizontal: 10,
-                              paddingVertical: 4,
-                              backgroundColor: colors.bg,
-                            }}
-                          >
-                            <HStack style={{ alignItems: "center", gap: 4 }}>
-                              <Ionicons
-                                name={
-                                  name == "Facebook"
-                                    ? "logo-facebook"
-                                    : name == "Instagram"
-                                      ? "logo-instagram"
-                                      : name == "LinkedIn"
-                                        ? "logo-linkedin"
-                                        : name == "YouTube"
-                                          ? "logo-youtube"
-                                          : name == "Pinterest"
-                                            ? "logo-pinterest"
-                                            : "" as any
-                                }
-                                size={14}
-                                color={colors.text}
-                              />
-                              <ThemedText
-                                style={{
-                                  fontSize: 11,
-                                  fontWeight: "600",
-                                  color: colors.text,
-                                }}
-                              >
-                                {name}
-                              </ThemedText>
-                            </HStack>
-                          </Box>
-                        );
-                      },
-                    )}
-                  </HStack>
-                )}
-              </VStack>
-            );
-          })}
-        </ThemedView>
-
-        {/* ================= CURRENT SUBSCRIPTION ================= */}
-        <ThemedView style={cardStyle}>
-          <HStack style={{ justifyContent: "space-between" }}>
-            <VStack>
-              <ThemedText style={{ fontSize: 20, fontWeight: "600" }}>
-                {subscriptionData?.subscription?.plan?.name ?? "—"} Plan
-              </ThemedText>
-
-              <ThemedText style={{ fontSize: 14 }}>
-                <ThemedText>
-                  {subscriptionData?.subscription?.plan?.price > 0
-                    ? "₹" + subscriptionData?.subscription?.plan?.price
-                    : "Free"}
-                </ThemedText>
-                / MONTHLY
-              </ThemedText>
-            </VStack>
-
-            <ThemedText
-              style={{
-                fontSize: 12,
-                fontWeight: "600",
-                color:
-                  subscriptionData?.subscription?.status === "ACTIVE"
-                    ? ACCENT
-                    : "#6b7280",
-              }}
-            >
-              {subscriptionData?.subscription?.status ?? "—"}
-            </ThemedText>
-          </HStack>
-
-          <Divider style={{ marginVertical: 12 }} />
-
-          <HStack style={{ justifyContent: "space-between" }}>
-            <VStack>
-              <ThemedText style={{ fontSize: 13, color: MUTED }}>
-                Start Date
-              </ThemedText>
-              <ThemedText>
-                {formatDate(subscriptionData?.subscription?.startDate)}
-              </ThemedText>
-            </VStack>
-
-            {subscriptionData?.subscription?.plan?.price > 0 ? (
-              <VStack>
-                <ThemedText style={{ fontSize: 13, color: MUTED }}>
-                  Next Billing
-                </ThemedText>
-                <ThemedText>
-                  {formatDate(subscriptionData?.subscription?.renewalDate)}
-                </ThemedText>
-              </VStack>
-            ) : null}
-          </HStack>
-
-          {/* AUTO RENEW */}
-          {/* <HStack
-            style={{
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginTop: 12,
-            }}
-          >
-            <ThemedText style={{ fontSize: 14 }}>Auto-Renew</ThemedText>
-
-            <Switch
-              size="md"
-              isDisabled={false}
-              value={autoRenew}
-              onValueChange={handleAutoRenew}
-              // isChecked={subscriptionData?.subscription?.autoRenew ?? false}
-              trackColor={{
-                false: "#d4d4d4",
-                true: ACCENT,
-              }}
-              thumbColor="#ffffff"
-            />
-          </HStack> */}
-
-          {/* <ThemedText
-            style={{
-              fontSize: 13,
-              color: MUTED,
-              marginTop: 4,
-            }}
-          >
-            Automatically renew the subscription at the end of your billing
-            period
-          </ThemedText> */}
-
-          {/* <Pressable
-            style={{
-              marginTop: 16,
-              paddingVertical: 10,
-              borderRadius: 10,
-              borderWidth: 1,
-              borderColor: "#ef4444",
-            }}
-            onPress={() => setShowModal(true)}
-          >
-            <ThemedText
-              style={{
-                textAlign: "center",
-                fontSize: 14,
-                fontWeight: "500",
-                color: "#ef4444",
-              }}
-            >
-              Cancel Subscription
-            </ThemedText>
-          </Pressable> */}
-
-          {/* <Modal
-            isOpen={showModal}
-            onClose={() => setShowModal(false)}
-            size="lg"
-          >
-            <ModalBackdrop />
-
-            <ModalContent>
-              <ModalHeader>
-                <HStack
-                  style={{
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
+            <View className="flex-row items-start gap-2 flex-1 mr-2">
+              <Clock size={20} color={COLORS.text} style={{ marginTop: 1 }} />
+              <View>
+                <Text
+                  className="text-sm font-bold"
+                  style={{ color: COLORS.text }}
                 >
-                  <VStack style={{ gap: 6 }}>
-                    <ThemedText
-                      style={{
-                        fontSize: 18,
-                        fontWeight: "700",
-                        color: "#020617",
-                      }}
-                    >
-                      Cancel Subscription
-                    </ThemedText>
-
-                    <ThemedText
-                      style={{
-                        fontSize: 13,
-                        color: "#6b7280",
-                        lineHeight: 18,
-                      }}
-                    >
-                      Are you sure you want to cancel{" "}
-                      {subscriptionData?.subscription?.plan?.name ?? "—"} This
-                      will affect your access to features.
-                    </ThemedText>
-                  </VStack>
-                </HStack>
-              </ModalHeader>
-
-              <ModalBody>
-                <ThemedView
-                  style={{
-                    flexDirection: "row",
-                    gap: 10,
-                    padding: 12,
-                    borderRadius: 12,
-                    backgroundColor: "#fff7ed",
-                    borderWidth: 1,
-                    borderColor: "#fed7aa",
-                    marginBottom: 16,
-                  }}
-                >
-                  <AlertTriangle size={20} color="#dc2626" />
-
-                  <ThemedText
-                    style={{
-                      fontSize: 13,
-                      color: "#9a3412",
-                      lineHeight: 18,
-                      flex: 1,
-                    }}
-                  >
-                    Cancelling your subscription will result in loss of access
-                    to premium features.
-                  </ThemedText>
-                </ThemedView>
-
-                <ThemedText
-                  style={{
-                    fontSize: 14,
-                    fontWeight: "600",
-                    marginBottom: 10,
-                    color: "#020617",
-                  }}
-                >
-                  When should the cancellation take effect?
-                </ThemedText>
-
-                <RadioGroup>
-                  <Radio
-                    value="end"
-                    onPress={() =>
-                      setValue("cancelImmediately", false, {
-                        shouldValidate: true,
-                      })
-                    }
-                  >
-                    <HStack style={{ gap: 10, marginBottom: 14 }}>
-                      <RadioIndicator
-                        style={{
-                          borderColor: "#dc2626",
-                          borderWidth: 2,
-                          width: 18,
-                          height: 18,
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <RadioIcon
-                          style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: 4,
-                            backgroundColor: "#dc2626",
-                          }}
-                        />
-                      </RadioIndicator>
-
-                      <VStack>
-                        <ThemedText
-                          style={{
-                            fontSize: 14,
-                            fontWeight: "600",
-                            color: "#020617",
-                          }}
-                        >
-                          At the end of billing period
-                        </ThemedText>
-
-                        <ThemedText
-                          style={{
-                            fontSize: 12,
-                            color: "#6b7280",
-                            lineHeight: 16,
-                          }}
-                        >
-                          You'll retain access until your subscription ends
-                        </ThemedText>
-                      </VStack>
-                    </HStack>
-                  </Radio>
-
-                  <Radio
-                    value="immediate"
-                    onPress={() =>
-                      setValue("cancelImmediately", true, {
-                        shouldValidate: true,
-                      })
-                    }
-                  >
-                    <HStack style={{ gap: 10, marginBottom: 18 }}>
-                      <RadioIndicator
-                        style={{
-                          borderColor: "#dc2626",
-                          borderWidth: 2,
-                          width: 18,
-                          height: 18,
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <RadioIcon
-                          style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: 4,
-                            backgroundColor: "#dc2626",
-                          }}
-                        />
-                      </RadioIndicator>
-
-                      <VStack>
-                        <ThemedText
-                          style={{
-                            fontSize: 14,
-                            fontWeight: "600",
-                            color: "#020617",
-                          }}
-                        >
-                          Immediately
-                        </ThemedText>
-
-                        <ThemedText
-                          style={{
-                            fontSize: 12,
-                            color: "#6b7280",
-                            lineHeight: 16,
-                          }}
-                        >
-                          Your access will be revoked right away
-                        </ThemedText>
-                      </VStack>
-                    </HStack>
-                  </Radio>
-                </RadioGroup>
-
-                {errors.cancelImmediately && (
-                  <ThemedText
-                    style={{
-                      color: "#dc2626",
-                      fontSize: 12,
-                      marginTop: 3,
-                    }}
-                  >
-                    {errors.cancelImmediately.message}
-                  </ThemedText>
-                )}
-
-                <VStack style={{ gap: 6 }}>
-                  <ThemedText
-                    style={{
-                      fontSize: 14,
-                      fontWeight: "600",
-                      color: "#020617",
-                    }}
-                  >
-                    Reason for cancellation (optional)
-                  </ThemedText>
-
-                  <Controller
-                    control={control}
-                    name="reason"
-                    render={({ field }) => (
-                      <Textarea>
-                        <TextareaInput
-                          placeholder="Let us know why you are cancelling..."
-                          value={field.value}
-                          onChangeText={field.onChange}
-                        />
-                      </Textarea>
-                    )}
-                  />
-                </VStack>
-              </ModalBody>
-
-              <ModalFooter>
-                <HStack className="gap-3">
-                  <Pressable
-                    onPress={() => setShowModal(false)}
-                    style={{
-                      paddingVertical: 10,
-                      paddingHorizontal: 14,
-                      borderRadius: 10,
-                      borderWidth: 1,
-                      borderColor: "#e5e7eb",
-                    }}
-                  >
-                    <ThemedText
-                      style={{
-                        fontSize: 14,
-                        fontWeight: "500",
-                        color: "#374151",
-                      }}
-                    >
-                      Keep Subscription
-                    </ThemedText>
-                  </Pressable>
-
-                  <Pressable
-                    onPress={handleSubmit(onSubmit)}
-                    style={{
-                      paddingVertical: 10,
-                      paddingHorizontal: 14,
-                      borderRadius: 10,
-                      backgroundColor: "#dc2626",
-                    }}
-                  >
-                    <ThemedText
-                      style={{
-                        fontSize: 14,
-                        fontWeight: "600",
-                        color: "#ffffff",
-                      }}
-                    >
-                      Confirm Cancellation
-                    </ThemedText>
-                  </Pressable>
-                </HStack>
-              </ModalFooter>
-            </ModalContent>
-          </Modal> */}
-        </ThemedView>
-        {/*         {/* Request form */}
-        {balanceData?.twilioAccess?.twilioAccessStatus === "REJECTED" && (
-          <VStack className="bg-white border border-gray-200 rounded-xl p-4 gap-4">
-            {/* Header */}
-            <HStack className="justify-between items-center">
-              <HStack className="items-center gap-2">
-                <Ionicons
-                  name="paper-plane-outline"
-                  size={20}
-                  color="#991b1b"
-                />
-                <Text className="text-[16px] font-semibold text-gray-900">
-                  Request Twilio Access
+                  Free Trial Account
                 </Text>
-              </HStack>
-              balanceData?.twilioAccess?.twilioAccessReason == true && (
-              <Box
-                style={{
-                  backgroundColor: "#dc2626",
-                  padding: 5,
-                  borderRadius: 10,
-                }}
+                <Text
+                  className="text-xs mt-1"
+                  style={{ color: COLORS.textMuted }}
+                >
+                  Ends on {formatDate(subscriptionData?.subscription?.endDate)}
+                </Text>
+              </View>
+            </View>
+            <Text
+              className="text-xs font-bold uppercase px-2 py-0.5 rounded bg-gray-200 dark:bg-slate-700"
+              style={{ color: COLORS.text }}
+            >
+              {subscriptionData?.subscription?.status ?? "Active"}
+            </Text>
+          </View>
+        )}
+
+        {/* USAGE DETAILS SECTION */}
+        <View
+          className="p-5 rounded-2xl border mb-6"
+          style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}
+        >
+          <View className="mb-4">
+            <Text className="text-lg font-bold" style={{ color: COLORS.text }}>
+              Usage Details
+            </Text>
+            <Text className="text-xs mt-1" style={{ color: COLORS.textMuted }}>
+              Detailed breakdown of your usage and limits
+            </Text>
+          </View>
+
+          {/* Monthly Posts */}
+          <View className="mb-4">
+            <View className="flex-row justify-between items-center mb-1">
+              <Text
+                className="text-xs font-bold"
+                style={{ color: COLORS.text }}
               >
-                <Text className="text-white">Rejected</Text>
-              </Box>
-              )
-            </HStack>
-
-            {/* Description */}
-            <Text className="text-[14px] text-gray-600 leading-5">
-              Apply for SMS and WhatsApp campaign access. Please describe your
-              use case briefly.
-            </Text>
-
-            <Box
-              style={{
-                backgroundColor: "#ffe2e2",
-                padding: 10,
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: "#ffe2e2",
-              }}
-            >
-              <HStack className="gap-3">
-                <Ionicons
-                  name="alert-circle-outline"
-                  size={20}
-                  color="#991b1b"
-                />
-                <VStack>
-                  <Text
-                    className="text-xl font-semibold"
-                    style={{ color: "#9f0712" }}
-                  >
-                    Request Rejected
-                  </Text>
-                  <Text className="text-sm" style={{ color: "#9f0712" }}>
-                    {balanceData?.twilioAccess?.twilioAccessReason}
-                  </Text>
-                </VStack>
-              </HStack>
-            </Box>
-
-            {/* Label */}
-            <Text className="text-[12px] font-semibold text-gray-700 uppercase">
-              Reason for Request
-            </Text>
-
-            {/* Text Area */}
-            <TextInput
-              multiline
-              numberOfLines={4}
-              value={reason}
-              onChangeText={setReason}
-              placeholder="e.g. I want to send promotional SMS and WhatsApp updates to my 5000+ customer base."
-              placeholderTextColor="#9ca3af"
-              className="border rounded-lg p-3 text-[14px] text-gray-900"
-              style={{
-                borderColor: "#dc2626",
-                borderWidth: 1,
-                textAlignVertical: "top", // important for Android
-                minHeight: 100,
-              }}
-            />
-
-            {/* Submit Button */}
-            <TouchableOpacity
-              onPress={() => onRequestTwilio()}
-              className="bg-[#e58a8a] py-3 rounded-lg items-center"
-              style={{ backgroundColor: "#dc2626" }}
-              activeOpacity={0.8}
-            >
-              <Text className="text-white font-semibold text-[15px]">
-                Submit Request
+                Monthly Posts
               </Text>
-            </TouchableOpacity>
-          </VStack>
-        )}
-
-        {/* Pending */}
-        {balanceData?.twilioAccess?.twilioAccessStatus === "PENDING" && (
-          <VStack
-            className="rounded-xl p-4 gap-4"
-            style={{
-              borderColor: "#dbeafe",
-              borderWidth: 1,
-              backgroundColor: "#eff6ff",
-            }}
-          >
-            {/* Header */}
-            <HStack className="justify-between items-center">
-              {/* Left */}
-              <HStack className="items-center gap-2">
-                <Ionicons name="time-outline" size={20} color="#2563eb" />
-                <Text className="text-[16px] font-semibold text-gray-900">
-                  Access Request Pending
-                </Text>
-              </HStack>
-
-              {/* Badge */}
+              <Text className="text-xs" style={{ color: COLORS.textMuted }}>
+                {usageData?.usage?.postsThisMonth?.current || 0} (vs
+                {usageData?.usage?.postsThisMonth?.lastMonth || 0} last month)
+              </Text>
+            </View>
+            <View className="flex-row items-center gap-2">
+              <Text
+                className="text-2xl font-bold"
+                style={{ color: COLORS.text }}
+              >
+                {usageData?.usage?.postsThisMonth?.current || 0}
+              </Text>
               <View
-                className="px-3 py-1 rounded-full border border-[#93c5fd] bg-[#e0edff]"
+                className="flex-row items-center px-1.5 py-0.5 rounded"
                 style={{
-                  borderColor: "#dbeafe",
-                  borderWidth: 1,
-                  backgroundColor: "#eff6ff",
+                  backgroundColor:
+                    (usageData?.usage?.postsThisMonth?.growth || 0) >= 0
+                      ? "#d1fae5"
+                      : "#fee2e2",
+                }}
+              >
+                {(usageData?.usage?.postsThisMonth?.growth || 0) >= 0 ? (
+                  <ArrowUp size={10} color="#065f46" />
+                ) : (
+                  <ArrowDown size={10} color="#991b1b" />
+                )}
+                <Text
+                  className="text-[10px] font-bold ml-0.5"
+                  style={{
+                    color:
+                      (usageData?.usage?.postsThisMonth?.growth || 0) >= 0
+                        ? "#065f46"
+                        : "#991b1b",
+                  }}
+                >
+                  {Math.abs(usageData?.usage?.postsThisMonth?.growth || 0)}%
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View
+            className="h-[1px] w-full my-4"
+            style={{ backgroundColor: COLORS.border }}
+          />
+
+          {/* Total Contacts */}
+          <View className="mb-4">
+            <View className="flex-row justify-between items-center mb-2">
+              <Text
+                className="text-xs font-bold"
+                style={{ color: COLORS.text }}
+              >
+                Total Contacts
+              </Text>
+              <Text className="text-xs" style={{ color: COLORS.textMuted }}>
+                {usageData?.usage?.contacts?.current || 0} /
+                {usageData?.usage?.contacts?.limit || 0}
+              </Text>
+            </View>
+            <View
+              className="h-2 w-full rounded-full overflow-hidden"
+              style={{ backgroundColor: isDark ? "#334155" : "#e2e8f0" }}
+            >
+              <View
+                className="h-full rounded-full"
+                style={{
+                  width: `${Math.min(
+                    ((usageData?.usage?.contacts?.current || 0) /
+                      (usageData?.usage?.contacts?.limit || 1)) *
+                      100,
+                    100,
+                  )}%`,
+                  backgroundColor:
+                    (usageData?.usage?.contacts?.current || 0) >=
+                    (usageData?.usage?.contacts?.limit || 0)
+                      ? COLORS.accent
+                      : COLORS.success,
+                }}
+              />
+            </View>
+          </View>
+
+          <View
+            className="h-[1px] w-full my-4"
+            style={{ backgroundColor: COLORS.border }}
+          />
+
+          {/* Campaigns */}
+          <View className="mb-4">
+            <View className="flex-row justify-between items-center mb-2">
+              <Text
+                className="text-xs font-bold"
+                style={{ color: COLORS.text }}
+              >
+                Campaigns
+              </Text>
+              <Text className="text-xs" style={{ color: COLORS.textMuted }}>
+                {usageData?.usage?.campaigns?.current || 0} /
+                {usageData?.usage?.campaigns?.limit || 0}
+              </Text>
+            </View>
+            <View
+              className="h-2 w-full rounded-full overflow-hidden"
+              style={{ backgroundColor: isDark ? "#334155" : "#e2e8f0" }}
+            >
+              <View
+                className="h-full rounded-full"
+                style={{
+                  width: `${Math.min(
+                    ((usageData?.usage?.campaigns?.current || 0) /
+                      (usageData?.usage?.campaigns?.limit || 1)) *
+                      100,
+                    100,
+                  )}%`,
+                  backgroundColor:
+                    (usageData?.usage?.campaigns?.current || 0) >=
+                    (usageData?.usage?.campaigns?.limit || 0)
+                      ? COLORS.accent
+                      : COLORS.success,
+                }}
+              />
+            </View>
+          </View>
+
+          <View
+            className="h-[1px] w-full my-4"
+            style={{ backgroundColor: COLORS.border }}
+          />
+
+          {/* Connected Platforms */}
+          <View>
+            <View className="flex-row justify-between items-center mb-2">
+              <Text
+                className="text-xs font-bold"
+                style={{ color: COLORS.text }}
+              >
+                Connected Platforms
+              </Text>
+              <Text className="text-xs" style={{ color: COLORS.textMuted }}>
+                {usageData?.usage?.platforms?.current || 0} /
+                {usageData?.usage?.platforms?.limit || 0}
+              </Text>
+            </View>
+            <View
+              className="h-2 w-full rounded-full overflow-hidden mb-4"
+              style={{ backgroundColor: isDark ? "#334155" : "#e2e8f0" }}
+            >
+              <View
+                className="h-full rounded-full"
+                style={{
+                  width: `${Math.min(
+                    ((usageData?.usage?.platforms?.current || 0) /
+                      (usageData?.usage?.platforms?.limit || 1)) *
+                      100,
+                    100,
+                  )}%`,
+                  backgroundColor:
+                    (usageData?.usage?.platforms?.current || 0) >=
+                    (usageData?.usage?.platforms?.limit || 0)
+                      ? COLORS.accent
+                      : COLORS.success,
+                }}
+              />
+            </View>
+
+            {usageData?.usage?.platforms?.connectedNames?.length > 0 && (
+              <View className="flex-row flex-wrap gap-2 mt-2">
+                {usageData.usage.platforms.connectedNames.map(
+                  (platform: string, index: number) => (
+                    <View
+                      key={index}
+                      className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full border shadow-sm"
+                      style={{
+                        borderColor: COLORS.border,
+                        backgroundColor: getPlatformBg(platform),
+                      }}
+                    >
+                      <FontAwesome
+                        name={getPlatformIcon(platform)}
+                        size={12}
+                        color={getPlatformColor(platform)}
+                      />
+                      <Text
+                        className="text-[10px] font-bold uppercase tracking-wider"
+                        style={{ color: COLORS.text }}
+                      >
+                        {platform}
+                      </Text>
+                    </View>
+                  ),
+                )}
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* CURRENT PLAN SECTION */}
+        {subscriptionData && (
+          <View
+            className="p-5 rounded-2xl border mb-6"
+            style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}
+          >
+            <View className="flex-row justify-between items-start mb-6">
+              <View>
+                <Text
+                  className="text-2xl font-bold"
+                  style={{ color: COLORS.text }}
+                >
+                  {subscriptionData?.subscription?.plan?.name ||
+                    "Standard Plan"}
+                </Text>
+                <Text
+                  className="text-sm font-semibold mt-1"
+                  style={{ color: COLORS.textMuted }}
+                >
+                  {formatCurrency(currentPlanPrice)}/monthly
+                </Text>
+              </View>
+              <View className="bg-red-600 px-3 py-1 rounded-full">
+                <Text className="text-white text-xs font-bold uppercase tracking-widest">
+                  {subscriptionData?.subscription?.status || "Active"}
+                </Text>
+              </View>
+            </View>
+
+            <View className="flex-row gap-6 mb-6">
+              <View className="flex-1 flex-row items-center gap-2.5">
+                <View
+                  className="p-2 rounded-lg"
+                  style={{ backgroundColor: isDark ? "#334155" : "#f1f5f9" }}
+                >
+                  <Calendar size={18} color={COLORS.textMuted} />
+                </View>
+                <View>
+                  <Text
+                    className="text-[10px] font-bold uppercase tracking-wider"
+                    style={{ color: COLORS.textMuted }}
+                  >
+                    Start Date
+                  </Text>
+                  <Text
+                    className="text-xs font-semibold mt-0.5"
+                    style={{ color: COLORS.text }}
+                  >
+                    {formatDate(subscriptionData?.subscription?.startDate)}
+                  </Text>
+                </View>
+              </View>
+
+              <View className="flex-1 flex-row items-center gap-2.5">
+                <View
+                  className="p-2 rounded-lg"
+                  style={{ backgroundColor: isDark ? "#334155" : "#f1f5f9" }}
+                >
+                  <Calendar size={18} color={COLORS.textMuted} />
+                </View>
+                <View>
+                  <Text
+                    className="text-[10px] font-bold uppercase tracking-wider"
+                    style={{ color: COLORS.textMuted }}
+                  >
+                    Next Billing Date
+                  </Text>
+                  <Text
+                    className="text-xs font-semibold mt-0.5"
+                    style={{ color: COLORS.text }}
+                  >
+                    {formatDate(subscriptionData?.subscription?.endDate)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+
+        <View className="mb-6 gap-6">
+          {isTrial ? (
+            <View className="p-5 rounded-2xl border bg-amber-50/20 border-amber-200 dark:bg-amber-950/10 dark:border-amber-900/30">
+              <View className="flex-row items-start gap-2.5 mb-2">
+                <AlertCircle
+                  size={20}
+                  color="#d97706"
+                  style={{ marginTop: 1 }}
+                />
+                <View className="flex-1">
+                  <Text className="text-base font-bold text-amber-950 dark:text-amber-400">
+                    Access Restricted
+                  </Text>
+                  <Text className="text-xs text-amber-800 dark:text-amber-300 mt-1 leading-5">
+                    SMS and WhatsApp messaging is not available for free trial
+                    accounts.
+                  </Text>
+                </View>
+              </View>
+              <Text className="text-xs text-amber-900 dark:text-amber-400 font-medium leading-5">
+                Please upgrade your plan to a paid subscription to request
+                Add-ons access and start sending campaigns.
+              </Text>
+            </View>
+          ) : (
+            <View>
+              {balanceData?.twilioAccess?.twilioAccessStatus === "APPROVED" && (
+                <View className="p-5 rounded-2xl border bg-green-50/20 border-green-200 dark:bg-green-950/10 dark:border-green-900/30">
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-row items-center gap-2">
+                      <CheckCircle2 size={18} color="#16a34a" />
+                      <Text
+                        className="text-sm font-bold"
+                        style={{ color: COLORS.text }}
+                      >
+                        Twilio SMS & WhatsApp Access
+                      </Text>
+                    </View>
+                    <View className="px-2.5 py-0.5 rounded-full bg-green-600">
+                      <Text className="text-white text-[10px] font-bold uppercase">
+                        Approved
+                      </Text>
+                    </View>
+                  </View>
+                  <Text className="text-xs text-green-800 dark:text-green-400 mt-3 leading-5">
+                    Your access has been approved. You can now purchase credits
+                    and send campaigns.
+                  </Text>
+                </View>
+              )}
+
+              {/* {balanceData?.twilioAccess?.twilioAccessStatus === "PENDING" && (
+                <View className="p-5 rounded-2xl border bg-blue-50/20 border-blue-200 dark:bg-blue-950/10 dark:border-blue-900/30">
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-row items-center gap-2">
+                      <Clock size={18} color="#3b82f6" />
+                      <Text
+                        className="text-sm font-bold"
+                        style={{ color: COLORS.text }}
+                      >
+                        Access Request Pending
+                      </Text>
+                    </View>
+                    <View className="px-2.5 py-0.5 rounded-full border border-blue-200 dark:border-blue-800">
+                      <Text className="text-blue-700 dark:text-blue-400 text-[10px] font-bold uppercase">
+                        Pending Review
+                      </Text>
+                    </View>
+                  </View>
+                  <Text className="text-xs text-blue-800 dark:text-blue-400 mt-3 leading-5">
+                    Our team is reviewing your request for Twilio access. You'll
+                    be notified once it's approved.
+                  </Text>
+                  {balanceData?.twilioAccess?.twilioAccessReason && (
+                    <View className="mt-3 p-2.5 bg-white/50 dark:bg-slate-900/50 rounded-lg border border-blue-100 dark:border-blue-950">
+                      <Text className="text-[11px] italic text-blue-600 dark:text-blue-400">
+                        "{balanceData.twilioAccess.twilioAccessReason}"
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {(balanceData?.twilioAccess?.twilioAccessStatus === "NONE" ||
+                balanceData?.twilioAccess?.twilioAccessStatus ===
+                  "REJECTED") && (
+                <View
+                  className="p-5 rounded-2xl border"
+                  style={{
+                    backgroundColor: COLORS.card,
+                    borderColor:
+                      balanceData?.twilioAccess?.twilioAccessStatus ===
+                      "REJECTED"
+                        ? "#fecaca"
+                        : COLORS.border,
+                  }}
+                >
+                  <View className="flex-row items-center justify-between mb-2">
+                    <View className="flex-row items-center gap-2">
+                      <Send size={18} color={COLORS.accent} />
+                      <Text
+                        className="text-base font-bold"
+                        style={{ color: COLORS.text }}
+                      >
+                        Request Twilio Access
+                      </Text>
+                    </View>
+                    {balanceData?.twilioAccess?.twilioAccessStatus ===
+                      "REJECTED" && (
+                      <View className="px-2.5 py-0.5 rounded-full bg-red-100 dark:bg-red-950/50 border border-red-200 dark:border-red-900/30">
+                        <Text className="text-red-700 dark:text-red-400 text-[10px] font-bold uppercase">
+                          Rejected
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <Text
+                    className="text-xs mb-4"
+                    style={{ color: COLORS.textMuted }}
+                  >
+                    Apply for SMS and WhatsApp campaign access. Please describe
+                    your use case briefly.
+                  </Text>
+
+                  {balanceData?.twilioAccess?.twilioAccessStatus ===
+                    "REJECTED" && (
+                    <View className="p-3 bg-red-50 border border-red-100 rounded-xl mb-4 flex-row items-start gap-2 dark:bg-red-950/20 dark:border-red-900/30">
+                      <AlertCircle
+                        size={16}
+                        color="#dc2626"
+                        style={{ marginTop: 1 }}
+                      />
+                      <View className="flex-1">
+                        <Text className="text-xs font-bold text-red-900 dark:text-red-400">
+                          Request Rejected
+                        </Text>
+                        <Text className="text-[11px] text-red-800 dark:text-red-300 mt-0.5">
+                          {balanceData?.twilioAccess?.twilioAccessReason ||
+                            "No reason provided by admin."}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  <Text
+                    className="text-[10px] font-bold uppercase mb-1 block tracking-wider"
+                    style={{ color: COLORS.textMuted }}
+                  >
+                    Reason for request
+                  </Text>
+                  <TextInput
+                    value={requestReason}
+                    onChangeText={setRequestReason}
+                    multiline
+                    numberOfLines={4}
+                    className="w-full border rounded-xl p-3 text-xs focus:outline-none mb-3"
+                    placeholder="e.g. I want to send promotional SMS and WhatsApp updates to my 5000+ customer base."
+                    placeholderTextColor={COLORS.textMuted}
+                    style={{
+                      color: COLORS.text,
+                      backgroundColor: isDark ? "#0f172a" : "#f8fafc",
+                      borderColor: COLORS.border,
+                      minHeight: 80,
+                      textAlignVertical: "top",
+                    }}
+                  />
+                  <TouchableOpacity
+                    disabled={isSubmittingTwilio || !requestReason.trim()}
+                    onPress={onSubmitTwilioRequest}
+                    className="w-full py-3 bg-red-600 rounded-xl items-center flex-row justify-center gap-2"
+                    style={{
+                      opacity:
+                        isSubmittingTwilio || !requestReason.trim() ? 0.5 : 1,
+                    }}
+                  >
+                    {isSubmittingTwilio && (
+                      <Loader2
+                        size={14}
+                        className="animate-spin"
+                        color="#ffffff"
+                      />
+                    )}
+                    <Text className="text-white font-bold text-sm">
+                      {isSubmittingTwilio ? "Submitting..." : "Submit Request"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )} */}
+            </View>
+          )}
+
+          {balanceData?.twilioAccess?.twilioAccessStatus === "APPROVED" && (
+            <View
+              className="p-5 rounded-2xl border"
+              style={{
+                backgroundColor: COLORS.card,
+                borderColor: COLORS.border,
+              }}
+            >
+              <View
+                className="border-b pb-4 mb-4 flex-row justify-between items-center"
+                style={{ borderColor: COLORS.border }}
+              >
+                <View>
+                  <Text
+                    className="text-lg font-bold"
+                    style={{ color: COLORS.text }}
+                  >
+                    Wallet & Messaging Credits
+                  </Text>
+                  <Text
+                    className="text-xs mt-1"
+                    style={{ color: COLORS.textMuted }}
+                  >
+                    Track credits for campaigns
+                  </Text>
+                </View>
+                <View className="px-2.5 py-0.5 bg-green-100 rounded-full dark:bg-green-950/50">
+                  <Text className="text-green-700 text-[10px] font-bold uppercase tracking-wider dark:text-green-400">
+                    Active Wallet
+                  </Text>
+                </View>
+              </View>
+
+              <View className="gap-4">
+                <View
+                  className="p-4 rounded-xl border"
+                  style={{
+                    backgroundColor: isDark ? "#450a0a10" : "#fee2e230",
+                    borderColor: "#fecaca50",
+                  }}
+                >
+                  <View className="flex-row justify-between items-center mb-2">
+                    <Text className="text-[10px] font-bold uppercase tracking-widest text-red-700 dark:text-red-400">
+                      SMS Balance
+                    </Text>
+                    <View className="px-2 py-0.5 bg-red-100 rounded dark:bg-red-950/50">
+                      <Text className="text-red-800 text-[9px] font-bold dark:text-red-400">
+                        Pay-As-You-Go
+                      </Text>
+                    </View>
+                  </View>
+                  <Text
+                    className="text-3xl font-extrabold"
+                    style={{ color: COLORS.text }}
+                  >
+                    {Number(
+                      balanceData?.wallet?.smsCreditsAvailable || 0,
+                    ).toLocaleString("en-IN")}
+                  </Text>
+                  <Text
+                    className="text-[10px] mt-1"
+                    style={{ color: COLORS.textMuted }}
+                  >
+                    Used:{" "}
+                    <Text className="font-bold">
+                      {Number(
+                        balanceData?.wallet?.smsCreditsUsed || 0,
+                      ).toLocaleString("en-IN")}
+                    </Text>{" "}
+                    credits
+                  </Text>
+                </View>
+
+                <View
+                  className="p-4 rounded-xl border"
+                  style={{
+                    backgroundColor: isDark ? "#064e3b10" : "#d1fae530",
+                    borderColor: "#a7f3d050",
+                  }}
+                >
+                  <View className="flex-row justify-between items-center mb-2">
+                    <Text className="text-[10px] font-bold uppercase tracking-widest text-green-700 dark:text-green-400">
+                      WhatsApp Balance
+                    </Text>
+                    <View className="px-2 py-0.5 bg-green-100 rounded dark:bg-green-950/50">
+                      <Text className="text-green-800 text-[9px] font-bold dark:text-green-400">
+                        Pay-As-You-Go
+                      </Text>
+                    </View>
+                  </View>
+                  <Text
+                    className="text-3xl font-extrabold"
+                    style={{ color: COLORS.text }}
+                  >
+                    {Number(
+                      balanceData?.wallet?.whatsappCreditsAvailable || 0,
+                    ).toLocaleString("en-IN")}
+                  </Text>
+                  <Text
+                    className="text-[10px] mt-1"
+                    style={{ color: COLORS.textMuted }}
+                  >
+                    Used:{" "}
+                    <Text className="font-bold">
+                      {Number(
+                        balanceData?.wallet?.whatsappCreditsUsed || 0,
+                      ).toLocaleString("en-IN")}
+                    </Text>{" "}
+                    credits
+                  </Text>
+                </View>
+              </View>
+
+              {balanceData?.wallet?.transactions &&
+                balanceData.wallet.transactions.length > 0 && (
+                  <View className="mt-6">
+                    <Text
+                      className="text-sm font-bold mb-3"
+                      style={{ color: COLORS.text }}
+                    >
+                      Recent Transactions
+                    </Text>
+                    <View
+                      className="border rounded-xl overflow-hidden"
+                      style={{ borderColor: COLORS.border }}
+                    >
+                      {balanceData?.wallet?.transactions
+                        ?.slice(0, 3)
+                        .map((tx: any, idx: number) => {
+                          const isPurchase =
+                            tx.type === "PURCHASE" || tx.type === "CREDIT";
+                          return (
+                            <View
+                              key={tx.id || idx}
+                              className="flex-row items-center justify-between p-3 border-b"
+                              style={{
+                                borderColor: COLORS.border,
+                                backgroundColor:
+                                  idx % 2 === 0
+                                    ? isDark
+                                      ? "#1e293b"
+                                      : "#ffffff"
+                                    : isDark
+                                      ? "#0f172a"
+                                      : "#f8fafc",
+                              }}
+                            >
+                              <View className="flex-1 mr-2">
+                                <Text
+                                  className="text-[11px] font-medium"
+                                  style={{ color: COLORS.text }}
+                                >
+                                  {tx.description}
+                                </Text>
+                                <Text
+                                  className="text-[9px] mt-0.5"
+                                  style={{ color: COLORS.textMuted }}
+                                >
+                                  {formatDate(tx.createdDate)}
+                                </Text>
+                                <View
+                                  className="self-start px-2 py-1 rounded-full mt-0.5"
+                                  style={{ backgroundColor: "#EEF2FF" }}
+                                >
+                                  <Text
+                                    className="text-[9px] font-semibold uppercase"
+                                    style={{ color: "#2563EB" }}
+                                  >
+                                    {tx.type}
+                                  </Text>
+                                </View>
+                              </View>
+                              <View className="items-end">
+                                <View className="px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 mb-1">
+                                  <Text
+                                    className="text-[8px] font-bold uppercase"
+                                    style={{ color: COLORS.textMuted }}
+                                  >
+                                    {tx.service}
+                                  </Text>
+                                </View>
+                                <Text
+                                  className="text-xs font-bold"
+                                  style={{
+                                    color: isPurchase
+                                      ? COLORS.success
+                                      : COLORS.accent,
+                                  }}
+                                >
+                                  {isPurchase ? "+" : "-"}
+                                  {Number(tx.amount).toLocaleString("en-IN")}
+                                </Text>
+                              </View>
+                            </View>
+                          );
+                        })}
+                    </View>
+                  </View>
+                )}
+            </View>
+          )}
+        </View>
+
+        {/* TABS (PURCHASE CREDITS / AVAILABLE PLANS) */}
+        <View className="mb-6">
+          {/* <View className="flex-row border-b mb-6" style={{ borderColor: COLORS.border }}>
+            {balanceData?.twilioAccess?.twilioAccessStatus === 'APPROVED' && (
+              <TouchableOpacity
+                onPress={() => setActiveBillingTab('credits')}
+                className="pb-3 px-4 border-b-2"
+                style={{
+                  borderColor: activeBillingTab === 'credits' ? COLORS.accent : 'transparent',
                 }}
               >
                 <Text
-                  className="text-[12px] font-medium"
-                  style={{ color: "#1447e6" }}
+                  className="text-sm font-bold"
+                  style={{ color: activeBillingTab === 'credits' ? COLORS.accent : COLORS.textMuted }}
                 >
-                  Pending Review
+                  Purchase Credits
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              onPress={() => setActiveBillingTab('plans')}
+              className="pb-3 px-4 border-b-2"
+              style={{
+                borderColor: activeBillingTab === 'plans' ? COLORS.accent : 'transparent',
+              }}
+            >
+              <Text
+                className="text-sm font-bold"
+                style={{ color: activeBillingTab === 'plans' ? COLORS.accent : COLORS.textMuted }}
+              >
+                Available Plans
+              </Text>
+            </TouchableOpacity>
+          </View> */}
+
+          {/* PURCHASE CREDITS TAB CONTENT */}
+          {/* {activeBillingTab === 'credits' && balanceData?.twilioAccess?.twilioAccessStatus === 'APPROVED' && (
+            <View>
+              <View className="mb-4">
+                <Text className="text-base font-bold" style={{ color: COLORS.text }}>Purchase SMS & WhatsApp Credits</Text>
+                <Text className="text-xs mt-1" style={{ color: COLORS.textMuted }}>Add credits to your channels using secure dashboard payments</Text>
+              </View>
+
+              <View className="gap-4">
+                {creditPackages.map((pkg: any) => (
+                  <View key={pkg.id} className="p-5 rounded-2xl border" style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}>
+                    <View className="flex-row justify-between items-start mb-3">
+                      <View className="flex-1 mr-2">
+                        <Text className="text-base font-bold uppercase" style={{ color: COLORS.text }}>{pkg.name}</Text>
+                        <Text className="text-2xl font-extrabold mt-1.5" style={{ color: COLORS.text }}>{formatCurrency(pkg.price)}</Text>
+                      </View>
+                      <View
+                        className="px-2 py-0.5 rounded"
+                        style={{
+                          backgroundColor: pkg.type === 'SMS' ? (isDark ? "#450a0a" : "#fee2e2") : (isDark ? "#064e3b" : "#d1fae5"),
+                        }}
+                      >
+                        <Text
+                          className="text-[9px] font-bold uppercase"
+                          style={{ color: pkg.type === 'SMS' ? COLORS.accent : COLORS.success }}
+                        >
+                          {pkg.type} Pack
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View className="mb-4 gap-2">
+                      <View className="flex-row items-center gap-2">
+                        <Check size={12} color={COLORS.accent} />
+                        <Text className="text-xs font-semibold" style={{ color: COLORS.textMuted }}>
+                          {Number(pkg.credits).toLocaleString("en-IN")} Credits
+                        </Text>
+                      </View>
+                      <View className="flex-row items-center gap-2">
+                        <Check size={12} color={COLORS.accent} />
+                        <Text className="text-xs font-semibold" style={{ color: COLORS.textMuted }}>No expiration (valid forever)</Text>
+                      </View>
+                      <View className="flex-row items-center gap-2">
+                        <Check size={12} color={COLORS.accent} />
+                        <Text className="text-xs font-semibold" style={{ color: COLORS.textMuted }}>Instant credit delivery</Text>
+                      </View>
+                    </View>
+
+                    <TouchableOpacity
+                      onPress={() => handlePaymentRedirect(`purchase the ${pkg.name} credit package`)}
+                      className="w-full py-3 bg-red-600 rounded-xl items-center"
+                    >
+                      <Text className="text-white font-bold text-sm">Buy {pkg.name}</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )} */}
+
+          {/* AVAILABLE PLANS TAB CONTENT */}
+          {/* {activeBillingTab === 'plans' && (
+            <View>
+              <View className="mb-4">
+                <Text className="text-base font-bold" style={{ color: COLORS.text }}>Available Subscription Plans</Text>
+                <Text className="text-xs mt-1" style={{ color: COLORS.textMuted }}>Choose the perfect plan for your business growth</Text>
+              </View>
+
+              <View className="gap-6">
+                {plansData && plansData.filter((p: any) => p.name !== 'FREE_TRIAL').map((plan: any) => {
+                  const isCurrent = currentPlanName === plan.name;
+                  const isPopular = plan.name === 'PROFESSIONAL' || plan.name === 'ENTERPRISE';
+
+                  return (
+                    <View
+                      key={plan.id}
+                      className="p-6 rounded-3xl border relative"
+                      style={{
+                        backgroundColor: COLORS.card,
+                        borderColor: isPopular ? COLORS.accent : COLORS.border,
+                        borderWidth: isPopular ? 2 : 1,
+                      }}
+                    >
+                      {isPopular && (
+                        <View className="absolute -top-3 left-1/2 -translate-x-1/2 bg-red-600 px-4 py-1 rounded-full">
+                          <Text className="text-white text-[9px] font-bold uppercase tracking-widest">Most Popular</Text>
+                        </View>
+                      )}
+
+                      <View className="mb-4">
+                        <Text className="text-lg font-bold uppercase" style={{ color: COLORS.text }}>{plan.name}</Text>
+                        <View className="flex-row items-baseline mt-2">
+                          <Text className="text-3xl font-extrabold" style={{ color: COLORS.text }}>{formatCurrency(plan.price)}</Text>
+                          <Text className="text-xs uppercase ml-1" style={{ color: COLORS.textMuted }}>/{plan.billingCycle}</Text>
+                        </View>
+                      </View>
+
+                      <View className="mb-5 gap-2.5">
+                        {plan.features?.map((feature: string, idx: number) => (
+                          <View key={idx} className="flex-row items-start gap-2">
+                            <Check size={14} color={COLORS.accent} style={{ marginTop: 2 }} />
+                            <Text className="text-xs flex-1" style={{ color: COLORS.textMuted }}>{feature}</Text>
+                          </View>
+                        ))}
+                      </View>
+
+                      <TouchableOpacity
+                        disabled={isCurrent}
+                        onPress={() => handlePaymentRedirect(`change your plan to ${plan.name}`)}
+                        className={`w-full py-3 rounded-xl items-center ${isCurrent ? 'bg-slate-100 dark:bg-slate-800' : 'bg-red-600'}`}
+                      >
+                        <Text className={`font-bold text-sm ${isCurrent ? 'text-gray-500' : 'text-white'}`}>
+                          {isCurrent ? 'Current Plan' : `Change to ${plan.name}`}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )} */}
+        </View>
+
+        {/* PAYMENT HISTORY INVOICES SECTION */}
+        <View
+          className="p-5 rounded-2xl border"
+          style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}
+        >
+          <View className="mb-4">
+            <Text className="text-lg font-bold" style={{ color: COLORS.text }}>
+              Payment History
+            </Text>
+            <Text className="text-xs mt-1" style={{ color: COLORS.textMuted }}>
+              View your past transactions
+            </Text>
+          </View>
+
+          <View>
+            {paymentsData &&
+            paymentsData?.invoices &&
+            paymentsData?.invoices?.length > 0 ? (
+              paymentsData.invoices.map((payment: any, idx: number) => {
+                const isPaid = payment.status === "PAID";
+                return (
+                  <View key={payment.id || idx}>
+                    <View className="flex-row justify-between items-center py-4">
+                      <View>
+                        <Text
+                          className="text-sm font-bold"
+                          style={{ color: COLORS.text }}
+                        >
+                          {payment?.subscription?.billingPlan?.name ??
+                            "Free Trial"}
+                          Plan
+                        </Text>
+                        <Text
+                          className="text-[10px] mt-1"
+                          style={{ color: COLORS.textMuted }}
+                        >
+                          {formatDate(payment.paidDate)}
+                        </Text>
+                      </View>
+                      <View className="items-end">
+                        <Text
+                          className="text-sm font-bold mb-1"
+                          style={{ color: COLORS.text }}
+                        >
+                          {formatCurrency(payment.amount)}
+                        </Text>
+                        <View
+                          className="px-2 py-0.5 rounded-full"
+                          style={{
+                            backgroundColor: isPaid
+                              ? isDark
+                                ? "#064e3b"
+                                : "#d1fae5"
+                              : isDark
+                                ? "#450a0a"
+                                : "#fee2e2",
+                          }}
+                        >
+                          <Text
+                            className="text-[8px] font-bold uppercase tracking-wider"
+                            style={{
+                              color: isPaid ? COLORS.success : COLORS.accent,
+                            }}
+                          >
+                            {payment.status}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                    {idx !== paymentsData.invoices.length - 1 && (
+                      <View
+                        className="h-[1px] w-full"
+                        style={{ backgroundColor: COLORS.border }}
+                      />
+                    )}
+                  </View>
+                );
+              })
+            ) : (
+              <View className="py-8 items-center justify-center">
+                <Text
+                  className="text-xs italic"
+                  style={{ color: COLORS.textMuted }}
+                >
+                  No payment history found.
                 </Text>
               </View>
-            </HStack>
+            )}
+          </View>
+        </View>
+      </ScrollView>
 
-            {/* Description */}
-            <Text className="text-md leading-5" style={{ color: "#193cb8" }}>
-              Our team is reviewing your request for Twilio access. You'll be
-              notified once it's approved.
+      {/* CANCELLATION MODAL */}
+      <Modal
+        visible={showCancelModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCancelModal(false)}
+      >
+        <View className="flex-1 justify-center items-center bg-black/60 px-4">
+          <View
+            className="w-full max-w-sm rounded-3xl p-6"
+            style={{ backgroundColor: COLORS.card }}
+          >
+            <View className="flex-row justify-between items-center mb-2">
+              <Text
+                className="text-lg font-bold"
+                style={{ color: COLORS.text }}
+              >
+                Cancel Subscription
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowCancelModal(false)}
+                className="p-1"
+              >
+                <X size={20} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+
+            <Text className="text-xs mb-4" style={{ color: COLORS.textMuted }}>
+              Are you sure you want to cancel your
+              {currentPlanName || "subscription"}? This action will affect your
+              access to features.
             </Text>
 
-            {/* Message Box */}
-            <View
-              className="border border-[#c7d7fe] bg-[#f5f9ff] rounded-lg p-3"
-              style={{
-                borderColor: "#155dfc",
-                borderWidth: 1,
-                backgroundColor: "#fff",
-              }}
-            >
-              <Text className="italic text-[13px]" style={{ color: "#155dfc" }}>
-                {/* "testing to get header - amit" */}
-                {balanceData?.twilioAccess?.twilioAccessReason}
-                {/* wallet/balance */}
+            <View className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 rounded-xl flex-row gap-2 mb-4">
+              <AlertCircle size={16} color="#dc2626" style={{ marginTop: 1 }} />
+              <Text className="text-[11px] font-semibold text-red-800 dark:text-red-400 flex-1 leading-4">
+                Cancelling your subscription will result in loss of access to
+                premium features.
               </Text>
             </View>
-          </VStack>
-        )}
 
-        {/* Approved */}
-        {balanceData?.twilioAccess?.twilioAccessStatus === "APPROVED" && (
-          <>
-            <VStack
-              className="bg-[#ecfdf5] border border-[#bbf7d0] rounded-xl p-4 gap-4 mb-3"
-              style={{
-                borderColor: "#dcfce7",
-                borderWidth: 1,
-                backgroundColor: "#f0fdf4",
-              }}
+            <Text
+              className="text-xs font-bold mb-3"
+              style={{ color: COLORS.text }}
             >
-              {/* Header */}
-              <HStack className="justify-between items-center">
-                {/* Left */}
-                <HStack className="items-center gap-2">
-                  <Ionicons
-                    name="checkmark-circle-outline"
-                    size={20}
-                    color="#16a34a"
-                  />
-                  <Text className="text-[16px] font-semibold text-gray-900">
-                    Twilio SMS & WhatsApp Access
-                  </Text>
-                </HStack>
+              When should the cancellation take effect?
+            </Text>
 
-                {/* Badge */}
-                <View
-                  className="px-3 py-1 rounded-full"
-                  style={{ backgroundColor: "#00a63e", borderRadius: 10 }}
-                >
-                  <Text className="text-white text-[12px] font-medium">
-                    Approved
-                  </Text>
-                </View>
-              </HStack>
-
-              {/* Description */}
-              <Text
-                className="text-[14px] text-[#15803d] leading-5"
-                style={{ color: "#016630" }}
+            <View className="gap-3 mb-4">
+              <TouchableOpacity
+                onPress={() => setCancelImmediately(false)}
+                className={`p-3.5 border rounded-xl flex-row items-start gap-2.5 ${cancelImmediately === false ? "bg-red-50/20" : ""}`}
+                style={{
+                  borderColor:
+                    cancelImmediately === false ? COLORS.accent : COLORS.border,
+                }}
               >
-                Your access has been approved. You can now purchase credits and
-                send campaigns.
-              </Text>
-            </VStack>
-            <VStack className="gap-4">
-              {/* SMS Credits */}
-              <ThemedView style={cardStyle} className="p-4 gap-3">
-                {/* Header */}
-                <HStack className="items-center gap-2">
-                  <Ionicons name="call-outline" size={18} color="#2563eb" />
-                  <Text className="text-[14px] font-medium text-gray-700">
-                    SMS Credits
-                  </Text>
-                </HStack>
-
-                {/* Available */}
-                <HStack className="items-end gap-1">
-                  <Text className="text-2xl font-bold text-gray-900">
-                    {balanceData?.wallet?.smsCreditsAvailable}
-                  </Text>
-                  <Text className="text-gray-500 mb-1">Available</Text>
-                </HStack>
-
-                {/* Usage */}
-                <HStack className="justify-between">
-                  <Text className="text-xs text-gray-500">
-                    {balanceData?.wallet?.smsCreditsUsed} used
-                  </Text>
-                  <Text className="text-xs text-gray-500">
-                    {balanceData?.wallet?.smsCreditsUsed}%
-                  </Text>
-                </HStack>
-
-                {/* Progress */}
-                <Progress
-                  value={balanceData?.wallet?.smsCreditsUsed}
-                  className="h-2 bg-gray-200 rounded-full"
-                  size="sm"
-                >
-                  <ProgressFilledTrack
-                    style={{
-                      backgroundColor:
-                        balanceData?.wallet?.smsCreditsUsed <
-                        balanceData?.wallet?.smsCreditsAvailable
-                          ? SUCCESS
-                          : ACCENT,
-                    }}
+                {cancelImmediately === false ? (
+                  <CircleDot
+                    size={16}
+                    color={COLORS.accent}
+                    style={{ marginTop: 1 }}
                   />
-                </Progress>
-
-                {/* Footer */}
-                <HStack className="items-center gap-1">
-                  <Ionicons
-                    name="trending-up-outline"
-                    size={14}
-                    color="#16a34a"
+                ) : (
+                  <Circle
+                    size={16}
+                    color={COLORS.textMuted}
+                    style={{ marginTop: 1 }}
                   />
-                  <Text className="text-xs text-gray-600">
-                    {balanceData?.wallet?.smsCreditsAvailable} Total Credits
+                )}
+                <View className="flex-1">
+                  <Text
+                    className="text-xs font-bold"
+                    style={{ color: COLORS.text }}
+                  >
+                    At the end of billing period
                   </Text>
-                </HStack>
-              </ThemedView>
-
-              {/* WhatsApp Credits */}
-              <ThemedView style={cardStyle} className="p-4 gap-3">
-                <HStack className="items-center gap-2">
-                  <Ionicons name="logo-whatsapp" size={18} color="#16a34a" />
-                  <Text className="text-[14px] font-medium text-gray-700">
-                    WhatsApp Credits
+                  <Text
+                    className="text-[10px] mt-0.5"
+                    style={{ color: COLORS.textMuted }}
+                  >
+                    You'll retain access until your subscription ends
                   </Text>
-                </HStack>
-
-                <HStack className="items-end gap-1">
-                  <Text className="text-2xl font-bold text-gray-900">
-                    {balanceData?.wallet?.whatsappCreditsAvailable}
-                  </Text>
-                  <Text className="text-gray-500 mb-1">Available</Text>
-                </HStack>
-
-                <HStack className="justify-between">
-                  <Text className="text-xs text-gray-500">
-                    {balanceData?.wallet?.whatsappCreditsUsed} used
-                  </Text>
-                  <Text className="text-xs text-gray-500">
-                    {balanceData?.wallet?.whatsappCreditsUsed} %
-                  </Text>
-                </HStack>
-
-                <Progress
-                  value={balanceData?.wallet?.whatsappCreditsUsed}
-                  className="h-2 bg-gray-200 rounded-full"
-                  size="sm"
-                >
-                  <ProgressFilledTrack
-                    style={{
-                      backgroundColor:
-                        balanceData?.wallet?.whatsappCreditsUsed <
-                        balanceData?.wallet?.whatsappCreditsAvailable
-                          ? SUCCESS
-                          : ACCENT,
-                    }}
-                  />
-                </Progress>
-
-                <HStack className="items-center gap-1">
-                  <Ionicons
-                    name="trending-up-outline"
-                    size={14}
-                    color="#16a34a"
-                  />
-                  <Text className="text-xs text-gray-600">
-                    {balanceData?.wallet?.whatsappCreditsAvailable} Total
-                    Credits
-                  </Text>
-                </HStack>
-              </ThemedView>
-
-              {/* Recent Activity */}
-              <ThemedView style={cardStyle} className="p-4 gap-4">
-                {/* Header */}
-                <HStack className="items-center gap-2">
-                  <Ionicons name="time-outline" size={18} color="#f97316" />
-                  <Text className="text-[14px] font-medium text-gray-700">
-                    Recent Activity
-                  </Text>
-                </HStack>
-
-                {/* Content */}
-                <VStack className="gap-3">
-                  {balanceData?.wallet?.transactions?.length === 0 ? (
-                    <View className="py-4 items-center">
-                      <Text className="text-gray-500 text-sm">
-                        No transactions found
-                      </Text>
-                    </View>
-                  ) : (
-                    balanceData?.wallet?.transactions?.map(
-                      (item: any, index: number) => (
-                        <VStack key={index} className="gap-2">
-                          {/* Description */}
-                          <ThemedText
-                            style={{ fontSize: 15, fontWeight: "700" }}
-                          >
-                            {item?.description}
-                          </ThemedText>
-
-                          {/* Date + Amount */}
-                          <HStack className="justify-between items-center">
-                            <ThemedText style={{ fontSize: 13, color: MUTED }}>
-                              {formatDate(item?.createdAt)}
-                            </ThemedText>
-
-                            <ThemedText
-                              style={{
-                                fontSize: 16,
-                                fontWeight: "700",
-                                color: SUCCESS,
-                              }}
-                            >
-                              +{item?.amount}
-                            </ThemedText>
-                          </HStack>
-
-                          {/* Divider (only if not last item) */}
-                          {index !==
-                            balanceData.wallet.transactions.length - 1 && (
-                            <Divider className="mt-2" />
-                          )}
-                        </VStack>
-                      ),
-                    )
-                  )}
-                </VStack>
-              </ThemedView>
-            </VStack>
-          </>
-        )}
-
-        {/* Restricted */}
-        {balanceData?.twilioAccess?.twilioAccessStatus === "NONE" && (
-          <VStack
-            className="rounded-xl p-4 gap-3"
-            style={{
-              backgroundColor: "#fdf6ec",
-              borderWidth: 1,
-              borderColor: "#f5c97a",
-            }}
-          >
-            {/* Twilio - message restricted */}
-            <HStack className="items-center gap-2">
-              <Ionicons name="alert-circle-outline" size={20} color="#d97706" />
-              <Text className="text-lg font-semibold text-[#1f2937]">
-                Access Restricted
-              </Text>
-            </HStack>
-
-            {/* Description */}
-            <Text className="text-sm text-[#374151] leading-5">
-              SMS and WhatsApp messaging is not available for free trial
-              accounts.
-            </Text>
-
-            {/* Highlight Text */}
-            <Text className="text-sm leading-5" style={{ color: "#d97706" }}>
-              Please upgrade your plan to a paid subscription to request Add-ons
-              access and start sending campaigns.
-            </Text>
-          </VStack>
-        )}
-
-        {/* ================= PAYMENT HISTORY ================= */}
-        <ThemedText
-          style={{
-            fontSize: 25,
-            fontWeight: "700",
-            textAlign: "center",
-            marginVertical: 20,
-          }}
-        >
-          Payment History
-        </ThemedText>
-
-        <ThemedView style={cardStyle}>
-          {paymentsData == null ? (
-            <ThemedText
-              style={{
-                textAlign: "center",
-                fontSize: 14,
-                color: MUTED,
-                marginTop: 10,
-              }}
-            >
-              No payment history found
-            </ThemedText>
-          ) : (
-            paymentsData.payments.map((payment, index) => {
-              const formattedDate = new Date(
-                payment.createdAt,
-              ).toLocaleDateString("en-IN", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              });
-
-                
-
-              return (
-                <View key={index}>
-                  <HStack style={{ justifyContent: "space-between" }}>
-                    <VStack>
-                      <ThemedText style={{ fontSize: 15, fontWeight: "600" }}>
-                        {payment.plan.replace("_", " ")}
-                      </ThemedText>
-
-                      <ThemedText
-                        style={{
-                          fontSize: 13,
-                          color: ACCENT,
-                          marginTop: 2,
-                        }}
-                      >
-                        {formattedDate}
-                      </ThemedText>
-                    </VStack>
-
-                    <VStack style={{ alignItems: "flex-end" }}>
-                      <ThemedText style={{ fontSize: 16, fontWeight: "700" }}>
-                        ₹{Number(payment.amount).toLocaleString("en-IN")}
-                      </ThemedText>
-
-                      <ThemedText
-                        style={{
-                          fontSize: 12,
-                          fontWeight: "600",
-                          color: payment.status === "COMPLETED" 
-                            ? "#16a34a"
-                            : payment.status === "FAILED"
-                            ? "#dc2626"
-                            : "#f59e0b",
-                          marginTop: 2,
-                        }}
-                      >
-                        {payment.status}
-                      </ThemedText>
-                    </VStack>
-                  </HStack>
-
-                  {index !== paymentsData.payments.length - 1 && (
-                    <Divider style={{ marginVertical: 13 }} />
-                  )}
                 </View>
-              );
-            })
-          )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setCancelImmediately(true)}
+                className={`p-3.5 border rounded-xl flex-row items-start gap-2.5 ${cancelImmediately === true ? "bg-red-50/20" : ""}`}
+                style={{
+                  borderColor:
+                    cancelImmediately === true ? COLORS.accent : COLORS.border,
+                }}
+              >
+                {cancelImmediately === true ? (
+                  <CircleDot
+                    size={16}
+                    color={COLORS.accent}
+                    style={{ marginTop: 1 }}
+                  />
+                ) : (
+                  <Circle
+                    size={16}
+                    color={COLORS.textMuted}
+                    style={{ marginTop: 1 }}
+                  />
+                )}
+                <View className="flex-1">
+                  <Text
+                    className="text-xs font-bold"
+                    style={{ color: COLORS.text }}
+                  >
+                    Immediately
+                  </Text>
+                  <Text
+                    className="text-[10px] mt-0.5"
+                    style={{ color: COLORS.textMuted }}
+                  >
+                    Your access will be revoked right away
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {cancellationError && (
+              <Text className="text-[10px] font-bold text-red-600 mb-3">
+                {cancellationError}
+              </Text>
+            )}
+
+            <Text
+              className="text-xs font-bold mb-1.5"
+              style={{ color: COLORS.text }}
+            >
+              Reason for cancellation (optional)
+            </Text>
+            <TextInput
+              value={cancellationReason}
+              onChangeText={setCancellationReason}
+              className="w-full border rounded-xl p-3 text-xs focus:outline-none mb-5"
+              placeholder="Let us know why you're cancelling..."
+              placeholderTextColor={COLORS.textMuted}
+              style={{
+                color: COLORS.text,
+                backgroundColor: isDark ? "#0f172a" : "#f8fafc",
+                borderColor: COLORS.border,
+                minHeight: 60,
+                textAlignVertical: "top",
+              }}
+            />
+
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                onPress={() => setShowCancelModal(false)}
+                className="flex-1 py-3 border rounded-xl items-center"
+                style={{ borderColor: COLORS.border }}
+              >
+                <Text
+                  className="font-semibold text-xs"
+                  style={{ color: COLORS.text }}
+                >
+                  Keep Subscription
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                disabled={isCancelling}
+                onPress={confirmCancellation}
+                className="flex-1 py-3 bg-red-600 rounded-xl items-center flex-row justify-center gap-1.5"
+                style={{ opacity: isCancelling ? 0.7 : 1 }}
+              >
+                {isCancelling && (
+                  <Loader2 size={12} className="animate-spin" color="#ffffff" />
+                )}
+                <Text className="text-white font-bold text-xs">
+                  {isCancelling ? "Cancelling..." : "Confirm"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* COMPARE PLANS MODAL */}
+      {/* <Modal
+        visible={showComparePlans}
+        animationType="slide"
+        onRequestClose={() => setShowComparePlans(false)}
+      >
+        <ThemedView className="flex-1 pt-12" style={{ backgroundColor: COLORS.bg }}>
+          <View className="flex-row justify-between items-center px-6 py-4 border-b" style={{ borderColor: COLORS.border }}>
+            <View className="flex-1 items-center">
+              <View className="bg-red-100 dark:bg-red-950/50 px-3 py-1 rounded-full border border-red-200 dark:border-red-900/30 mb-2">
+                <Text className="text-red-600 dark:text-red-400 text-[10px] font-bold uppercase tracking-widest">
+                  Upgrade Your Workflow
+                </Text>
+              </View>
+              <Text className="text-2xl font-bold" style={{ color: COLORS.text }}>Choose the perfect plan</Text>
+              <Text className="text-xs text-center mt-1" style={{ color: COLORS.textMuted }}>
+                Select a plan that scales with your growth. Cancel anytime.
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setShowComparePlans(false)}
+              className="absolute top-4 right-4 p-2 rounded-full border"
+              style={{ borderColor: COLORS.border, backgroundColor: COLORS.card }}
+            >
+              <X size={20} color={COLORS.text} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView className="p-6" contentContainerStyle={{ paddingBottom: 60 }}>
+            <View className="gap-6 mb-8">
+              {plansData && plansData.filter((p: any) => p.name !== 'FREE_TRIAL' && p.isActive !== false).map((plan: any) => {
+                const isCurrent = currentPlanName === plan.name;
+                const isPopular = plan.name === 'PROFESSIONAL' || plan.name === 'ENTERPRISE';
+                return (
+                  <View
+                    key={plan.id}
+                    className="p-6 rounded-3xl border relative"
+                    style={{
+                      backgroundColor: COLORS.card,
+                      borderColor: isPopular ? COLORS.accent : COLORS.border,
+                      borderWidth: isPopular ? 2 : 1,
+                    }}
+                  >
+                    {isPopular && (
+                      <View className="absolute -top-3 left-1/2 -translate-x-1/2 bg-red-600 px-4 py-1 rounded-full">
+                        <Text className="text-white text-[9px] font-bold uppercase tracking-widest">Most Popular</Text>
+                      </View>
+                    )}
+                    <Text className="text-lg font-bold uppercase" style={{ color: COLORS.text }}>{plan.name}</Text>
+                    <View className="flex-row items-baseline mt-2 mb-4">
+                      <Text className="text-3xl font-extrabold" style={{ color: COLORS.text }}>{formatCurrency(plan.price)}</Text>
+                      <Text className="text-xs uppercase ml-1" style={{ color: COLORS.textMuted }}>/{plan.billingCycle}</Text>
+                    </View>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        setShowComparePlans(false);
+                        handlePaymentRedirect(`change your plan to ${plan.name}`);
+                      }}
+                      disabled={isCurrent}
+                      className={`w-full py-3 rounded-xl items-center ${isCurrent ? 'bg-slate-100 dark:bg-slate-800' : 'bg-red-600'}`}
+                    >
+                      <Text className={`font-bold text-sm ${isCurrent ? 'text-gray-500' : 'text-white'}`}>
+                        {isCurrent ? 'Current Plan' : `Change to ${plan.name}`}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <View className="mt-4 gap-2.5">
+                      {plan.features?.map((feat: string, idx: number) => (
+                        <View key={idx} className="flex-row items-start gap-2">
+                          <Check size={14} color={COLORS.accent} style={{ marginTop: 2 }} />
+                          <Text className="text-xs flex-1" style={{ color: COLORS.textMuted }}>{feat}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+
+            <View className="border rounded-2xl overflow-hidden mb-12" style={{ borderColor: COLORS.border, backgroundColor: COLORS.card }}>
+              <View className="p-4 border-b flex-row items-center gap-2" style={{ borderColor: COLORS.border }}>
+                <Star size={18} color={COLORS.accent} />
+                <Text className="font-bold text-sm" style={{ color: COLORS.text }}>Feature Comparison</Text>
+              </View>
+
+              <View className="flex-row border-b py-2.5 px-4" style={{ borderColor: COLORS.border, backgroundColor: isDark ? "#33415550" : "#f1f5f9" }}>
+                <Text className="flex-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: COLORS.textMuted }}>Features</Text>
+                {comparisonPlanColumns.map((col) => (
+                  <Text key={col.key} className="w-16 text-center text-[10px] font-bold uppercase tracking-wider" style={{ color: COLORS.textMuted }}>
+                    {col.label}
+                  </Text>
+                ))}
+              </View>
+
+              {comparisonFeatures.map((feat, idx) => (
+                <View key={idx} className="flex-row py-3.5 px-4 border-b items-center animate-pulse" style={{ borderColor: COLORS.border }}>
+                  <Text className="flex-1 text-xs font-semibold" style={{ color: COLORS.text }}>{feat.name}</Text>
+                  {comparisonPlanColumns.map((col) => {
+                    const included = !!feat.included[col.key];
+                    return (
+                      <View key={col.key} className="w-16 items-center">
+                        {included ? (
+                          <CheckCircle2 size={16} color={COLORS.success} />
+                        ) : (
+                          <X size={14} color={COLORS.textMuted} />
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
+              ))}
+            </View>
+          </ScrollView>
         </ThemedView>
-      </ScrollView>
+      </Modal> */}
     </ThemedView>
   );
 }

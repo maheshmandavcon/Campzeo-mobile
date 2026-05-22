@@ -21,6 +21,7 @@ import {
 } from "react-native";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
+import { getUser } from "@/api/dashboardApi";
 
 type Contact = {
   id?: number;
@@ -78,8 +79,10 @@ export default function CreateContact() {
       try {
         const token = await getToken();
         if (!token) throw new Error("Token missing");
+        const user = await getUser();        
+        const orgId = user?.organisation?.id; 
 
-        const data = await getContactsApi(1, 1000); 
+        const data = await getContactsApi(orgId); 
         const emails = data.contacts?.map((c: any) => c.contactEmail.toLowerCase()) || [];
         setExistingEmails(emails);
       } catch (err) {
@@ -97,8 +100,10 @@ export default function CreateContact() {
       try {
         const token = await getToken();
         if (!token) throw new Error("Token missing");
+        const user = await getUser();        
+        const orgId = user?.organisation?.id; 
 
-        const data = await getContactsApi(1, 1000); 
+        const data = await getContactsApi(orgId); 
         const emails = data.contacts?.map((c: any) => c.contactEmail.toLowerCase()) || [];
         const numbers = data.contacts?.map((c: any) => c.contactMobile) || [];
 
@@ -136,8 +141,9 @@ export default function CreateContact() {
       try {
         const token = await getToken();
         if (!token) throw new Error("Token missing");
-
-        const data = await getCampaignsApi(1, 50);
+        const user = await getUser();        
+        const orgId = user?.organisation?.id;      
+        const data = await getCampaignsApi(orgId);
         const options =
           data?.campaigns?.map((c: any) => ({ id: c.id, name: c.name })) ?? [];
         setCampaignOptions(options);
@@ -182,12 +188,16 @@ export default function CreateContact() {
 
       const token = await getToken();
       if (!token) throw new Error("Authentication token not found");
+      const user = await getUser();        
+      const orgId = user?.organisation?.id; 
 
       if (isEdit) {
-        await updateContactApi(Number(contactId), data);
-        Alert.alert("Success", "Contact updated successfully");
+await updateContactApi(orgId, {
+  ...data,
+  id: editingContact?.id,
+});        Alert.alert("Success", "Contact updated successfully");
       } else {
-        await createContactApi(data);
+        await createContactApi(orgId, data);
         Alert.alert("Success", "Contact created successfully");
       }
 

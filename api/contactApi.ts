@@ -1,6 +1,7 @@
 import https from "./https";
 
 export interface ContactData {
+  id?: number;
   name: string;
   email: string;
   mobile: string;
@@ -11,7 +12,7 @@ export interface ContactData {
 // ---------------------- Contacts API ---------------------- //
 
 // CREATE CONTACT
-export const createContactApi = async (data: ContactData) => {
+export const createContactApi = async (orgId: number, data: ContactData) => {
   try {
     const payload = {
       contactName: data.name,
@@ -19,9 +20,10 @@ export const createContactApi = async (data: ContactData) => {
       contactMobile: data.mobile,
       contactWhatsApp: data.whatsapp,
       campaignIds: data.campaignIds,
+      organisationId: orgId,
     };
 
-    const res = await https.post("/contacts", payload);
+    const res = await https.post("Contacts/AddContact", payload);
     return res.data;
   } catch (error: any) {
     const apiData = error?.response?.data;
@@ -41,18 +43,12 @@ export const createContactApi = async (data: ContactData) => {
 
 // GET CONTACTS
 export const getContactsApi = async (
-  page = 1,
-  limit = 20,
-  search = "",
-  campaignId?: number,
-  sortBy = "createdAt",
-  sortOrder: "asc" | "desc" = "desc"
+ orgId: number,
 ) => {
   try {
-    const params: any = { page, limit, search, sortBy, sortOrder };
-    if (campaignId) params.campaignId = campaignId;
+    
 
-    const res = await https.get("/contacts", { params });
+    const res = await https.get(`Contacts?organisationId=${orgId}&page=${1}&limit=${10}&sortBy=createdDate&sortOrder=desc`);
     return res.data;
   } catch (error: any) {
     console.error("Get contacts error:", error.response || error.message);
@@ -83,7 +79,7 @@ export const getContactsApi = async (
 //     );
 //   }
 // };
-export const updateContactApi = async (contactId: number, data: ContactData) => {
+export const updateContactApi = async (orgId: number, data: ContactData) => {
   try {
     const payload = {
       contactName: data.name,
@@ -91,9 +87,12 @@ export const updateContactApi = async (contactId: number, data: ContactData) => 
       contactMobile: data.mobile,
       contactWhatsApp: data.whatsapp,
       campaignIds: data.campaignIds,
+      id: data.id,
+      organisationId: orgId,
     };
+console.log("ppp", payload);
 
-    const res = await https.patch(`/contacts/${contactId}`, payload);
+    const res = await https.post(`Contacts/UpdateContact`, payload);
     console.log("Update response:", res.data);
     return res.data;
   } catch (error: any) {
@@ -112,18 +111,40 @@ export const updateContactApi = async (contactId: number, data: ContactData) => 
 };
 
 // DELETE CONTACTS
-export const deleteContactApi = async (contactIds: number[]) => {
+export const deleteContactApi = async (
+  organisationId: number,
+  contactIds: number
+) => {
   try {
-    const res = await https.delete("/contacts", {
-      headers: { "Content-Type": "application/json" },
-      data: { contactIds },
-    });
+
+
+    const payload = {
+      contactIds,
+      organisationId,
+    };
+    console.log("cccc",contactIds);
+    console.log("ooo",organisationId);
+    
+    
+
+    const res = await https.post(
+      "Contacts/DeleteContact",
+      {
+        data: payload,
+      }
+    );
 
     return res.data;
   } catch (error: any) {
-    console.error("Delete contacts error:", error.response || error.message);
+    console.error(
+      "Delete contacts error:",
+      error.response || error.message
+    );
+
     throw new Error(
-      error?.response?.data?.message || error?.response?.data || "Failed to delete contacts"
+      error?.response?.data?.message ||
+      error?.response?.data ||
+      "Failed to delete contacts"
     );
   }
 };

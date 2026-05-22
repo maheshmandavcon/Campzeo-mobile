@@ -1,22 +1,30 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { CalendarEvent } from "@/types/types";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, useColorScheme } from "react-native";
-import { formatReadableDate, formatReadableTime, getDateLabel } from "../../../utils/dateHelpers";
+
+import { WebView } from "react-native-webview";
+import { Image } from "react-native";
+
+import {
+  formatReadableDate,
+  formatReadableTime,
+  getDateLabel,
+} from "../../../utils/dateHelpers";
 
 import {
   Actionsheet,
   ActionsheetBackdrop,
   ActionsheetContent,
   ActionsheetDragIndicator,
-  ActionsheetDragIndicatorWrapper
+  ActionsheetDragIndicatorWrapper,
 } from "@/components/ui/actionsheet";
 import { HStack, Pressable, Text, VStack } from "@gluestack-ui/themed";
 import { Calendar } from "lucide-react-native";
+import { View } from "react-native";
 
 interface UpcomingPostsListProps {
-  groupedEvents: Record<string, CalendarEvent[]>;
+  groupedEvents: Record<string, any>;
   selectedMonth: Date;
 }
 
@@ -25,9 +33,7 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
   selectedMonth,
 }) => {
   const [showActionsheet, setShowActionsheet] = React.useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
-    null,
-  );
+  const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
 
   const handleClose = () => setShowActionsheet(false);
 
@@ -35,11 +41,19 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
   const isDark = colorScheme === "dark";
   const now = new Date();
 
+  const isVideoFile = (url: string) => {
+    return (
+      url?.includes(".mp4") ||
+      url?.includes(".mov") ||
+      url?.includes(".webm") ||
+      url?.includes("#video")
+    );
+  };
   const isCurrentMonth =
     selectedMonth.getMonth() === now.getMonth() &&
     selectedMonth.getFullYear() === now.getFullYear();
 
-  const filteredGroupedEvents: Record<string, CalendarEvent[]> = {};
+  const filteredGroupedEvents: Record<string, any[]> = {};
 
   Object.entries(groupedEvents).forEach(([dateKey, events]) => {
     const eventDate = new Date(dateKey);
@@ -51,7 +65,7 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
     if (!isSameMonth) return;
 
     const filteredEvents = isCurrentMonth
-      ? events.filter((event) => new Date(event.start) > now) // future only
+      ? events.filter((event: any) => new Date(event.start) > now) // future only
       : events; // show all if not current month
 
     if (filteredEvents.length > 0) {
@@ -60,7 +74,9 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
   });
 
   const filteredDateKeys = Object.keys(filteredGroupedEvents).sort();
-
+  // useEffect(() => {
+  //   console.log("ppp",selectedEvent);
+  // }, [selectedEvent]);
   if (filteredDateKeys.length === 0) {
     return (
       <ThemedView style={styles.container}>
@@ -75,9 +91,9 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
           {isCurrentMonth
             ? "Upcoming Posts"
             : `Posts for ${selectedMonth.toLocaleString("default", {
-              month: "long",
-              year: "numeric",
-            })}`}
+                month: "long",
+                year: "numeric",
+              })}`}
         </ThemedText>
 
         <ThemedView
@@ -118,9 +134,9 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
             {isCurrentMonth
               ? "Upcoming Posts"
               : `Posts for ${selectedMonth.toLocaleString("default", {
-                month: "long",
-                year: "numeric",
-              })}`}
+                  month: "long",
+                  year: "numeric",
+                })}`}
           </ThemedText>
 
           {filteredDateKeys.map((dateKey) => {
@@ -171,7 +187,10 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
                       <ThemedText
                         style={[
                           styles.time,
-                          { color: isDark ? "#9ca3af" : "#6b7280", marginLeft: 12 },
+                          {
+                            color: isDark ? "#9ca3af" : "#6b7280",
+                            marginLeft: 12,
+                          },
                         ]}
                       >
                         {formatReadableTime(event.start)}
@@ -227,7 +246,7 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
             <>
               <VStack
                 style={{ gap: 14 }}
-              //  key ={eventDetail.id}
+                //  key ={eventDetail.id}
               >
                 {/* PLATFORM */}
                 <VStack>
@@ -331,6 +350,117 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
                   >
                     {selectedEvent.message}
                   </ThemedText>
+                </VStack>
+
+                {/* Media Preview */}
+                {selectedEvent?.mediaUrls && (
+                  <VStack>
+                    <ThemedText
+                      style={{
+                        fontSize: 12,
+                        color: isDark ? "#94a3b8" : "#64748b",
+                        marginBottom: 8,
+                      }}
+                    >
+                      Media Preview
+                    </ThemedText>
+
+                    <View
+                      style={{
+                        width: 240,
+                        height: 220,
+                        borderRadius: 16,
+                        overflow: "hidden",
+                      }}
+                    >
+                      {isVideoFile(selectedEvent.mediaUrls) ? (
+                        <WebView
+                          source={{
+                            html: `
+              <html>
+                <body style="margin:0;background:black;">
+                  <video
+                    src="${selectedEvent.mediaUrls}"
+                    controls
+                    style="width:100%;height:100%;object-fit:cover;"
+                  />
+                </body>
+              </html>
+            `,
+                          }}
+                          style={{
+                            flex: 1,
+                            backgroundColor: "black",
+                          }}
+                          javaScriptEnabled
+                          domStorageEnabled
+                        />
+                      ) : (
+                        <Image
+                          source={{ uri: selectedEvent.mediaUrls }}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                          }}
+                          resizeMode="cover"
+                        />
+                      )}
+                    </View>
+                  </VStack>
+                )}
+
+                {/* Post status */}
+                <VStack>
+                  <ThemedText
+                    style={{
+                      fontSize: 12,
+                      color: isDark ? "#94a3b8" : "#64748b",
+                      marginBottom: 6,
+                    }}
+                  >
+                    Post status
+                  </ThemedText>
+
+                  <View
+                    style={{
+                      alignSelf: "flex-start",
+                      paddingHorizontal: 12,
+                      paddingVertical: 5,
+                      borderRadius: 999,
+                      backgroundColor: selectedEvent.isPostSent
+                        ? isDark
+                          ? "rgba(34,197,94,0.15)"
+                          : "#dcfce7"
+                        : isDark
+                          ? "rgba(251,191,36,0.15)"
+                          : "#fef3c7",
+                      borderWidth: 1,
+                      borderColor: selectedEvent.isPostSent
+                        ? isDark
+                          ? "#22c55e"
+                          : "#86efac"
+                        : isDark
+                          ? "#fbbf24"
+                          : "#fcd34d",
+                    }}
+                  >
+                    <ThemedText
+                      style={{
+                        fontSize: 12,
+                        fontWeight: "700",
+                        letterSpacing: 0.5,
+                        color: selectedEvent.isPostSent
+                          ? isDark
+                            ? "#4ade80"
+                            : "#15803d"
+                          : isDark
+                            ? "#facc15"
+                            : "#b45309",
+                      }}
+                    >
+                      {selectedEvent.isPostSent ? "SENT" : "SCHEDULED"}
+                    </ThemedText>
+                  </View>
                 </VStack>
               </VStack>
 

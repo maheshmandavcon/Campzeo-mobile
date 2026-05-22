@@ -14,7 +14,6 @@ import { useSidebarStore } from "../../store/sidebarStore";
 import { useRouter } from "expo-router";
 import { useAuth, useUser } from "@/context/AuthContext";
 
-import { Avatar, AvatarFallbackText, AvatarImage } from "@/components/ui/avatar";
 import { VStack } from "@/components/ui/vstack";
 import { Divider } from "@/components/ui/divider";
 import { Pressable } from "@/components/ui/pressable";
@@ -22,6 +21,8 @@ import { Button, ButtonText } from "@/components/ui/button";
 import { ThemedText } from "@/components/themed-text";
 import { View, Text } from "@gluestack-ui/themed";
 import { Ionicons } from "@expo/vector-icons";
+import { getDisplayName, getInitials } from "@/utils/userDisplay";
+import { useUserDetails } from "@/hooks/useUserDetails";
 
 export default function Sidebar() {
   const sidebarOpen = useSidebarStore((state) => state.sidebarOpen);
@@ -30,8 +31,14 @@ export default function Sidebar() {
   const router = useRouter();
   const { signOut } = useAuth();
   const { user } = useUser();
+  const { userData } = useUserDetails(Boolean(user));
 
   if (!user) return null;
+
+  const displayUser = userData || user;
+  const displayName = getDisplayName(displayUser);
+  const initials = getInitials(displayUser);
+  const email = displayUser?.email ?? user.primaryEmailAddress?.emailAddress;
 
   /**
    * IMPORTANT:
@@ -63,23 +70,24 @@ export default function Sidebar() {
         {/* HEADER */}
         <DrawerHeader className="justify-center flex-col gap-2">
           <View style={styles.headerContent}>
-            <Avatar size="xl">
-              <AvatarFallbackText style={{ color: TEXT_COLOR }}>
-                {user.username ?? "User"}
-              </AvatarFallbackText>
-              <AvatarImage source={{ uri: user.imageUrl }} />
-            </Avatar>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
 
             <VStack style={styles.userInfo}>
               <ThemedText
                 style={{
                   color: TEXT_COLOR,
-                  fontSize: 23,
-                  fontWeight: "600",
+                  fontSize: 21,
+                  fontWeight: "700",
+                  textAlign: "center",
                 }}
               >
-                {user.username}
+                {displayName}
               </ThemedText>
+              {email ? (
+                <ThemedText style={styles.emailText}>{email}</ThemedText>
+              ) : null}
             </VStack>
           </View>
         </DrawerHeader>
@@ -163,6 +171,25 @@ const styles = StyleSheet.create({
   userInfo: {
     alignItems: "center",
     justifyContent: "center",
+  },
+  avatar: {
+    alignItems: "center",
+    backgroundColor: "#dc2626",
+    borderRadius: 44,
+    height: 88,
+    justifyContent: "center",
+    width: 88,
+  },
+  avatarText: {
+    color: "#ffffff",
+    fontSize: 28,
+    fontWeight: "800",
+  },
+  emailText: {
+    color: "#64748b",
+    fontSize: 12,
+    marginTop: 3,
+    textAlign: "center",
   },
   divider: {
     marginVertical: 16,

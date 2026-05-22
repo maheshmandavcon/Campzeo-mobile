@@ -24,7 +24,7 @@ export default function Invoices() {
 
     const loadInvoices = async () => {
       try {
-        const data = await fetchInvoices(user.id);
+        const data = await fetchInvoices();
         setInvoices(data.invoices);
       } catch (error) {
         console.log("Error loading invoices:", error);
