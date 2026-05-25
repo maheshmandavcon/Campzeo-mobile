@@ -20,37 +20,36 @@ import { FontAwesome, Ionicons } from "@expo/vector-icons";
 
 /* ================= COMPONENT ================= */
 
-export default function Insights() {
+export default function Insights({userData,usageData,loading}: {userData: any,usageData: any,loading: boolean}) {
   const isDark = useColorScheme() === "dark";
 
   const routePage = useRouter();
 
-  const [userData, setUserData] = useState<any>(null);
-  const [usageData, setUsageData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  // const [userData, setUserData] = useState<any>(null);
+  // const [usageData, setUsageData] = useState<any>(null);
+  // const [loading, setLoading] = useState(true);
 
-  /* ================= API ================= */
-    const fetchInsights = async () => {
-      try {
-        const user = await getUser();
-        const usage = await getUsage();
-        setUserData(user);
-        setUsageData(usage);
-      } catch (error) {
-        console.error("Dashboard fetch error:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-  useEffect(() => {
-    fetchInsights();
-  }, []);
+  //   const fetchInsights = async () => {
+  //     try {
+  //       const user = await getUser();
+  //       const usage = await getUsage();
+  //       setUserData(user);
+  //       setUsageData(usage);
+  //     } catch (error) {
+  //       console.error("Dashboard fetch error:", error);
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
+  // useEffect(() => {
+  //   fetchInsights();
+  // }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchInsights();
-    }, [])
-  );
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     fetchInsights();
+  //   }, [])
+  // );
   const COLORS = {
     bg: isDark ? "#0f172a" : "#f8fafc",
     card: isDark ? "#1e293b" : "#ffffff",

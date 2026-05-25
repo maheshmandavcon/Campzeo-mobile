@@ -90,7 +90,6 @@ export const updateContactApi = async (orgId: number, data: ContactData) => {
       id: data.id,
       organisationId: orgId,
     };
-console.log("ppp", payload);
 
     const res = await https.post(`Contacts/UpdateContact`, payload);
     console.log("Update response:", res.data);
@@ -116,16 +115,10 @@ export const deleteContactApi = async (
   contactIds: number
 ) => {
   try {
-
-
     const payload = {
       contactIds,
       organisationId,
     };
-    console.log("cccc",contactIds);
-    console.log("ooo",organisationId);
-    
-    
 
     const res = await https.post(
       "Contacts/DeleteContact",

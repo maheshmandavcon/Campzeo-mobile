@@ -5,6 +5,7 @@ import {
   updateCampaignApi,
 } from "@/api/campaignApi";
 import { getContactsApi } from "@/api/contactApi";
+import { getUser } from "@/api/dashboardApi";
 import { useAuth } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { FormControl, Input, InputField } from "@gluestack-ui/themed";
@@ -167,8 +168,9 @@ export default function CreateCampaign() {
         setLoadingContacts(true);
         const token = await getToken();
         if (!token) throw new Error("Token missing");
-
-        const res = await getContactsApi();
+        const user = await getUser();
+        const orgId = user?.organisation?.id;
+        const res = await getContactsApi(orgId);
         setContacts(
           (res.contacts ?? []).map((c: any) => ({
             id: c.id,
@@ -227,11 +229,18 @@ export default function CreateCampaign() {
           return;
         }
       }
+      const user = await getUser();
+      const orgId = user?.organisation?.id;
+
+      const fullData = {
+        ...data,
+        organisationId:orgId,
+      }
 
       isEditMode && campaignId
-        ? await updateCampaignApi(campaignId, data)
-        : await createCampaignApi(data);
+        ? await updateCampaignApi(fullData)
 
+        : await createCampaignApi(fullData);        
       router.back();
     } catch (err: any) {
       Alert.alert("Error", err.message || "Something went wrong");

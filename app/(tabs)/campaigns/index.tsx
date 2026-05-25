@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -23,6 +23,7 @@ import { useColorScheme } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { View, Text } from "@gluestack-ui/themed";
 import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
+import { getUser } from "@/api/dashboardApi";
 
 export default function Campaigns() {
   const [search, setSearch] = useState("");
@@ -40,17 +41,18 @@ export default function Campaigns() {
       setLoading(true);
       const token = await getToken();
       if (!token) throw new Error("Authentication token not found");
+      const user = await getUser();
+      const orgId = user?.organisation?.id;
+      // console.log("uuu",orgId);
 
-      const res = await getCampaignsApi(1, 50, search);
+      const res = await getCampaignsApi(orgId,1, 50);
       const campaignsArray = res?.campaigns ?? [];
-
       if (!campaignsArray.length) {
         setCampaigns([]);
         return;
       }
 
-      const mapped: Campaign[] = campaignsArray.map((item: any) => {
-
+      const mapped: Campaign[] = campaignsArray.map((item: any) => {        
         const formatDate = (dateString?: string) => {
           if (!dateString) return "";
           const date = new Date(dateString);
@@ -68,8 +70,8 @@ export default function Campaigns() {
           endDate: item.endDate,
           dates: `${formatDate(item.startDate)} - ${formatDate(item.endDate)}`,
           posts: [],
-          postsCount: item._count?.posts ?? 0,
-          contactsCount: item._count?.contacts ?? 0,
+          postsCount: item.postsCount ?? 0,
+          contactCount: item.contactCount ?? 0,
           show: true,
         };
       });
@@ -110,8 +112,9 @@ export default function Campaigns() {
           try {
             const token = await getToken();
             if (!token) throw new Error("Authentication token missing");
-
-            await deleteCampaignApi(c.id);
+            const user = await getUser();
+            const orgId = user?.organisation?.id;
+            await deleteCampaignApi(c.id, orgId);
             setCampaigns((prev) => prev.filter((x) => x.id !== c.id));
           } catch (error: any) {
             console.error("Error deleting campaign:", error);
@@ -131,7 +134,7 @@ Details: ${c.details}
 Description: ${c.description}
 Dates: ${c.dates}
 Posts Count: ${c.postsCount ?? c.posts?.length ?? 0}
-Contacts Count: ${c.contactsCount ?? 0}
+Contacts Count: ${c.contactCount ?? 0}
   `;
     await Clipboard.setStringAsync(campaignData);
     Alert.alert("Copied!", "Campaign details copied to clipboard.");
@@ -148,7 +151,7 @@ Contacts Count: ${c.contactsCount ?? 0}
     const message = campaigns
       .map(
         (c) =>
-          `*DETAILS:* ${c.details ?? "N/A"}\n*DESCRIPTION:* ${c.description ?? "N/A"}\n*DATES:* ${c.dates ?? "N/A"}\n*CONTACTS:* ${c.contactsCount ?? 0}`
+          `*DETAILS:* ${c.details ?? "N/A"}\n*DESCRIPTION:* ${c.description ?? "N/A"}\n*DATES:* ${c.dates ?? "N/A"}\n*CONTACTS:* ${c.contactCount ?? 0}`
       )
       .join("\n");
 

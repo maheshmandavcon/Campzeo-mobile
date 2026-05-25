@@ -1,9 +1,12 @@
+import { deleteCampaignApi } from "@/api/campaignApi";
+import { getUser } from "@/api/dashboardApi";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { getToken } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React from "react";
-import { Text, TouchableOpacity, useColorScheme, View } from "react-native";
+import { Alert, Text, TouchableOpacity, useColorScheme, View } from "react-native";
 
 // Define Campaign type
 export interface Campaign {
@@ -15,7 +18,7 @@ export interface Campaign {
   dates: string;
   posts: string[];
   show?: boolean;
-  contactsCount?: number;
+  contactCount?: number;
   postsCount?: number;
 }
 
@@ -84,15 +87,40 @@ export default function CampaignCard({
 
   const handleEdit = () => {
     if (onEdit) {
-      onEdit(campaign);
+      onEdit(campaign);      
     } else {
       router.push({
         pathname: "/campaigns/createCampaign",
         params: { campaign: JSON.stringify(campaign) },
       });
+      // console.log("kempains",campaign);
     }
   };
-
+const handleDelete = async (cId: number) => {
+    Alert.alert("Delete Campaign?", `Are you sure you want to delete this campaign?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const token = await getToken();
+            if (!token) throw new Error("Authentication token missing");
+            const user = await getUser();
+            const orgId = user?.organisation?.id;
+            await deleteCampaignApi(cId, orgId);
+            // setCampaigns((prev) => prev.filter((x) => x.id !== c.id));
+          } catch (error: any) {
+            console.error("Error deleting campaign:", error);
+            Alert.alert(
+              "Failed to delete campaign",
+              error?.message || "Unknown error"
+            );
+          }
+        },
+      },
+    ]);
+  };
   const handleAddPost = () => {
     if (onPressPost) {
       onPressPost();
@@ -225,7 +253,7 @@ export default function CampaignCard({
                 <Ionicons name="create-outline" size={22} style={{ color: isDark ? "#73f3c9" : "#10b981" }} />
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => onDelete(campaign)} className="mx-1">
+              <TouchableOpacity onPress={() => handleDelete(campaign.id)} className="mx-1">
                 <Ionicons name="trash-outline" size={22} style={{ color: isDark ? "#f47a7a" : "#ef4444" }} />
               </TouchableOpacity>
 
@@ -265,7 +293,7 @@ export default function CampaignCard({
               <ThemedView className="flex-row items-center">
                 <Ionicons name="people-outline" size={18} color={isDark ? "#ffffff" : "#4b5563"} />
                 <Text className={`ml-1.5 ${isDark ? "text-gray-200" : "text-gray-700"}`}>
-                  {campaign.contactsCount ?? 0} Contacts
+                  {campaign.contactCount ?? 0} Contacts
                 </Text>
               </ThemedView>
 

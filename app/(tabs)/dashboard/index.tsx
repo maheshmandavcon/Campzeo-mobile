@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -9,13 +9,43 @@ import {
 import PagerView from "react-native-pager-view";
 
 import Insights from "./dashboardComponents/insights";
-import CalendarWrapper from "@/app/(common)/calendarWrapper";
 import { ThemedView } from "@/components/themed-view";
 import CalendarParent from "@/app/(calendar)/calendarTabs/calendarParent";
 import { ScrollView } from "react-native-gesture-handler";
+import { getUser } from "@/api/dashboardApi";
+import { getUsage } from "@/api/billingApi";
+import { useFocusEffect } from "expo-router";
 
 const DashboardTabs = () => {
   const [activeTab, setActiveTab] = useState(0);
+   const [userData, setUserData] = useState<any>(null);
+    const [usageData, setUsageData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+  
+    /* ================= API ================= */
+      const fetchInsights = async () => {
+        try {
+          const user = await getUser();
+          const usage = await getUsage();
+          setUserData(user);
+          setUsageData(usage);
+        } catch (error) {
+          console.error("Dashboard fetch error:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+    useEffect(() => {
+
+      fetchInsights();
+    }, []);
+  
+    useFocusEffect(
+      useCallback(() => {
+        fetchInsights();
+      }, [])
+    );
+
   const pagerRef = useRef<PagerView>(null);
 
   const onTabPress = (index: number) => {
@@ -58,7 +88,7 @@ const DashboardTabs = () => {
         onPageSelected={(e) => setActiveTab(e.nativeEvent.position)}
       >
         <View key="dashboard">
-          <Insights />
+          <Insights userData={userData} usageData={usageData} loading={loading} />
         </View>
 
         <ScrollView key="calendar">

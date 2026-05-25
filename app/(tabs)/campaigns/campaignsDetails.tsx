@@ -24,6 +24,7 @@ import {
 import { ContactsRecord } from "../contacts/contactComponents/contactCard";
 import CampaignCard, { Campaign } from "./campaignComponents/campaignCard";
 import ShareCampaignPost from "./campaignComponents/shareCampaignPost";
+import { getUser } from "@/api/dashboardApi";
 
 
 // Map type to icon
@@ -395,8 +396,9 @@ export default function CampaignsDetails() {
   const fetchContactsForShare = useCallback(async () => {
     try {
       setLoadingContacts(true);
-
-      const res = await getContactsApi(1, 100, "");
+      const user = await getUser();
+      const orgId = user?.organisation?.id;
+      const res = await getContactsApi(orgId);
 
       const mapped: ContactsRecord[] = (res.contacts ?? []).map((c: any) => ({
         id: c.id,

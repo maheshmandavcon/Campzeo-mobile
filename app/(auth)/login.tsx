@@ -42,6 +42,7 @@ export default function LoginScreen() {
       if (!response?.success || !response?.token) {
         throw new Error(response?.message || "Invalid email or password");
       }
+// console.log("tokknn",response.token);
 
       await setSession(response.token, response.user);
       router.replace("/(tabs)/dashboard");

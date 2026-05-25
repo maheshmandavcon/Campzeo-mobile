@@ -53,7 +53,6 @@ export default function Contacts() {
       const orgId = user?.organisation?.id;
 
       const res = await getContactsApi(orgId);
-      console.log("cccddd", res);
 
       const contactsArray = res?.contacts ?? [];
 
@@ -139,7 +138,7 @@ WhatsApp: ${record.whatsapp || "-"}
   };
 
   const handleDelete = (record: ContactsRecord) => {
-    Alert.alert("Delete Contact", `Delete ${record.name}?`, [
+    Alert.alert("Delete Contact", `Are you sure you want to delete this contact? This action cannot be undone. Delete ${record.name}?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",

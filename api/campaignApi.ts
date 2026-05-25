@@ -48,7 +48,7 @@ export interface CampaignPostData {
 
 export const createCampaignApi = async (data: CampaignData) => {
   try {
-    const response = await https.post("/campaigns", data, {
+    const response = await https.post("Campaigns/AddCampaign", data, {
       headers: { "Content-Type": "application/json" },
     });
     return response.data;
@@ -68,8 +68,9 @@ export const getCampaignsApi = async (orgId: number,
   limit: number = 10,
 ) => {
   try {
-    const params: any = { page, limit };
-    const response = await https.get(`/Campaigns?organisationId=${orgId}&page=${page}&limit=${limit}`);
+    // console.log("orgId", orgId);
+    // const params: any = { page, limit };
+    const response = await https.get(`Campaigns?organisationId=${orgId}&page=${page}&limit=${limit}&sortBy=createdAt&sortOrder=desc`);
     return response.data;
   } catch (error: any) {
     console.error("Get Campaigns API Error:", error.response || error.message);
@@ -94,9 +95,9 @@ export const getCampaignByIdApi = async (id: number) => {
 
 // Update campaign by ID
 
-export const updateCampaignApi = async (id: number, data: CampaignData) => {
+export const updateCampaignApi = async (data: CampaignData) => {
   try {
-    const response = await https.put(`/campaigns/${id}`, data, {
+    const response = await https.put(`Campaigns/UpdateCampaign`, data, {
       headers: { "Content-Type": "application/json" },
     });
     return response.data;
@@ -111,9 +112,17 @@ export const updateCampaignApi = async (id: number, data: CampaignData) => {
 
 // Delete campaign
 
-export const deleteCampaignApi = async (id: number) => {
+export const deleteCampaignApi = async (id: number, orgId: number) => {
+  let data = {
+    id,
+    orgId,
+  }
+  console.log("delete", data);
+
   try {
-    const response = await https.delete(`/campaigns/${id}`);
+    const response = await https.post(`Campaigns/DeleteCampaign`, data, {
+      headers: { "Content-Type": "application/json" },
+    });
     return response.data;
   } catch (error: any) {
     console.error(
