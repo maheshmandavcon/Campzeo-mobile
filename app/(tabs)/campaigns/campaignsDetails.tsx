@@ -114,7 +114,11 @@ export default function CampaignsDetails() {
 
       setLoadingCampaign(true);
       try {
-        const data = await getCampaignByIdApi(resolvedCampaignId);
+        const token = await getToken();
+        if (!token) throw new Error("Token missing");
+        const user = await getUser();
+        const orgId = user?.organisation?.id;
+        const data = await getCampaignByIdApi(resolvedCampaignId,orgId, token);
         if (!data) return;
 
         const mapped: Campaign = {
@@ -146,8 +150,11 @@ export default function CampaignsDetails() {
 
     setLoadingPosts(true);
     try {
-      const res = await getPostsByCampaignIdApi(resolvedCampaignId);
-      const apiPosts = res?.posts ?? res?.data?.posts ?? [];
+      const user = await getUser();
+      const orgId = user?.organisation?.id;
+
+      const res = await getPostsByCampaignIdApi(resolvedCampaignId, orgId);
+      const apiPosts = res?.data ?? [];
 
       const normalizedPosts = apiPosts.map((p: any) => ({
         ...p,
@@ -175,6 +182,7 @@ export default function CampaignsDetails() {
     }
   }, [refreshCallback]);
 
+  const postLength = posts.length;
 
   const filteredPosts = useMemo(() => {
     if (!searchQuery.trim()) return posts;
@@ -209,6 +217,8 @@ export default function CampaignsDetails() {
 
   // ========= POST ACTIONS =========
   const handleDeletePost = async (postId: number) => {
+    const user = await getUser();
+    const orgId = user?.organisation?.id;
     if (!resolvedCampaignId) return;
 
     Alert.alert("Delete Post?", "Are you sure you want to delete this post?", [
@@ -220,7 +230,7 @@ export default function CampaignsDetails() {
           try {
             setDeletingPostId(postId);
 
-            await deletePostForCampaignApi(resolvedCampaignId, postId);
+            await deletePostForCampaignApi(orgId,resolvedCampaignId, postId);
 
             // ✅ Reload ALL posts after delete
             await fetchPosts();
@@ -474,11 +484,15 @@ export default function CampaignsDetails() {
           setPublishing(false);
           return;
         }
-
+const user = await getUser();
+const orgId = user?.organisation?.id;
+const userId = user?.id;
         // ✅ UPDATE POST FIRST
         await updatePostForCampaignApi(
           resolvedCampaignId,
           currentSharePostId,
+          orgId,
+          userId,
           {
             ...post,
             metadata: {
@@ -500,9 +514,11 @@ export default function CampaignsDetails() {
         }
         contactsToSend = selectedContacts;
       }
-
+      const user = await getUser();
+      const orgId = user?.organisation?.id;
       // ✅ NOW SHARE
       const res = await shareCampaignPostApi(
+        orgId,
         resolvedCampaignId,
         currentSharePostId,
         contactsToSend
@@ -783,6 +799,7 @@ export default function CampaignsDetails() {
 
       {campaign && (
         <CampaignCard
+        postLength={postLength}
           campaign={campaign}
           showActions={false}
           alwaysExpanded={true}

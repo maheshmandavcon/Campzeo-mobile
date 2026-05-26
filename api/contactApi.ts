@@ -112,21 +112,18 @@ export const updateContactApi = async (orgId: number, data: ContactData) => {
 // DELETE CONTACTS
 export const deleteContactApi = async (
   organisationId: number,
-  contactIds: number
+  contactIds: number | number[]
 ) => {
   try {
     const payload = {
-      contactIds,
+      contactIds: Array.isArray(contactIds) ? contactIds : [contactIds],
       organisationId,
     };
 
     const res = await https.post(
       "Contacts/DeleteContact",
-      {
-        data: payload,
-      }
+      payload
     );
-
     return res.data;
   } catch (error: any) {
     console.error(

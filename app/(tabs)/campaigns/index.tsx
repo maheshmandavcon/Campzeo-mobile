@@ -114,8 +114,9 @@ export default function Campaigns() {
             if (!token) throw new Error("Authentication token missing");
             const user = await getUser();
             const orgId = user?.organisation?.id;
-            await deleteCampaignApi(c.id, orgId);
+            await deleteCampaignApi(c.id, orgId,token);
             setCampaigns((prev) => prev.filter((x) => x.id !== c.id));
+            fetchCampaigns();
           } catch (error: any) {
             console.error("Error deleting campaign:", error);
             Alert.alert(

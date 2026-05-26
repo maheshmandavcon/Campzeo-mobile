@@ -123,8 +123,9 @@ export default function CreateCampaign() {
         setLoadingCampaign(true);
         const token = await getToken();
         if (!token) throw new Error("Token missing");
-
-        const res = await getCampaignByIdApi(campaignId);
+        const user = await getUser();
+        const orgId = user?.organisation?.id;
+        const res = await getCampaignByIdApi(campaignId,orgId, token);
         const campaign = res.campaign;
 
         reset({
@@ -139,7 +140,7 @@ export default function CreateCampaign() {
           setStartDateObj(new Date(campaign.startDate));
         }
 
-        const postsRes = await getPostsByCampaignIdApi(campaignId);
+        const postsRes = await getPostsByCampaignIdApi(campaignId, orgId);
         console.log("Posts API returned:", postsRes);
 
         const postsArray = Array.isArray(postsRes)
@@ -238,8 +239,7 @@ export default function CreateCampaign() {
       }
 
       isEditMode && campaignId
-        ? await updateCampaignApi(fullData)
-
+        ? await updateCampaignApi(fullData,token)
         : await createCampaignApi(fullData);        
       router.back();
     } catch (err: any) {

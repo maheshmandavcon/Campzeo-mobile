@@ -39,12 +39,12 @@ export default function ShareCampaignPost({
 }: Props) {
 
   // ✅ ADD LOG HERE
-  console.log("[ShareCampaignPost] render", {
-    visible,
-    postId: post?.id,
-    postType: post?.type,
-    mediaUrls: post?.mediaUrls,
-  });
+  // console.log("[ShareCampaignPost] render", {
+  //   visible,
+  //   postId: post?.id,
+  //   postType: post?.type,
+  //   mediaUrls: post?.mediaUrls,
+  // });
 
   if (!visible || !post) return null;
 

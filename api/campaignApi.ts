@@ -80,9 +80,15 @@ export const getCampaignsApi = async (orgId: number,
 
 // Get single campaign by ID
 
-export const getCampaignByIdApi = async (id: number) => {
+export const getCampaignByIdApi = async (id: number,orgId:number, token:string) => {
+  
   try {
-    const response = await https.get(`/campaigns/${id}`);
+    const response = await https.get(`Campaigns/${id}` ,{
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      }
+    });
     return response.data;
   } catch (error: any) {
     console.error(
@@ -95,10 +101,13 @@ export const getCampaignByIdApi = async (id: number) => {
 
 // Update campaign by ID
 
-export const updateCampaignApi = async (data: CampaignData) => {
+export const updateCampaignApi = async (data: CampaignData, token: string) => {
   try {
     const response = await https.put(`Campaigns/UpdateCampaign`, data, {
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
     });
     return response.data;
   } catch (error: any) {
@@ -112,16 +121,19 @@ export const updateCampaignApi = async (data: CampaignData) => {
 
 // Delete campaign
 
-export const deleteCampaignApi = async (id: number, orgId: number) => {
+export const deleteCampaignApi = async (id: number, organisationId: number,  token?: string) => {
   let data = {
     id,
-    orgId,
+    organisationId,
   }
   console.log("delete", data);
 
   try {
     const response = await https.post(`Campaigns/DeleteCampaign`, data, {
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
     });
     return response.data;
   } catch (error: any) {
@@ -137,9 +149,11 @@ export const deleteCampaignApi = async (id: number, orgId: number) => {
 
 // Get posts for a specific campaign
 
-export const getPostsByCampaignIdApi = async (campaignId: number) => {
+export const getPostsByCampaignIdApi = async (campaignId: number,orgId: number) => {
   try {
-    const res = await https.get(`/campaigns/${campaignId}/posts`);
+    const res = await https.get(`Campaigns/${campaignId}/posts?organisationId=${orgId}`);
+    console.log("reeeesss",res.data);
+    
     return res.data;
   } catch (error: any) {
     console.error("Get Posts Error:", error.response?.data || error.message);
@@ -151,6 +165,7 @@ export const getPostsByCampaignIdApi = async (campaignId: number) => {
 
 export const createPostForCampaignApi = async (
   campaignId: number,
+  orgId: number,
   data: CampaignPostData,
   token?: string,
 ) => {
@@ -159,12 +174,13 @@ export const createPostForCampaignApi = async (
     JSON.stringify(data, null, 2),
   );
   try {
-    const response = await https.post(`/campaigns/${campaignId}/posts`, data, {
+    const response = await https.post(`Campaigns/${campaignId}/posts?organisationId=${orgId}`, data, {
       headers: {
         "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
       },
     });
+    
     console.log("FINAL PAYLOAD BEFORE API:", JSON.stringify(data, null, 2));
     console.log("Create Post API Response:", response.data);
     return response.data;
@@ -202,17 +218,14 @@ export const createPostForCampaignApi = async (
 // Share a campaign post
 
 export const shareCampaignPostApi = async (
+  orgId:number,
   campaignId: number,
   postId: number,
   contactIds: number[],
 ) => {
-  console.log("📤 [SharePost] campaignId:", campaignId);
-  console.log("📤 [SharePost] postId:", postId);
-  console.log("📤 [SharePost] contactIds:", contactIds);
-
   try {
     const response = await https.post(
-      `/campaigns/${campaignId}/posts/${postId}/send`,
+      `Campaigns/${campaignId}/posts/${postId}/send?organisationId=${orgId}`,
       { contactIds },
       {
         headers: { "Content-Type": "application/json" },
@@ -235,12 +248,14 @@ export const shareCampaignPostApi = async (
 export const updatePostForCampaignApi = async (
   campaignId: number,
   postId: number,
+  orgId: number,
+  userId: string,
   data: CampaignPostData,
   token?: string,
 ) => {
   try {
     const response = await https.put(
-      `/campaigns/${campaignId}/posts/${postId}`,
+      `Campaigns/${campaignId}/posts/${postId}?organisationId=${orgId}&userId=${userId}`,
       data,
       {
         headers: {
@@ -259,12 +274,13 @@ export const updatePostForCampaignApi = async (
 // Delete a post for a specific campaign
 
 export const deletePostForCampaignApi = async (
+  orgId:number,
   campaignId: number,
   postId: number,
 ) => {
   try {
     const response = await https.delete(
-      `/campaigns/${campaignId}/posts/${postId}`,
+      `Campaigns/${campaignId}/posts/${postId}?organisationId=${orgId}`,
     );
     return response.data;
   } catch (error: any) {
@@ -300,12 +316,12 @@ export const generateAIContentApi = async (
   token?: string,
 ) => {
   try {
-    const response = await https.post("/ai/generate-content", data, {
+    const response = await https.post("AI/generate-content", data, {
       headers: {
         "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
       },
-    });
+    });    
     return response.data;
   } catch (error: any) {
     console.error(
@@ -369,7 +385,7 @@ export const generateAIImageApi = async (
   token?: string,
 ) => {
   try {
-    const response = await https.post("/ai/generate-image", data, {
+    const response = await https.post("AI/generate-image", data, {
       headers: {
         "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
@@ -377,7 +393,7 @@ export const generateAIImageApi = async (
     });
 
     // Log the full response for debugging
-    console.log("AI Image Generation Response:", response.data);
+    // console.log("AI Image Generation Response:", response.data);
 
     return response.data;
   } catch (error: any) {

@@ -29,6 +29,7 @@ export interface Attachment {
 export interface AIVariation {
   subject: string;
   content: string;
+  isLoading?: boolean;
 }
 
 export function useCampaignPostForm({
@@ -185,11 +186,11 @@ export function useCampaignPostForm({
   // ================= PREVIEW TIMESTEMP =================
   const previewTimestamp = postDate
     ? postDate.toLocaleString([], {
-        // day: "2-digit",
-        // month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
+      // day: "2-digit",
+      // month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
     : "Just now";
 
   // ================= LINKEDIN =================
@@ -535,8 +536,7 @@ export function useCampaignPostForm({
         uri: asset.uri,
         name:
           asset.fileName ??
-          `${isVideo ? "video" : "image"}-${Date.now()}.${
-            isVideo ? "mp4" : "jpg"
+          `${isVideo ? "video" : "image"}-${Date.now()}.${isVideo ? "mp4" : "jpg"
           }`,
         type: isVideo ? "video/mp4" : "image/jpeg",
         uploading: true,
@@ -579,11 +579,11 @@ export function useCampaignPostForm({
         prev.map((a) =>
           a.uri === asset.uri
             ? {
-                ...a,
-                uri: finalUrl,
-                uploadedUrl: finalUrl,
-                uploading: false,
-              }
+              ...a,
+              uri: finalUrl,
+              uploadedUrl: finalUrl,
+              uploading: false,
+            }
             : a,
         ),
       );
@@ -655,45 +655,90 @@ export function useCampaignPostForm({
     if (loadingAI) return;
 
     setLoadingAI(true);
+    setAiResults([
+      { subject: "", content: "Generating...", isLoading: true },
+      { subject: "", content: "Generating...", isLoading: true },
+      { subject: "", content: "Generating...", isLoading: true },
+    ]);
 
     try {
       const token = await getToken();
       if (!token) throw new Error("Authentication token missing");
 
-      const payload = {
-        prompt: aiPrompt,
-        context: { platform, existingContent: message || "" }, // ✅ existingContent required
+      // Construct the three prompts with style instructions exactly as required
+      const prompt1 = `${aiPrompt} (Style: Professional and informative). Start with a creative Title on the first line prefixed with "Title: ". Then provide the content. Include 3-5 relevant hashtags at the end.`;
+      const prompt2 = `${aiPrompt} (Style: Creative and engaging). Start with a creative Title on the first line prefixed with "Title: ". Then provide the content. Include 3-5 relevant hashtags at the end.`;
+      const prompt3 = `${aiPrompt} (Style: Concise and urgent). Start with a creative Title on the first line prefixed with "Title: ". Then provide the content. Include 3-5 relevant hashtags at the end.`;
+
+      const createPayload = (p: string) => ({
+        prompt: p,
+        context: { platform, existingContent: message || "" },
         mode: "generate-multiple",
+      });
+
+      console.log("🤖 Generating 3 AI variations independently...");
+
+      const fetchVariation = async (payload: any, index: number) => {
+        try {
+          const res = await generateAIContentApi(payload, token);
+          if (!res || !res.success) {
+            throw new Error(res?.message || "Pollinations API request failed");
+          }
+
+          const rawContent = res.content || "";
+          let extractedSubject = "";
+          let cleanedContent = rawContent;
+
+          // Extract title from response.content using: Title: ...
+          const titleMatch = rawContent.match(/Title:\s*(.+)/i);
+          if (titleMatch) {
+            extractedSubject = titleMatch[1].trim();
+            // Remove the Title line from the message content before storing
+            cleanedContent = rawContent.replace(/Title:\s*.+\n*/i, "").trim();
+          } else {
+            // Fallback if no Title: prefix is found
+            const lines = rawContent.split("\n");
+            if (lines.length > 0 && lines[0].trim().length > 0) {
+              extractedSubject = lines[0].trim();
+              cleanedContent = lines.slice(1).join("\n").trim();
+            }
+          }
+
+          setAiResults((prev) => {
+            const next = [...prev];
+            next[index] = { subject: extractedSubject, content: cleanedContent, isLoading: false };
+            return next;
+          });
+        } catch (error: any) {
+          console.error(`❌ AI Content Generation Error for index ${index}:`, error);
+          setAiResults((prev) => {
+            const next = [...prev];
+            // Bind error message directly to the choice
+            const errorMsg = error?.message || "Pollinations API request failed";
+            next[index] = { subject: "", content: errorMsg, isLoading: false };
+            return next;
+          });
+        }
       };
 
-      const response = await generateAIContentApi(payload, token);
+      // Execute 3 requests independently
+      await Promise.all([
+        fetchVariation(createPayload(prompt1), 0),
+        fetchVariation(createPayload(prompt2), 1),
+        fetchVariation(createPayload(prompt3), 2),
+      ]);
 
-      if (!response) throw new Error("No AI response returned");
-
-      let aiSuggestions: { subject: string; content: string }[] = [];
-
-      if (response.variations?.length > 0) {
-        // Normal platforms: use variations
-        aiSuggestions = response.variations.slice(0, 3).map((v: any) => ({
-          subject: platform === "SMS" ? "" : (v.subject ?? ""),
-          content: v.content,
-        }));
-      } else if (platform === "SMS" && response.content) {
-        // SMS fallback: use single content
-        aiSuggestions = [{ subject: "", content: response.content }];
-      } else {
-        throw new Error("No AI suggestions returned");
-      }
-
-      setAiResults(aiSuggestions);
     } catch (error: any) {
-      Alert.alert("AI Error", error?.message || "Failed to generate content");
+      console.error("❌ Auth Error before AI generation:", error);
+      Alert.alert("AI Error", error?.message || "Authentication failed");
     } finally {
       setLoadingAI(false);
     }
   };
 
   // ================= AI IMAGE =================
+
+
   // const handleGenerateAIImage = async () => {
   //   if (!imagePrompt.trim()) {
   //     Alert.alert("Enter a prompt to generate an image");
@@ -766,57 +811,102 @@ export function useCampaignPostForm({
   //   }
   // };
 
+  // const handleSelectGeneratedImage = async (imageUrl: string) => {
+  //   try {      
+  //     if (selectingImage) return;
+
+  //     setSelectingImage(imageUrl);
+
+  //     const token = await getToken();
+  //     if (!token) throw new Error("Token missing");
+
+  //     console.log(`🤖 Initiating upload for AI generated image:`, imageUrl);
+  //     const uploadedUrl = await uploadMediaApi(
+  //       {
+  //         uri: imageUrl,
+  //         name: `ai-image-${Date.now()}.jpg`,
+  //         type: "image/jpeg",
+  //       },
+  //       token,
+  //       undefined,
+  //       {
+  //         organisationId,
+  //         campaignId,
+  //         isReel: false,
+  //         platform,
+  //       }
+  //     );
+  //     console.log(`✅ AI image upload complete. Attachment URI:`, uploadedUrl);
+
+  //     setAttachments((prev) => [
+  //       ...prev,
+  //       {
+  //         uri: uploadedUrl,
+  //         uploadedUrl: uploadedUrl,
+  //         name: "ai-image.jpg",
+  //         type: "image/jpeg",
+  //         uploading: false,
+  //       },
+  //     ]);
+
+  //     setSelectedImage(imageUrl);
+
+  //     // small delay makes UX smoother
+  //     setTimeout(() => {
+  //       setImageModalVisible(false);
+  //       setSelectingImage(null);
+  //     }, 300);
+  //   } catch (error: any) {
+  //   console.log("AI IMAGE UPLOAD ERROR:", error);
+  //  console.log("ERROR RESPONSE:", error?.response);
+  //  console.log("ERROR MESSAGE:", error?.message);
+
+  //  setSelectingImage(null);
+
+  //  Alert.alert(
+  //     "Upload failed",
+  //     error?.message || "Unable to upload AI image"
+  //  );
+  //   }
+  // };
+
   const handleSelectGeneratedImage = async (imageUrl: string) => {
-    try {
-      if (selectingImage) return; 
+  try {
+    if (selectingImage) return;
 
-      setSelectingImage(imageUrl); 
+    setSelectingImage(imageUrl);
 
-      const token = await getToken();
-      if (!token) throw new Error("Token missing");
+    // Directly save AI image URL
+    setAttachments((prev) => [
+      ...prev,
+      {
+        uri: imageUrl,
+        uploadedUrl: imageUrl,
+        name: `ai-image-${Date.now()}.webp`,
+        type: "image/webp",
+        uploading: false,
+      },
+    ]);
 
-      console.log(`🤖 Initiating upload for AI generated image:`, imageUrl);
-      const uploadedUrl = await uploadMediaApi(
-        {
-          uri: imageUrl,
-          name: `ai-image-${Date.now()}.jpg`,
-          type: "image/jpeg",
-        },
-        token,
-        undefined,
-        {
-          organisationId,
-          campaignId,
-          isReel: false,
-          platform,
-        }
-      );
-      console.log(`✅ AI image upload complete. Attachment URI:`, uploadedUrl);
+    setSelectedImage(imageUrl);
 
-      setAttachments((prev) => [
-        ...prev,
-        {
-          uri: uploadedUrl,
-          uploadedUrl: uploadedUrl,
-          name: "ai-image.jpg",
-          type: "image/jpeg",
-          uploading: false,
-        },
-      ]);
-
-      setSelectedImage(imageUrl);
-
-      // small delay makes UX smoother
-      setTimeout(() => {
-        setImageModalVisible(false);
-        setSelectingImage(null);
-      }, 300);
-    } catch (error) {
+    setTimeout(() => {
+      setImageModalVisible(false);
       setSelectingImage(null);
-      Alert.alert("Upload failed", "Unable to upload AI image");
-    }
-  };
+    }, 300);
 
+  } catch (error: any) {
+    console.log("AI IMAGE ERROR:", error);
+
+    setSelectingImage(null);
+
+    Alert.alert(
+      "Error",
+      error?.message || "Failed to use AI image"
+    );
+  }
+};
+  
   function normalizeAIImageUrl(url: string) {
     // if (!url) return url;
 
@@ -1184,240 +1274,247 @@ export function useCampaignPostForm({
     }
   };
   // ================= SUBMIT =================
- const handleSubmit = async () => {
-  if (loading) return;
-  setLoading(true);
+  const handleSubmit = async () => {
+    const user = await getUser();
+    const userId = user.id;
+    const orgId = user.organisationId;
+    if (loading) return;
+    setLoading(true);
 
-  try {
-    // ================= BASIC VALIDATION =================
-    if (!message) {
-      Alert.alert("⚠️ Please fill in all fields.");
-      return;
-    }
+    try {
+      // ================= BASIC VALIDATION =================
+      if (!message) {
+        Alert.alert("⚠️ Please fill in all fields.");
+        return;
+      }
 
-    const mediaRequiredPlatforms = ["INSTAGRAM", "YOUTUBE", "PINTEREST"];
+      const mediaRequiredPlatforms = ["INSTAGRAM", "YOUTUBE", "PINTEREST"];
 
-    if (
-      mediaRequiredPlatforms.includes(platform) &&
-      attachments.length === 0
-    ) {
-      const platformName = PLATFORM_LABELS[platform] ?? platform;
-      Alert.alert(
-        "⚠️ Missing Media",
-        `Please add at least one image or video for ${platformName}.`
+      if (
+        mediaRequiredPlatforms.includes(platform) &&
+        attachments.length === 0
+      ) {
+        const platformName = PLATFORM_LABELS[platform] ?? platform;
+        Alert.alert(
+          "⚠️ Missing Media",
+          `Please add at least one image or video for ${platformName}.`
+        );
+        return;
+      }
+
+      if (platform === "EMAIL" && (!subject || !senderEmail)) {
+        Alert.alert("⚠️ Please fill in all fields.");
+        return;
+      }
+
+      const subjectRequiredPlatforms = [
+        "FACEBOOK",
+        "INSTAGRAM",
+        "LINKEDIN",
+        "YOUTUBE",
+        "PINTEREST",
+      ];
+
+      if (subjectRequiredPlatforms.includes(platform) && !subject) {
+        Alert.alert("⚠️ Please fill in all fields.");
+        return;
+      }
+
+      // ================= CAMPAIGN ID =================
+      const campaignIdToUse =
+        Number(campaignId) ||
+        Number(existingPost?.campaignId) ||
+        Number(existingPost?.campaign?.id);
+
+      if (!campaignIdToUse) {
+        Alert.alert("Campaign ID missing");
+        return;
+      }
+
+      // ================= TAGS =================
+      const parsedTags = youTubeTags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0);
+
+      // ================= MEDIA VALIDATION =================
+      const mediaUrls = attachments
+        .filter(
+          (a): a is typeof a & { uploadedUrl: string } =>
+            !!a.uploadedUrl &&
+            !!a.type &&
+            (a.type.startsWith("image/") || a.type.startsWith("video/"))
+        )
+        .map((a) => a.uploadedUrl);
+
+      console.log("MEDIA URLS BEING SENT:", mediaUrls);
+
+      const invalidMedia = attachments.filter(
+        (a) =>
+          !a.uploadedUrl ||
+          !a.type ||
+          (!a.type.startsWith("image/") && !a.type.startsWith("video/"))
       );
-      return;
-    }
 
-    if (platform === "EMAIL" && (!subject || !senderEmail)) {
-      Alert.alert("⚠️ Please fill in all fields.");
-      return;
-    }
+      if (invalidMedia.length > 0) {
+        Alert.alert(
+          "Invalid Media",
+          "Some media files are not uploaded properly. Please reselect them."
+        );
+        return;
+      }
 
-    const subjectRequiredPlatforms = [
-      "FACEBOOK",
-      "INSTAGRAM",
-      "LINKEDIN",
-      "YOUTUBE",
-      "PINTEREST",
-    ];
+      // ================= BUILD CLEAN METADATA =================
+      let finalMetadata: any = {};
+      const socialPlatforms = ["FACEBOOK", "INSTAGRAM", "YOUTUBE", "PINTEREST", "LINKEDIN"];
+      if (socialPlatforms.includes(platform)) {
+        finalMetadata.tags = parsedTags;
+      }
 
-    if (subjectRequiredPlatforms.includes(platform) && !subject) {
-      Alert.alert("⚠️ Please fill in all fields.");
-      return;
-    }
+      // YOUTUBE
+      if (platform === "YOUTUBE") {
+        finalMetadata = {
+          ...finalMetadata,
+          postType: youTubeContentType,
+          privacy: youTubeStatus,
+          thumbnailUrl: customThumbnail || null,
+          playlistId,
+          playlistTitle,
+        };
+      }
 
-    // ================= CAMPAIGN ID =================
-    const campaignIdToUse =
-      Number(campaignId) ||
-      Number(existingPost?.campaignId) ||
-      Number(existingPost?.campaign?.id);
+      // FACEBOOK / INSTAGRAM
+      if (platform === "FACEBOOK" || platform === "INSTAGRAM") {
+        const isActuallyReel = facebookContentType === "REEL";
+        finalMetadata = {
+          ...finalMetadata,
+          postType: facebookContentType,
+          isReel: isActuallyReel,
+          coverImage: coverImage || null,
+          coverUrl: coverImage || null,
+          thumbnailUrl: coverImage || null,
+        };
+      }
 
-    if (!campaignIdToUse) {
-      Alert.alert("Campaign ID missing");
-      return;
-    }
+      // LINKEDIN
+      if (platform === "LINKEDIN") {
+        finalMetadata = {
+          ...finalMetadata,
+          authorId: selectedAccount,
+          authorType: "ORGANIZATION",
+        };
+      }
 
-    // ================= TAGS =================
-    const parsedTags = youTubeTags
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter((tag) => tag.length > 0);
+      // PINTEREST
+      if (platform === "PINTEREST") {
+        finalMetadata = {
+          ...finalMetadata,
+          boardId: PinterestBoardId,
+          boardName: pinterestBoard,
+          destinationLink: metadata?.destinationLink || "",
+        };
+      }
 
-    // ================= MEDIA VALIDATION =================
-    const mediaUrls = attachments
-      .filter(
-        (a): a is typeof a & { uploadedUrl: string } =>
-          !!a.uploadedUrl &&
-          !!a.type &&
-          (a.type.startsWith("image/") || a.type.startsWith("video/"))
-      )
-      .map((a) => a.uploadedUrl);
+      // ================= BUILD POST DATA =================
+      const postData: CampaignPostData = {
+        senderEmail,
+        subject,
+        message,
+        type: platform,
+        mediaUrls,
+        scheduledPostTime: postDate?.toISOString() || new Date().toISOString(),
+        metadata: finalMetadata,
+        thumbnailUrl: coverImage || customThumbnail || null,
+        // Root level fields for better backend Create API compatibility
+        isReel: (platform === "FACEBOOK" || platform === "INSTAGRAM") ? (facebookContentType === "REEL") : undefined,
+        postType: (platform === "FACEBOOK" || platform === "INSTAGRAM") ? facebookContentType : undefined,
+        coverImage: (platform === "FACEBOOK" || platform === "INSTAGRAM") ? (coverImage || null) : undefined,
 
-    console.log("MEDIA URLS BEING SENT:", mediaUrls);
-
-    const invalidMedia = attachments.filter(
-      (a) =>
-        !a.uploadedUrl ||
-        !a.type ||
-        (!a.type.startsWith("image/") && !a.type.startsWith("video/"))
-    );
-
-    if (invalidMedia.length > 0) {
-      Alert.alert(
-        "Invalid Media",
-        "Some media files are not uploaded properly. Please reselect them."
-      );
-      return;
-    }
-
-    // ================= BUILD CLEAN METADATA =================
-    let finalMetadata: any = {};
-    const socialPlatforms = ["FACEBOOK", "INSTAGRAM", "YOUTUBE", "PINTEREST", "LINKEDIN"];
-    if (socialPlatforms.includes(platform)) {
-      finalMetadata.tags = parsedTags;
-    }
-
-    // YOUTUBE
-    if (platform === "YOUTUBE") {
-      finalMetadata = {
-        ...finalMetadata,
-        postType: youTubeContentType,
-        privacy: youTubeStatus,
-        thumbnailUrl: customThumbnail || null,
-        playlistId,
-        playlistTitle,
-      };
-    }
-
-    // FACEBOOK / INSTAGRAM
-    if (platform === "FACEBOOK" || platform === "INSTAGRAM") {
-       const isActuallyReel = facebookContentType === "REEL";
-       finalMetadata = {
-         ...finalMetadata,
-         postType: facebookContentType,
-         isReel: isActuallyReel,
-         coverImage: coverImage || null,
-         coverUrl: coverImage || null,
-         thumbnailUrl: coverImage || null,
-       };
-    }
-
-    // LINKEDIN
-    if (platform === "LINKEDIN") {
-      finalMetadata = {
-        ...finalMetadata,
-        authorId: selectedAccount,
-        authorType: "ORGANIZATION",
-      };
-    }
-
-    // PINTEREST
-    if (platform === "PINTEREST") {
-      finalMetadata = {
-        ...finalMetadata,
-        boardId: PinterestBoardId,
-        boardName: pinterestBoard,
-        destinationLink: metadata?.destinationLink || "",
-      };
-    }
-
-    // ================= BUILD POST DATA =================
-    const postData: CampaignPostData = {
-      senderEmail,
-      subject,
-      message,
-      type: platform,
-      mediaUrls,
-      scheduledPostTime: postDate?.toISOString() || new Date().toISOString(),
-      metadata: finalMetadata,
-      thumbnailUrl: coverImage || customThumbnail || null,
-      // Root level fields for better backend Create API compatibility
-      isReel: (platform === "FACEBOOK" || platform === "INSTAGRAM") ? (facebookContentType === "REEL") : undefined,
-      postType: (platform === "FACEBOOK" || platform === "INSTAGRAM") ? facebookContentType : undefined,
-      coverImage: (platform === "FACEBOOK" || platform === "INSTAGRAM") ? (coverImage || null) : undefined,
-
-      ...(platform === "PINTEREST"
-        ? {
+        ...(platform === "PINTEREST"
+          ? {
             pinterestBoardId: PinterestBoardId,
             pinterestLink: metadata?.destinationLink || "",
           }
-        : {}),
-    };
+          : {}),
+      };
 
-    console.log(
-      "FINAL CREATE/UPDATE PAYLOAD:",
-      JSON.stringify(postData, null, 2)
-    );
-
-    // ================= SCHEDULE VALIDATION =================
-    const isFutureDateTime = (date: Date) =>
-      date.getTime() > Date.now();
-
-    if (postDate && !isFutureDateTime(postDate)) {
-      const now = new Date();
-      const future = new Date(now.getTime() + 60 * 1000);
-
-      Alert.alert(
-        "Invalid Time",
-        `Please select a future time (for example, ${future.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}).`
+      console.log(
+        "FINAL CREATE/UPDATE PAYLOAD:",
+        JSON.stringify(postData, null, 2)
       );
 
-      return;
+      // ================= SCHEDULE VALIDATION =================
+      const isFutureDateTime = (date: Date) =>
+        date.getTime() > Date.now();
+
+      if (postDate && !isFutureDateTime(postDate)) {
+        const now = new Date();
+        const future = new Date(now.getTime() + 60 * 1000);
+
+        Alert.alert(
+          "Invalid Time",
+          `Please select a future time (for example, ${future.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}).`
+        );
+
+        return;
+      }
+
+      // ================= API CALL =================
+      const token = await getToken();
+      if (!token) throw new Error("Authentication token missing");
+
+      let response;
+
+      if (existingPost?.id) {
+        response = await updatePostForCampaignApi(
+          
+          Number(campaignIdToUse),
+          Number(existingPost.id),
+          orgId,
+          userId,
+          postData,
+          token
+        );
+      } else {
+        response = await createPostForCampaignApi(
+          Number(campaignIdToUse),
+          orgId,
+          postData,
+          token
+        );
+      }
+
+      onClose?.(response);
+
+      // ================= RESET (ONLY CREATE) =================
+      if (!existingPost) {
+        setSenderEmail("");
+        setSubject("");
+        setMessage("");
+        setAiPrompt("");
+        setPostDate(null);
+        setImagePrompt("");
+        setGeneratedImages([]);
+        setSelectedImage(undefined);
+        setCoverImage(null);
+      }
+
+      onCreatedNavigate ? onCreatedNavigate() : router.back();
+
+    } catch (error: any) {
+      const apiMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Something went wrong";
+
+      Alert.alert("⚠️ Scheduling Error", apiMessage);
+    } finally {
+      setLoading(false);
     }
-
-    // ================= API CALL =================
-    const token = await getToken();
-    if (!token) throw new Error("Authentication token missing");
-
-    let response;
-
-    if (existingPost?.id) {
-      response = await updatePostForCampaignApi(
-        Number(campaignIdToUse),
-        Number(existingPost.id),
-        postData,
-        token
-      );
-    } else {
-      response = await createPostForCampaignApi(
-        Number(campaignIdToUse),
-        postData,
-        token
-      );
-    }
-
-    onClose?.(response);
-
-    // ================= RESET (ONLY CREATE) =================
-    if (!existingPost) {
-      setSenderEmail("");
-      setSubject("");
-      setMessage("");
-      setAiPrompt("");
-      setPostDate(null);
-      setImagePrompt("");
-      setGeneratedImages([]);
-      setSelectedImage(undefined);
-      setCoverImage(null);
-    }
-
-    onCreatedNavigate ? onCreatedNavigate() : router.back();
-
-  } catch (error: any) {
-    const apiMessage =
-      error?.response?.data?.error ||
-      error?.message ||
-      "Something went wrong";
-
-    Alert.alert("⚠️ Scheduling Error", apiMessage);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // ================= RETURN =================
   return {

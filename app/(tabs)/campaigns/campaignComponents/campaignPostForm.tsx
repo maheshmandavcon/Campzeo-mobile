@@ -27,14 +27,14 @@ import Preview from "./preview";
 // ---------- Define Props Interface ----------
 interface CampaignPostFormProps {
   platform:
-  | "EMAIL"
-  | "SMS"
-  | "INSTAGRAM"
-  | "WHATSAPP"
-  | "FACEBOOK"
-  | "YOUTUBE"
-  | "LINKEDIN"
-  | "PINTEREST";
+    | "EMAIL"
+    | "SMS"
+    | "INSTAGRAM"
+    | "WHATSAPP"
+    | "FACEBOOK"
+    | "YOUTUBE"
+    | "LINKEDIN"
+    | "PINTEREST";
   existingPost?: any;
   campaignId?: string;
   campaignStartDate?: string;
@@ -54,20 +54,70 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
   const {
     // state
-    platform: platformState, senderEmail, subject, message, attachments, postDate, loading, previewTimestamp,
+    platform: platformState,
+    senderEmail,
+    subject,
+    message,
+    attachments,
+    postDate,
+    loading,
+    previewTimestamp,
 
-    aiModalVisible, aiPrompt, aiResults, loadingAI, imageLoadingMap,
+    aiModalVisible,
+    aiPrompt,
+    aiResults,
+    loadingAI,
+    imageLoadingMap,
 
-    imageModalVisible, imagePrompt, generatedImages, loadingImage,
+    imageModalVisible,
+    imagePrompt,
+    generatedImages,
+    loadingImage,
 
-    facebookPages, selectedFacebookPage, facebookContentType, isFacebookPageLoading, coverImage, coverUploading, setCoverImage,
+    facebookPages,
+    selectedFacebookPage,
+    facebookContentType,
+    isFacebookPageLoading,
+    coverImage,
+    coverUploading,
+    setCoverImage,
 
-    youTubeContentType, youTubeTags, youTubeStatus, showStatusDropdown, isCreatingPlaylist, customThumbnail, playlistId, playlistTitle,
-    playlists, showPlaylistDropdown, selectedPlaylist, newPlaylistName, selectedAccount, hasVideo, hasImage, hasAttachment, canSelectStandard, canSelectReel,
+    youTubeContentType,
+    youTubeTags,
+    youTubeStatus,
+    showStatusDropdown,
+    isCreatingPlaylist,
+    customThumbnail,
+    playlistId,
+    playlistTitle,
+    playlists,
+    showPlaylistDropdown,
+    selectedPlaylist,
+    newPlaylistName,
+    selectedAccount,
+    hasVideo,
+    hasImage,
+    hasAttachment,
+    canSelectStandard,
+    canSelectReel,
 
-    pinterestBoard, destinationLink, isCreatingPinterestBoard, pinterestModalVisible, newPinterestBoard, pinterestDescription, isPinterestBoardLoading, allPinterestBoards, loadingBoards,
+    pinterestBoard,
+    destinationLink,
+    isCreatingPinterestBoard,
+    pinterestModalVisible,
+    newPinterestBoard,
+    pinterestDescription,
+    isPinterestBoardLoading,
+    allPinterestBoards,
+    loadingBoards,
 
-    showPicker, showTimePicker, minSelectableStartDate, minSelectableEndDate, maxSelectableEndDate, imageErrorMap, selectingImage,
+    showPicker,
+    showTimePicker,
+    minSelectableStartDate,
+    minSelectableEndDate,
+    maxSelectableEndDate,
+    imageErrorMap,
+    selectingImage,
 
     // setters
     setSenderEmail,
@@ -120,7 +170,9 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     campaignId,
     existingPost: existingPost
       ? existingPost
-      : { campaign: { startDate: campaignStartDate, endDate: campaignEndDate, } },
+      : {
+          campaign: { startDate: campaignStartDate, endDate: campaignEndDate },
+        },
     // campaignStartDate,
     onClose,
   });
@@ -208,9 +260,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
         </TouchableOpacity> */}
 
         <TouchableOpacity
-          onPress={() =>
-            handleRemoveAttachment(item.uploadedUrl ?? item.uri)
-          }
+          onPress={() => handleRemoveAttachment(item.uploadedUrl ?? item.uri)}
         >
           <Ionicons name="close-circle" size={20} color="#dc2626" />
         </TouchableOpacity>
@@ -233,6 +283,12 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
   // post preview profile
   const { user } = useUser();
+
+  // useEffect(() => {
+  //   console.log("🚀 ~ CampaignPostForm ~ generatedImages:", generatedImages)
+  //   console.log("🚀 ~ CampaignPostForm ~ aiResults:", aiResults)
+  //   console.log("🚀 ~ CampaignPostForm ~ attachments:", attachments)
+  // }, [generatedImages, aiResults, attachments]);
 
   return (
     <KeyboardAvoidingView
@@ -480,52 +536,104 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   </TouchableOpacity>
                 </View>
 
-                {loadingAI ? (
-                  <View
-                    style={{
-                      height: 150, // fixed height
-                      justifyContent: "center",
-                      alignItems: "center",
-                      marginVertical: 20,
-                      borderRadius: 12,
-                    }}
-                  >
-                    <ActivityIndicator size="large" color="#dc2626" />
-                    <Text
-                      style={{
-                        marginTop: 12,
-                        fontWeight: "bold",
-                        color: "#000",
+                {aiResults.length > 0 ? (
+                  <View style={{ flexShrink: 1, marginTop: 4 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                      <Text style={{ fontWeight: 'bold', fontSize: 14, color: isDark ? '#ffffff' : '#374151', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        AI SUGGESTIONS ({aiResults.length})
+                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+                        <Text style={{ color: '#10b981', fontWeight: 'bold', fontSize: 12, marginLeft: 4 }}>Ready</Text>
+                      </View>
+                    </View>
+                    <FlatList
+                      data={aiResults}
+                      keyExtractor={(_, index) => index.toString()}
+                      showsVerticalScrollIndicator={false}
+                      contentContainerStyle={{ paddingBottom: 16 }}
+                      renderItem={({ item, index }) => {
+                        const STYLE_BADGES = ["PROFESSIONAL", "CREATIVE", "CONCISE"];
+                        const badgeLabel = STYLE_BADGES[index] || "SUGGESTION";
+
+                        return (
+                          <View
+                            style={{
+                              backgroundColor: isDark ? "#1e1e1e" : "#ffffff",
+                              borderRadius: 12,
+                              borderWidth: 1,
+                              borderColor: isDark ? "#333" : "#e5e7eb",
+                              padding: 16,
+                              marginBottom: 12,
+                            }}
+                          >
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                              <Text style={{ color: isDark ? "#9ca3af" : "#9ca3af", fontWeight: 'bold', fontSize: 12, marginTop: 4, letterSpacing: 0.5 }}>
+                                {badgeLabel}
+                              </Text>
+                              
+                              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                {item.isLoading ? (
+                                  <ActivityIndicator size="small" color="#dc2626" style={{ marginRight: 8 }} />
+                                ) : (
+                                  <>
+                                    {/* Red Check Button (Replace/Use) */}
+                                    <TouchableOpacity 
+                                      activeOpacity={0.7}
+                                      onPress={() => {
+                                        setSubject(item.subject);
+                                        setMessage(item.content);
+                                        setAiModalVisible(false);
+                                      }}
+                                      style={{
+                                        backgroundColor: "#dc2626", // red
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: 10,
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        marginRight: 8
+                                      }}
+                                    >
+                                      <Ionicons name="checkmark" size={18} color="#fff" />
+                                    </TouchableOpacity>
+
+                                    {/* White Plus Button (Append) */}
+                                    <TouchableOpacity 
+                                      activeOpacity={0.7}
+                                      onPress={() => {
+                                        if (!subject && item.subject) {
+                                          setSubject(item.subject);
+                                        }
+                                        setMessage(message ? `${message}\n\n${item.content}` : item.content);
+                                        setAiModalVisible(false);
+                                      }}
+                                      style={{
+                                        backgroundColor: isDark ? "#374151" : "#ffffff",
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: 10,
+                                        borderWidth: 1,
+                                        borderColor: isDark ? "#4b5563" : "#d1d5db",
+                                        justifyContent: 'center',
+                                        alignItems: 'center'
+                                      }}
+                                    >
+                                      <Ionicons name="add" size={18} color={isDark ? "#fff" : "#374151"} />
+                                    </TouchableOpacity>
+                                  </>
+                                )}
+                              </View>
+                            </View>
+
+                            <Text style={{ fontSize: 14, color: isDark ? "#d1d5db" : "#374151", lineHeight: 22 }}>
+                              {item.subject ? `Title: ${item.subject}\n` : ""}{item.content}
+                            </Text>
+                          </View>
+                        );
                       }}
-                    >
-                      Generating AI suggestions...
-                    </Text>
+                    />
                   </View>
-                ) : aiResults.length > 0 ? (
-                  <FlatList
-                    data={aiResults}
-                    keyExtractor={(_, index) => index.toString()}
-                    renderItem={({ item }) => (
-                      <TouchableOpacity
-                        onPress={() => {
-                          setMessage(item.content);
-                          setSubject(item.subject);
-                          setAiModalVisible(false);
-                        }}
-                        style={{
-                          backgroundColor: "#f3f3f3",
-                          padding: 12,
-                          borderRadius: 8,
-                          marginBottom: 8,
-                        }}
-                      >
-                        <Text style={{ fontWeight: "bold" }}>
-                          {item.subject}
-                        </Text>
-                        <Text>{item.content}</Text>
-                      </TouchableOpacity>
-                    )}
-                  />
                 ) : (
                   <Text
                     style={{
@@ -655,7 +763,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                       <TouchableOpacity
                         disabled={imageLoadingMap[item] || imageErrorMap[item]}
                         // onPress={() => {
-                        //   if (imageErrorMap[item]) return; 
+                        //   if (imageErrorMap[item]) return;
 
                         //   setAttachments((prev) => [
                         //     ...prev,
@@ -677,7 +785,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                           opacity: imageErrorMap[item] ? 0.4 : 1,
                         }}
                       >
-
                         <View
                           style={{
                             width: 100,
@@ -723,7 +830,10 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                               width: "100%",
                               height: "100%",
                               borderRadius: 6,
-                              opacity: imageLoadingMap[item] || imageErrorMap[item] ? 0 : 1,
+                              opacity:
+                                imageLoadingMap[item] || imageErrorMap[item]
+                                  ? 0
+                                  : 1,
                             }}
                             resizeMode="cover"
                             onLoadEnd={() =>
@@ -1028,7 +1138,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                           : "#ffffff",
                     alignItems: "center",
                     // opacity: !hasAttachment || hasVideo ? 0.5 : 1,
-                    opacity: (!canSelectStandard || !hasAttachment) ? 0.5 : 1,
+                    opacity: !canSelectStandard || !hasAttachment ? 0.5 : 1,
                   }}
                 >
                   <Text
@@ -1076,7 +1186,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                           : "#ffffff",
                     alignItems: "center",
                     // opacity: !hasAttachment || hasImage ? 0.5 : 1,
-                    opacity: (!canSelectReel || !hasAttachment) ? 0.5 : 1,
+                    opacity: !canSelectReel || !hasAttachment ? 0.5 : 1,
                   }}
                 >
                   <Text
@@ -2026,7 +2136,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   time.getHours(),
                   time.getMinutes(),
                   0,
-                  0
+                  0,
                 );
 
                 // 🚨 STRICT FUTURE CHECK (not now, not past)
@@ -2055,14 +2165,13 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
                   Alert.alert(
                     "Invalid Time",
-                    `Please select a future time (for example, ${futureTime} instead of ${currentTime}).`
+                    `Please select a future time (for example, ${futureTime} instead of ${currentTime}).`,
                   );
                   return;
                 }
 
                 setPostDate(selectedDateTime);
               }}
-
             />
           )}
 
@@ -2085,8 +2194,8 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     date.getMonth(),
                     date.getDate(),
                     base.getHours(),
-                    base.getMinutes()
-                  )
+                    base.getMinutes(),
+                  ),
                 );
 
                 setShowTimePicker(true);
@@ -2211,8 +2320,8 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               profilePic={user?.imageUrl}
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
-              images={attachments?.map(a => a.uri)}
-            // timestamp={previewTimestamp}
+              images={attachments?.map((a) => a.uri)}
+              // timestamp={previewTimestamp}
             />
           )}
 
@@ -2232,7 +2341,12 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
         <Button
           onPress={handleSubmit}
           className="rounded-full mb-8 px-4 py-3 flex-row justify-center items-center"
-          style={{ backgroundColor: "#dc2626", borderRadius: 50, height: 48, opacity: loading ? 0.6 : 1, }}
+          style={{
+            backgroundColor: "#dc2626",
+            borderRadius: 50,
+            height: 48,
+            opacity: loading ? 0.6 : 1,
+          }}
           disabled={loading}
         >
           <View className="flex-row justify-center items-center">

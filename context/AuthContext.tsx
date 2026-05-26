@@ -189,7 +189,6 @@ export const removeToken = async () => {
   await deleteStorageItem(AUTH_TOKEN_KEY);
   await deleteStorageItem(AUTH_USER_KEY);
   await AsyncStorage.removeItem("token");
-  console.log("token removed");
   emitAuthChanged();
 };
 

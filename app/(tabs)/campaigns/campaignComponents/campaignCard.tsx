@@ -5,7 +5,7 @@ import { ThemedView } from "@/components/themed-view";
 import { getToken } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React from "react";
+import { useEffect } from "react";
 import { Alert, Text, TouchableOpacity, useColorScheme, View } from "react-native";
 
 // Define Campaign type
@@ -23,6 +23,7 @@ export interface Campaign {
 }
 
 interface CampaignCardProps {
+  postLength?: number;
   campaign: Campaign;
   postsCount?: number;
   onDelete: (c: Campaign) => void;
@@ -40,6 +41,7 @@ interface CampaignCardProps {
 }
 
 export default function CampaignCard({
+  postLength,
   campaign,
   onDelete,
   onCopy,
@@ -80,10 +82,7 @@ export default function CampaignCard({
 
   // ✅ FIXED POST COUNT LOGIC
   const totalPosts =
-    campaign.postsCount ??
-    postsCount ??
-    campaign.posts?.length ??
-    0;
+   postLength;
 
   const handleEdit = () => {
     if (onEdit) {
@@ -96,6 +95,7 @@ export default function CampaignCard({
       // console.log("kempains",campaign);
     }
   };
+  
 const handleDelete = async (cId: number) => {
     Alert.alert("Delete Campaign?", `Are you sure you want to delete this campaign?`, [
       { text: "Cancel", style: "cancel" },
