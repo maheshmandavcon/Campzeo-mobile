@@ -216,6 +216,95 @@ const handleDelete = async (cId: number) => {
       : "#e5e7eb"
     : borderColorStyle; // 👈 status-based color when hidden
 
+  if (alwaysExpanded) {
+    return (
+      <View
+        style={{
+          borderRadius: 20,
+          padding: 20,
+          backgroundColor: isDark ? "#1e1e20" : "#ffffff",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.08,
+          shadowRadius: 10,
+          elevation: 4,
+          marginBottom: 20,
+          borderWidth: 1,
+          borderColor: isDark ? "#2c2c2e" : "#e5e7eb",
+        }}
+      >
+        {/* Top Header Row with Status */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <Text style={{ fontSize: 22, fontWeight: "800", color: isDark ? "#ffffff" : "#111827", flex: 1, marginRight: 10 }} numberOfLines={1}>
+            {campaign.details ?? "Untitled Campaign"}
+          </Text>
+          <StatusBadge />
+        </View>
+
+        {/* Description Section */}
+        {campaign.description ? (
+          <Text style={{ fontSize: 14, color: isDark ? "#a1a1aa" : "#4b5563", lineHeight: 20, marginBottom: 16 }}>
+            {campaign.description}
+          </Text>
+        ) : null}
+
+        {/* Grid Stats Row */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", backgroundColor: isDark ? "#262629" : "#f8fafc", padding: 16, borderRadius: 16, borderStyle: "solid", borderWidth: 1, borderColor: isDark ? "#2c2c2e" : "#f1f5f9", marginBottom: 16 }}>
+          <View style={{ flex: 1.2, alignItems: "center" }}>
+            <Ionicons name="calendar-outline" size={18} color="#ef4444" style={{ marginBottom: 4 }} />
+            <Text style={{ fontSize: 10, color: "#9ca3af", fontWeight: "700", marginBottom: 2, letterSpacing: 0.5 }}>DURATION</Text>
+            <Text style={{ fontSize: 11, fontWeight: "700", color: isDark ? "#e5e7eb" : "#1f2937", textAlign: "center" }}>
+              {campaign.dates}
+            </Text>
+          </View>
+          <View style={{ width: 1, backgroundColor: isDark ? "#2c2c2e" : "#e5e7eb", marginHorizontal: 8 }} />
+          <View style={{ flex: 0.9, alignItems: "center" }}>
+            <Ionicons name="people-outline" size={18} color="#3b82f6" style={{ marginBottom: 4 }} />
+            <Text style={{ fontSize: 10, color: "#9ca3af", fontWeight: "700", marginBottom: 2, letterSpacing: 0.5 }}>CONTACTS</Text>
+            <Text style={{ fontSize: 14, fontWeight: "800", color: isDark ? "#e5e7eb" : "#1f2937" }}>
+              {campaign.contactCount ?? 0}
+            </Text>
+          </View>
+          <View style={{ width: 1, backgroundColor: isDark ? "#2c2c2e" : "#e5e7eb", marginHorizontal: 8 }} />
+          <View style={{ flex: 0.9, alignItems: "center" }}>
+            <Ionicons name="albums-outline" size={18} color="#10b981" style={{ marginBottom: 4 }} />
+            <Text style={{ fontSize: 10, color: "#9ca3af", fontWeight: "700", marginBottom: 2, letterSpacing: 0.5 }}>POSTS</Text>
+            <Text style={{ fontSize: 14, fontWeight: "800", color: isDark ? "#e5e7eb" : "#1f2937" }}>
+              {totalPosts}
+            </Text>
+          </View>
+        </View>
+
+        {/* Action Button Row */}
+        {showPostButton && createPostButton && (
+          <TouchableOpacity
+            onPress={handleAddPost}
+            activeOpacity={0.85}
+            style={{
+              height: 48,
+              borderRadius: 24,
+              backgroundColor: "#2563eb",
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              shadowColor: "#2563eb",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 6,
+              elevation: 4,
+            }}
+          >
+            <Ionicons name="add-circle" size={20} color="#ffffff" />
+            <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: 15 }}>
+              Create Campaign Post
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }
+
   return (
     // <ThemedView
     //   className="p-4 rounded-xl mb-4"

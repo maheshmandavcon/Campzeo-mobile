@@ -9,6 +9,7 @@ import { getContactsApi } from "@/api/contactApi";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useAuth } from "@/context/AuthContext";
+import Toast from "react-native-toast-message";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -20,10 +21,13 @@ import {
   TouchableOpacity,
   useColorScheme,
   View,
+  Image,
+  Text,
 } from "react-native";
 import { ContactsRecord } from "../contacts/contactComponents/contactCard";
 import CampaignCard, { Campaign } from "./campaignComponents/campaignCard";
 import ShareCampaignPost from "./campaignComponents/shareCampaignPost";
+import PostDetailsModal from "./campaignComponents/postDetailsModal";
 import { getUser } from "@/api/dashboardApi";
 
 
@@ -69,6 +73,8 @@ export default function CampaignsDetails() {
   const [publishing, setPublishing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [deletingPostId, setDeletingPostId] = useState<number | null>(null);
+  const [selectedDetailPost, setSelectedDetailPost] = useState<any | null>(null);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
 
   const refreshCallback =
     typeof params.refreshCallback === "string";
@@ -156,10 +162,21 @@ export default function CampaignsDetails() {
       const res = await getPostsByCampaignIdApi(resolvedCampaignId, orgId);
       const apiPosts = res?.data ?? [];
 
-      const normalizedPosts = apiPosts.map((p: any) => ({
-        ...p,
-        id: p.id ?? p.postId,
-      }));
+      const normalizedPosts = apiPosts.map((p: any) => {
+        let parsedMetadata = p.metadata;
+        if (typeof p.metadata === "string" && p.metadata.trim().length > 0) {
+          try {
+            parsedMetadata = JSON.parse(p.metadata);
+          } catch (e) {
+            console.warn("Failed to parse metadata string for post:", p.id, e);
+          }
+        }
+        return {
+          ...p,
+          id: p.id ?? p.postId,
+          metadata: parsedMetadata,
+        };
+      });
 
       setPosts(normalizedPosts);
     } catch (error) {
@@ -200,7 +217,8 @@ export default function CampaignsDetails() {
   const isAllVisible = visibleCount >= filteredPosts.length;
 
   // Post Status
-  const getPostStatus = (item: any) => {
+  const getPostStatus = (item: any): "SENT" | "SCHEDULED" | "PENDING" | "FAILED" => {
+    if (item.failureReason) return "FAILED";
     if (item.isPostSent === true) return "SENT";
 
     if (item.publishedDate) return "SENT";
@@ -209,8 +227,6 @@ export default function CampaignsDetails() {
       const scheduled = new Date(item.scheduledPostTime);
       if (scheduled > new Date()) return "SCHEDULED";
     }
-
-    if (item.failureReason) return "PENDING";
 
     return "PENDING";
   };
@@ -238,7 +254,11 @@ export default function CampaignsDetails() {
             // optional: reset visible count
             setVisibleCount(5);
           } catch (error) {
-            Alert.alert("Error", "Failed to delete post. Please try again.");
+            Toast.show({
+              type: "error",
+              text1: "Error",
+              text2: "Failed to delete post. Please try again."
+            });
           } finally {
             setDeletingPostId(null);
           }
@@ -464,6 +484,8 @@ export default function CampaignsDetails() {
     if (!resolvedCampaignId || !currentSharePostId) return;
 
     const post = posts.find((p) => p.id === currentSharePostId);
+    console.log("ppooosstt",post);
+    
     if (!post) return;
 
     try {
@@ -472,35 +494,56 @@ export default function CampaignsDetails() {
       // 🔴 REQUIRED FOR PINTEREST
       if (post.type === "PINTEREST") {
         const boardId =
-          post.metadata?.boardId || post.boardId;
+          post.metadata?.boardId || post.boardId || post.pinterestBoardId;
         const boardName =
           post.metadata?.boardName || post.boardName;
 
         if (!boardId && !boardName) {
-          Alert.alert(
-            "Pinterest Board Required",
-            "Please select a board or create a new board before publishing."
-          );
+          Toast.show({
+            type: "error",
+            text1: "Pinterest Board Required",
+            text2: "Please select a board or create a new board before publishing."
+          });
           setPublishing(false);
           return;
         }
-const user = await getUser();
-const orgId = user?.organisation?.id;
-const userId = user?.id;
+        const user = await getUser();
+        const orgId = user?.organisation?.id;
+        const userId = user?.id;
+
+        // Construct a clean, flat 22-field payload matching the ASP.NET DTO expectancy
+        const postDataPayload: any = {
+          id: post.id,
+          campaignId: resolvedCampaignId,
+          contentType: post.contentType || "POST",
+          facebookPageAccessToken: post.facebookPageAccessToken || "",
+          facebookPageId: post.facebookPageId || "",
+          facebookPageName: post.facebookPageName || "",
+          instagramBusinessId: post.instagramBusinessId || "",
+          leadFormId: post.leadFormId || null,
+          mediaUrls: post.mediaUrls || [],
+          message: post.message || "",
+          pinterestBoardId: boardId || "",
+          pinterestLink: post.pinterestLink || post.metadata?.destinationLink || post.metadata?.link || "",
+          scheduledPostTime: post.scheduledPostTime || new Date().toISOString(),
+          senderEmail: post.senderEmail || null,
+          subject: post.subject || "",
+          thumbnailUrl: post.thumbnailUrl || null,
+          type: post.type,
+          youtubeContentType: post.youtubeContentType || "VIDEO",
+          youtubePlaylistId: post.youtubePlaylistId || "",
+          youtubePlaylistTitle: post.youtubePlaylistTitle || "",
+          youtubePrivacy: post.youtubePrivacy || "public",
+          youtubeTags: post.youtubeTags || [],
+        };
+
         // ✅ UPDATE POST FIRST
         await updatePostForCampaignApi(
           resolvedCampaignId,
           currentSharePostId,
           orgId,
           userId,
-          {
-            ...post,
-            metadata: {
-              ...post.metadata,
-              boardId,
-              boardName,
-            },
-          }
+          postDataPayload
         );
       }
 
@@ -508,7 +551,11 @@ const userId = user?.id;
       let contactsToSend: number[] = [];
       if (["SMS", "EMAIL", "WHATSAPP"].includes(post.type)) {
         if (selectedContacts.length === 0) {
-          Alert.alert("Select contacts", "Please select at least one contact.");
+          Toast.show({
+            type: "error",
+            text1: "Select Contacts",
+            text2: "Please select at least one contact."
+          });
           setPublishing(false);
           return;
         }
@@ -517,21 +564,29 @@ const userId = user?.id;
       const user = await getUser();
       const orgId = user?.organisation?.id;
       // ✅ NOW SHARE
-      const res = await shareCampaignPostApi(
+      await shareCampaignPostApi(
         orgId,
         resolvedCampaignId,
         currentSharePostId,
         contactsToSend
       );
 
-      Alert.alert("Success", "Post sent successfully");
+      Toast.show({
+        type: "success",
+        text1: "Success",
+        text2: "Post sending has been queued in the background"
+      });
 
       setShareModalVisible(false);
       setSelectedContacts([]);
       await fetchPosts();
 
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to send post");
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: error.message || "Failed to send post"
+      });
     } finally {
       setPublishing(false);
     }
@@ -545,195 +600,274 @@ const userId = user?.id;
     const canEdit = status !== "SENT";
     const canShare = status !== "SENT";
 
+    // Gather all media
+    const allMedia: string[] = [];
+    if (item.mediaUrls && Array.isArray(item.mediaUrls)) {
+      item.mediaUrls.forEach((u: string) => {
+        if (u && typeof u === "string" && !allMedia.includes(u)) {
+          allMedia.push(u);
+        }
+      });
+    }
+    if (item.videoUrl && typeof item.videoUrl === "string" && !allMedia.includes(item.videoUrl)) {
+      allMedia.push(item.videoUrl);
+    }
+    
+    const firstMedia = allMedia[0];
+    const isVideo = firstMedia && (firstMedia.toLowerCase().split("?")[0].match(/\.(mp4|mov|webm|avi|mkv|3gp|m4v)$/i) || firstMedia.includes("video"));
+
     return (
-      <View className="p-4 rounded-xl mb-4 relative">
-        <View
-          style={{
-            position: "absolute",
-            top: 8,
-            right: 8,
-            flexDirection: "row",
-            zIndex: 10,
-            elevation: 10,
-          }}
-        >
-          <TouchableOpacity
-            onPress={() => {
-              if (!canShare) return;
-              handleOpenShareModal(item.id);
-            }}
-            disabled={!canShare}
-            activeOpacity={canShare ? 0.6 : 1}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              justifyContent: "center",
-              alignItems: "center",
-              opacity: !canShare ? 0.4 : 1,
-            }}
-          >
-            <Ionicons
-              name="share-social-outline"
-              size={22}
-              color={isDark ? "#73a6f9" : "#3b82f6"}
-            />
-          </TouchableOpacity>
-
-
-          <TouchableOpacity
-            onPress={() => {
-              if (!canEdit) return;
-              handleEditPost(campaign!.id, item);
-            }}
-            disabled={!canEdit}
-            activeOpacity={canEdit ? 0.6 : 1}
-            style={{
-              width: 44,
-              height: 44,
-              justifyContent: "center",
-              alignItems: "center",
-              opacity: !canEdit ? 0.4 : 1,
-            }}
-          >
-            <Ionicons
-              name="create-outline"
-              size={22}
-              color={isDark ? "#73f3c9" : "#10b981"}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => {
-              if (!canDelete) return;
-              handleDeletePost(item.id);
-            }}
-            disabled={!canDelete || deletingPostId === item.id}
-            activeOpacity={canDelete ? 0.6 : 1}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              justifyContent: "center",
-              alignItems: "center",
-              opacity: !canDelete ? 0.4 : 1,
-            }}
-          >
-
-            {deletingPostId === item.id ? (
-              <ActivityIndicator
-                size="small"
-                color={isDark ? "#f47a7a" : "#ef4444"}
-              />
-            ) : (
-              <Ionicons
-                name="trash-outline"
-                size={22}
-                color={isDark ? "#f47a7a" : "#ef4444"}
-              />
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {item.subject ? (
-          <ThemedText
-            className="text-lg font-bold mb-2"
-            style={{ marginRight: 120 }}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {item.subject}
-          </ThemedText>
-        ) : item.type === "SMS" ? null : (
-          <ThemedView className="flex-row items-center mb-2">
-            <Ionicons
-              name="information-circle-outline"
-              size={18}
-              color="#9ca3af"
-            />
-            <ThemedText className="ml-2 text-gray-500 italic">
-              No subject available
-            </ThemedText>
-          </ThemedView>
-        )}
-
-        <ThemedText className="font-semibold mb-1">Description</ThemedText>
-        {item.message ? (
-          <ThemedText
-            className="mb-2"
-            style={{
-              textAlign: "justify",
-              color: isDark ? "#e5e7eb" : "#111",
-            }}
-          >
-            {item.message}
-          </ThemedText>
-        ) : (
-          <ThemedView className="flex-row items-center mb-2">
-            <Ionicons
-              name="information-circle-outline"
-              size={18}
-              color="#9ca3af"
-            />
-            <ThemedText className="ml-2 text-gray-500 italic">
-              No description available
-            </ThemedText>
-          </ThemedView>
-        )}
-
-        <ThemedText className="font-semibold mb-1">Schedule</ThemedText>
-        {(item.scheduledPostTime || item.publishedDate || item.createdAt) ? (
-          <ThemedText
-            className="mb-2"
-            style={{
-              color: isDark ? "#e5e7eb" : "#111",
-            }}
-          >
-            {new Date(item.scheduledPostTime || item.publishedDate || item.createdAt).toLocaleString()}
-          </ThemedText>
-        ) : (
-          <ThemedView className="flex-row items-center mb-2">
-            <Ionicons name="calendar-outline" size={18} color="#9ca3af" />
-            <ThemedText className="ml-2 text-gray-500 italic">
-              No schedule available
-            </ThemedText>
-          </ThemedView>
-        )}
-
-        {/* TYPE + STATUS ROW */}
-        <ThemedView className="flex-row items-center justify-between mt-2">
-          {/* TYPE */}
-          <ThemedView className="flex-row items-center">
-            <ThemedText
-              className="font-semibold mr-2"
-              style={{ color: isDark ? "#e5e7eb" : "#111827" }}
+      <TouchableOpacity
+        onPress={() => {
+          setSelectedDetailPost(item);
+          setDetailModalVisible(true);
+        }}
+        activeOpacity={0.8}
+        style={{
+          padding: 16,
+          borderRadius: 16,
+          marginBottom: 12,
+          backgroundColor: isDark ? "#1c1c1e" : "#ffffff",
+          borderWidth: 1,
+          borderColor: isDark ? "#2c2c2e" : "#e5e7eb",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 8,
+          elevation: 2,
+        }}
+      >
+        {/* PLATFORM HEADER ROW */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          {platform ? (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                borderRadius: 8,
+                backgroundColor: isDark ? "rgba(255, 255, 255, 0.05)" : platform.color + "10",
+              }}
             >
-              Type
-            </ThemedText>
-
-            {platform ? (
               <platform.Icon
                 name={platform.name}
-                size={20}
-                color={isDark ? "#ffffff" : platform.color}
+                size={16}
+                color={platform.color}
               />
-            ) : (
-              <ThemedText style={{ color: isDark ? "#e5e7eb" : "#111" }}>
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: "700",
+                  color: platform.color,
+                  letterSpacing: 0.3,
+                }}
+              >
                 {item.type}
+              </Text>
+            </View>
+          ) : (
+            <Text style={{ fontSize: 12, fontWeight: "700", color: "#6b7280" }}>{item.type}</Text>
+          )}
+
+          {/* QUICK ACTIONS ROW */}
+          <View style={{ flexDirection: "row", gap: 4 }}>
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                if (!canShare) return;
+                handleOpenShareModal(item.id);
+              }}
+              disabled={!canShare}
+              activeOpacity={0.6}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "#f3f4f6",
+                opacity: !canShare ? 0.3 : 1,
+              }}
+            >
+              <Ionicons
+                name="share-social-outline"
+                size={16}
+                color={isDark ? "#73a6f9" : "#3b82f6"}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                if (!canEdit) return;
+                handleEditPost(campaign!.id, item);
+              }}
+              disabled={!canEdit}
+              activeOpacity={0.6}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "#f3f4f6",
+                opacity: !canEdit ? 0.3 : 1,
+              }}
+            >
+              <Ionicons
+                name="create-outline"
+                size={16}
+                color={isDark ? "#73f3c9" : "#10b981"}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                if (!canDelete) return;
+                handleDeletePost(item.id);
+              }}
+              disabled={!canDelete || deletingPostId === item.id}
+              activeOpacity={0.6}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "#f3f4f6",
+                opacity: !canDelete ? 0.3 : 1,
+              }}
+            >
+              {deletingPostId === item.id ? (
+                <ActivityIndicator
+                  size="small"
+                  color={isDark ? "#f47a7a" : "#ef4444"}
+                />
+              ) : (
+                <Ionicons
+                  name="trash-outline"
+                  size={16}
+                  color={isDark ? "#f47a7a" : "#ef4444"}
+                />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* CONTENT ROW */}
+        <View style={{ flexDirection: "row", gap: 12, marginBottom: 12 }}>
+          <View style={{ flex: 1, gap: 4 }}>
+            {item.subject ? (
+              <ThemedText
+                style={{ fontSize: 16, fontWeight: "700", color: isDark ? "#ffffff" : "#1f2937" }}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {item.subject}
+              </ThemedText>
+            ) : item.type === "SMS" ? null : (
+              <ThemedText style={{ fontSize: 14, fontStyle: "italic", color: "#9ca3af" }}>
+                No subject available
               </ThemedText>
             )}
-          </ThemedView>
 
-          {/* STATUS */}
+            {item.message ? (
+              <ThemedText
+                style={{
+                  fontSize: 13,
+                  lineHeight: 18,
+                  color: isDark ? "#9ca3af" : "#4b5563",
+                }}
+                numberOfLines={2}
+                ellipsizeMode="tail"
+              >
+                {item.message}
+              </ThemedText>
+            ) : (
+              <ThemedText style={{ fontSize: 13, fontStyle: "italic", color: "#9ca3af" }}>
+                No description available
+              </ThemedText>
+            )}
+          </View>
+
+          {/* Right-aligned Media Thumbnail */}
+          {firstMedia && (
+            <View
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: 10,
+                overflow: "hidden",
+                backgroundColor: isDark ? "#2c2c2e" : "#f3f4f6",
+                position: "relative",
+              }}
+            >
+              {isVideo ? (
+                <View style={{ width: "100%", height: "100%", justifyContent: "center", alignItems: "center", backgroundColor: "#000" }}>
+                  <Ionicons name="play-circle" size={28} color="#fff" />
+                </View>
+              ) : (
+                <Image
+                  source={{ uri: firstMedia }}
+                  style={{ width: "100%", height: "100%" }}
+                  resizeMode="cover"
+                />
+              )}
+
+              {/* Media count indicator */}
+              {allMedia.length > 1 && (
+                <View
+                  style={{
+                    position: "absolute",
+                    bottom: 2,
+                    right: 2,
+                    backgroundColor: "rgba(0,0,0,0.6)",
+                    borderRadius: 4,
+                    paddingHorizontal: 4,
+                    paddingVertical: 1,
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontSize: 9, fontWeight: "700" }}>
+                    +{allMedia.length - 1}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* BOTTOM METADATA & STATUS ROW */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderTopWidth: 1, borderTopColor: isDark ? "#2c2c2e" : "#f3f4f6", paddingTop: 10 }}>
+          {/* SCHEDULE */}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <Ionicons name="calendar-outline" size={14} color="#9ca3af" />
+            <Text style={{ fontSize: 11, color: "#9ca3af" }}>
+              {item.scheduledPostTime || item.publishedDate || item.createdAt
+                ? new Date(item.scheduledPostTime || item.publishedDate || item.createdAt).toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "No schedule available"}
+            </Text>
+          </View>
+
+          {/* STATUS PILL */}
           <View
             style={{
               flexDirection: "row",
               alignItems: "center",
-              gap: 6,
-              paddingHorizontal: 14,
-              paddingVertical: 5,
-              borderRadius: 999,
-              backgroundColor: isDark ? "#020617" : "#f9fafb",
+              gap: 4,
+              paddingHorizontal: 10,
+              paddingVertical: 3,
+              borderRadius: 20,
+              backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "#f9fafb",
+              borderWidth: 1,
+              borderColor: isDark ? "#2c2c2e" : "#f3f4f6",
             }}
           >
             <Ionicons
@@ -741,41 +875,34 @@ const userId = user?.id;
                 status === "SENT"
                   ? "paper-plane"
                   : status === "SCHEDULED"
-                    ? "alarm-outline"
-                    // : "pencil-outline" || "hourglass-outline"
-                    : "hourglass-outline"
+                  ? "alarm-outline"
+                  : status === "FAILED"
+                  ? "alert-circle"
+                  : "hourglass-outline"
               }
-              size={14}
-              style={{
-                textShadowColor:
-                  status === "SENT"
-                    ? "#16a34a"
-                    : status === "SCHEDULED"
-                      ? "#2563eb"
-                      : "#f59e0b",
-                textShadowRadius: 8,
-              }}
+              size={12}
               color={
                 status === "SENT"
                   ? "#22c55e"
                   : status === "SCHEDULED"
-                    ? "#3b82f6"
-                    : "#fbbf24"
+                  ? "#3b82f6"
+                  : status === "FAILED"
+                  ? "#ef4444"
+                  : "#fbbf24"
               }
             />
-            <ThemedText
+            <Text
               style={{
-                fontSize: 12,
-                fontWeight: "600",
-                color: isDark ? "#e5e7eb" : "#111827",
+                fontSize: 11,
+                fontWeight: "700",
+                color: isDark ? "#e5e7eb" : "#4b5563",
               }}
             >
               {status}
-            </ThemedText>
+            </Text>
           </View>
-
-        </ThemedView>
-      </View>
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -813,10 +940,11 @@ const userId = user?.id;
           // onPressPost={() => campaign?.id && handleCreatePost(campaign.id)}
           onPressPost={() => {
             if (isCompleted) {
-              Alert.alert(
-                "Campaign Completed",
-                "You cannot create posts for a completed campaign."
-              );
+              Toast.show({
+                type: "info",
+                text1: "Campaign Completed",
+                text2: "You cannot create posts for a completed campaign."
+              });
               return;
             }
             campaign?.id && handleCreatePost(campaign.id);
@@ -914,11 +1042,7 @@ const userId = user?.id;
           <FlatList
             data={visiblePosts}
             keyExtractor={(item) => String(item.id)}
-            renderItem={({ item }) => (
-              <ThemedView className="mb-3 rounded-xl shadow" style={{ borderWidth: 1, borderColor: isDark ? "#ffffff" : "#e5e7eb" }}>
-                {renderPostItem({ item })}
-              </ThemedView>
-            )}
+            renderItem={({ item }) => renderPostItem({ item })}
             showsVerticalScrollIndicator={false}
             ListFooterComponent={
               posts.length > 5 ? (
@@ -946,6 +1070,24 @@ const userId = user?.id;
         onClose={() => setShareModalVisible(false)}
         onToggleContact={toggleContactSelection}
         onPublish={sharePost}
+      />
+      <PostDetailsModal
+        visible={detailModalVisible}
+        post={selectedDetailPost}
+        onClose={() => setDetailModalVisible(false)}
+        onShare={(postId) => {
+          setDetailModalVisible(false);
+          handleOpenShareModal(postId);
+        }}
+        onEdit={(postId) => {
+          setDetailModalVisible(false);
+          const p = posts.find((item) => item.id === postId);
+          if (p) handleEditPost(campaign!.id, p);
+        }}
+        onDelete={(postId) => {
+          setDetailModalVisible(false);
+          handleDeletePost(postId);
+        }}
       />
     </ThemedView>
   );

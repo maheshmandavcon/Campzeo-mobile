@@ -23,6 +23,7 @@ import {
 } from "react-native";
 import DraggableFlatList from "react-native-draggable-flatlist";
 import Preview from "./preview";
+import { Picker } from "@react-native-picker/picker";
 
 // ---------- Define Props Interface ----------
 interface CampaignPostFormProps {
@@ -76,6 +77,11 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
     facebookPages,
     selectedFacebookPage,
+    selectedFacebookPageId,
+    selectedFacebookPageAccessToken,
+    leadFormId,
+    leadForms,
+    isLoadingLeadForms,
     facebookContentType,
     isFacebookPageLoading,
     coverImage,
@@ -165,6 +171,8 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     handleCustomThumbnailUpload,
     handleCreatePinterestBoard,
     handleSelectGeneratedImage,
+    handleSelectFacebookPage,
+    setLeadFormId,
   } = useCampaignPostForm({
     platform,
     campaignId,
@@ -599,7 +607,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                                     </TouchableOpacity>
 
                                     {/* White Plus Button (Append) */}
-                                    <TouchableOpacity 
+                                    {/* <TouchableOpacity 
                                       activeOpacity={0.7}
                                       onPress={() => {
                                         if (!subject && item.subject) {
@@ -620,7 +628,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                                       }}
                                     >
                                       <Ionicons name="add" size={18} color={isDark ? "#fff" : "#374151"} />
-                                    </TouchableOpacity>
+                                    </TouchableOpacity> */}
                                   </>
                                 )}
                               </View>
@@ -1012,11 +1020,16 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             <View
               style={{
                 borderWidth: 1,
-                borderColor: isDark ? "#374151" : "#d1d5db",
-                borderRadius: 12,
-                padding: 14,
-                marginBottom: 12,
-                backgroundColor: isDark ? "#161618" : "#f3f4f6",
+                borderColor: isDark ? "#2d2d30" : "#e5e7eb",
+                borderRadius: 16,
+                padding: 16,
+                marginBottom: 16,
+                backgroundColor: isDark ? "#1a1a1c" : "#ffffff",
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.05,
+                shadowRadius: 8,
+                elevation: 2,
               }}
             >
               {/* 🔵 Header */}
@@ -1031,53 +1044,177 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   name="logo-facebook"
                   size={22}
                   color="#1877F2"
-                  style={{ marginRight: 6 }}
                 />
                 <Text
                   style={{
-                    marginLeft: 8,
-                    fontSize: 16,
-                    fontWeight: "bold",
-                    color: isDark ? "#ffffff" : "#000000",
+                    marginLeft: 10,
+                    fontSize: 15,
+                    fontWeight: "700",
+                    color: isDark ? "#ffffff" : "#1f2937",
                   }}
                 >
-                  Select Facebook Page
+                  Facebook Page
                 </Text>
               </View>
 
-              {/* 🔄 Loading / Pages / Error */}
+              {/* 🔄 Pages Selector Dropdown */}
               {isFacebookPageLoading ? (
-                <ActivityIndicator size="small" color="#1877F2" />
+                <View style={{ paddingVertical: 12, alignItems: "center" }}>
+                  <ActivityIndicator size="small" color="#1877F2" />
+                </View>
               ) : facebookPages.length > 0 ? (
-                <Text
+                <View
                   style={{
-                    fontSize: 14,
-                    color: isDark ? "#e5e7eb" : "#000000",
+                    borderWidth: 1,
+                    borderColor: isDark ? "#3f3f46" : "#e4e4e7",
+                    borderRadius: 10,
+                    backgroundColor: isDark ? "#27272a" : "#f4f4f5",
+                    overflow: "hidden",
+                    marginBottom: 16,
                   }}
                 >
-                  {selectedFacebookPage || facebookPages[0].name}
-                </Text>
+                  <Picker
+                    selectedValue={selectedFacebookPageId}
+                    onValueChange={(itemValue) => itemValue && handleSelectFacebookPage(String(itemValue))}
+                    style={{
+                      color: isDark ? "#fff" : "#000",
+                      height: 50,
+                    }}
+                    dropdownIconColor={isDark ? "#fff" : "#000"}
+                  >
+                    <Picker.Item
+                      label="Select Facebook Page"
+                      value={null}
+                      enabled={false}
+                      color={isDark ? "#a1a1aa" : "#71717a"}
+                    />
+                    {facebookPages.map((page) => (
+                      <Picker.Item
+                        key={page.id}
+                        label={page.name}
+                        value={String(page.id)}
+                        color={isDark ? "#fff" : "#000"}
+                      />
+                    ))}
+                  </Picker>
+                </View>
               ) : (
-                <Text
+                <View
                   style={{
-                    fontSize: 12,
-                    color: "#f87171",
+                    padding: 12,
+                    borderRadius: 8,
+                    backgroundColor: isDark ? "#3f1a1a" : "#fee2e2",
+                    marginBottom: 16,
                   }}
                 >
-                  No Facebook Pages found. Make sure you've connected your
-                  account and granted permissions.
-                </Text>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: isDark ? "#fca5a5" : "#b91c1c",
+                      fontWeight: "500",
+                    }}
+                  >
+                    No connected Facebook Pages found. Connect one in Accounts first.
+                  </Text>
+                </View>
               )}
 
-              {/* ℹ️ Helper Text */}
-              <Text
+              {/* 🟢 Lead Forms Section */}
+              <View
                 style={{
-                  marginTop: 6,
-                  fontSize: 11,
-                  color: isDark ? "#9ca3af" : "#6b7280",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginBottom: 12,
+                  marginTop: 4,
                 }}
               >
-                Posts will be published to the selected page.
+                <Ionicons
+                  name="document-text-outline"
+                  size={22}
+                  color="#10b981"
+                />
+                <Text
+                  style={{
+                    marginLeft: 10,
+                    fontSize: 15,
+                    fontWeight: "700",
+                    color: isDark ? "#ffffff" : "#1f2937",
+                  }}
+                >
+                  Facebook Lead Form
+                </Text>
+              </View>
+
+              {isLoadingLeadForms ? (
+                <View style={{ paddingVertical: 12, alignItems: "center" }}>
+                  <ActivityIndicator size="small" color="#10b981" />
+                </View>
+              ) : leadForms.length > 0 ? (
+                <View
+                  style={{
+                    borderWidth: 1,
+                    borderColor: isDark ? "#3f3f46" : "#e4e4e7",
+                    borderRadius: 10,
+                    backgroundColor: isDark ? "#27272a" : "#f4f4f5",
+                    overflow: "hidden",
+                  }}
+                >
+                  <Picker
+                    selectedValue={leadFormId ? String(leadFormId) : null}
+                    onValueChange={(itemValue) => setLeadFormId(itemValue)}
+                    style={{
+                      color: isDark ? "#fff" : "#000",
+                      height: 50,
+                    }}
+                    dropdownIconColor={isDark ? "#fff" : "#000"}
+                  >
+                    <Picker.Item
+                      label="None (Select Lead Form)"
+                      value={null}
+                      color={isDark ? "#a1a1aa" : "#71717a"}
+                    />
+                    {leadForms.map((form) => (
+                      <Picker.Item
+                        key={form.id}
+                        label={form.name}
+                        value={String(form.id)}
+                        color={isDark ? "#fff" : "#000"}
+                      />
+                    ))}
+                  </Picker>
+                </View>
+              ) : (
+                <View
+                  style={{
+                    padding: 12,
+                    borderRadius: 8,
+                    backgroundColor: isDark ? "#18221b" : "#f0fdf4",
+                    borderWidth: 1,
+                    borderColor: isDark ? "#1b4d24" : "#bbf7d0",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: isDark ? "#86efac" : "#15803d",
+                      fontWeight: "500",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    No lead form found
+                  </Text>
+                </View>
+              )}
+
+              {/* ℹ️ Page Footer Cues */}
+              <Text
+                style={{
+                  marginTop: 12,
+                  fontSize: 11,
+                  color: isDark ? "#a1a1aa" : "#71717a",
+                }}
+              >
+                Lead form data will dynamically map to selected pages.
               </Text>
             </View>
           )}

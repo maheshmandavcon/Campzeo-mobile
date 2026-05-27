@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Alert, useColorScheme } from "react-native";
 import { getUser } from "@/api/dashboardApi";
+import Toast from "react-native-toast-message";
 
 import type { AIImageResponse, CampaignPostData } from "@/api/campaignApi";
 import {
@@ -11,11 +12,13 @@ import {
   createPostForCampaignApi,
   generateAIContentApi,
   generateAIImageApi,
-  getFacebookPagesApi,
+  getFbPages,
+  getLeedForm,
   getPinterestBoardsApi,
   updatePostForCampaignApi,
   uploadMediaApi,
 } from "@/api/campaignApi";
+import { de } from "zod/v4/locales";
 
 export interface Attachment {
   uri: string;
@@ -56,6 +59,8 @@ export function useCampaignPostForm({
   useEffect(() => {
     const fetchOrgId = async () => {
       try {
+        console.log("eexxissttiinngg",existingPost);
+        
         const user = await getUser();
         const orgId = user?.organisation?.id;
         if (orgId) {
@@ -67,7 +72,7 @@ export function useCampaignPostForm({
       }
     };
     fetchOrgId();
-  }, []);
+  }, [existingPost]);
 
   // ================= BASIC =================
   const [senderEmail, setSenderEmail] = useState("");
@@ -147,6 +152,11 @@ export function useCampaignPostForm({
   const [selectedFacebookPage, setSelectedFacebookPage] = useState<
     string | null
   >(null);
+  const [selectedFacebookPageId, setSelectedFacebookPageId] = useState<string | null>(existingPost?.facebookPageId || null);
+  const [selectedFacebookPageAccessToken, setSelectedFacebookPageAccessToken] = useState<string | null>(existingPost?.facebookPageAccessToken || null);
+  const [leadFormId, setLeadFormId] = useState<string | null>(existingPost?.leadFormId || null);
+  const [leadForms, setLeadForms] = useState<any[]>([]);
+  const [isLoadingLeadForms, setIsLoadingLeadForms] = useState(false);
   const [isFacebookPageLoading, setIsFacebookPageLoading] = useState(false);
   const [facebookError, setFacebookError] = useState("");
   const [coverUploading, setCoverUploading] = useState(false);
@@ -331,6 +341,16 @@ export function useCampaignPostForm({
 
     console.log("🔍 PREFILL existingPost:", existingPost);
     console.log("🔍 PREFILL metadata:", existingPost?.metadata);
+
+    // Safely parse JSON metadata string if applicable
+    if (existingPost && typeof existingPost.metadata === "string" && existingPost.metadata.trim().length > 0) {
+      try {
+        existingPost.metadata = JSON.parse(existingPost.metadata);
+      } catch (e) {
+        console.warn("Could not parse existingPost.metadata string:", e);
+      }
+    }
+
     console.log(
       "🔍 PREFILL coverImage from metadata:",
       existingPost?.metadata?.coverImage,
@@ -1005,13 +1025,53 @@ export function useCampaignPostForm({
     }
   }, [platform]);
 
+  const fetchLeadForms = async (pageId: string, pageAccessToken: string) => {
+    if (!pageId || !pageAccessToken) return;
+    setIsLoadingLeadForms(true);
+    try {
+      const token = await getToken();
+      if (!token) throw new Error("Authentication token missing");
+
+      console.log(`🔌 Fetching Lead Forms for Page ID: ${pageId}...`);
+      const response = await getLeedForm(pageId, pageAccessToken, token);
+      const forms = response?.forms?.data || [];
+      console.log(`📬 Loaded ${forms.length} Lead Forms.`);
+      setLeadForms(forms);
+    } catch (err) {
+      console.warn("Failed to fetch Lead Forms:", err);
+      setLeadForms([]);
+    } finally {
+      setIsLoadingLeadForms(false);
+    }
+  };
+
+  const handleSelectFacebookPage = async (pageId: string) => {
+    const pageObj = facebookPages.find((p: any) => String(p.id) === String(pageId));
+    if (pageObj) {
+      setSelectedFacebookPage(pageObj.name);
+      setSelectedFacebookPageId(pageObj.id);
+      setSelectedFacebookPageAccessToken(pageObj.access_token);
+      setLeadFormId(null);
+      setLeadForms([]);
+      await fetchLeadForms(pageObj.id, pageObj.access_token);
+    } else {
+      setSelectedFacebookPage(null);
+      setSelectedFacebookPageId(null);
+      setSelectedFacebookPageAccessToken(null);
+      setLeadFormId(null);
+      setLeadForms([]);
+    }
+  };
+
   const fetchFacebookPages = async () => {
     setIsFacebookPageLoading(true);
     try {
       const token = await getToken();
       if (!token) throw new Error("Authentication token missing");
 
-      const pages = await getFacebookPagesApi(token);
+      console.log("🔌 Loading Facebook Pages using getFbPages...");
+      const response = await getFbPages(token);
+      const pages = response?.pages?.data || [];
 
       if (!pages || pages.length === 0) {
         setFacebookPages([]);
@@ -1019,19 +1079,42 @@ export function useCampaignPostForm({
           "No Facebook Pages found. Make sure you've connected your account and granted permissions.",
         );
         setSelectedFacebookPage(null);
+        setSelectedFacebookPageId(null);
+        setSelectedFacebookPageAccessToken(null);
+        setLeadForms([]);
       } else {
         setFacebookPages(pages);
         setFacebookError("");
-        setSelectedFacebookPage(pages[0].name);
+
+        // If in Edit Mode and matches existingPost
+        if (existingPost?.facebookPageId) {
+          const match = pages.find((p: any) => String(p.id) === String(existingPost.facebookPageId));
+          if (match) {
+            setSelectedFacebookPage(match.name);
+            setSelectedFacebookPageId(match.id);
+            setSelectedFacebookPageAccessToken(match.access_token);
+            await fetchLeadForms(match.id, match.access_token);
+            if (existingPost.leadFormId) {
+              setLeadFormId(String(existingPost.leadFormId));
+            }
+            return;
+          }
+        }
+
+        // Default to the first page
+        const firstPage = pages[0];
+        setSelectedFacebookPage(firstPage.name);
+        setSelectedFacebookPageId(firstPage.id);
+        setSelectedFacebookPageAccessToken(firstPage.access_token);
+        await fetchLeadForms(firstPage.id, firstPage.access_token);
       }
     } catch (err: any) {
       setFacebookPages([]);
       setSelectedFacebookPage(null);
-      setFacebookError(
-        err.message === "Facebook not connected"
-          ? "No Facebook Pages found. Make sure you've connected your account and granted permissions."
-          : "Failed to fetch Facebook Pages",
-      );
+      setSelectedFacebookPageId(null);
+      setSelectedFacebookPageAccessToken(null);
+      setFacebookError("Failed to fetch Facebook Pages");
+      setLeadForms([]);
     } finally {
       setIsFacebookPageLoading(false);
     }
@@ -1045,7 +1128,7 @@ export function useCampaignPostForm({
       if (!token) throw new Error("Authentication token missing");
 
       const boards = await getPinterestBoardsApi(token);
-      console.log("pinterest board array", boards);
+      // console.log("pinterest board array", boards);
       setAllPinterestBoards(
         boards.map((board: any) => ({
           id: board.id,
@@ -1327,7 +1410,21 @@ export function useCampaignPostForm({
         Number(existingPost?.campaign?.id);
 
       if (!campaignIdToUse) {
-        Alert.alert("Campaign ID missing");
+        Toast.show({
+          type: "error",
+          text1: "Campaign ID missing",
+          text2: "Please select a valid campaign."
+        });
+        return;
+      }
+
+      // ================= PINTEREST MESSAGE LIMIT VALIDATION =================
+      if (platform === "PINTEREST" && message.length > 800) {
+        Toast.show({
+          type: "error",
+          text1: "Message Too Long",
+          text2: `Pinterest limit is 800 characters. Currently: ${message.length}`
+        });
         return;
       }
 
@@ -1416,27 +1513,39 @@ export function useCampaignPostForm({
       }
 
       // ================= BUILD POST DATA =================
-      const postData: CampaignPostData = {
-        senderEmail,
-        subject,
-        message,
-        type: platform,
-        mediaUrls,
-        scheduledPostTime: postDate?.toISOString() || new Date().toISOString(),
-        metadata: finalMetadata,
-        thumbnailUrl: coverImage || customThumbnail || null,
-        // Root level fields for better backend Create API compatibility
-        isReel: (platform === "FACEBOOK" || platform === "INSTAGRAM") ? (facebookContentType === "REEL") : undefined,
-        postType: (platform === "FACEBOOK" || platform === "INSTAGRAM") ? facebookContentType : undefined,
-        coverImage: (platform === "FACEBOOK" || platform === "INSTAGRAM") ? (coverImage || null) : undefined,
+      // Get selected Facebook page details if applicable
+      const selectedPageObj = facebookPages.find(
+        (p) => p.name === selectedFacebookPage
+      );
 
-        ...(platform === "PINTEREST"
-          ? {
-            pinterestBoardId: PinterestBoardId,
-            pinterestLink: metadata?.destinationLink || "",
-          }
-          : {}),
+      // ================= BUILD POST DATA =================
+      const postData: any = {
+        campaignId: campaignIdToUse,
+        contentType: existingPost?.contentType || "POST",
+        facebookPageAccessToken: selectedFacebookPageAccessToken || existingPost?.facebookPageAccessToken || "",
+        facebookPageId: selectedFacebookPageId || existingPost?.facebookPageId || "",
+        facebookPageName: selectedFacebookPage || existingPost?.facebookPageName || "",
+        instagramBusinessId: existingPost?.instagramBusinessId || "",
+        leadFormId: leadFormId ? Number(leadFormId) : (existingPost?.leadFormId || null),
+        mediaUrls,
+        message: message || "",
+        pinterestBoardId: PinterestBoardId || existingPost?.pinterestBoardId || "",
+        pinterestLink: destinationLink || metadata?.destinationLink || existingPost?.pinterestLink || "",
+        scheduledPostTime: postDate?.toISOString() || new Date().toISOString(),
+        senderEmail: senderEmail || null,
+        subject: subject || "",
+        thumbnailUrl: coverImage || customThumbnail || existingPost?.thumbnailUrl || null,
+        type: platform,
+        youtubeContentType: youTubeContentType || existingPost?.youtubeContentType || "VIDEO",
+        youtubePlaylistId: playlistId || existingPost?.youtubePlaylistId || "",
+        youtubePlaylistTitle: playlistTitle || existingPost?.youtubePlaylistTitle || "",
+        youtubePrivacy: youTubeStatus ? youTubeStatus.toLowerCase() : (existingPost?.youtubePrivacy || "public"),
+        youtubeTags: parsedTags || existingPost?.youtubeTags || [],
       };
+
+      if (existingPost?.id) {
+        postData.id = existingPost.id;
+      }
 
       console.log(
         "FINAL CREATE/UPDATE PAYLOAD:",
@@ -1536,6 +1645,11 @@ export function useCampaignPostForm({
     selectingImage,
     imageModalVisible,
     facebookPages,
+    selectedFacebookPageId,
+    selectedFacebookPageAccessToken,
+    leadFormId,
+    leadForms,
+    isLoadingLeadForms,
     coverImage,
     coverUploading,
     facebookContentType,
@@ -1595,6 +1709,9 @@ export function useCampaignPostForm({
     setImageModalVisible,
     setFacebookContentType,
     setSelectedFacebookPage,
+    setSelectedFacebookPageId,
+    setSelectedFacebookPageAccessToken,
+    setLeadFormId,
     setPinterestModalVisible,
     setPinterestBoard,
     setPinterestBoardId,
@@ -1632,6 +1749,7 @@ export function useCampaignPostForm({
     handleCustomThumbnailUpload,
     handleCoverImageUpload,
     handleSelectGeneratedImage,
+    handleSelectFacebookPage,
     handleSubmit,
   };
 }

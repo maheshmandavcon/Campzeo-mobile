@@ -153,7 +153,7 @@ WhatsApp: ${record.whatsapp || "-"}
             const user = await getUser();
             const orgId = user?.organisation?.id;
 
-            await deleteContactApi(orgId, record.id);
+            await deleteContactApi(orgId, record.id,token);
 
             setRecords((prev) => prev.filter((r) => r.id !== record.id));
           } catch (e: any) {

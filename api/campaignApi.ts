@@ -42,6 +42,25 @@ export interface CampaignPostData {
   };
 }
 
+// social status to check which accounts are connected :
+export const getSocialStatus = async (token?: string) => {
+  try {
+    const response = await https.get("user/social-status", {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Get Social Status API Error:",
+      error.response || error.message,
+    );
+    throw error;
+  }
+};
+
 // ---------------------- Campaign APIs ---------------------- //
 
 // Create a new campaign
@@ -152,7 +171,7 @@ export const deleteCampaignApi = async (id: number, organisationId: number,  tok
 export const getPostsByCampaignIdApi = async (campaignId: number,orgId: number) => {
   try {
     const res = await https.get(`Campaigns/${campaignId}/posts?organisationId=${orgId}`);
-    console.log("reeeesss",res.data);
+    // console.log("reeeesss",res.data);
     
     return res.data;
   } catch (error: any) {
@@ -160,6 +179,26 @@ export const getPostsByCampaignIdApi = async (campaignId: number,orgId: number) 
     return null;
   }
 };
+// Get get specific post details
+
+export const getPostDetails = async (campaignId: number,postId: number,orgId: number, token:string) => {
+  try {
+    const res = await https.get(`Campaigns/${campaignId}/posts/${postId}?organisationId=${orgId}`,{
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+    // console.log("reeeesss",res.data);
+    
+    return res.data;
+  } catch (error: any) {
+    console.error("Get Posts Error:", error.response?.data || error.message);
+    return null;
+  }
+};
+
+
 
 // Create a post for a specific campaign
 
@@ -169,10 +208,6 @@ export const createPostForCampaignApi = async (
   data: CampaignPostData,
   token?: string,
 ) => {
-  console.log(
-    "🧩 [CreatePost] Payload being sent:",
-    JSON.stringify(data, null, 2),
-  );
   try {
     const response = await https.post(`Campaigns/${campaignId}/posts?organisationId=${orgId}`, data, {
       headers: {
@@ -181,8 +216,8 @@ export const createPostForCampaignApi = async (
       },
     });
     
-    console.log("FINAL PAYLOAD BEFORE API:", JSON.stringify(data, null, 2));
-    console.log("Create Post API Response:", response.data);
+    // console.log("FINAL PAYLOAD BEFORE API:", JSON.stringify(data, null, 2));
+    // console.log("Create Post API Response:", response.data);
     return response.data;
   } catch (error: any) {
     console.error("Create Post API Error:", error.response || error.message);
@@ -419,7 +454,7 @@ export const createPinterestBoardApi = async (
 ) => {
   try {
     const response = await https.post(
-      "/socialmedia/pinterest/boards",
+      "SocialMedia/Pinterest/Boards",
       payload,
       {
         headers: {
@@ -458,6 +493,42 @@ export const getPinterestBoardsApi = async (token?: string) => {
 };
 
 // ---------------------- Facebook APIs ---------------------- //
+
+export const getFbPages = async (token?: string) => {
+  try {
+    const response = await https.get("SocialMedia/facebook/pages", {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Get Fb Pages API Error:",
+      error.response || error.message,
+    );
+    throw error;
+  }
+};
+
+export const getLeedForm = async (pageId:string,pageAccessToken:string,token?: string) => {
+  try {
+    const response = await https.get(`SocialMedia/facebook/lead-forms?pageId=${pageId}&pageAccessToken=${pageAccessToken}`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Get Leed Form API Error:",
+      error.response || error.message,
+    );
+    throw error;
+  }
+};
 
 export interface FacebookPage {
   id: string;

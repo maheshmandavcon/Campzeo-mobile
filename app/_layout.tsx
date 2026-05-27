@@ -26,6 +26,7 @@ import { GluestackUIProvider } from "@gluestack-ui/themed";
 import { config } from "@gluestack-ui/config";
 import { NetworkGate } from "../network/networkGate";
 import { OverlayProvider } from "@gluestack-ui/core/overlay/creator";
+import Toast from "react-native-toast-message";
 
 
 /* ---------------- AUTH GUARD ---------------- */
@@ -123,12 +124,13 @@ export default function RootLayout() {
                 >
                   <GestureHandlerRootView style={{ flex: 1 }}>
                     <QueryClientProvider client={queryClient}>
-                    <Stack screenOptions={{ headerShown: false }}>
-                      <Stack.Screen name="(auth)" />
-                      <Stack.Screen name="(tabs)" />
-                      <Stack.Screen name="auth-callback" />
-                    </Stack>
+                      <Stack screenOptions={{ headerShown: false }}>
+                        <Stack.Screen name="(auth)" />
+                        <Stack.Screen name="(tabs)" />
+                        <Stack.Screen name="auth-callback" />
+                      </Stack>
                       <StatusBar style="auto" />
+                      <Toast />
                     </QueryClientProvider>
                   </GestureHandlerRootView>
                 </ThemeProvider>
