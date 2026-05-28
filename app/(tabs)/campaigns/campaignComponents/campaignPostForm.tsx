@@ -4,8 +4,73 @@ import { useUser } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@gluestack-ui/themed";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import Video from "react-native-video";
+import { WebView } from "react-native-webview";
 import React, { useEffect, useState } from "react";
+
+const Video = ({
+  source,
+  style,
+  poster,
+  controls = false,
+  ...rest
+}: {
+  source: { uri: string };
+  style?: any;
+  poster?: string;
+  controls?: boolean;
+  [key: string]: any;
+}) => {
+  return (
+    <View style={[{ overflow: "hidden" }, style]}>
+      <WebView
+        source={{
+          html: `
+            <html>
+              <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+                <style>
+                  html, body {
+                    margin: 0;
+                    padding: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: #000000;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    overflow: hidden;
+                  }
+                  video {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                  }
+                </style>
+              </head>
+              <body>
+                <video
+                  src="${source.uri}"
+                  ${poster ? `poster="${poster}"` : ""}
+                  autoplay
+                  loop
+                  muted
+                  playsinline
+                  ${controls ? "controls" : ""}
+                />
+              </body>
+            </html>
+          `,
+        }}
+        style={{
+          flex: 1,
+          backgroundColor: "#000000",
+        }}
+        javaScriptEnabled
+        domStorageEnabled
+      />
+    </View>
+  );
+};
 import {
   ActivityIndicator,
   Alert,
@@ -143,6 +208,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     setIsCreatingPlaylist,
     setPlaylistId,
     setPlaylistTitle,
+    setCustomThumbnail,
     setIsCreatingPinterestBoard,
     setPinterestBoard,
     setPinterestBoardId,
@@ -173,6 +239,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     handleSelectGeneratedImage,
     handleSelectFacebookPage,
     setLeadFormId,
+    handleCreateYoutubePlaylist,
   } = useCampaignPostForm({
     platform,
     campaignId,
@@ -188,7 +255,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
   const YOUTUBE_TYPES = [
     { label: "Standard Video", value: "VIDEO" },
     { label: "YouTube Short", value: "SHORT" },
-    { label: "Playlist", value: "PLAYLIST" },
   ] as const;
 
   const linkedinAccounts = [
@@ -386,27 +452,35 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           {/* AI TEXT BUTTON FOR ALL PLATFORMS */}
           <TouchableOpacity
             onPress={() => setAiModalVisible(true)}
+            activeOpacity={0.8}
             style={{
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "center",
-              backgroundColor: "#dc2626",
-              paddingVertical: 10,
-              paddingHorizontal: 16,
-              borderRadius: 25,
-              marginBottom: 8,
+              backgroundColor: isDark ? "#4c1d95" : "#6d28d9",
+              paddingVertical: 12,
+              paddingHorizontal: 20,
+              borderRadius: 14,
+              marginBottom: 16,
+              borderWidth: 1,
+              borderColor: isDark ? "#6d28d9" : "#8b5cf6",
+              shadowColor: "#6d28d9",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.15,
+              shadowRadius: 6,
+              elevation: 4,
             }}
           >
             <Ionicons
               name="sparkles"
-              size={20}
-              color="#fff"
-              style={{ marginRight: 12 }}
+              size={18}
+              color="#ffffff"
+              style={{ marginRight: 8 }}
             />
             <Text
-              style={{ color: "#fff", fontWeight: "bold", textAlign: "center" }}
+              style={{ color: "#ffffff", fontWeight: "bold", fontSize: 13 }}
             >
-              Text Generate AI Assistant
+              Generate Content with AI Assistant
             </Text>
           </TouchableOpacity>
 
@@ -443,35 +517,43 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           />
 
           {/* AI IMAGE BUTTON */}
-          {platformState !== "SMS" && (
+          {platformState !== "SMS" && platformState !== "YOUTUBE" && (
             <TouchableOpacity
               onPress={() => setImageModalVisible(true)}
+              activeOpacity={0.8}
               style={{
                 flexDirection: "row",
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: "#2563eb",
-                paddingVertical: 10,
-                paddingHorizontal: 16,
-                borderRadius: 25,
-                marginBottom: 8,
+                backgroundColor: isDark ? "#064e3b" : "#0f766e",
+                paddingVertical: 12,
+                paddingHorizontal: 20,
+                borderRadius: 14,
+                marginBottom: 16,
                 marginTop: 8,
+                borderWidth: 1,
+                borderColor: isDark ? "#0f766e" : "#14b8a6",
+                shadowColor: "#0f766e",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.15,
+                shadowRadius: 6,
+                elevation: 4,
               }}
             >
               <Ionicons
                 name="sparkles"
-                size={24}
-                color="#fff"
-                style={{ marginRight: 12 }}
+                size={18}
+                color="#ffffff"
+                style={{ marginRight: 8 }}
               />
               <Text
                 style={{
-                  color: "#fff",
+                  color: "#ffffff",
                   fontWeight: "bold",
-                  textAlign: "center",
+                  fontSize: 13,
                 }}
               >
-                Image Generate AI Assistant
+                Generate Image with AI Assistant
               </Text>
             </TouchableOpacity>
           )}
@@ -945,6 +1027,115 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             </>
           )}
 
+          {/* ---------- Custom Video Thumbnail Section ---------- */}
+          {hasVideo && (
+            <View
+              style={{
+                marginTop: 16,
+                marginBottom: 16,
+                borderWidth: 1,
+                borderColor: isDark ? "#374151" : "#e2e8f0",
+                borderRadius: 12,
+                padding: 16,
+                backgroundColor: isDark ? "#1a1a1c" : "#f8fafc",
+              }}
+            >
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text
+                    style={{
+                      color: isDark ? "#ffffff" : "#1e293b",
+                      fontWeight: "bold",
+                      fontSize: 14,
+                    }}
+                  >
+                    Custom Video Thumbnail
+                  </Text>
+                  <Text
+                    style={{
+                      color: isDark ? "#94a3b8" : "#64748b",
+                      fontSize: 12,
+                      marginTop: 2,
+                    }}
+                  >
+                    Upload an image to use as the custom thumbnail for your video.
+                  </Text>
+                </View>
+                <Ionicons name="image-outline" size={22} color="#2563eb" />
+              </View>
+
+              {customThumbnail ? (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: isDark ? "#27272a" : "#ffffff",
+                    borderRadius: 8,
+                    padding: 8,
+                    borderWidth: 1,
+                    borderColor: isDark ? "#3f3f46" : "#e2e8f0",
+                  }}
+                >
+                  <Image
+                    source={{ uri: customThumbnail }}
+                    style={{ width: 60, height: 60, borderRadius: 6, marginRight: 12 }}
+                    resizeMode="cover"
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        color: isDark ? "#e2e8f0" : "#334155",
+                        fontWeight: "600",
+                        fontSize: 13,
+                      }}
+                      numberOfLines={1}
+                    >
+                      {customThumbnail.substring(customThumbnail.lastIndexOf("/") + 1)}
+                    </Text>
+                    <Text
+                      style={{
+                        color: "#16a34a",
+                        fontSize: 11,
+                        fontWeight: "bold",
+                        marginTop: 2,
+                      }}
+                    >
+                      ✅ Uploaded & Active
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setCustomThumbnail(null)}
+                    style={{
+                      padding: 8,
+                      borderRadius: 8,
+                      backgroundColor: isDark ? "rgba(239, 68, 68, 0.15)" : "#fee2e2",
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={handleCustomThumbnailUpload}
+                  style={{
+                    backgroundColor: "#2563eb",
+                    paddingVertical: 12,
+                    borderRadius: 8,
+                    alignItems: "center",
+                    flexDirection: "row",
+                    justifyContent: "center",
+                    gap: 8,
+                  }}
+                >
+                  <Ionicons name="cloud-upload-outline" size={18} color="#ffffff" />
+                  <Text style={{ color: "#ffffff", fontWeight: "bold", fontSize: 13 }}>
+                    Upload Custom Thumbnail
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
           {/* {platformState === "LINKEDIN" && (
             <View
               style={{
@@ -1016,7 +1207,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             </View>
           )} */}
 
-          {platformState === "FACEBOOK" && (
+          {(platformState === "FACEBOOK" || platformState === "INSTAGRAM") && (
             <View
               style={{
                 borderWidth: 1,
@@ -1041,9 +1232,9 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 }}
               >
                 <Ionicons
-                  name="logo-facebook"
+                  name={platformState === "FACEBOOK" ? "logo-facebook" : "logo-instagram"}
                   size={22}
-                  color="#1877F2"
+                  color={platformState === "FACEBOOK" ? "#1877F2" : "#E1306C"}
                 />
                 <Text
                   style={{
@@ -1053,169 +1244,186 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     color: isDark ? "#ffffff" : "#1f2937",
                   }}
                 >
-                  Facebook Page
+                  {platformState === "FACEBOOK" ? "Facebook Page" : "Instagram Business Account"}
                 </Text>
               </View>
 
               {/* 🔄 Pages Selector Dropdown */}
               {isFacebookPageLoading ? (
                 <View style={{ paddingVertical: 12, alignItems: "center" }}>
-                  <ActivityIndicator size="small" color="#1877F2" />
-                </View>
-              ) : facebookPages.length > 0 ? (
-                <View
-                  style={{
-                    borderWidth: 1,
-                    borderColor: isDark ? "#3f3f46" : "#e4e4e7",
-                    borderRadius: 10,
-                    backgroundColor: isDark ? "#27272a" : "#f4f4f5",
-                    overflow: "hidden",
-                    marginBottom: 16,
-                  }}
-                >
-                  <Picker
-                    selectedValue={selectedFacebookPageId}
-                    onValueChange={(itemValue) => itemValue && handleSelectFacebookPage(String(itemValue))}
-                    style={{
-                      color: isDark ? "#fff" : "#000",
-                      height: 50,
-                    }}
-                    dropdownIconColor={isDark ? "#fff" : "#000"}
-                  >
-                    <Picker.Item
-                      label="Select Facebook Page"
-                      value={null}
-                      enabled={false}
-                      color={isDark ? "#a1a1aa" : "#71717a"}
-                    />
-                    {facebookPages.map((page) => (
-                      <Picker.Item
-                        key={page.id}
-                        label={page.name}
-                        value={String(page.id)}
-                        color={isDark ? "#fff" : "#000"}
-                      />
-                    ))}
-                  </Picker>
+                  <ActivityIndicator size="small" color={platformState === "FACEBOOK" ? "#1877F2" : "#E1306C"} />
                 </View>
               ) : (
-                <View
-                  style={{
-                    padding: 12,
-                    borderRadius: 8,
-                    backgroundColor: isDark ? "#3f1a1a" : "#fee2e2",
-                    marginBottom: 16,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      color: isDark ? "#fca5a5" : "#b91c1c",
-                      fontWeight: "500",
-                    }}
-                  >
-                    No connected Facebook Pages found. Connect one in Accounts first.
-                  </Text>
-                </View>
+                (() => {
+                  const filteredPages = facebookPages.filter(
+                    (p) => platformState !== "INSTAGRAM" || p.instagram_business_account
+                  );
+                  if (filteredPages.length > 0) {
+                    return (
+                      <View
+                        style={{
+                          borderWidth: 1,
+                          borderColor: isDark ? "#3f3f46" : "#e4e4e7",
+                          borderRadius: 10,
+                          backgroundColor: isDark ? "#27272a" : "#f4f4f5",
+                          overflow: "hidden",
+                          marginBottom: 16,
+                        }}
+                      >
+                        <Picker
+                          selectedValue={selectedFacebookPageId}
+                          onValueChange={(itemValue) => itemValue && handleSelectFacebookPage(String(itemValue))}
+                          style={{
+                            color: isDark ? "#fff" : "#000",
+                            height: 50,
+                          }}
+                          dropdownIconColor={isDark ? "#fff" : "#000"}
+                        >
+                          <Picker.Item
+                            label={platformState === "FACEBOOK" ? "Select Facebook Page" : "Select Connected Page"}
+                            value={null}
+                            enabled={false}
+                            color={isDark ? "#a1a1aa" : "#71717a"}
+                          />
+                          {filteredPages.map((page) => (
+                            <Picker.Item
+                              key={page.id}
+                              label={platformState === "FACEBOOK" ? page.name : `${page.name} (${page.instagram_business_account?.username || 'Instagram'})`}
+                              value={String(page.id)}
+                              color={isDark ? "#fff" : "#000"}
+                            />
+                          ))}
+                        </Picker>
+                      </View>
+                    );
+                  } else {
+                    return (
+                      <View
+                        style={{
+                          padding: 12,
+                          borderRadius: 8,
+                          backgroundColor: isDark ? "#3f1a1a" : "#fee2e2",
+                          marginBottom: 16,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            color: isDark ? "#fca5a5" : "#b91c1c",
+                            fontWeight: "500",
+                          }}
+                        >
+                          {platformState === "INSTAGRAM"
+                            ? "No connected Facebook Pages with linked Instagram Business accounts found."
+                            : "No connected Facebook Pages found. Connect one in Accounts first."}
+                        </Text>
+                      </View>
+                    );
+                  }
+                })()
               )}
 
               {/* 🟢 Lead Forms Section */}
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 12,
-                  marginTop: 4,
-                }}
-              >
-                <Ionicons
-                  name="document-text-outline"
-                  size={22}
-                  color="#10b981"
-                />
-                <Text
-                  style={{
-                    marginLeft: 10,
-                    fontSize: 15,
-                    fontWeight: "700",
-                    color: isDark ? "#ffffff" : "#1f2937",
-                  }}
-                >
-                  Facebook Lead Form
-                </Text>
-              </View>
-
-              {isLoadingLeadForms ? (
-                <View style={{ paddingVertical: 12, alignItems: "center" }}>
-                  <ActivityIndicator size="small" color="#10b981" />
-                </View>
-              ) : leadForms.length > 0 ? (
-                <View
-                  style={{
-                    borderWidth: 1,
-                    borderColor: isDark ? "#3f3f46" : "#e4e4e7",
-                    borderRadius: 10,
-                    backgroundColor: isDark ? "#27272a" : "#f4f4f5",
-                    overflow: "hidden",
-                  }}
-                >
-                  <Picker
-                    selectedValue={leadFormId ? String(leadFormId) : null}
-                    onValueChange={(itemValue) => setLeadFormId(itemValue)}
+              {(platformState === "FACEBOOK" || platformState === "INSTAGRAM") && (
+                <>
+                  <View
                     style={{
-                      color: isDark ? "#fff" : "#000",
-                      height: 50,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginBottom: 12,
+                      marginTop: 4,
                     }}
-                    dropdownIconColor={isDark ? "#fff" : "#000"}
                   >
-                    <Picker.Item
-                      label="None (Select Lead Form)"
-                      value={null}
-                      color={isDark ? "#a1a1aa" : "#71717a"}
+                    <Ionicons
+                      name="document-text-outline"
+                      size={22}
+                      color="#10b981"
                     />
-                    {leadForms.map((form) => (
-                      <Picker.Item
-                        key={form.id}
-                        label={form.name}
-                        value={String(form.id)}
-                        color={isDark ? "#fff" : "#000"}
-                      />
-                    ))}
-                  </Picker>
-                </View>
-              ) : (
-                <View
-                  style={{
-                    padding: 12,
-                    borderRadius: 8,
-                    backgroundColor: isDark ? "#18221b" : "#f0fdf4",
-                    borderWidth: 1,
-                    borderColor: isDark ? "#1b4d24" : "#bbf7d0",
-                  }}
-                >
+                    <Text
+                      style={{
+                        marginLeft: 10,
+                        fontSize: 15,
+                        fontWeight: "700",
+                        color: isDark ? "#ffffff" : "#1f2937",
+                      }}
+                    >
+                      Facebook Lead Form
+                    </Text>
+                  </View>
+
+                  {isLoadingLeadForms ? (
+                    <View style={{ paddingVertical: 12, alignItems: "center" }}>
+                      <ActivityIndicator size="small" color="#10b981" />
+                    </View>
+                  ) : leadForms.length > 0 ? (
+                    <View
+                      style={{
+                        borderWidth: 1,
+                        borderColor: isDark ? "#3f3f46" : "#e4e4e7",
+                        borderRadius: 10,
+                        backgroundColor: isDark ? "#27272a" : "#f4f4f5",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <Picker
+                        selectedValue={leadFormId ? String(leadFormId) : null}
+                        onValueChange={(itemValue) => setLeadFormId(itemValue)}
+                        style={{
+                          color: isDark ? "#fff" : "#000",
+                          height: 50,
+                        }}
+                        dropdownIconColor={isDark ? "#fff" : "#000"}
+                      >
+                        <Picker.Item
+                          label="None (Select Lead Form)"
+                          value={null}
+                          color={isDark ? "#a1a1aa" : "#71717a"}
+                        />
+                        {leadForms.map((form) => (
+                          <Picker.Item
+                            key={form.id}
+                            label={form.name}
+                            value={String(form.id)}
+                            color={isDark ? "#fff" : "#000"}
+                          />
+                        ))}
+                      </Picker>
+                    </View>
+                  ) : (
+                    <View
+                      style={{
+                        padding: 12,
+                        borderRadius: 8,
+                        backgroundColor: isDark ? "#18221b" : "#f0fdf4",
+                        borderWidth: 1,
+                        borderColor: isDark ? "#1b4d24" : "#bbf7d0",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          color: isDark ? "#86efac" : "#15803d",
+                          fontWeight: "500",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        No lead form found
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* ℹ️ Page Footer Cues */}
                   <Text
                     style={{
-                      fontSize: 13,
-                      color: isDark ? "#86efac" : "#15803d",
-                      fontWeight: "500",
-                      fontStyle: "italic",
+                      marginTop: 12,
+                      fontSize: 11,
+                      color: isDark ? "#a1a1aa" : "#71717a",
                     }}
                   >
-                    No lead form found
+                    Lead form data will dynamically map to selected pages.
                   </Text>
-                </View>
+                </>
               )}
-
-              {/* ℹ️ Page Footer Cues */}
-              <Text
-                style={{
-                  marginTop: 12,
-                  fontSize: 11,
-                  color: isDark ? "#a1a1aa" : "#71717a",
-                }}
-              >
-                Lead form data will dynamically map to selected pages.
-              </Text>
             </View>
           )}
 
@@ -1564,40 +1772,55 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     })}
                   </View>
 
-                  {/* Playlist Button */}
-                  {youTubeContentType === "PLAYLIST" && (
+                  {/* Playlist Dropdown Section (Optional for Standard Video and Short) */}
+                  {(youTubeContentType === "VIDEO" || youTubeContentType === "SHORT") && (
                     <View style={{ marginTop: 12 }}>
-                      {/* Dropdown Button */}
-                      <TouchableOpacity
-                        onPress={() =>
-                          setShowPlaylistDropdown(!showPlaylistDropdown)
-                        }
+                      <Text
                         style={{
-                          borderWidth: 1,
-                          borderColor: isDark ? "#374151" : "#d1d5db",
-                          borderRadius: 8,
-                          paddingHorizontal: 12,
-                          paddingVertical: 10,
-                          backgroundColor: isDark ? "#161618" : "#ffffff",
+                          color: isDark ? "#ffffff" : "#000000",
+                          fontWeight: "bold",
+                          marginBottom: 8,
+                          marginLeft: 4,
                         }}
                       >
-                        <Text
+                        YouTube Playlist (Optional)
+                      </Text>
+
+                      {/* Dropdown Toggle Button */}
+                      {!isCreatingPlaylist && (
+                        <TouchableOpacity
+                          onPress={() =>
+                            setShowPlaylistDropdown(!showPlaylistDropdown)
+                          }
                           style={{
-                            color:
-                              selectedPlaylist || isCreatingPlaylist
-                                ? isDark
-                                  ? "#ffffff"
-                                  : "#000"
-                                : "#9ca3af",
+                            borderWidth: 1,
+                            borderColor: isDark ? "#374151" : "#d1d5db",
+                            borderRadius: 8,
+                            paddingHorizontal: 12,
+                            paddingVertical: 12,
+                            backgroundColor: isDark ? "#161618" : "#ffffff",
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            alignItems: "center",
                           }}
                         >
-                          {isCreatingPlaylist
-                            ? "Creating New Playlist..."
-                            : selectedPlaylist
+                          <Text
+                            style={{
+                              color: selectedPlaylist ? (isDark ? "#ffffff" : "#000") : "#9ca3af",
+                              fontWeight: selectedPlaylist ? "600" : "normal",
+                            }}
+                          >
+                            {selectedPlaylist
                               ? selectedPlaylist.name
-                              : "Select a playlist"}
-                        </Text>
-                      </TouchableOpacity>
+                              : "Select a playlist (optional)"}
+                          </Text>
+                          <Ionicons
+                            name={showPlaylistDropdown ? "chevron-up" : "chevron-down"}
+                            size={18}
+                            color={isDark ? "#9ca3af" : "#6b7280"}
+                          />
+                        </TouchableOpacity>
+                      )}
 
                       {/* Dropdown List */}
                       {showPlaylistDropdown && !isCreatingPlaylist && (
@@ -1607,21 +1830,23 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                             borderWidth: 1,
                             borderColor: isDark ? "#374151" : "#d1d5db",
                             borderRadius: 8,
-                            backgroundColor: isDark ? "#1f2933" : "#f3f4f6",
+                            backgroundColor: isDark ? "#161618" : "#ffffff",
+                            maxHeight: 200,
+                            overflow: "hidden",
                           }}
                         >
                           {/* + Create New Playlist Button */}
                           <TouchableOpacity
                             onPress={() => {
                               setIsCreatingPlaylist(true);
-                              setShowPlaylistDropdown(false); // hide dropdown
+                              setShowPlaylistDropdown(false);
                             }}
                             style={{
-                              paddingVertical: 10,
+                              paddingVertical: 12,
                               paddingHorizontal: 12,
                               borderBottomWidth: 1,
-                              borderBottomColor: isDark ? "#374151" : "#d1d5db",
-                              backgroundColor: isDark ? "#161618" : "#ffffff",
+                              borderBottomColor: isDark ? "#374151" : "#e5e7eb",
+                              backgroundColor: isDark ? "#1f2937" : "#f3f4f6",
                             }}
                           >
                             <Text
@@ -1631,39 +1856,74 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                             </Text>
                           </TouchableOpacity>
 
-                          {/* Existing Playlists */}
-                          {playlists.map((playlist) => (
-                            <TouchableOpacity
-                              key={playlist.id}
-                              onPress={() => {
-                                setSelectedPlaylist(playlist);
-                                setShowPlaylistDropdown(false);
-                                setIsCreatingPlaylist(false);
-                              }}
-                              style={{
-                                paddingVertical: 10,
-                                paddingHorizontal: 12,
-                                borderBottomWidth: 1,
-                                borderBottomColor: isDark
-                                  ? "#374151"
-                                  : "#d1d5db",
-                              }}
-                            >
-                              <Text
-                                style={{
-                                  color: isDark ? "#ffffff" : "#000000",
-                                }}
-                              >
-                                {playlist.name}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
+                          {/* Playlist Items List */}
+                          <ScrollView nestedScrollEnabled style={{ maxHeight: 150 }}>
+                            {playlists.length === 0 ? (
+                              <View style={{ padding: 12, alignItems: "center" }}>
+                                <Text style={{ color: isDark ? "#9ca3af" : "#6b7280", fontSize: 13 }}>
+                                  No playlists found. Create one above!
+                                </Text>
+                              </View>
+                            ) : (
+                              playlists.map((playlist) => (
+                                <TouchableOpacity
+                                  key={playlist.id}
+                                  onPress={() => {
+                                    setSelectedPlaylist(playlist);
+                                    setPlaylistId(playlist.id);
+                                    setPlaylistTitle(playlist.name);
+                                    setShowPlaylistDropdown(false);
+                                  }}
+                                  style={{
+                                    paddingVertical: 12,
+                                    paddingHorizontal: 12,
+                                    borderBottomWidth: 1,
+                                    borderBottomColor: isDark ? "#374151" : "#f3f4f6",
+                                    flexDirection: "row",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      color: isDark ? "#ffffff" : "#000000",
+                                      fontWeight: selectedPlaylist?.id === playlist.id ? "bold" : "normal",
+                                    }}
+                                  >
+                                    {playlist.name}
+                                  </Text>
+                                  {selectedPlaylist?.id === playlist.id && (
+                                    <Ionicons name="checkmark" size={16} color="#2563eb" />
+                                  )}
+                                </TouchableOpacity>
+                              ))
+                            )}
+                          </ScrollView>
                         </View>
                       )}
 
-                      {/* New Playlist Input */}
+                      {/* New Playlist Form */}
                       {isCreatingPlaylist && (
-                        <View style={{ marginTop: 12 }}>
+                        <View
+                          style={{
+                            marginTop: 8,
+                            padding: 12,
+                            borderWidth: 1,
+                            borderColor: isDark ? "#374151" : "#d1d5db",
+                            borderRadius: 8,
+                            backgroundColor: isDark ? "#1f2937" : "#f8fafc",
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: isDark ? "#ffffff" : "#000000",
+                              fontWeight: "bold",
+                              fontSize: 13,
+                              marginBottom: 8,
+                            }}
+                          >
+                            Create New Playlist
+                          </Text>
                           <TextInput
                             placeholder="Enter playlist name"
                             placeholderTextColor={
@@ -1679,27 +1939,45 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                               paddingVertical: 10,
                               backgroundColor: isDark ? "#161618" : "#ffffff",
                               color: isDark ? "#ffffff" : "#000000",
-                              marginBottom: 8,
+                              marginBottom: 12,
                             }}
                           />
-                          {/* <TouchableOpacity
-          onPress={() => {
-            // call your create playlist handler here
-            handleCreatePlaylist?.();
-            setIsCreatingPlaylist(false);
-            setNewPlaylistName("");
-          }}
-          style={{
-            paddingVertical: 10,
-            paddingHorizontal: 12,
-            backgroundColor: "#2563eb",
-            borderRadius: 8,
-          }}
-        >
-          <Text style={{ color: "#fff", fontWeight: "bold", textAlign: "center" }}>
-            Create Playlist
-          </Text>
-        </TouchableOpacity> */}
+                          <View style={{ flexDirection: "row", gap: 8 }}>
+                            <TouchableOpacity
+                              onPress={handleCreateYoutubePlaylist}
+                              style={{
+                                flex: 1,
+                                paddingVertical: 10,
+                                backgroundColor: "#2563eb",
+                                borderRadius: 8,
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 13 }}>
+                                Create
+                              </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              onPress={() => {
+                                setIsCreatingPlaylist(false);
+                                setShowPlaylistDropdown(true);
+                              }}
+                              style={{
+                                flex: 1,
+                                paddingVertical: 10,
+                                backgroundColor: isDark ? "#27272a" : "#e2e8f0",
+                                borderRadius: 8,
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <Text style={{ color: isDark ? "#e2e8f0" : "#334155", fontWeight: "bold", fontSize: 13 }}>
+                                Select Existing
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
                         </View>
                       )}
                     </View>
@@ -1796,52 +2074,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 </View>
               )}
 
-              {/* ---------- Thumbnail ---------- */}
-              <Text
-                style={{
-                  color: isDark ? "#ffffff" : "#000",
-                  fontWeight: "bold",
-                  marginBottom: 8,
-                }}
-              >
-                Custom Thumbnail
-              </Text>
-
-              <TouchableOpacity
-                onPress={handleCustomThumbnailUpload}
-                style={{
-                  backgroundColor: isDark ? "#1e3a8a" : "#dbeafe",
-                  paddingVertical: 12,
-                  borderRadius: 9999,
-                  alignItems: "center",
-                  marginBottom: 8,
-                }}
-              >
-                <Text
-                  style={{
-                    color: isDark ? "#ffffff" : "#2563eb",
-                    fontWeight: "bold",
-                  }}
-                >
-                  Upload Thumbnail
-                </Text>
-              </TouchableOpacity>
-
-              {/* ---------- Show Preview ---------- */}
-              {customThumbnail && (
-                <Image
-                  source={{ uri: customThumbnail }}
-                  style={{
-                    width: 100,
-                    height: 100,
-                    borderRadius: 8,
-                    marginBottom: 16,
-                    resizeMode: "cover",
-                    borderWidth: 1,
-                    borderColor: isDark ? "#ffffff" : "#000",
-                  }}
-                />
-              )}
             </View>
           )}
 
@@ -2475,30 +2707,39 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           )}
         </View>
 
-        <Button
+        <TouchableOpacity
           onPress={handleSubmit}
-          className="rounded-full mb-8 px-4 py-3 flex-row justify-center items-center"
+          activeOpacity={0.85}
           style={{
-            backgroundColor: "#dc2626",
-            borderRadius: 50,
-            height: 48,
+            backgroundColor: "#2563eb",
+            borderRadius: 14,
+            height: 52,
+            justifyContent: "center",
+            alignItems: "center",
+            marginBottom: 32,
+            marginTop: 16,
+            shadowColor: "#2563eb",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.2,
+            shadowRadius: 8,
+            elevation: 4,
             opacity: loading ? 0.6 : 1,
           }}
           disabled={loading}
         >
-          <View className="flex-row justify-center items-center">
+          <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center" }}>
             {loading && (
               <ActivityIndicator
                 size="small"
-                color="#fff"
+                color="#ffffff"
                 style={{ marginRight: 8 }}
               />
             )}
-            <Text style={{ color: "#fff", fontWeight: "bold" }}>
+            <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: 16 }}>
               {existingPost ? "Update Campaign Post" : "Create Campaign Post"}
             </Text>
           </View>
-        </Button>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );

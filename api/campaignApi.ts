@@ -29,6 +29,12 @@ export interface CampaignPostData {
   postType?: string;
   coverImage?: string | null;
 
+  facebookPageAccessToken?: string;
+  facebookPageId?: string;
+  facebookPageName?: string;
+  instagramBusinessId?: string;
+  leadFormId?: number | null;
+
   metadata?: {
     destinationLink?: string;
     tags?: string[];
@@ -99,10 +105,10 @@ export const getCampaignsApi = async (orgId: number,
 
 // Get single campaign by ID
 
-export const getCampaignByIdApi = async (id: number,orgId:number, token:string) => {
-  
+export const getCampaignByIdApi = async (id: number, orgId: number, token: string) => {
+
   try {
-    const response = await https.get(`Campaigns/${id}` ,{
+    const response = await https.get(`Campaigns/${id}`, {
       headers: {
         "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
@@ -140,7 +146,7 @@ export const updateCampaignApi = async (data: CampaignData, token: string) => {
 
 // Delete campaign
 
-export const deleteCampaignApi = async (id: number, organisationId: number,  token?: string) => {
+export const deleteCampaignApi = async (id: number, organisationId: number, token?: string) => {
   let data = {
     id,
     organisationId,
@@ -168,11 +174,11 @@ export const deleteCampaignApi = async (id: number, organisationId: number,  tok
 
 // Get posts for a specific campaign
 
-export const getPostsByCampaignIdApi = async (campaignId: number,orgId: number) => {
+export const getPostsByCampaignIdApi = async (campaignId: number, orgId: number) => {
   try {
     const res = await https.get(`Campaigns/${campaignId}/posts?organisationId=${orgId}`);
     // console.log("reeeesss",res.data);
-    
+
     return res.data;
   } catch (error: any) {
     console.error("Get Posts Error:", error.response?.data || error.message);
@@ -181,16 +187,16 @@ export const getPostsByCampaignIdApi = async (campaignId: number,orgId: number) 
 };
 // Get get specific post details
 
-export const getPostDetails = async (campaignId: number,postId: number,orgId: number, token:string) => {
+export const getPostDetails = async (campaignId: number, postId: number, orgId: number, token: string) => {
   try {
-    const res = await https.get(`Campaigns/${campaignId}/posts/${postId}?organisationId=${orgId}`,{
+    const res = await https.get(`Campaigns/${campaignId}/posts/${postId}?organisationId=${orgId}`, {
       headers: {
         "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
       },
     });
     // console.log("reeeesss",res.data);
-    
+
     return res.data;
   } catch (error: any) {
     console.error("Get Posts Error:", error.response?.data || error.message);
@@ -215,7 +221,7 @@ export const createPostForCampaignApi = async (
         ...(token && { Authorization: `Bearer ${token}` }),
       },
     });
-    
+
     // console.log("FINAL PAYLOAD BEFORE API:", JSON.stringify(data, null, 2));
     // console.log("Create Post API Response:", response.data);
     return response.data;
@@ -253,7 +259,7 @@ export const createPostForCampaignApi = async (
 // Share a campaign post
 
 export const shareCampaignPostApi = async (
-  orgId:number,
+  orgId: number,
   campaignId: number,
   postId: number,
   contactIds: number[],
@@ -309,7 +315,7 @@ export const updatePostForCampaignApi = async (
 // Delete a post for a specific campaign
 
 export const deletePostForCampaignApi = async (
-  orgId:number,
+  orgId: number,
   campaignId: number,
   postId: number,
 ) => {
@@ -332,6 +338,7 @@ export interface AIContentRequest {
   prompt: string;
   context: { platform: string; existingContent: string };
   mode: string;
+  message?: string;
 }
 
 export interface AIVariation {
@@ -347,16 +354,22 @@ export interface AIContentResponse {
 }
 
 export const generateAIContentApi = async (
+  orgId: number,
   data: AIContentRequest,
   token?: string,
 ) => {
   try {
-    const response = await https.post("AI/generate-content", data, {
+    const finalPayload = {
+      ...data,
+      organisationId: orgId,
+    };
+
+    const response = await https.post("AI/groq-chat", finalPayload, {
       headers: {
         "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
       },
-    });    
+    });
     return response.data;
   } catch (error: any) {
     console.error(
@@ -512,7 +525,7 @@ export const getFbPages = async (token?: string) => {
   }
 };
 
-export const getLeedForm = async (pageId:string,pageAccessToken:string,token?: string) => {
+export const getLeedForm = async (pageId: string, pageAccessToken: string, token?: string) => {
   try {
     const response = await https.get(`SocialMedia/facebook/lead-forms?pageId=${pageId}&pageAccessToken=${pageAccessToken}`, {
       headers: {
@@ -596,114 +609,87 @@ export const uploadMediaApi = async (
   },
 ): Promise<string> => {
   try {
-    console.log("🔄 Starting upload process for:", attachment.name);
+    console.log("🔄 Starting upload process via new API for:", attachment.name);
 
-    // Get Base URL from env and ensure correct formatting
-    const baseUrl =
-      process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
-    const uploadRefUrl = `${baseUrl}/upload/google-drive/resumable`;
+    const params: string[] = [];
+    if (options?.organisationId !== undefined && options?.organisationId !== "") {
+      params.push(`organisationId=${options.organisationId}`);
+    }
+    if (options?.campaignId !== undefined && options?.campaignId !== "") {
+      params.push(`campaignId=${options.campaignId}`);
+    }
+    if (options?.platform) {
+      params.push(`platform=${options.platform}`);
+    }
+    if (options?.isReel !== undefined) {
+      params.push(`isReel=${options.isReel ? "true" : "false"}`);
+    }
 
-    console.log("📍 Token Endpoint:", uploadRefUrl);
+    const uploadUrl = `Upload` + (params.length > 0 ? `?${params.join("&")}` : "");
+    console.log("📍 Upload Endpoint:", uploadUrl);
 
-    // 1️⃣ Initialize resumable upload
-    const payload = {
-      fileName: attachment.name,
-      mimeType: attachment.type,
+    const formData = new FormData();
+    formData.append("file", {
+      uri: attachment.uri,
+      name: attachment.name,
+      type: attachment.type,
+    } as any);
 
-      ...(options?.organisationId !== undefined && {
-        organisationId: options.organisationId,
-      }),
+    const response = await https.post(uploadUrl, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      onUploadProgress: (progressEvent) => {
+        if (onProgress && progressEvent.total) {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(percentCompleted);
+        }
+      },
+    });
 
-      ...(options?.campaignId !== undefined && {
-        campaignId: String(options.campaignId),
-      }),
+    const result = response.data;
+    if (result.success && result.url) {
+      console.log("✅ File uploaded successfully:", result.url);
+      return result.url;
+    } else {
+      throw new Error(result.message || "Upload failed: No URL returned from server");
+    }
+  } catch (error: any) {
+    const serverMessage = error.response?.data?.message || error.response?.data || error.message;
+    console.error("Upload Media API Error:", serverMessage);
+    throw new Error(serverMessage);
+  }
+};
 
-      ...(options?.isReel !== undefined && {
-        isReel: options.isReel,
-      }),
-
-      ...(options?.platform && {
-        platform: options.platform,
-      }),
-    };
-
-    const initRes = await fetch(uploadRefUrl, {
-      method: "POST",
+// Get YouTube Playlists
+export const getYoutubePlaylists = async (token: string) => {
+  try {
+    const response = await https.get("Youtube/Playlists", {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(payload),
     });
-
-    if (!initRes.ok) {
-      const errorText = await initRes.text();
-      throw new Error(`Upload init failed: ${initRes.status} ${errorText}`);
-    }
-
-    const initData = await initRes.json();
-
-    // Extract upload URL from initData
-    const uploadUrl =
-      initData.data?.uploadUrl ||
-      initData.uploadUrl ||
-      initData.url ||
-      initData.resumableUrl;
-
-    if (!uploadUrl) {
-      console.error("No uploadUrl returned from POST init:", initData);
-      throw new Error(
-        "Upload failed: No upload URL returned from backend init step",
-      );
-    }
-
-    // 2️⃣ Read file as Blob
-    const fileResponse = await fetch(attachment.uri);
-    const blob = await fileResponse.blob();
-
-    console.log("📤 Uploading bytes to:", uploadUrl);
-
-    // 3️⃣ Upload bytes to Google Drive directly (or proxy URL) via PUT
-    const uploadRes = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: {
-        "Content-Type": attachment.type,
-      },
-      body: blob,
-    });
-
-    if (!uploadRes.ok) {
-      const text = await uploadRes.text();
-      throw new Error(`Upload PUT failed: ${uploadRes.status} ${text}`);
-    }
-
-    // 4️⃣ Get result from response
-    let uploadResult: any = {};
-    try {
-      const respText = await uploadRes.text();
-      if (respText) {
-        uploadResult = JSON.parse(respText);
-      }
-    } catch {
-      console.log("PUT response is not JSON");
-    }
-
-    const resultData = uploadResult.data || uploadResult;
-    const fileId = resultData?.id || initData.data?.id;
-    let publicUrl = "";
-
-    if (fileId) {
-      publicUrl = `https://drive.google.com/file/d/${fileId}/view`;
-    } else if (resultData?.url) {
-      publicUrl = resultData.url;
-    } else {
-      publicUrl = uploadUrl;
-    }
-
-    console.log("✅ File uploaded successfully:", publicUrl);
-    return publicUrl;
+    return response.data;
   } catch (error: any) {
-    console.error("Upload Media API Error:", error.message);
+    console.error("Get Youtube Playlists API Error:", error.response || error.message);
+    throw error;
+  }
+};
+
+// Create YouTube Playlist
+export const createYoutubePlaylist = async (data: { title: string; privacy?: string }, token: string) => {
+  try {
+    const response = await https.post("Youtube/Playlists", data, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Create Youtube Playlist API Error:", error.response || error.message);
     throw error;
   }
 };

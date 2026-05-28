@@ -17,6 +17,8 @@ import {
   getPinterestBoardsApi,
   updatePostForCampaignApi,
   uploadMediaApi,
+  getYoutubePlaylists,
+  createYoutubePlaylist,
 } from "@/api/campaignApi";
 import { de } from "zod/v4/locales";
 
@@ -59,8 +61,6 @@ export function useCampaignPostForm({
   useEffect(() => {
     const fetchOrgId = async () => {
       try {
-        console.log("eexxissttiinngg",existingPost);
-        
         const user = await getUser();
         const orgId = user?.organisation?.id;
         if (orgId) {
@@ -154,6 +154,7 @@ export function useCampaignPostForm({
   >(null);
   const [selectedFacebookPageId, setSelectedFacebookPageId] = useState<string | null>(existingPost?.facebookPageId || null);
   const [selectedFacebookPageAccessToken, setSelectedFacebookPageAccessToken] = useState<string | null>(existingPost?.facebookPageAccessToken || null);
+  const [instagramBusinessId, setInstagramBusinessId] = useState<string | null>(existingPost?.instagramBusinessId || null);
   const [leadFormId, setLeadFormId] = useState<string | null>(existingPost?.leadFormId || null);
   const [leadForms, setLeadForms] = useState<any[]>([]);
   const [isLoadingLeadForms, setIsLoadingLeadForms] = useState(false);
@@ -450,6 +451,10 @@ export function useCampaignPostForm({
         null;
       console.log("🎯 SAVED COVER FROM MEDIA URLS:", savedCover);
       setCoverImage(savedCover);
+
+      if (existingPost.instagramBusinessId) {
+        setInstagramBusinessId(existingPost.instagramBusinessId);
+      }
     }
 
     // ✅ LINKEDIN
@@ -532,9 +537,7 @@ export function useCampaignPostForm({
       const isYouTube = platform === "YOUTUBE";
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: isYouTube
-          ? ImagePicker.MediaTypeOptions.Videos
-          : ImagePicker.MediaTypeOptions.All,
+        mediaTypes: isYouTube ? ["videos"] : ["images", "videos"],
         quality: 0.8,
       });
 
@@ -682,75 +685,100 @@ export function useCampaignPostForm({
     ]);
 
     try {
+      const user = await getUser();
+      const orgId = user?.orgId;
       const token = await getToken();
       if (!token) throw new Error("Authentication token missing");
 
-      // Construct the three prompts with style instructions exactly as required
-      const prompt1 = `${aiPrompt} (Style: Professional and informative). Start with a creative Title on the first line prefixed with "Title: ". Then provide the content. Include 3-5 relevant hashtags at the end.`;
-      const prompt2 = `${aiPrompt} (Style: Creative and engaging). Start with a creative Title on the first line prefixed with "Title: ". Then provide the content. Include 3-5 relevant hashtags at the end.`;
-      const prompt3 = `${aiPrompt} (Style: Concise and urgent). Start with a creative Title on the first line prefixed with "Title: ". Then provide the content. Include 3-5 relevant hashtags at the end.`;
+      const prompt = `Generate 3 distinct message variations for ${platform || "social media"} about: \"${aiPrompt}\". \n    Return the response ONLY as a JSON array of objects with the exact structure: \n    [{\"title\": \"Creative Title\", \"content\": \"The main body content\", \"hashtags\": \"comma, separated, tags\"}]\n    Variation 1: Professional\n    Variation 2: Creative\n    Variation 3: Concise\n    Do not include any extra text outside the JSON array.`;
 
-      const createPayload = (p: string) => ({
-        prompt: p,
+      const payload = {
+        prompt,
+        message: prompt,
         context: { platform, existingContent: message || "" },
         mode: "generate-multiple",
-      });
+      };
 
-      console.log("🤖 Generating 3 AI variations independently...");
+      console.log("🤖 Generating 3 AI variations with single payload API request...");
 
-      const fetchVariation = async (payload: any, index: number) => {
+      const res = await generateAIContentApi(orgId, payload, token);
+      // console.log("🤖 AI Content API Response received:", res);
+
+      const rawMessage = res?.message || res?.content || "";
+      if (!rawMessage) {
+        throw new Error("No content received from AI generator");
+      }
+
+      // Robust JSON extracting parser
+      const extractJsonArray = (str: string) => {
         try {
-          const res = await generateAIContentApi(payload, token);
-          if (!res || !res.success) {
-            throw new Error(res?.message || "Pollinations API request failed");
-          }
-
-          const rawContent = res.content || "";
-          let extractedSubject = "";
-          let cleanedContent = rawContent;
-
-          // Extract title from response.content using: Title: ...
-          const titleMatch = rawContent.match(/Title:\s*(.+)/i);
-          if (titleMatch) {
-            extractedSubject = titleMatch[1].trim();
-            // Remove the Title line from the message content before storing
-            cleanedContent = rawContent.replace(/Title:\s*.+\n*/i, "").trim();
-          } else {
-            // Fallback if no Title: prefix is found
-            const lines = rawContent.split("\n");
-            if (lines.length > 0 && lines[0].trim().length > 0) {
-              extractedSubject = lines[0].trim();
-              cleanedContent = lines.slice(1).join("\n").trim();
+          return JSON.parse(str);
+        } catch (e) {
+          const match = str.match(/\[\s*\{[\s\S]*\}\s*\]/);
+          if (match) {
+            try {
+              return JSON.parse(match[0]);
+            } catch (innerError) {
+              console.warn("Failed to parse matched JSON substring:", innerError);
             }
           }
-
-          setAiResults((prev) => {
-            const next = [...prev];
-            next[index] = { subject: extractedSubject, content: cleanedContent, isLoading: false };
-            return next;
-          });
-        } catch (error: any) {
-          console.error(`❌ AI Content Generation Error for index ${index}:`, error);
-          setAiResults((prev) => {
-            const next = [...prev];
-            // Bind error message directly to the choice
-            const errorMsg = error?.message || "Pollinations API request failed";
-            next[index] = { subject: "", content: errorMsg, isLoading: false };
-            return next;
-          });
+          throw e;
         }
       };
 
-      // Execute 3 requests independently
-      await Promise.all([
-        fetchVariation(createPayload(prompt1), 0),
-        fetchVariation(createPayload(prompt2), 1),
-        fetchVariation(createPayload(prompt3), 2),
-      ]);
+      const parsedVariations = extractJsonArray(rawMessage);
+      if (!Array.isArray(parsedVariations)) {
+        throw new Error("Invalid response format from AI generator: expected JSON array");
+      }
 
+      const results = parsedVariations.map((item: any) => {
+        const subject = item.title || item.subject || "";
+        const contentText = item.content || "";
+
+        // Format hashtags elegantly as #tag1 #tag2 instead of "tag1, tag2"
+        const formattedHashtags = item.hashtags
+          ? item.hashtags
+            .split(",")
+            .map((tag: string) => {
+              const trimmed = tag.trim();
+              if (!trimmed) return "";
+              return trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+            })
+            .filter(Boolean)
+            .join(" ")
+          : "";
+
+        const content = formattedHashtags
+          ? `${contentText}\n\n${formattedHashtags}`
+          : contentText;
+
+        return {
+          subject,
+          content,
+          isLoading: false,
+        };
+      });
+
+      // Ensure we have exactly 3 results to bind to our variations list
+      while (results.length < 3) {
+        results.push({
+          subject: "",
+          content: "No additional variation returned by AI",
+          isLoading: false,
+        });
+      }
+
+      setAiResults(results.slice(0, 3));
     } catch (error: any) {
-      console.error("❌ Auth Error before AI generation:", error);
-      Alert.alert("AI Error", error?.message || "Authentication failed");
+      console.error("❌ AI Content Generation Error:", error);
+      const errorMsg = error?.message || "AI API request failed";
+
+      setAiResults([
+        { subject: "", content: `Error: ${errorMsg}`, isLoading: false },
+        { subject: "", content: `Error: ${errorMsg}`, isLoading: false },
+        { subject: "", content: `Error: ${errorMsg}`, isLoading: false },
+      ]);
+      Alert.alert("AI Generation Error", errorMsg);
     } finally {
       setLoadingAI(false);
     }
@@ -891,42 +919,42 @@ export function useCampaignPostForm({
   // };
 
   const handleSelectGeneratedImage = async (imageUrl: string) => {
-  try {
-    if (selectingImage) return;
+    try {
+      if (selectingImage) return;
 
-    setSelectingImage(imageUrl);
+      setSelectingImage(imageUrl);
 
-    // Directly save AI image URL
-    setAttachments((prev) => [
-      ...prev,
-      {
-        uri: imageUrl,
-        uploadedUrl: imageUrl,
-        name: `ai-image-${Date.now()}.webp`,
-        type: "image/webp",
-        uploading: false,
-      },
-    ]);
+      // Directly save AI image URL
+      setAttachments((prev) => [
+        ...prev,
+        {
+          uri: imageUrl,
+          uploadedUrl: imageUrl,
+          name: `ai-image-${Date.now()}.webp`,
+          type: "image/webp",
+          uploading: false,
+        },
+      ]);
 
-    setSelectedImage(imageUrl);
+      setSelectedImage(imageUrl);
 
-    setTimeout(() => {
-      setImageModalVisible(false);
+      setTimeout(() => {
+        setImageModalVisible(false);
+        setSelectingImage(null);
+      }, 300);
+
+    } catch (error: any) {
+      console.log("AI IMAGE ERROR:", error);
+
       setSelectingImage(null);
-    }, 300);
 
-  } catch (error: any) {
-    console.log("AI IMAGE ERROR:", error);
+      Alert.alert(
+        "Error",
+        error?.message || "Failed to use AI image"
+      );
+    }
+  };
 
-    setSelectingImage(null);
-
-    Alert.alert(
-      "Error",
-      error?.message || "Failed to use AI image"
-    );
-  }
-};
-  
   function normalizeAIImageUrl(url: string) {
     // if (!url) return url;
 
@@ -1020,7 +1048,7 @@ export function useCampaignPostForm({
 
   // ================= FACEBOOK =================
   useEffect(() => {
-    if (platform === "FACEBOOK") {
+    if (platform === "FACEBOOK" || platform === "INSTAGRAM") {
       fetchFacebookPages();
     }
   }, [platform]);
@@ -1051,6 +1079,10 @@ export function useCampaignPostForm({
       setSelectedFacebookPage(pageObj.name);
       setSelectedFacebookPageId(pageObj.id);
       setSelectedFacebookPageAccessToken(pageObj.access_token);
+      
+      const instaId = pageObj.instagram_business_account?.id || pageObj.instagramBusinessId || pageObj.instagram_business_account_id || null;
+      setInstagramBusinessId(instaId);
+
       setLeadFormId(null);
       setLeadForms([]);
       await fetchLeadForms(pageObj.id, pageObj.access_token);
@@ -1058,6 +1090,7 @@ export function useCampaignPostForm({
       setSelectedFacebookPage(null);
       setSelectedFacebookPageId(null);
       setSelectedFacebookPageAccessToken(null);
+      setInstagramBusinessId(null);
       setLeadFormId(null);
       setLeadForms([]);
     }
@@ -1093,6 +1126,10 @@ export function useCampaignPostForm({
             setSelectedFacebookPage(match.name);
             setSelectedFacebookPageId(match.id);
             setSelectedFacebookPageAccessToken(match.access_token);
+            
+            const instaId = match.instagram_business_account?.id || match.instagramBusinessId || match.instagram_business_account_id || existingPost.instagramBusinessId || null;
+            setInstagramBusinessId(instaId);
+
             await fetchLeadForms(match.id, match.access_token);
             if (existingPost.leadFormId) {
               setLeadFormId(String(existingPost.leadFormId));
@@ -1103,10 +1140,16 @@ export function useCampaignPostForm({
 
         // Default to the first page
         const firstPage = pages[0];
-        setSelectedFacebookPage(firstPage.name);
-        setSelectedFacebookPageId(firstPage.id);
-        setSelectedFacebookPageAccessToken(firstPage.access_token);
-        await fetchLeadForms(firstPage.id, firstPage.access_token);
+        if (firstPage) {
+          setSelectedFacebookPage(firstPage.name);
+          setSelectedFacebookPageId(firstPage.id);
+          setSelectedFacebookPageAccessToken(firstPage.access_token);
+          
+          const firstInstaId = firstPage.instagram_business_account?.id || firstPage.instagramBusinessId || firstPage.instagram_business_account_id || null;
+          setInstagramBusinessId(firstInstaId);
+
+          await fetchLeadForms(firstPage.id, firstPage.access_token);
+        }
       }
     } catch (err: any) {
       setFacebookPages([]);
@@ -1212,12 +1255,96 @@ export function useCampaignPostForm({
     }
   };
 
-  // ================= MEDIA UPLOADS =================
+  // ================= YOUTUBE PLAYLISTS =================
+  const fetchYoutubePlaylists = async () => {
+    setLoadingPlaylists(true);
+    try {
+      const token = await getToken();
+      if (!token) throw new Error("Authentication token missing");
+
+      const response = await getYoutubePlaylists(token);
+      const list = response?.playlists || [];
+      const mapped = list.map((item: any) => ({
+        id: item.id,
+        name: item.title,
+      }));
+      setPlaylists(mapped);
+
+      // If in Edit Mode and matches existingPost
+      if (existingPost?.youtubePlaylistId) {
+        const match = mapped.find((p: any) => String(p.id) === String(existingPost.youtubePlaylistId));
+        if (match) {
+          setSelectedPlaylist(match);
+          setPlaylistId(match.id);
+          setPlaylistTitle(match.name);
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to fetch YouTube playlists:", err);
+      setPlaylists([]);
+    } finally {
+      setLoadingPlaylists(false);
+    }
+  };
+
+  const handleCreateYoutubePlaylist = async () => {
+    if (!newPlaylistName.trim()) {
+      Alert.alert("Playlist title cannot be empty");
+      return;
+    }
+    setLoadingPlaylists(true);
+    try {
+      const token = await getToken();
+      if (!token) throw new Error("Authentication token missing");
+
+      console.log(`🔌 Creating YouTube playlist with title: ${newPlaylistName.trim()}...`);
+      const response = await createYoutubePlaylist(
+        {
+          title: newPlaylistName.trim(),
+          privacy: "public",
+        },
+        token
+      );
+
+      // Successfully created! Let's clear create state and reload list
+      setIsCreatingPlaylist(false);
+      setNewPlaylistName("");
+      
+      // Let's reload playlists so the created playlist appears in the dropdown list
+      await fetchYoutubePlaylists();
+
+      // If the response contains the new playlist data, auto-select it!
+      const createdId = response?.data?.id || response?.playlist?.id;
+      const createdTitle = response?.data?.title || response?.playlist?.title || newPlaylistName.trim();
+      if (createdId) {
+        const newSel = { id: createdId, name: createdTitle };
+        setSelectedPlaylist(newSel);
+        setPlaylistId(createdId);
+        setPlaylistTitle(createdTitle);
+      } else {
+        Toast.show({
+          type: "success",
+          text1: "Playlist Created",
+          text2: "Your playlist was created successfully."
+        });
+      }
+    } catch (error: any) {
+      console.error("Failed to create YouTube playlist:", error);
+      Alert.alert("Error", error.message || "Failed to create YouTube playlist");
+    } finally {
+      setLoadingPlaylists(false);
+    }
+  };
+
+  useEffect(() => {
+    if (platform === "YOUTUBE") {
+      fetchYoutubePlaylists();
+    }
+  }, [platform]);
+
   const handleCustomThumbnailUpload = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [16, 9],
       quality: 1,
     });
 
@@ -1238,6 +1365,10 @@ export function useCampaignPostForm({
           type: "image/jpeg",
         },
         token,
+        undefined,
+        {
+          organisationId,
+        }
       );
 
       if (uploadedUrl && typeof uploadedUrl === "string") {
@@ -1336,6 +1467,13 @@ export function useCampaignPostForm({
           type: "image/jpeg",
         },
         token,
+        undefined,
+        {
+          organisationId,
+          campaignId,
+          platform,
+          isReel: false,
+        }
       );
 
       if (uploadedUrl && typeof uploadedUrl === "string") {
@@ -1525,7 +1663,7 @@ export function useCampaignPostForm({
         facebookPageAccessToken: selectedFacebookPageAccessToken || existingPost?.facebookPageAccessToken || "",
         facebookPageId: selectedFacebookPageId || existingPost?.facebookPageId || "",
         facebookPageName: selectedFacebookPage || existingPost?.facebookPageName || "",
-        instagramBusinessId: existingPost?.instagramBusinessId || "",
+        instagramBusinessId: instagramBusinessId || existingPost?.instagramBusinessId || "",
         leadFormId: leadFormId ? Number(leadFormId) : (existingPost?.leadFormId || null),
         mediaUrls,
         message: message || "",
@@ -1579,7 +1717,7 @@ export function useCampaignPostForm({
 
       if (existingPost?.id) {
         response = await updatePostForCampaignApi(
-          
+
           Number(campaignIdToUse),
           Number(existingPost.id),
           orgId,
@@ -1647,6 +1785,7 @@ export function useCampaignPostForm({
     facebookPages,
     selectedFacebookPageId,
     selectedFacebookPageAccessToken,
+    instagramBusinessId,
     leadFormId,
     leadForms,
     isLoadingLeadForms,
@@ -1695,6 +1834,7 @@ export function useCampaignPostForm({
     hasAttachment,
     canSelectStandard,
     canSelectReel,
+    loadingPlaylists,
 
     // setters
     setSenderEmail,
@@ -1711,6 +1851,7 @@ export function useCampaignPostForm({
     setSelectedFacebookPage,
     setSelectedFacebookPageId,
     setSelectedFacebookPageAccessToken,
+    setInstagramBusinessId,
     setLeadFormId,
     setPinterestModalVisible,
     setPinterestBoard,
@@ -1739,6 +1880,7 @@ export function useCampaignPostForm({
     setCanSelectStandard,
     setCanSelectReel,
     setCoverImage,
+    setCustomThumbnail,
 
     // actions
     handleAddAttachment,
@@ -1751,5 +1893,7 @@ export function useCampaignPostForm({
     handleSelectGeneratedImage,
     handleSelectFacebookPage,
     handleSubmit,
+    fetchYoutubePlaylists,
+    handleCreateYoutubePlaylist,
   };
 }

@@ -144,9 +144,7 @@ export default function CampaignPost() {
   );
 
   // ---------- FETCH EXISTING POST IF postId EXISTS ----------
-  useEffect(() => {
-    console.log("eeee",existingPost);
-    
+  useEffect(() => {    
     if (!campaignIdStr || !postIdStr) return;
 
     let isMounted = true;

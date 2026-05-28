@@ -1,7 +1,72 @@
 import { Ionicons } from "@expo/vector-icons";
-import Video from "react-native-video";
+import { WebView } from "react-native-webview";
 import React, { useRef, useState } from "react";
 import { Dimensions, Image, ScrollView, Text, TouchableOpacity, useColorScheme, View } from "react-native";
+
+const Video = ({
+  source,
+  style,
+  poster,
+  controls = false,
+  ...rest
+}: {
+  source: { uri: string };
+  style?: any;
+  poster?: string;
+  controls?: boolean;
+  [key: string]: any;
+}) => {
+  return (
+    <View style={[{ overflow: "hidden" }, style]}>
+      <WebView
+        source={{
+          html: `
+            <html>
+              <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+                <style>
+                  html, body {
+                    margin: 0;
+                    padding: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: #000000;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    overflow: hidden;
+                  }
+                  video {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                  }
+                </style>
+              </head>
+              <body>
+                <video
+                  src="${source.uri}"
+                  ${poster ? `poster="${poster}"` : ""}
+                  autoplay
+                  loop
+                  muted
+                  playsinline
+                  ${controls ? "controls" : ""}
+                />
+              </body>
+            </html>
+          `,
+        }}
+        style={{
+          flex: 1,
+          backgroundColor: "#000000",
+        }}
+        javaScriptEnabled
+        domStorageEnabled
+      />
+    </View>
+  );
+};
 
 type PreviewProps = {
   profilePic?: string;
