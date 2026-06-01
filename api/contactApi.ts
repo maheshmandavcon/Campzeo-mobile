@@ -29,7 +29,7 @@ export const createContactApi = async (orgId: number, data: ContactData) => {
     const apiData = error?.response?.data;
 
     if (error?.response?.status === 409 && apiData?.duplicate) {
-      throw new Error(apiData.error); 
+      throw new Error(apiData.error);
     }
 
     throw new Error(
@@ -43,10 +43,10 @@ export const createContactApi = async (orgId: number, data: ContactData) => {
 
 // GET CONTACTS
 export const getContactsApi = async (
- orgId: number,
+  orgId: number,
 ) => {
   try {
-    
+
 
     const res = await https.get(`Contacts?organisationId=${orgId}&page=${1}&limit=${10}&sortBy=createdDate&sortOrder=desc`);
     return res.data;
@@ -112,7 +112,7 @@ export const updateContactApi = async (orgId: number, data: ContactData) => {
 // DELETE CONTACTS
 export const deleteContactApi = async (
   organisationId: number,
-  contactIds: number | number[],
+  contactIds: number ,
   token: string
 ) => {
   try {
@@ -120,29 +120,23 @@ export const deleteContactApi = async (
       contactIds: contactIds,
       organisationId,
     };
-
+    console.log("payload", payload);
     const res = await https.post(
       "Contacts/DeleteContact",
       payload
       , {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-    }
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      }
     );
     return res.data;
   } catch (error: any) {
-    console.error(
-      "Delete contacts error:",
-      error.response || error.message
-    );
-
-    throw new Error(
-      error?.response?.data?.message ||
-      error?.response?.data ||
-      "Failed to delete contacts"
-    );
+    console.log("Status:", error.response?.status);
+  console.log("Data:", error.response?.data);
+  console.log("Headers:", error.response?.headers);
+  console.log("Request:", error.config?.data);
   }
 };
 

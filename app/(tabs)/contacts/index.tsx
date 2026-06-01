@@ -26,6 +26,7 @@ import * as Sharing from "expo-sharing";
 import * as Clipboard from "expo-clipboard";
 import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
 import { getUser } from "@/api/dashboardApi";
+import Toast from "react-native-toast-message";
 
 export default function Contacts() {
   const [visibleCount, setVisibleCount] = useState(10);
@@ -129,11 +130,17 @@ WhatsApp: ${record.whatsapp || "-"}
 
     Clipboard.setStringAsync(textToCopy)
       .then(() => {
-        Alert.alert("Copied!", "Contact details copied to clipboard.");
+        Toast.show({
+          type: "success",
+          text1: "Contact copied successfully",
+        });
       })
       .catch((err) => {
         console.error("Clipboard error:", err);
-        Alert.alert("Error", "Failed to copy contact details.");
+        Toast.show({
+          type: "error",
+          text1: "Failed to copy contact details",
+        });
       });
   };
 
@@ -156,8 +163,15 @@ WhatsApp: ${record.whatsapp || "-"}
             await deleteContactApi(orgId, record.id,token);
 
             setRecords((prev) => prev.filter((r) => r.id !== record.id));
+            Toast.show({
+              type: "success",
+              text1: "Contact deleted successfully",
+            });
           } catch (e: any) {
-            Alert.alert("Error", e.message || "Failed to delete");
+            Toast.show({
+              type: "error",
+              text1: "Failed to delete contact",
+            });
           } finally {
             setLoading(false);
           }
@@ -190,7 +204,10 @@ WhatsApp: ${record.whatsapp || "-"}
         await Sharing.shareAsync(fileUri);
       }
     } catch (e: any) {
-      Alert.alert("Export Failed", e.message || "Something went wrong");
+      Toast.show({
+        type: "error",
+        text1: "Failed to export contact",
+      });
     } finally {
       setLoading(false);
     }
@@ -257,42 +274,29 @@ WhatsApp: ${record.whatsapp || "-"}
   );
 
   const listData = loading ? skeletonData : visibleRecords;
+  const COLORS = {
+    screenBg: isDark ? "#121214" : "#f8fafc",
+    cardBg: isDark ? "#1e1e24" : "#ffffff",
+    cardBorder: isDark ? "#2e2e38" : "#e2e8f0",
+    textPrimary: isDark ? "#ffffff" : "#0f172a",
+    textSecondary: isDark ? "#94a3b8" : "#64748b",
+    newButtonBg: "#dc2626",
+    newButtonText: "#ffffff",
+    inputBg: isDark ? "#1e1e24" : "#ffffff",
+    inputBorder: isDark ? "#2e2e38" : "#cbd5e1",
+    inputText: isDark ? "#ffffff" : "#0f172a",
+  };
 
   /* ================= UI ================= */
   return (
-    <ThemedView className="flex-1">
+    <ThemedView className="flex-1" style={{ backgroundColor: COLORS.screenBg }}>
       <ThemedView
-        style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
+        style={{ backgroundColor: COLORS.screenBg }}
         className="flex-1 p-4"
       >
-        {/* {loading && (
-          <ThemedView
-            className="absolute inset-0 justify-center items-center z-10"
-            style={{
-              backgroundColor: isDark ? "rgba(0,0,0,0.6)" : "rgba(0,0,0,0.2)", // darker overlay for dark mode
-            }}
-          >
-            <ActivityIndicator
-              size="large"
-              color={isDark ? "#ffffff" : "#dc2626"} // white in dark mode, red in light mode
-            />
-            <Text
-              style={{
-                marginTop: 12,
-                fontWeight: "bold",
-                color: isDark ? "#ffffff" : "#111827", // text color dynamic
-                fontSize: 16,
-              }}
-            >
-              Loading contacts...
-            </Text>
-          </ThemedView>
-        )} */}
-
         {/* Top Bar */}
         <View
-          className="flex-row items-center mb-4"
-          style={{ backgroundColor: "transparent" }}
+          style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}
         >
           {/* New Button */}
           <TouchableOpacity
@@ -300,111 +304,154 @@ WhatsApp: ${record.whatsapp || "-"}
             style={{
               flexDirection: "row",
               alignItems: "center",
-              paddingHorizontal: 12,
-              paddingVertical: 8,
-              borderRadius: 9999,
-              backgroundColor: isDark ? "#161618" : "#bfdbfe",
-              borderWidth: 1,
-              borderColor: isDark ? DARK_BORDER : "transparent",
-              marginRight: 8,
+              paddingHorizontal: 16,
+              paddingVertical: 10,
+              borderRadius: 99,
+              backgroundColor: COLORS.newButtonBg,
+              marginRight: 10,
+              shadowColor: "#dc2626",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.15,
+              shadowRadius: 8,
             }}
           >
             <Ionicons
-              name="add-circle-outline"
-              size={20}
-              color={isDark ? DARK_TEXT : "#0284c7"}
+              name="add-circle"
+              size={18}
+              color={COLORS.newButtonText}
             />
             <Text
               style={{
-                marginLeft: 8,
-                fontWeight: "600",
-                color: isDark ? DARK_TEXT : "#0284c7",
+                marginLeft: 6,
+                fontWeight: "700",
+                fontSize: 14,
+                color: COLORS.newButtonText,
               }}
             >
-              New
+              Add Contact
             </Text>
           </TouchableOpacity>
 
           {/* Search Bar */}
-          <TextInput
-            value={search}
-            onChangeText={(v) => {
-              setSearch(v);
-              setVisibleCount(5);
-            }}
-            placeholder="Search contacts..."
-            placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+          <View
             style={{
               flex: 1,
-              backgroundColor: isDark ? "#161618" : "#ffffff",
-              color: isDark ? "#e5e7eb" : "#000000",
-              paddingHorizontal: 12,
-              paddingVertical: 8,
-              borderRadius: 9999,
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: COLORS.inputBg,
+              borderRadius: 99,
               borderWidth: 1,
-              borderColor: isDark ? "#fff" : "#d1d5db",
+              borderColor: COLORS.inputBorder,
+              paddingHorizontal: 12,
+              height: 44,
             }}
-          />
+          >
+            <Ionicons name="search-outline" size={16} color={COLORS.textSecondary} style={{ marginRight: 6 }} />
+            <TextInput
+              value={search}
+              onChangeText={(v) => {
+                setSearch(v);
+                setVisibleCount(5);
+              }}
+              placeholder="Search contacts..."
+              placeholderTextColor={isDark ? "#52525b" : "#94a3b8"}
+              style={{
+                flex: 1,
+                color: COLORS.inputText,
+                fontSize: 14,
+                fontWeight: "600",
+                height: "100%",
+                padding: 0,
+              }}
+            />
+          </View>
 
           {/* 3-dot menu */}
           <TouchableOpacity
             onPress={() => setMenuVisible(!menuVisible)}
-            className=""
             style={{
-              padding: 8,
-              borderRadius: 9999,
-              borderColor: isDark ? DARK_BORDER : "transparent",
+              padding: 10,
+              borderRadius: 22,
+              backgroundColor: COLORS.cardBg,
+              borderWidth: 1,
+              borderColor: COLORS.cardBorder,
+              marginLeft: 8,
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             <Ionicons
               name="ellipsis-vertical"
-              size={20}
-              color={isDark ? DARK_TEXT : "#000000"}
+              size={18}
+              color={COLORS.textPrimary}
             />
           </TouchableOpacity>
         </View>
 
         {/* Dropdown */}
         {menuVisible && (
-          <ThemedView
+          <View
             style={{
-              backgroundColor: isDark ? "#161618" : "#ffffff",
-              borderColor: isDark ? DARK_BORDER : "#d1d5db",
+              backgroundColor: COLORS.cardBg,
+              borderColor: COLORS.cardBorder,
+              borderWidth: 1,
+              position: "absolute",
+              right: 16,
+              top: 68,
+              borderRadius: 16,
+              zIndex: 30,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.08,
+              shadowRadius: 16,
+              elevation: 8,
+              minWidth: 150,
             }}
-            className="absolute right-4 top-20 rounded-xl border z-20"
           >
             <TouchableOpacity
               onPress={handleExportAll}
-              className="flex-row items-center px-4 py-3"
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                borderBottomWidth: 1,
+                borderBottomColor: COLORS.cardBorder,
+              }}
             >
               <Ionicons
                 name="download-outline"
                 size={18}
-                color={isDark ? "#ffffff" : "#111827"}
+                color={COLORS.textPrimary}
               />
-              <ThemedText className="ml-3 font-medium text-white">
+              <Text style={{ marginLeft: 10, fontWeight: "600", color: COLORS.textPrimary, fontSize: 14 }}>
                 Export All
-              </ThemedText>
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={toggleSortOrder}
-              className="flex-row items-center px-4 py-3"
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+              }}
             >
               <Ionicons
                 name="funnel-outline"
                 size={18}
-                color={isDark ? "#ffffff" : "#111827"}
+                color={COLORS.textPrimary}
               />
-              <ThemedText className="ml-3 font-medium text-white">
+              <Text style={{ marginLeft: 10, fontWeight: "600", color: COLORS.textPrimary, fontSize: 14 }}>
                 {sortOrder === "asc"
                   ? "Sort Z → A"
                   : sortOrder === "desc"
                     ? "Sort A → Z"
                     : "Sort"}
-              </ThemedText>
+              </Text>
             </TouchableOpacity>
-          </ThemedView>
+          </View>
         )}
 
         {/* List */}
@@ -428,31 +475,54 @@ WhatsApp: ${record.whatsapp || "-"}
           }
           ListEmptyComponent={
             !loading ? (
-              <ThemedView
-                className="flex-1 justify-center items-center"
-                style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
+              <View
+                style={{
+                  flex: 1,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  paddingVertical: 80,
+                  backgroundColor: "transparent",
+                }}
               >
-                <ThemedText
-                  style={{ fontSize: 18, fontWeight: "bold", marginBottom: 6 }}
-                >
-                  No contacts yet
-                </ThemedText>
-
-                <ThemedText
+                <View
                   style={{
-                    fontSize: 14,
-                    textAlign: "center",
-                    paddingHorizontal: 24,
-                    opacity: 0.7,
+                    width: 72,
+                    height: 72,
+                    borderRadius: 36,
+                    backgroundColor: COLORS.cardBg,
+                    borderWidth: 1,
+                    borderColor: COLORS.cardBorder,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: 16,
                   }}
                 >
-                  Tap + New to add your first contact.
-                </ThemedText>
-              </ThemedView>
+                  <Ionicons name="people-outline" size={32} color={COLORS.textSecondary} />
+                </View>
+                <Text
+                  style={{ fontSize: 18, fontWeight: "800", color: COLORS.textPrimary, marginBottom: 4 }}
+                >
+                  No contacts yet
+                </Text>
+
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "500",
+                    textAlign: "center",
+                    color: COLORS.textSecondary,
+                    paddingHorizontal: 36,
+                    lineHeight: 18,
+                  }}
+                >
+                  Tap "+ Add Contact" to register your first lead or customer.
+                </Text>
+              </View>
             ) : null
           }
           contentContainerStyle={{
             flexGrow: listData.length === 0 ? 1 : undefined,
+            paddingBottom: 24,
           }}
         />
       </ThemedView>
