@@ -16,11 +16,19 @@ export const editProfileSchema = z.object({
     .optional()
     .or(z.literal("")),
 
-  username: z
+  
+  mobile: z
     .string()
-    .min(3, "Username must be at least 3 characters")
-    .max(30, "Username cannot exceed 30 characters")
-    .regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
+    // .min(10, "Mobile number must be at least 10 digits")
+    // .max(10, "Mobile number cannot exceed 10 digits")
+    // .regex(/^[0-9]+$/, "Mobile number can only contain numbers")
+    .optional()
+    .or(z.literal("")),
+  
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .email("Invalid email address"),
 });
 
 export type EditProfileSchemaType = z.infer<typeof editProfileSchema>;

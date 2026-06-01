@@ -12,6 +12,18 @@ export const getUser = async () => {
   }
 };
 
+export const updateProfile = async (data: any) => {
+  try {
+    const response = await https.put(`user/me`,data);    
+    // console.log("user details: ",response.data);   
+    return response.data;
+  } 
+  catch (error) {
+    console.error("Fetching user details Error:", error);
+    throw error;
+  }
+};
+
 
 export const getCampaigns = async () => {
   try {

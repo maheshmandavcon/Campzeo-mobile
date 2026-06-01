@@ -13,8 +13,9 @@ import {
   TouchableOpacity,
   useColorScheme,
   View,
+  TextInput,
 } from "react-native";
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useUser } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -24,18 +25,51 @@ import { Pressable } from "@/components/ui/pressable";
 import { VStack } from "@/components/ui/vstack";
 import { Box } from "@/components/ui/box";
 import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
-import EditProfile from "../(auth)/editProfile";
 import { getDisplayName, getInitials } from "@/utils/userDisplay";
 import { useUserDetails } from "@/hooks/useUserDetails";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { editProfileSchema, EditProfileSchemaType } from "@/validations/profileSchema";
+import { updateProfile } from "@/api/dashboardApi";
+import Toast from "react-native-toast-message";
+import { ActivityIndicator } from "react-native";
+import { Input, InputField } from "@/components/ui/input";
 
 export default function UserProfile() {
   const [showEditProfile, setEditProfile] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const colorScheme = useColorScheme();
   const routePage = useRouter();
   const { user } = useUser();
   const isDark = colorScheme === "dark";
-  const { userData, loading } = useUserDetails(Boolean(user));
+  const { userData, loading, refetch } = useUserDetails(Boolean(user));
+
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<EditProfileSchemaType>({
+    resolver: zodResolver(editProfileSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      mobile: "",
+      email: "",
+    },
+  });
+
+  useEffect(() => {
+    if (userData) {
+      reset({
+        firstName: userData.firstName || "",
+        lastName: userData.lastName || "",
+        mobile: userData.mobile || "",
+        email: userData.organisation?.email || userData.email || "",
+      });
+    }
+  }, [userData, reset, showEditProfile]);
 
   if (!user) return null;
 
@@ -44,6 +78,35 @@ export default function UserProfile() {
   const initials = getInitials(profileUser);
   const email = profileUser?.email ?? user.primaryEmailAddress?.emailAddress ?? "-";
   const organisation = userData?.organisation?.name ?? "-";
+
+  const onSubmit = async (data: EditProfileSchemaType) => {
+    try {
+      setIsSaving(true);
+      const payload = {
+        firstName: data.firstName || null,
+        lastName: data.lastName || null,
+        mobile: data.mobile || null,
+      };
+      await updateProfile(payload);
+      
+      // Refresh the page
+      await refetch();
+      
+      setEditProfile(false);
+      Toast.show({
+        type: "success",
+        text1: "Profile updated successfully",
+      });
+    } catch (err: any) {
+      console.log("Profile update error:", err);
+      Toast.show({
+        type: "error",
+        text1: "Failed to update profile",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const COLORS = {
     bg: isDark ? "#0f1115" : "#f8fafc",
@@ -166,6 +229,14 @@ export default function UserProfile() {
                 label="Organisation"
                 value={organisation}
               />
+
+              <Divider />
+
+              <DetailRow
+                icon={<Ionicons name="call-outline" size={20} color="#dc2626" />}
+                label="Mobile Number"
+                value={profileUser?.mobile ?? "-"}
+              />
             </VStack>
           </Box>
 
@@ -185,47 +256,121 @@ export default function UserProfile() {
 
       </ThemedView>
 
-      {/* test modal edit profile */}
+      {/* Improved Edit Profile Modal */}
       <Modal
         visible={showEditProfile}
         animationType="slide"
         transparent
-        onRequestClose={() => setEditProfile(false)}
+        onRequestClose={() => !isSaving && setEditProfile(false)}
       >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.4)",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          {/* <View
-            style={{
-              width: "90%",
-              backgroundColor: "white",
-              borderRadius: 16,
-              padding: 20,
-            }}
-          >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: isDark ? "#171a20" : "#ffffff" }]}>
+            {/* Modal Header */}
+            <HStack style={styles.modalHeaderRow}>
+              <VStack style={{ flex: 1 }}>
+                <ThemedText style={[styles.modalTitle, { color: COLORS.text }]}>Edit Profile</ThemedText>
+                <ThemedText style={[styles.modalSubtitle, { color: COLORS.muted }]}>
+                  Keep your details up to date
+                </ThemedText>
+              </VStack>
+              <TouchableOpacity 
+                disabled={isSaving}
+                onPress={() => setEditProfile(false)} 
+                style={[styles.closeModalButton, { backgroundColor: isDark ? "#2a2f3a" : "#f1f5f9" }]}
+              >
+                <Ionicons name="close" size={22} color={COLORS.text} />
+              </TouchableOpacity>
+            </HStack>
 
-            <EditProfile closeEPF={() => setEditProfile(false)} />
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
+              <VStack style={{ gap: 16, paddingVertical: 8 }}>
+                {/* Fields */}
+                {[
+                  { name: "firstName", label: "First Name", placeholder: "Enter first name" },
+                  { name: "lastName", label: "Last Name", placeholder: "Enter last name" },
+                  { name: "mobile", label: "Mobile Number", placeholder: "Enter mobile number" },
+                  { name: "email", label: "Email (Read Only)", placeholder: "Email address" },
+                ].map((field, idx) => (
+                  <VStack space="xs" key={idx}>
+                    <ThemedText style={[styles.inputLabel, { color: COLORS.muted }]}>
+                      {field.label}
+                    </ThemedText>
+                    <Controller
+                      control={control}
+                      name={field.name as any}
+                      render={({ field: { value, onChange } }) => (
+                        <View style={[
+                          styles.customInputWrapper, 
+                          { 
+                            borderColor: errors[field.name as keyof EditProfileSchemaType] ? "#dc2626" : COLORS.border, 
+                            backgroundColor: isDark ? "#20242c" : "#f8fafc" 
+                          }
+                        ]}>
+                          <View style={styles.inputIconWrapper}>
+                            {field.name === "firstName" || field.name === "lastName" ? (
+                              <Ionicons name="person-outline" size={18} color="#dc2626" />
+                            ) : field.name === "mobile" ? (
+                              <Ionicons name="call-outline" size={18} color="#dc2626" />
+                            ) : (
+                              <Ionicons name="mail-outline" size={18} color="#dc2626" />
+                            )}
+                          </View>
+                          <TextInput
+                            placeholder={field.placeholder}
+                            placeholderTextColor={isDark ? "#64748b" : "#9ca3af"}
+                            value={value}
+                            onChangeText={onChange}
+                            keyboardType={
+                              field.name === "mobile"
+                                ? "phone-pad"
+                                : field.name === "email"
+                                  ? "email-address"
+                                  : "default"
+                            }
+                            editable={field.name !== "email"}
+                            style={{
+                              flex: 1,
+                              color: COLORS.text,
+                              fontSize: 15,
+                              paddingVertical: 10,
+                              opacity: field.name === "email" ? 0.6 : 1,
+                            }}
+                          />
+                        </View>
+                      )}
+                    />
+                    {errors[field.name as keyof EditProfileSchemaType] && (
+                      <ThemedText style={styles.errorText}>
+                        * {errors[field.name as keyof EditProfileSchemaType]?.message}
+                      </ThemedText>
+                    )}
+                  </VStack>
+                ))}
+              </VStack>
+            </ScrollView>
 
-          </View> */}
-          <View
-            style={{
-              width: "95%",
-              borderRadius: 16,
-              overflow: "hidden",
-              backgroundColor: isDark ? "#161618" : "#ffffff",
-              borderWidth: 1.5,
-              borderColor: "#ffffff",
-              elevation: 0,
-            }}
-          >
-            <EditProfile
-            // userDetails = {userData}
-             closeEPF={() => setEditProfile(false)} />
+            {/* Modal Actions */}
+            <HStack style={styles.modalActions}>
+              <TouchableOpacity
+                disabled={isSaving}
+                onPress={() => setEditProfile(false)}
+                style={[styles.modalCancelBtn, { backgroundColor: isDark ? "#2a2f3a" : "#f1f5f9" }]}
+              >
+                <ThemedText style={{ color: COLORS.text, fontWeight: "600" }}>Cancel</ThemedText>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                disabled={isSaving}
+                onPress={handleSubmit(onSubmit)}
+                style={styles.modalSaveBtn}
+              >
+                {isSaving ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <ThemedText style={{ color: "white", fontWeight: "600" }}>Save Changes</ThemedText>
+                )}
+              </TouchableOpacity>
+            </HStack>
           </View>
         </View>
       </Modal>
@@ -317,5 +462,87 @@ const styles = StyleSheet.create({
     gap: 8,
     justifyContent: "center",
     paddingVertical: 15,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 400,
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 15,
+    elevation: 8,
+  },
+  modalHeaderRow: {
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  closeModalButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    marginBottom: 6,
+  },
+  customInputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    height: 48,
+  },
+  inputIconWrapper: {
+    marginRight: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  errorText: {
+    color: "#dc2626",
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: "600",
+  },
+  modalActions: {
+    gap: 12,
+    marginTop: 20,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalSaveBtn: {
+    flex: 2,
+    backgroundColor: "#dc2626",
+    height: 48,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
