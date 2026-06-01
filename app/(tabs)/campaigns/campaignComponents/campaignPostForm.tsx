@@ -381,72 +381,100 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
         >
           {platformState === "EMAIL" && (
-            <>
+            <View style={{ marginBottom: 16 }}>
               <Text
                 style={{
-                  color: isDark ? "#ffffff" : "#000000",
-                  fontWeight: "bold",
+                  color: isDark ? "#ffffff" : "#0f172a",
+                  fontWeight: "700",
+                  fontSize: 13,
                   marginBottom: 8,
                   marginLeft: 4,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
                 }}
               >
                 Sender Email
               </Text>
-              <TextInput
-                placeholder="sender@eg.com"
-                placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
-                value={senderEmail}
-                onChangeText={setSenderEmail}
-                keyboardType="email-address"
-                className="border border-gray-300 rounded-full px-3 h-12 mb-4 bg-white"
+              <View
                 style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: isDark ? "#1e1e24" : "#ffffff",
                   borderWidth: 1,
-                  borderColor: isDark ? "#374151" : "#d1d5db",
-                  borderRadius: 9999,
-                  paddingHorizontal: 12,
-                  height: 48,
-                  marginBottom: 16,
-                  backgroundColor: isDark ? "#161618" : "#ffffff",
-                  color: isDark ? "#e5e7eb" : "#111111",
+                  borderColor: isDark ? "#2a2a32" : "#cbd5e1",
+                  borderRadius: 14,
+                  paddingHorizontal: 14,
+                  height: 50,
                 }}
-              />
-            </>
+              >
+                <Ionicons name="mail-outline" size={18} color={isDark ? "#94a3b8" : "#64748b"} style={{ marginRight: 10 }} />
+                <TextInput
+                  placeholder="sender@eg.com"
+                  placeholderTextColor={isDark ? "#52525b" : "#94a3b8"}
+                  value={senderEmail}
+                  onChangeText={setSenderEmail}
+                  keyboardType="email-address"
+                  style={{
+                    flex: 1,
+                    color: isDark ? "#ffffff" : "#0f172a",
+                    fontSize: 15,
+                    fontWeight: "600",
+                    height: "100%",
+                    padding: 0,
+                  }}
+                />
+              </View>
+            </View>
           )}
 
           {/* SUBJECT */}
           {platformState !== "SMS" && (
-            <>
+            <View style={{ marginBottom: 16 }}>
               <Text
                 style={{
-                  color: isDark ? "#ffffff" : "#000000",
-                  fontWeight: "bold",
+                  color: isDark ? "#ffffff" : "#0f172a",
+                  fontWeight: "700",
+                  fontSize: 13,
                   marginBottom: 8,
                   marginLeft: 4,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
                 }}
               >
                 {platformState === "EMAIL" ? "Subject" : "Title"}
               </Text>
 
-              <TextInput
-                placeholder={
-                  platformState === "EMAIL" ? "Enter subject" : "Enter title"
-                }
-                placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
-                value={subject}
-                onChangeText={setSubject}
-                className="border border-gray-300 rounded-full px-3 h-12 mb-2 bg-white"
+              <View
                 style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: isDark ? "#1e1e24" : "#ffffff",
                   borderWidth: 1,
-                  borderColor: isDark ? "#374151" : "#d1d5db",
-                  borderRadius: 9999,
-                  paddingHorizontal: 12,
-                  height: 48,
-                  marginBottom: 16,
-                  backgroundColor: isDark ? "#161618" : "#ffffff",
-                  color: isDark ? "#e5e7eb" : "#111111",
+                  borderColor: isDark ? "#2a2a32" : "#cbd5e1",
+                  borderRadius: 14,
+                  paddingHorizontal: 14,
+                  height: 50,
                 }}
-              />
-            </>
+              >
+                <Ionicons name="bookmark-outline" size={18} color={isDark ? "#94a3b8" : "#64748b"} style={{ marginRight: 10 }} />
+                <TextInput
+                  placeholder={
+                    platformState === "EMAIL" ? "Enter subject" : "Enter title"
+                  }
+                  placeholderTextColor={isDark ? "#52525b" : "#94a3b8"}
+                  value={subject}
+                  onChangeText={setSubject}
+                  style={{
+                    flex: 1,
+                    color: isDark ? "#ffffff" : "#0f172a",
+                    fontSize: 15,
+                    fontWeight: "600",
+                    height: "100%",
+                    padding: 0,
+                  }}
+                />
+              </View>
+            </View>
           )}
 
           {/* AI TEXT BUTTON FOR ALL PLATFORMS */}
@@ -457,64 +485,74 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "center",
-              backgroundColor: isDark ? "#4c1d95" : "#6d28d9",
-              paddingVertical: 12,
+              backgroundColor: isDark ? "#581c87" : "#7c3aed",
+              paddingVertical: 13,
               paddingHorizontal: 20,
               borderRadius: 14,
-              marginBottom: 16,
-              borderWidth: 1,
-              borderColor: isDark ? "#6d28d9" : "#8b5cf6",
-              shadowColor: "#6d28d9",
+              marginBottom: 18,
+              shadowColor: "#7c3aed",
               shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.15,
-              shadowRadius: 6,
+              shadowOpacity: 0.25,
+              shadowRadius: 10,
               elevation: 4,
             }}
           >
             <Ionicons
               name="sparkles"
-              size={18}
+              size={16}
               color="#ffffff"
               style={{ marginRight: 8 }}
             />
             <Text
-              style={{ color: "#ffffff", fontWeight: "bold", fontSize: 13 }}
+              style={{ color: "#ffffff", fontWeight: "700", fontSize: 13, letterSpacing: 0.3 }}
             >
               Generate Content with AI Assistant
             </Text>
           </TouchableOpacity>
 
           {/* MESSAGE */}
-          <Text
-            style={{
-              color: isDark ? "#ffffff" : "#000000",
-              fontWeight: "bold",
-              marginBottom: 8,
-              marginLeft: 4,
-            }}
-          >
-            Message
-          </Text>
-          <TextInput
-            placeholder={`Enter your ${platformState} content here...`}
-            placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
-            value={message}
-            onChangeText={setMessage}
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-            className="border border-gray-300 rounded-lg p-3 mb-2 min-h-[120px] bg-white"
-            style={{
-              borderWidth: 1,
-              borderColor: isDark ? "#374151" : "#d1d5db",
-              borderRadius: 12,
-              padding: 12,
-              marginBottom: 8,
-              minHeight: 120,
-              backgroundColor: isDark ? "#161618" : "#ffffff",
-              color: isDark ? "#e5e7eb" : "#111111", // text color
-            }}
-          />
+          <View style={{ marginBottom: 16 }}>
+            <Text
+              style={{
+                color: isDark ? "#ffffff" : "#0f172a",
+                fontWeight: "700",
+                fontSize: 13,
+                marginBottom: 8,
+                marginLeft: 4,
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+              }}
+            >
+              Message
+            </Text>
+            <View
+              style={{
+                backgroundColor: isDark ? "#1e1e24" : "#ffffff",
+                borderWidth: 1,
+                borderColor: isDark ? "#2a2a32" : "#cbd5e1",
+                borderRadius: 14,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                minHeight: 120,
+              }}
+            >
+              <TextInput
+                placeholder={`Enter your ${platformState} content here...`}
+                placeholderTextColor={isDark ? "#52525b" : "#94a3b8"}
+                value={message}
+                onChangeText={setMessage}
+                multiline
+                textAlignVertical="top"
+                style={{
+                  color: isDark ? "#ffffff" : "#0f172a",
+                  fontSize: 15,
+                  fontWeight: "600",
+                  flex: 1,
+                  minHeight: 100,
+                }}
+              />
+            </View>
+          </View>
 
           {/* AI IMAGE BUTTON */}
           {platformState !== "SMS" && platformState !== "YOUTUBE" && (
@@ -525,32 +563,30 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 flexDirection: "row",
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: isDark ? "#064e3b" : "#0f766e",
-                paddingVertical: 12,
+                backgroundColor: isDark ? "#064e3b" : "#0d9488",
+                paddingVertical: 13,
                 paddingHorizontal: 20,
                 borderRadius: 14,
-                marginBottom: 16,
-                marginTop: 8,
-                borderWidth: 1,
-                borderColor: isDark ? "#0f766e" : "#14b8a6",
-                shadowColor: "#0f766e",
+                marginBottom: 18,
+                shadowColor: "#0d9488",
                 shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.15,
-                shadowRadius: 6,
+                shadowOpacity: 0.25,
+                shadowRadius: 10,
                 elevation: 4,
               }}
             >
               <Ionicons
                 name="sparkles"
-                size={18}
+                size={16}
                 color="#ffffff"
                 style={{ marginRight: 8 }}
               />
               <Text
                 style={{
                   color: "#ffffff",
-                  fontWeight: "bold",
+                  fontWeight: "700",
                   fontSize: 13,
+                  letterSpacing: 0.3,
                 }}
               >
                 Generate Image with AI Assistant

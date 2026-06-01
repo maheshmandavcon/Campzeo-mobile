@@ -71,11 +71,12 @@ export const getSocialStatus = async (token?: string) => {
 
 // Create a new campaign
 
-export const createCampaignApi = async (data: CampaignData) => {
+export const createCampaignApi = async (data: CampaignData,token?:string) => {
   try {
     const response = await https.post("Campaigns/AddCampaign", data, {
-      headers: { "Content-Type": "application/json" },
-    });
+      headers: { "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }), },
+    });    
     return response.data;
   } catch (error: any) {
     console.error(
@@ -106,14 +107,13 @@ export const getCampaignsApi = async (orgId: number,
 // Get single campaign by ID
 
 export const getCampaignByIdApi = async (id: number, orgId: number, token: string) => {
-
   try {
-    const response = await https.get(`Campaigns/${id}`, {
+    const response = await https.get(`Campaigns/${id}?organisationId=${orgId}`, {
       headers: {
         "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
       }
-    });
+    });    
     return response.data;
   } catch (error: any) {
     console.error(
@@ -124,17 +124,35 @@ export const getCampaignByIdApi = async (id: number, orgId: number, token: strin
   }
 };
 
+// export const getCampaignByIdApi = async (id: number, orgId: number, token: string) => {
+//   try {
+//     const response = await https.get(`Campaigns/${id}?organisationId=${orgId}`, {
+//       headers: {
+//         "Content-Type": "application/json",
+//         ...(token && { Authorization: `Bearer ${token}` }),
+//       }
+//     });
+//     return response.data;
+//   } catch (error: any) {
+//     console.error(
+//       "Get Campaign By ID API Error:",
+//       error.response || error.message,
+//     );
+//     throw error;
+//   }
+// };
+
 // Update campaign by ID
 
 export const updateCampaignApi = async (data: CampaignData, token: string) => {
   try {
-    const response = await https.put(`Campaigns/UpdateCampaign`, data, {
+    const response = await https.post(`Campaigns/UpdateCampaign`, data, {
       headers: {
         "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
       },
-    });
-    return response.data;
+    });    
+    return response;
   } catch (error: any) {
     console.error(
       "Update Campaign API Error:",

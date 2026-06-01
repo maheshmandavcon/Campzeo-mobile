@@ -141,12 +141,12 @@ export const deleteContactApi = async (
 };
 
 // EXPORT CONTACTS
-export const exportContactsApi = async () => {
+export const exportContactsApi = async (orgId: number) => {
   try {
-    const res = await https.get("/contacts/export", {
-      responseType: "arraybuffer", // Important for file downloads
+    console.log("orgId",orgId);
+    const res = await https.get(`Contacts/Export?organisationId=${orgId}`, {
+      responseType: "blob", // Important for file downloads
     });
-
     return res.data;
   } catch (error: any) {
     console.error("Export contacts error:", error.response || error.message);

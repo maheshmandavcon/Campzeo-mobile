@@ -121,9 +121,7 @@ export default function CreateContact() {
     hasResetRef.current = true;
   }, [editingContact, reset]);
 
-  /* Fetch campaigns dynamically */
-  useEffect(() => {
-    const fetchCampaigns = async () => {
+   const fetchCampaigns = async () => {
       setLoadingCampaigns(true);
       try {
         const token = await getToken();
@@ -142,6 +140,8 @@ export default function CreateContact() {
       }
     };
 
+  /* Fetch campaigns dynamically */
+  useEffect(() => {
     fetchCampaigns();
   }, []);
 
@@ -236,14 +236,14 @@ export default function CreateContact() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Navigation & Header row */}
-        <View style={styles.topRow}>
+        {/* <View style={styles.topRow}>
           <TouchableOpacity
             onPress={() => router.back()}
             style={[styles.backButton, { backgroundColor: COLORS.cardBg }]}
           >
             <Ionicons name="chevron-back" size={22} color={COLORS.textPrimary} />
           </TouchableOpacity>
-        </View>
+        </View> */}
 
         {/* Hero Section */}
         <View style={[styles.heroCard, { backgroundColor: COLORS.cardBg, borderColor: COLORS.cardBorder }]}>
@@ -256,7 +256,7 @@ export default function CreateContact() {
                 {isEdit ? "Edit Contact" : "Create Contact"}
               </Text>
               <Text style={[styles.heroSubtitle, { color: COLORS.textSecondary }]}>
-                {isEdit ? "Modify and update contact details" : "Add a new customer to your marketing list"}
+                {isEdit ? "Modify and update contact details" : "Manage your contact list and campaign associations"}
               </Text>
             </View>
           </View>

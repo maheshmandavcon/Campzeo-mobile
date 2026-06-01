@@ -27,6 +27,7 @@ import { config } from "@gluestack-ui/config";
 import { NetworkGate } from "../network/networkGate";
 import { OverlayProvider } from "@gluestack-ui/core/overlay/creator";
 import Toast from "react-native-toast-message";
+import { useSubscriptionCheck } from "@/hooks/useSubscriptionCheck";
 
 
 /* ---------------- AUTH GUARD ---------------- */
@@ -36,23 +37,32 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
+  // Run the reusable subscription verification hook
+  useSubscriptionCheck();
+
   useEffect(() => {
     if (!isLoaded || !pathname) return;
 
-    const authRoutes = [
+    const publicRoutes = [
       "/",
       "/login",
       "/auth-callback",
       "/expiredPlan",
+      "/(auth)/login",
+      "/(auth)/expiredPlan",
       "/changePassword",
+      "/(auth)/changePassword",
     ];
-    const isAuthRoute = authRoutes.includes(pathname);
+    const isPublicRoute = publicRoutes.includes(pathname);
 
-    if (!isSignedIn && !isAuthRoute && pathname !== "/") {
+    // Only redirect to dashboard after login — not from expired-plan screen
+    const postLoginRoutes = ["/", "/login", "/auth-callback", "/(auth)/login"];
+
+    if (!isSignedIn && !isPublicRoute && pathname !== "/") {
       router.replace("/(auth)/login");
     }
 
-    if (isSignedIn && (isAuthRoute || pathname === "/")) {
+    if (isSignedIn && postLoginRoutes.includes(pathname)) {
       router.replace("/(tabs)/dashboard");
     }
   }, [isLoaded, isSignedIn, router, pathname]);

@@ -82,11 +82,22 @@ export default function Contacts() {
     }, [search]),
   );
 
-  const filteredRecords = [...records].sort((a, b) => {
-    if (sortOrder === "asc") return a.name.localeCompare(b.name);
-    if (sortOrder === "desc") return b.name.localeCompare(a.name);
-    return 0;
-  });
+  const filteredRecords = records
+    .filter((r) => {
+      const q = search.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        (r.name && r.name.toLowerCase().includes(q)) ||
+        (r.email && r.email.toLowerCase().includes(q)) ||
+        (r.mobile && r.mobile.includes(q)) ||
+        (r.whatsapp && r.whatsapp.includes(q))
+      );
+    })
+    .sort((a, b) => {
+      if (sortOrder === "asc") return a.name.localeCompare(b.name);
+      if (sortOrder === "desc") return b.name.localeCompare(a.name);
+      return 0;
+    });
 
   const visibleRecords = filteredRecords.slice(0, visibleCount);
   const isAllVisible = visibleCount >= filteredRecords.length;
@@ -188,27 +199,53 @@ WhatsApp: ${record.whatsapp || "-"}
       const token = await getToken();
       if (!token) throw new Error("Token missing");
 
-      const arrayBuffer = await exportContactsApi();
-      const binary = new Uint8Array(arrayBuffer);
-      let binaryString = "";
-      binary.forEach((b) => (binaryString += String.fromCharCode(b)));
-      const base64Data = Buffer.from(binaryString, "binary").toString("base64");
+      const user = await getUser();
+      const orgId = user?.organisation?.id;
+      if (!orgId) throw new Error("Organisation ID missing");
 
-      const fileUri = `${FileSystem.cacheDirectory}contacts_${Date.now()}.csv`;
+      const blob = await exportContactsApi(orgId);
 
-      await FileSystem.writeAsStringAsync(fileUri, base64Data, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const base64Url = reader.result as string;
+          const base64Data = base64Url.split(",")[1];
 
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(fileUri);
-      }
+          const fileUri = `${FileSystem.cacheDirectory}contacts_${Date.now()}.csv`;
+
+          await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(fileUri);
+          }
+        } catch (fileErr) {
+          console.error("File save error:", fileErr);
+          Toast.show({
+            type: "error",
+            text1: "Failed to save exported file",
+          });
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      reader.onerror = () => {
+        setLoading(false);
+        Toast.show({
+          type: "error",
+          text1: "Failed to read export blob",
+        });
+      };
+
+      reader.readAsDataURL(blob);
     } catch (e: any) {
+      console.error("Export all error:", e);
       Toast.show({
         type: "error",
-        text1: "Failed to export contact",
+        text1: "Failed to export contacts",
       });
-    } finally {
       setLoading(false);
     }
   };
@@ -294,11 +331,26 @@ WhatsApp: ${record.whatsapp || "-"}
         style={{ backgroundColor: COLORS.screenBg }}
         className="flex-1 p-4"
       >
-        {/* Top Bar */}
+        {/* Heading & Add Contacts Button Row */}
         <View
-          style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 16,
+          }}
         >
-          {/* New Button */}
+          <Text
+            style={{
+              fontSize: 28,
+              fontWeight: "900",
+              color: COLORS.textPrimary,
+              letterSpacing: 0.3,
+            }}
+          >
+            Contacts
+          </Text>
+
           <TouchableOpacity
             onPress={() => router.push("/contacts/createContact")}
             style={{
@@ -308,7 +360,6 @@ WhatsApp: ${record.whatsapp || "-"}
               paddingVertical: 10,
               borderRadius: 99,
               backgroundColor: COLORS.newButtonBg,
-              marginRight: 10,
               shadowColor: "#dc2626",
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.15,
@@ -331,7 +382,16 @@ WhatsApp: ${record.whatsapp || "-"}
               Add Contact
             </Text>
           </TouchableOpacity>
+        </View>
 
+        {/* Search input box & 3 dots in single row */}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 20,
+          }}
+        >
           {/* Search Bar */}
           <View
             style={{
@@ -343,10 +403,10 @@ WhatsApp: ${record.whatsapp || "-"}
               borderWidth: 1,
               borderColor: COLORS.inputBorder,
               paddingHorizontal: 12,
-              height: 44,
+              height: 46,
             }}
           >
-            <Ionicons name="search-outline" size={16} color={COLORS.textSecondary} style={{ marginRight: 6 }} />
+            <Ionicons name="search-outline" size={16} color={COLORS.textSecondary} style={{ marginRight: 8 }} />
             <TextInput
               value={search}
               onChangeText={(v) => {
@@ -370,14 +430,16 @@ WhatsApp: ${record.whatsapp || "-"}
           <TouchableOpacity
             onPress={() => setMenuVisible(!menuVisible)}
             style={{
-              padding: 10,
-              borderRadius: 22,
+              padding: 12,
+              borderRadius: 23,
               backgroundColor: COLORS.cardBg,
               borderWidth: 1,
               borderColor: COLORS.cardBorder,
-              marginLeft: 8,
+              marginLeft: 10,
               alignItems: "center",
               justifyContent: "center",
+              width: 46,
+              height: 46,
             }}
           >
             <Ionicons
@@ -397,7 +459,7 @@ WhatsApp: ${record.whatsapp || "-"}
               borderWidth: 1,
               position: "absolute",
               right: 16,
-              top: 68,
+              top: 124,
               borderRadius: 16,
               zIndex: 30,
               shadowColor: "#000",
