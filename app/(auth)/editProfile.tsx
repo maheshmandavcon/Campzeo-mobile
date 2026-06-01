@@ -5,7 +5,7 @@ import {
   editProfileSchema,
   EditProfileSchemaType,
 } from "@/validations/profileSchema";
-import { useUser } from "@clerk/clerk-expo";
+import { useUser } from "@/context/AuthContext";
 import { View } from "@gluestack-ui/themed";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as ImagePicker from "expo-image-picker";
@@ -66,7 +66,7 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
 
       closeEPF();
     } catch (err: any) {
-      console.log("Clerk update error:", err);
+      console.log("Profile update error:", err);
     }
   };
 
@@ -131,7 +131,7 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
               PROFILE IMAGE PICKER
           ====================== */}
           <VStack>
-            <Pressable onPress={pickImage} className="self-center mb-4">
+            {/* <Pressable onPress={pickImage} className="self-center mb-4">
               <Image
                 source={{ uri: user?.imageUrl }}
                 style={{
@@ -144,11 +144,9 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
                   borderColor: isDark ? "#ffffff" : "#dc2626",
                 }}
               />
-            </Pressable>
-            {/* <Text className="text-center text-gray-600 mt-1">
-              Tap to change picture
-            </Text> */}
-            <Text
+            </Pressable> */}
+          
+            {/* <Text
               style={{
                 textAlign: "center",
                 marginTop: 4,
@@ -156,7 +154,7 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
               }}
             >
               Tap to change picture
-            </Text>
+            </Text> */}
           </VStack>
 
           {/* =====================

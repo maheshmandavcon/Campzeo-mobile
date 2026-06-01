@@ -1,4 +1,4 @@
-import { useAuth, useUser } from "@clerk/clerk-expo";
+import { useAuth, useUser } from "@/context/AuthContext";
 import { router, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -8,16 +8,18 @@ import {
 
 import { getNotificationsApi } from "@/api/notificationApi";
 import { ThemedView } from "@/components/themed-view";
-import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useSidebarStore } from "../../store/sidebarStore";
 import { ThemedText } from "@/components/themed-text";
 import { Ionicons } from "@expo/vector-icons";
+import { getInitials } from "@/utils/userDisplay";
+import { useUserDetails } from "@/hooks/useUserDetails";
 
 export default function TopBar() {
   const routePage = useRouter();
   const openSidebar = useSidebarStore((state) => state.openSidebar);
   const { user } = useUser();
   const { getToken } = useAuth();
+  const { userData } = useUserDetails(Boolean(user));
 
   const [unreadCount, setUnreadCount] = useState<number>(0);
 
@@ -27,7 +29,7 @@ export default function TopBar() {
   const iconColor = isDark ? "#fff" : "#000";
 
   // ---------------- FETCH UNREAD COUNT ----------------
-  const fetchUnreadCount = async () => {
+  const fetchUnreadCount = useCallback(async () => {
     try {
       const token = await getToken();
       if (!token) return;
@@ -42,19 +44,21 @@ export default function TopBar() {
     } catch (error) {
       console.log("Unread count fetch error:", error);
     }
-  };
+  }, [getToken]);
 
   useEffect(() => {
     fetchUnreadCount();
-  }, []);
+  }, [fetchUnreadCount]);
 
   useFocusEffect(
     useCallback(() => {
       fetchUnreadCount();
-    }, [])
+    }, [fetchUnreadCount])
   );
 
   if (!user) return null;
+
+  const initials = getInitials(userData || user);
 
   return (
     <ThemedView
@@ -120,10 +124,26 @@ export default function TopBar() {
 
         {/* Avatar */}
         <TouchableOpacity activeOpacity={0.7} onPress={openSidebar}>
-          <Image
-            source={{ uri: user.imageUrl }}
-            className="w-10 h-10 rounded-full border border-gray-300"
-          />
+          <ThemedView
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: "#dc2626",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <ThemedText
+              style={{
+                color: "#ffffff",
+                fontSize: 14,
+                fontWeight: "800",
+              }}
+            >
+              {initials}
+            </ThemedText>
+          </ThemedView>
         </TouchableOpacity>
       </ThemedView>
     </ThemedView>

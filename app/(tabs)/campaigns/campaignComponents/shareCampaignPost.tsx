@@ -9,7 +9,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { ContactsRecord } from "../../contacts/contactComponents/contactCard";
-import { Video, ResizeMode } from "expo-av";
+import Video from "react-native-video";
 import { router } from "expo-router";
 
 type Props = {
@@ -39,12 +39,12 @@ export default function ShareCampaignPost({
 }: Props) {
 
   // ✅ ADD LOG HERE
-  console.log("[ShareCampaignPost] render", {
-    visible,
-    postId: post?.id,
-    postType: post?.type,
-    mediaUrls: post?.mediaUrls,
-  });
+  // console.log("[ShareCampaignPost] render", {
+  //   visible,
+  //   postId: post?.id,
+  //   postType: post?.type,
+  //   mediaUrls: post?.mediaUrls,
+  // });
 
   if (!visible || !post) return null;
 
@@ -376,26 +376,27 @@ export default function ShareCampaignPost({
                       }
                       const isVideo = mime.startsWith("video/");
 
-                      return isVideo ? (
-                        <ThemedView
-                          key={idx}
-                          style={{
-                            width: 120,
-                            height: 120,
-                            borderRadius: 8,
-                            marginRight: 8,
-                            overflow: "hidden",
-                            position: "relative",
-                            backgroundColor: "#000",
-                          }}
-                        >
-                          <Video
-                            source={{ uri: normalizedUrl }}
-                            style={{ width: "100%", height: "100%" }}
-                            resizeMode={ResizeMode.COVER}
-                            isLooping
-                            shouldPlay={false}
-                          />
+                    return isVideo ? (
+                      <ThemedView
+                        key={idx}
+                        style={{
+                          width: 120,
+                          height: 120,
+                          borderRadius: 8,
+                          marginRight: 8,
+                          overflow: "hidden",
+                          position: "relative",
+                          backgroundColor: "#000",
+                        }}
+                      >
+                        <Video
+                          source={{ uri: url }}
+                          style={{ width: "100%", height: "100%" }}
+                          resizeMode="cover"
+                          paused
+                          repeat
+                          controls={false}
+                        />
 
                           <ThemedView
                             style={{

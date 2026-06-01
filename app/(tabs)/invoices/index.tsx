@@ -4,7 +4,7 @@ import { ThemedView } from "@/components/themed-view";
 import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 import { Invoice } from "@/types/types";
-import { useUser } from "@clerk/clerk-expo";
+import { useUser } from "@/context/AuthContext";
 import { HStack } from "@gluestack-ui/themed";
 import { View } from "@gluestack-ui/themed";
 import { VStack } from "@gluestack-ui/themed";
@@ -24,7 +24,7 @@ export default function Invoices() {
 
     const loadInvoices = async () => {
       try {
-        const data = await fetchInvoices(user.id);
+        const data = await fetchInvoices();
         setInvoices(data.invoices);
       } catch (error) {
         console.log("Error loading invoices:", error);

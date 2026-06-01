@@ -1,10 +1,9 @@
-import { CalendarEvent } from "@/types/types";
 import https from "./https";
 
 
-export const getScheduledPosts = async () => {
+export const getScheduledPosts = async (orgId: string) => {
     try {
-        const response = await https.get<CalendarEvent>(`scheduled-posts`);
+        const response = await https.get(`Campaigns/scheduled-posts?organisationId=${orgId}`);
         // console.log("Scheduled Posts: ", response.data);
         return response.data;
     }
