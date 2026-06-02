@@ -230,7 +230,6 @@ export default function CampaignPost() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  // Check if any social platform is disconnected (SMS/EMAIL/WHATSAPP are always connected)
   const hasDisconnectedPlatform = ["FACEBOOK", "INSTAGRAM", "LINKEDIN", "YOUTUBE", "PINTEREST"].some(
     (key) => connectedPlatforms[key] === false
   );
@@ -451,14 +450,15 @@ export default function CampaignPost() {
                             );
                             return;
                           }
-                        }
-
-                        if (isDisabled) {
-                          Toast.show({
-                            type: "error",
-                            text1: "Platform Not Connected",
-                            text2: `Please connect your ${icon.label} account from Accounts first.`
-                          });
+                        } else {
+                          Alert.alert(
+                            "Admin Approval Required",
+                            "SMS and WhatsApp messaging requires admin approval and credit purchase.",
+                            [
+                              { text: "Cancel", style: "cancel" },
+                              { text: "Purchase Pack", onPress: () => router.push("/(billing)/billingPage") },
+                            ]
+                          );
                           return;
                         }
                         setSelected(icon.label as any);

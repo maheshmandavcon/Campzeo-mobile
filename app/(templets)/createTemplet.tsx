@@ -22,6 +22,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { uploadMediaApi } from "@/api/campaignApi";
 import { getUser } from "@/api/dashboardApi";
+import { createTemplateApi } from "@/api/templetsApi";
 import Video from "react-native-video";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -81,6 +82,7 @@ export default function CreateTemplet() {
 
   const [templateName, setTemplateName] = useState("");
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformType>("EMAIL");
+  const [orderedPlatforms, setOrderedPlatforms] = useState<PlatformType[]>(PLATFORMS.map(p => p.value));
   const [preHeader, setPreHeader] = useState("");
   const [emailSubject, setEmailSubject] = useState("");
   const [content, setContent] = useState("");
@@ -247,38 +249,40 @@ export default function CreateTemplet() {
       return;
     }
 
+    if (!organisationId) {
+      Alert.alert("Error", "Organisation ID not found.");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const payload: TemplateData = {
-        name: templateName.trim(),
-        subject: emailSubject.trim(),
-        content: content.trim(),
+      const token = await getToken();
+      const metadataObj = {
+        preHeader,
+        facebookContentType,
+        youtubeContentType,
+        tags,
+        privacyStatus,
+        playlist,
+        destinationLink,
+      };
+
+      const payload = {
+        name: templateName,
         platform: selectedPlatform,
         category: "CUSTOM",
         isActive: true,
-        mediaUrls: media.map((m) => m.uploadedUrl).filter((url): url is string => !!url),
-        metadata: {
-          preHeader,
-          facebookContentType,
-          youtubeContentType,
-          tags,
-          privacyStatus,
-          playlist,
-          destinationLink,
-        },
+        content: content,
+        subject: emailSubject,
+        metadata: JSON.stringify(metadataObj),
+        mediaUrls: media.filter(m => m.uploadedUrl).map(m => m.uploadedUrl as string),
       };
 
-      const response = isEdit
-        ? await templetApi.updateTemplate(Number(id), payload)
-        : await templetApi.createTemplate(payload);
+      await createTemplateApi(organisationId, payload, token || undefined);
 
-      if (response.success) {
-        Alert.alert("Success", response.message || `Template ${isEdit ? "updated" : "created"} successfully!`, [
-          { text: "OK", onPress: () => router.back() },
-        ]);
-      } else {
-        throw new Error(response.message || `Failed to ${isEdit ? "update" : "create"} template.`);
-      }
+      Alert.alert("Success", "Template created successfully!", [
+        { text: "OK", onPress: () => router.back() },
+      ]);
     } catch (e: any) {
       console.error("Template submission error:", e);
       Alert.alert(
@@ -290,37 +294,9 @@ export default function CreateTemplet() {
     }
   };
 
-
-  const handleUpload = async () => {
+  const processUpload = async (asset: any, type: "image" | "video" | "pdf") => {
+    setUploading(true);
     try {
-      let asset: any;
-      let type: "image" | "video" | "pdf" = "image";
-
-      if (selectedPlatform === "EMAIL") {
-        const result = await DocumentPicker.getDocumentAsync({
-          type: "application/pdf",
-          copyToCacheDirectory: true,
-        });
-        if (result.canceled) return;
-        asset = result.assets[0];
-        type = "pdf";
-      } else {
-        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!permission.granted) {
-          Alert.alert("Permission required", "Please allow access to photos and videos.");
-          return;
-        }
-
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: selectedPlatform === "YOUTUBE" ? ImagePicker.MediaTypeOptions.Videos : ImagePicker.MediaTypeOptions.All,
-          quality: 0.8,
-        });
-        if (result.canceled) return;
-        asset = result.assets[0];
-        type = asset.type === "video" ? "video" : "image";
-      }
-
-      setUploading(true);
       const token = await getToken();
       if (!token) throw new Error("No authentication token available");
 
@@ -358,12 +334,80 @@ export default function CreateTemplet() {
     }
   };
 
+  const handleUpload = async () => {
+    try {
+      if (selectedPlatform === "EMAIL") {
+        Alert.alert(
+          "Upload Media",
+          "What kind of file do you want to attach?",
+          [
+            {
+              text: "Document (PDF)",
+              onPress: async () => {
+                const result = await DocumentPicker.getDocumentAsync({
+                  type: "application/pdf",
+                  copyToCacheDirectory: true,
+                });
+                if (result.canceled) return;
+                processUpload(result.assets[0], "pdf");
+              }
+            },
+            {
+              text: "Photo / Video",
+              onPress: async () => {
+                const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (!permission.granted) {
+                  Alert.alert("Permission required", "Please allow access to photos and videos.");
+                  return;
+                }
+                const result = await ImagePicker.launchImageLibraryAsync({
+                  mediaTypes: ImagePicker.MediaTypeOptions.All,
+                  quality: 0.8,
+                });
+                if (result.canceled) return;
+                const asset = result.assets[0];
+                processUpload(asset, asset.type === "video" ? "video" : "image");
+              }
+            },
+            {
+              text: "Cancel",
+              style: "cancel"
+            }
+          ]
+        );
+        return;
+      } else {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert("Permission required", "Please allow access to photos and videos.");
+          return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: selectedPlatform === "YOUTUBE" ? ImagePicker.MediaTypeOptions.Videos : ImagePicker.MediaTypeOptions.All,
+          quality: 0.8,
+        });
+        if (result.canceled) return;
+        const asset = result.assets[0];
+        processUpload(asset, asset.type === "video" ? "video" : "image");
+      }
+    } catch (error: any) {
+      console.error("Picker error:", error);
+      Alert.alert("Error", error.message || "Failed to open picker.");
+    }
+  };
+
   const removeMedia = (index: number) => {
     setMedia((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handlePlatformSelect = (platform: PlatformType) => {
     setSelectedPlatform(platform);
+    setOrderedPlatforms((prev) => {
+      if (platform === selectedPlatform) return prev;
+      const filtered = prev.filter((p) => p !== platform && p !== selectedPlatform);
+      return [platform, ...filtered, selectedPlatform];
+    });
   };
 
 
@@ -414,15 +458,7 @@ export default function CreateTemplet() {
           contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
           keyboardShouldPersistTaps="handled"
         >
-          <ThemedText style={labelStyle}>Template Name</ThemedText>
-          <TextInput
-            value={templateName}
-            onChangeText={setTemplateName}
-            placeholder="e.g. Weekly Newsletter"
-            placeholderTextColor={textMuted}
-            style={[inputStyle, { marginBottom: 20 }]}
-          />
-
+          {/* ── Select Platform ── */}
           <ThemedText style={labelStyle}>Select Platform</ThemedText>
           <ScrollView
             horizontal
@@ -435,7 +471,8 @@ export default function CreateTemplet() {
 
             style={{ marginBottom: 20 }}
           >
-            {PLATFORMS.map((p) => {
+            {orderedPlatforms.map((pValue) => {
+              const p = getPlatformConfig(pValue);
               const isActive = selectedPlatform === p.value;
               return (
                 <TouchableOpacity
@@ -477,6 +514,17 @@ export default function CreateTemplet() {
             })}
           </ScrollView>
 
+          {/* ── Template Name ── */}
+          <ThemedText style={labelStyle}>Template Name</ThemedText>
+          <TextInput
+            value={templateName}
+            onChangeText={setTemplateName}
+            placeholder="e.g. Weekly Newsletter"
+            placeholderTextColor={textMuted}
+            style={[inputStyle, { marginBottom: 20 }]}
+          />
+
+          {/* ── Pre-header Text (Email only) ── */}
           {selectedPlatform === "EMAIL" && (
             <>
               <ThemedText style={labelStyle}>Pre-header Text</ThemedText>
@@ -495,6 +543,256 @@ export default function CreateTemplet() {
             </>
           )}
 
+           {/* ── Subject / Title ── */}
+          {(selectedPlatform === "EMAIL" || selectedPlatform === "FACEBOOK" || selectedPlatform === "INSTAGRAM" || selectedPlatform === "LINKEDIN" || selectedPlatform === "PINTEREST" || selectedPlatform === "YOUTUBE") && (
+            <>
+              <ThemedText style={labelStyle}>
+                {selectedPlatform === "EMAIL" ? "Email Subject" : selectedPlatform === "YOUTUBE" ? "Video Title" : "Post Title"}
+              </ThemedText>
+              <TextInput
+                value={emailSubject}
+                onChangeText={setEmailSubject}
+                placeholder={
+                  selectedPlatform === "EMAIL" ? "Enter email subject" : 
+                  selectedPlatform === "YOUTUBE" ? "Enter video title" : 
+                  "Enter post title"
+                }
+                placeholderTextColor={textMuted}
+                style={[inputStyle, { marginBottom: 20 }]}
+              />
+            </>
+          )}
+
+          {/* ── Upload Media ── */}
+          {selectedPlatform !== "SMS" && (
+            <>
+              <ThemedText style={labelStyle}>
+                {selectedPlatform === "EMAIL" ? "Attachments (Optional)" : "Upload Media (Optional)"}
+              </ThemedText>
+              <ThemedText style={{ fontSize: 12, color: textMuted, marginBottom: 10 }}>
+                {selectedPlatform === "EMAIL"
+                  ? "Attach PDFs, images, or videos to your email"
+                  : "Upload Images/Videos"}
+              </ThemedText>
+
+          {selectedPlatform === "EMAIL" ? (
+            <View style={{ marginBottom: 20 }}>
+              <TouchableOpacity
+                onPress={handleUpload}
+                disabled={uploading}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: 14,
+                  borderRadius: 12,
+                  borderWidth: 1.5,
+                  borderStyle: "dashed",
+                  borderColor: border,
+                  backgroundColor: card,
+                  marginBottom: 12,
+                  opacity: uploading ? 0.6 : 1,
+                }}
+              >
+                {uploading ? (
+                  <>
+                    <Ionicons name="hourglass-outline" size={20} color={textMuted} />
+                    <ThemedText style={{ color: textMuted, fontWeight: "600" }}>Uploading...</ThemedText>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="attach-outline" size={20} color={textMuted} />
+                    <ThemedText style={{ color: textMuted, fontWeight: "600" }}>Add Attachment</ThemedText>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {media.map((item, index) => {
+                const isVideo = item.type === "video";
+                const isPdf = item.type === "pdf";
+                let filename = item.name || item.uri.split("/").pop() || "file";
+                if (filename.includes("?")) filename = filename.split("?")[0];
+                const sizeStr = isVideo ? "14.2 MB" : isPdf ? "1.1 MB" : "2.4 MB";
+                const iconName: any = isVideo
+                  ? "videocam-outline"
+                  : isPdf
+                  ? "document-text-outline"
+                  : "image-outline";
+                const iconColor = isVideo ? "#8b5cf6" : isPdf ? "#ef4444" : "#3b82f6";
+
+                return (
+                  <View
+                    key={index}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      padding: 12,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: isDark ? "#333" : "#e5e7eb",
+                      backgroundColor: isDark ? "#2c2c2e" : "#fff",
+                      marginBottom: 8,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 8,
+                        backgroundColor: `${iconColor}22`,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Ionicons name={iconName} size={22} color={iconColor} />
+                    </View>
+                    <View style={{ flex: 1, paddingHorizontal: 10 }}>
+                      <ThemedText
+                        style={{ fontSize: 13, fontWeight: "600", color: isDark ? "#fff" : "#111827" }}
+                        numberOfLines={1}
+                      >
+                        {filename}
+                      </ThemedText>
+                      <ThemedText style={{ fontSize: 11, color: textMuted, marginTop: 2 }}>
+                        {sizeStr}
+                      </ThemedText>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => removeMedia(index)}
+                      style={{
+                        padding: 6,
+                        borderRadius: 10,
+                        backgroundColor: isDark ? "#444" : "#f3f4f6",
+                      }}
+                    >
+                      <Ionicons name="close" size={16} color={isDark ? "#ccc" : "#555"} />
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+            <>
+              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6, gap: 10 }}>
+                <TouchableOpacity
+                  onPress={handleUpload}
+                  disabled={uploading}
+                  style={{
+                    width: 70,
+                    height: 70,
+                    borderWidth: 1.5,
+                    borderStyle: "dashed",
+                    borderColor: isDark ? "#4b5563" : "#d1d5db",
+                    borderRadius: 12,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: card,
+                    opacity: uploading ? 0.6 : 1,
+                  }}
+                >
+                  {uploading ? (
+                    <View style={{ alignItems: "center" }}>
+                      <Ionicons name="hourglass-outline" size={20} color={textMuted} />
+                      <ThemedText style={{ fontSize: 8, color: textMuted }}>UPLOADING</ThemedText>
+                    </View>
+                  ) : (
+                    <Ionicons name="add" size={28} color={textMuted} />
+                  )}
+                </TouchableOpacity>
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 12, paddingVertical: 10, paddingHorizontal: 4 }}
+                >
+                  {media.map((item, index) => (
+                    <View key={index} style={{ position: "relative", marginRight: 4 }}>
+                      <View
+                        style={{
+                          width: 70,
+                          height: 70,
+                          borderRadius: 12,
+                          overflow: "hidden",
+                          backgroundColor: inputBg,
+                          borderWidth: 1,
+                          borderColor: border,
+                        }}
+                      >
+                        {item.type === "image" ? (
+                          <Image
+                            source={{ uri: item.uri || item.uploadedUrl }}
+                            style={{ width: "100%", height: "100%" }}
+                            resizeMode="cover"
+                          />
+                        ) : item.type === "video" ? (
+                          <View style={{ flex: 1 }}>
+                            <Video
+                              source={{ uri: item.uri || item.uploadedUrl || "" }}
+                              style={{ width: "100%", height: "100%" }}
+                              resizeMode="cover"
+                              paused={false}
+                              repeat
+                              muted
+                              controls={false}
+                            />
+                            <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.2)" }}>
+                              <Ionicons name="play" size={24} color="#fff" />
+                            </View>
+                          </View>
+                        ) : (
+                          <View
+                            style={{
+                              flex: 1,
+                              backgroundColor: "#ef444411",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 4,
+                            }}
+                          >
+                            <Ionicons name="document-text-outline" size={24} color="#ef4444" />
+                            <ThemedText style={{ fontSize: 9, fontWeight: "700", color: "#ef4444" }}>
+                              PDF
+                            </ThemedText>
+                          </View>
+                        )}
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => removeMedia(index)}
+                        style={{
+                          position: "absolute",
+                          top: -8,
+                          right: -8,
+                          backgroundColor: "#ef4444",
+                          width: 22,
+                          height: 22,
+                          borderRadius: 11,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          zIndex: 20,
+                          borderWidth: 2,
+                          borderColor: "#fff",
+                          shadowColor: "#000",
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.25,
+                          shadowRadius: 3.84,
+                          elevation: 5,
+                        }}
+                      >
+                        <Ionicons name="close" size={14} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+                <ThemedText style={{ fontSize: 12, color: textMuted, marginBottom: 20 }}>
+                  Images and videos can be changed when creating posts
+                </ThemedText>
+              </>
+            )}
+            </>
+          )}
+
+          {/* ── Content Type (Facebook/Instagram only) ── */}
           {(selectedPlatform === "FACEBOOK" || selectedPlatform === "INSTAGRAM") && (
             <View style={{ marginBottom: 20 }}>
               <ThemedText style={labelStyle}>Content Type</ThemedText>
@@ -633,154 +931,7 @@ export default function CreateTemplet() {
             </View>
           )}
 
-          {selectedPlatform !== "SMS" && (
-            <>
-              <ThemedText style={labelStyle}>Upload Media (Optional)</ThemedText>
-              <ThemedText style={{ fontSize: 12, color: textMuted, marginBottom: 10 }}>
-                Upload Images/Videos
-              </ThemedText>
-              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6, gap: 10 }}>
-
-                <TouchableOpacity
-                  onPress={handleUpload}
-                  disabled={uploading}
-                  style={{
-                    width: 70,
-                    height: 70,
-                    borderWidth: 1.5,
-                    borderStyle: "dashed",
-                    borderColor: isDark ? "#4b5563" : "#d1d5db",
-                    borderRadius: 12,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: card,
-                    opacity: uploading ? 0.6 : 1,
-                  }}
-                >
-                  {uploading ? (
-                    <View style={{ alignItems: "center" }}>
-                      <Ionicons name="hourglass-outline" size={20} color={textMuted} />
-                      <ThemedText style={{ fontSize: 8, color: textMuted }}>UPLOADING</ThemedText>
-                    </View>
-                  ) : (
-                    <Ionicons name="add" size={28} color={textMuted} />
-                  )}
-                </TouchableOpacity>
-
-             <ScrollView 
-               horizontal 
-               showsHorizontalScrollIndicator={false} 
-               contentContainerStyle={{ gap: 12, paddingVertical: 10, paddingHorizontal: 4 }}
-             >
-               {media.map((item, index) => (
-                 <View key={index} style={{ position: "relative", marginRight: 4 }}>
-                   <View
-                     style={{
-                       width: 70,
-                       height: 70,
-                      borderRadius: 12,
-                      overflow: "hidden",
-                      backgroundColor: inputBg,
-                      borderWidth: 1,
-                      borderColor: border,
-                    }}
-                  >
-                    {/* Placeholder for actual image component */}
-                    {item.type === "image" ? (
-                      <Image
-                        source={{ uri: item.uri || item.uploadedUrl }}
-                        style={{ width: "100%", height: "100%" }}
-                        resizeMode="cover"
-                      />
-                    ) : item.type === "video" ? (
-                      <View style={{ flex: 1 }}>
-                        <Video
-                          source={{ uri: item.uri || item.uploadedUrl || "" }}
-                          style={{ width: "100%", height: "100%" }}
-                          resizeMode="cover"
-                          paused={false}
-                          repeat
-                          muted
-                          controls={false}
-                        />
-                        <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.2)" }}>
-                           <Ionicons name="play" size={24} color="#fff" />
-                        </View>
-                      </View>
-                    ) : (
-                      <View
-                        style={{
-                          flex: 1,
-                          backgroundColor: "#ef444411",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: 4,
-                        }}
-                      >
-                        <Ionicons
-                          name="document-text-outline"
-                          size={24}
-                          color="#ef4444"
-                        />
-                        <ThemedText style={{ fontSize: 9, fontWeight: "700", color: "#ef4444" }}>
-                          PDF
-                        </ThemedText>
-                      </View>
-                    )}
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => removeMedia(index)}
-                    style={{
-                      position: "absolute",
-                      top: -8,
-                      right: -8,
-                      backgroundColor: "#ef4444",
-                      width: 22,
-                      height: 22,
-                      borderRadius: 11,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      zIndex: 20,
-                      borderWidth: 2,
-                      borderColor: "#fff",
-                      shadowColor: "#000",
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.25,
-                      shadowRadius: 3.84,
-                      elevation: 5,
-                    }}
-                  >
-                    <Ionicons name="close" size={14} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-          <ThemedText
-            style={{ fontSize: 12, color: textMuted, marginBottom: 20 }}
-          >
-            Images and videos can be changed when creating posts
-          </ThemedText>
-
-          {(selectedPlatform === "EMAIL" || selectedPlatform === "FACEBOOK" || selectedPlatform === "INSTAGRAM" || selectedPlatform === "LINKEDIN" || selectedPlatform === "PINTEREST" || selectedPlatform === "YOUTUBE") && (
-            <>
-              <ThemedText style={labelStyle}>
-                {selectedPlatform === "EMAIL" ? "Email Subject" : selectedPlatform === "YOUTUBE" ? "Video Title" : "Post Title"}
-              </ThemedText>
-              <TextInput
-                value={emailSubject}
-                onChangeText={setEmailSubject}
-                placeholder={
-                  selectedPlatform === "EMAIL" ? "Enter email subject" :
-                    selectedPlatform === "YOUTUBE" ? "Enter video title" :
-                      "Enter post title"
-                }
-                placeholderTextColor={textMuted}
-                style={[inputStyle, { marginBottom: 20 }]}
-              />
-            </>
-          )}
-
+          {/* ── Live Preview ── */}
           <ThemedText style={labelStyle}>Live Preview</ThemedText>
           <ThemedText style={{ fontSize: 12, color: textMuted, marginBottom: 10 }}>
             Type directly in the preview to see how your content will appear on {selectedPlatform}
@@ -825,19 +976,81 @@ export default function CreateTemplet() {
                 </View>
 
                 <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: border, paddingTop: 10 }}>
-                  <TextInput
-                    value={content}
-                    onChangeText={setContent}
-                    placeholder="Email content..."
-                    placeholderTextColor={textMuted}
-                    multiline
-                    style={{
-                      fontSize: 14,
-                      color: textPrimary,
-                      lineHeight: 20,
-                      minHeight: 100,
-                    }}
-                  />
+                   <TextInput
+                     value={content}
+                     onChangeText={setContent}
+                     placeholder="Email content..."
+                     placeholderTextColor={textMuted}
+                     multiline
+                     style={{
+                       fontSize: 14,
+                       color: textPrimary,
+                       lineHeight: 20,
+                       minHeight: 100,
+                     }}
+                   />
+                   
+                   {media.length > 0 && (
+                     <View style={{ marginTop: 12 }}>
+                       {media.map((item, index) => {
+                         const isVideo = item.type === "video";
+                         const isPdf = item.type === "pdf";
+                         
+                         let filename = item.name || item.uri.split('/').pop() || "file";
+                         if (filename.includes('?')) filename = filename.split('?')[0];
+                         
+                         const sizeStr = isVideo ? "14.2 MB" : isPdf ? "1.1 MB" : "2.4 MB";
+                         const iconName = isVideo ? "videocam-outline" : isPdf ? "document-text-outline" : "image-outline";
+                         
+                         return (
+                           <View
+                             key={index}
+                             style={{
+                               marginBottom: 12,
+                               borderWidth: 1,
+                               borderColor: isDark ? "#333" : "#e5e7eb",
+                               borderRadius: 8,
+                               overflow: "hidden"
+                             }}
+                           >
+                             <View
+                               style={{
+                                 flexDirection: "row",
+                                 alignItems: "center",
+                                 padding: 12,
+                                 backgroundColor: isDark ? "#2c2c2e" : "#fff"
+                               }}
+                             >
+                               <Ionicons name={iconName} size={24} color={isDark ? "#ccc" : "#555"} />
+                               
+                               <View style={{ flex: 1, paddingHorizontal: 12 }}>
+                                 <ThemedText
+                                   style={{ fontSize: 14, fontWeight: "500", color: isDark ? "#fff" : "#111827" }}
+                                   numberOfLines={1}
+                                 >
+                                   {filename}
+                                 </ThemedText>
+                                 <ThemedText style={{ fontSize: 12, color: textMuted, marginTop: 2 }}>
+                                   {sizeStr}
+                                 </ThemedText>
+                               </View>
+                               
+                               <TouchableOpacity
+                                 onPress={() => removeMedia(index)}
+                                 style={{
+                                   padding: 4,
+                                   borderRadius: 12,
+                                   backgroundColor: isDark ? "#444" : "#f3f4f6"
+                                 }}
+                               >
+                                 <Ionicons name="close" size={16} color={isDark ? "#ccc" : "#555"} />
+                               </TouchableOpacity>
+                             </View>
+                           </View>
+                         );
+                       })}
+                     </View>
+                   )}
                 </View>
               </View>
             </ThemedView>
@@ -1130,8 +1343,8 @@ export default function CreateTemplet() {
                 marginBottom: 20,
               }}
             >
-              <View style={{
-                aspectRatio: youtubeContentType === "SHORT" ? 9 / 16 : 16 / 9,
+              <View style={{ 
+                aspectRatio: youtubeContentType === "SHORT" ? 9/16 : 16/9, 
                 maxHeight: youtubeContentType === "SHORT" ? 400 : undefined,
                 backgroundColor: "#000",
                 alignItems: "center",
@@ -1348,12 +1561,12 @@ export default function CreateTemplet() {
               }}
 
             >
-              <View style={{ alignSelf: "flex-end", maxWidth: "88%", backgroundColor: "#007AFF", borderRadius: 18, borderBottomRightRadius: 2, paddingHorizontal: 12, paddingVertical: 8 }}>
+              <View style={{ alignSelf: "flex-end", maxWidth: "85%", backgroundColor: "#0B93F6", borderRadius: 18, borderBottomRightRadius: 4, paddingHorizontal: 12, paddingVertical: 8 }}>
                 <TextInput
                   value={content}
                   onChangeText={setContent}
                   placeholder="Message text..."
-                  placeholderTextColor="#8e8e93"
+                  placeholderTextColor="#rgba(255, 255, 255, 0.7)"
                   multiline
                   style={{
                     fontSize: 15,
@@ -1361,7 +1574,7 @@ export default function CreateTemplet() {
                     lineHeight: 20,
                   }}
                 />
-                <ThemedText style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", alignSelf: "flex-end", marginTop: 2 }}>
+                <ThemedText style={{ fontSize: 10, color: "rgba(255, 255, 255, 0.7)", alignSelf: "flex-end", marginTop: 2 }}>
                   12:34 PM
                 </ThemedText>
 
@@ -1381,18 +1594,7 @@ export default function CreateTemplet() {
               }}
 
             >
-              <View style={{ alignSelf: "flex-end", maxWidth: "88%", backgroundColor: isDark ? "#056162" : "#DCF8C6", borderRadius: 10, borderBottomRightRadius: 2, paddingHorizontal: 10, paddingVertical: 6 }}>
-
-                {media.length > 0 && (
-                  <View style={{ marginBottom: 6, borderRadius: 6, overflow: "hidden", width: "100%" }}>
-                    {media[0].type === "image" ? (
-                      <Image source={{ uri: media[0].uri || media[0].uploadedUrl }} style={{ width: "100%", aspectRatio: 4 / 3 }} resizeMode="cover" />
-                    ) : media[0].type === "video" ? (
-                      <Video source={{ uri: media[0].uri || media[0].uploadedUrl || "" }} style={{ width: "100%", aspectRatio: 4 / 3 }} resizeMode={ResizeMode.COVER} shouldPlay isLooping isMuted />
-                    ) : null}
-                  </View>
-                )}
-
+              <View style={{ alignSelf: "flex-end", maxWidth: "85%", backgroundColor: isDark ? "#056162" : "#DCF8C6", borderRadius: 8, borderTopRightRadius: 0, paddingHorizontal: 10, paddingVertical: 6 }}>
                 <TextInput
                   value={content}
                   onChangeText={setContent}

@@ -1,6 +1,6 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, Feather } from "@expo/vector-icons";
 import { WebView } from "react-native-webview";
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Dimensions, Image, ScrollView, Text, TouchableOpacity, useColorScheme, View } from "react-native";
 
 const Video = ({
@@ -8,61 +8,143 @@ const Video = ({
   style,
   poster,
   controls = false,
+  muted = true,
+  playLimit = 0,
+  playTrigger = 0,
+  onPlayLimitReached,
+  onMetadata,
   ...rest
 }: {
   source: { uri: string };
   style?: any;
   poster?: string;
   controls?: boolean;
+  muted?: boolean;
+  playLimit?: number;
+  playTrigger?: number;
+  onPlayLimitReached?: () => void;
+  onMetadata?: (data: { width: number; height: number; duration: number }) => void;
   [key: string]: any;
 }) => {
+  const webViewRef = useRef<WebView>(null);
+
+  const htmlSource = React.useMemo(() => {
+    return `
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+          <style>
+            html, body {
+              margin: 0; padding: 0; width: 100%; height: 100%;
+              background: #000000;
+              display: flex; align-items: center; justify-content: center;
+              overflow: hidden;
+            }
+            video { width: 100%; height: 100%; object-fit: cover; }
+          </style>
+        </head>
+        <body>
+          ${poster ? `<img id="poster-overlay" src="${poster}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 10; pointer-events: none;" />` : ""}
+          <video
+            src="${source.uri}"
+            ${poster ? `poster="${poster}"` : ""}
+            preload="metadata"
+            autoplay
+            ${playLimit === 0 ? "loop" : ""}
+            ${muted ? "muted" : ""}
+            playsinline
+            ${controls ? "controls" : ""}
+          />
+          <script>
+            var v = document.querySelector('video');
+            var posterOverlay = document.getElementById('poster-overlay');
+            var playLimit = ${playLimit};
+            var playCount = 0;
+            var metadataSent = false;
+            
+            function checkMetadata() {
+              if (!metadataSent && v && v.videoWidth > 0 && v.videoHeight > 0 && v.duration > 0) {
+                metadataSent = true;
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                  type: 'metadata',
+                  width: v.videoWidth,
+                  height: v.videoHeight,
+                  duration: v.duration
+                }));
+              }
+            }
+            
+            if (v) {
+              v.addEventListener('loadedmetadata', checkMetadata);
+              // Fallback interval in case loadedmetadata fires before bridge is ready or is skipped
+              var metaInterval = setInterval(function() {
+                checkMetadata();
+                if (metadataSent) clearInterval(metaInterval);
+              }, 250);
+
+              v.addEventListener('play', function() {
+                if (posterOverlay) posterOverlay.style.display = 'none';
+              });
+              v.addEventListener('pause', function() {
+                if (posterOverlay) posterOverlay.style.display = 'block';
+              });
+            }
+            if (playLimit > 0 && v) {
+              v.addEventListener('ended', function() {
+                playCount++;
+                if (playCount < playLimit) {
+                  v.play();
+                } else {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'limitReached' }));
+                }
+              });
+            }
+          </script>
+        </body>
+      </html>
+    `;
+  }, [source.uri, poster, controls, playLimit]);
+
+  useEffect(() => {
+    if (webViewRef.current) {
+      webViewRef.current.injectJavaScript(`
+        var v = document.querySelector('video');
+        if (v) { v.muted = ${muted ? "true" : "false"}; }
+        true;
+      `);
+    }
+  }, [muted]);
+
+  useEffect(() => {
+    if (webViewRef.current && playTrigger > 0) {
+      webViewRef.current.injectJavaScript(`
+        playCount = 0;
+        var v = document.querySelector('video');
+        if (v) { v.play(); }
+        true;
+      `);
+    }
+  }, [playTrigger]);
+
   return (
     <View style={[{ overflow: "hidden" }, style]}>
       <WebView
-        source={{
-          html: `
-            <html>
-              <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-                <style>
-                  html, body {
-                    margin: 0;
-                    padding: 0;
-                    width: 100%;
-                    height: 100%;
-                    background: #000000;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    overflow: hidden;
-                  }
-                  video {
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                  }
-                </style>
-              </head>
-              <body>
-                <video
-                  src="${source.uri}"
-                  ${poster ? `poster="${poster}"` : ""}
-                  autoplay
-                  loop
-                  muted
-                  playsinline
-                  ${controls ? "controls" : ""}
-                />
-              </body>
-            </html>
-          `,
-        }}
-        style={{
-          flex: 1,
-          backgroundColor: "#000000",
-        }}
+        ref={webViewRef}
+        source={{ html: htmlSource }}
+        style={{ flex: 1, backgroundColor: "#000000" }}
         javaScriptEnabled
         domStorageEnabled
+        mediaPlaybackRequiresUserAction={false}
+        onMessage={(event) => {
+          try {
+            const data = JSON.parse(event.nativeEvent.data);
+            if (data.type === 'limitReached' && onPlayLimitReached) onPlayLimitReached();
+            else if (data.type === 'metadata' && onMetadata)
+              onMetadata({ width: data.width, height: data.height, duration: data.duration });
+          } catch {
+            if (event.nativeEvent.data === 'limitReached' && onPlayLimitReached) onPlayLimitReached();
+          }
+        }}
       />
     </View>
   );
@@ -79,14 +161,7 @@ type PreviewProps = {
   media?: { uri: string; type: string; name?: string; size?: string }[];
   timestamp?: string;
   username: string;
-  senderEmail?: string;
-  subject?: string;
-  status?: string;
-  contactName?: string;
-  contactEmail?: string;
-  contactPhone?: string;
-  contactCompany?: string;
-  youtubeContentType?: "VIDEO" | "SHORT" | "PLAYLIST";
+  youTubeContentType?: string;
 };
 
 
@@ -102,15 +177,12 @@ const Preview: React.FC<PreviewProps> = ({
   images = [],
   media,
   timestamp,
-  senderEmail,
-  subject,
-  status,
-  contactName,
-  contactEmail,
-  contactPhone,
-  contactCompany,
-  youtubeContentType,
+  youTubeContentType,
 }) => {
+  const [isMuted, setIsMuted] = useState(true);
+  const [showWatchAgain, setShowWatchAgain] = useState(false);
+  const [playTrigger, setPlayTrigger] = useState(0);
+  const [isYTShort, setIsYTShort] = useState(false);
 
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
   const [videoCountdown, setVideoCountdown] = useState<string>("0:00");
@@ -175,12 +247,36 @@ const Preview: React.FC<PreviewProps> = ({
     },
   } as const;
 
+  const renderMedia = () => {
+    switch (platform) {
+      case "facebook":
+      case "linkedin":
+        if (!images.length) return null;
+        return renderFacebookPreview(images);
+      case "instagram":
+        if (!images.length) return null;
+        return <InstagramPreview media={images} coverImage={coverImage} />;
+      case "whatsapp":
+        return renderWhatsAppPreview();
+      case "sms":
+        return renderSmsPreview(); 
+      case "email":
+        return renderEmailPreview(); 
+      case "pinterest":
+        if (!images.length) return null;
+        return renderPinterestPreview();
+      case "youtube":
+        if (!images.length) return null;
+        return renderYouTubePreview();
+      default:
+        return null;
+    }
+  };
 
   const platformConfig = PLATFORM_CONFIG[platform as keyof typeof PLATFORM_CONFIG];
 
-  // Facebook & LinkedIn style media renderer
   const renderFacebookPreview = (images: string[]) => (
-    <View className="overflow-hidden mt-2">
+    <View className="overflow-hidden">
       {images.length === 1 && (
         images[0].match(/\.(mp4|mov|mkv)$/i) ? (
           <Video
@@ -189,7 +285,7 @@ const Preview: React.FC<PreviewProps> = ({
             resizeMode="cover"
             paused={false}
             repeat
-            muted
+            muted={false}
             controls={false}
           />
         ) : (
@@ -200,13 +296,13 @@ const Preview: React.FC<PreviewProps> = ({
       )}
 
       {images.length === 2 && (
-        <View className="w-full h-[300px] flex-row">
-          {images.map((uri, index) => (
+        <View style={{ flexDirection: "row", height: 300, gap: 4 }}>
+          {images.map((uri, index) =>
             uri.match(/\.(mp4|mov|mkv)$/i) ? (
               <Video
                 key={index}
                 source={{ uri }}
-                style={{ width: "50%", height: "100%" }}
+                style={{ flex: 1, height: "100%" }}
                 resizeMode="cover"
                 paused={false}
                 repeat
@@ -214,21 +310,26 @@ const Preview: React.FC<PreviewProps> = ({
                 controls={false}
               />
             ) : (
-              <Image key={index} source={{ uri }} className="w-1/2 h-full" />
+              <Image
+                key={index}
+                source={{ uri }}
+                style={{ flex: 1, height: "100%" }}
+                resizeMode="cover"
+              />
             )
-          ))}
+          )}
         </View>
       )}
 
       {images.length === 3 && (
-        <View>
-          <View className="flex-row h-[150px]">
+        <View style={{ gap: 4 }}>
+          <View style={{ flexDirection: "row", gap: 4, height: 160 }}>
             {images.slice(0, 2).map((uri, index) =>
               uri.match(/\.(mp4|mov|mkv)$/i) ? (
                 <Video
                   key={index}
                   source={{ uri }}
-                  style={{ width: "50%", height: "100%" }}
+                  style={{ flex: 1, height: "100%" }}
                   resizeMode="cover"
                   paused={false}
                   repeat
@@ -236,14 +337,19 @@ const Preview: React.FC<PreviewProps> = ({
                   controls={false}
                 />
               ) : (
-                <Image key={index} source={{ uri }} className="w-1/2 h-full" />
+                <Image
+                  key={index}
+                  source={{ uri }}
+                  style={{ flex: 1, height: "100%" }}
+                  resizeMode="cover"
+                />
               )
             )}
           </View>
           {images[2].match(/\.(mp4|mov|mkv)$/i) ? (
             <Video
               source={{ uri: images[2] }}
-              style={{ width: "100%", height: 150 }}
+              style={{ width: "100%", height: 140 }}
               resizeMode="cover"
               paused={false}
               repeat
@@ -251,22 +357,122 @@ const Preview: React.FC<PreviewProps> = ({
               controls={false}
             />
           ) : (
-            <Image source={{ uri: images[2] }} className="w-full h-[150px]" />
+            <Image
+              source={{ uri: images[2] }}
+              style={{ width: "100%", height: 140 }}
+              resizeMode="cover"
+            />
           )}
         </View>
       )}
 
-      {images.length >= 4 && (
-        <View className="flex-row flex-wrap h-[300px]">
-          {images.slice(0, 4).map((uri, index) => {
-            const remaining = images.length - 4;
-            const isLast = index === 3;
-            return (
-              <View key={index} className="w-1/2 h-1/2 relative">
-                {uri.match(/\.(mp4|mov|mkv)$/i) ? (
+      {images.length === 4 && (
+        <View style={{ gap: 4 }}>
+          {images[0].match(/\.(mp4|mov|mkv)$/i) ? (
+            <Video
+              source={{ uri: images[0] }}
+              style={{ width: "100%", height: 200 }}
+              resizeMode="cover"
+              paused={false}
+              repeat
+              muted
+              controls={false}
+            />
+          ) : (
+            <Image
+              source={{ uri: images[0] }}
+              style={{ width: "100%", height: 200 }}
+              resizeMode="cover"
+            />
+          )}
+          <View style={{ flexDirection: "row", gap: 4, height: 120 }}>
+            {images.slice(1, 4).map((uri, index) =>
+              uri.match(/\.(mp4|mov|mkv)$/i) ? (
+                <Video
+                  key={index}
+                  source={{ uri }}
+                  style={{ flex: 1, height: "100%" }}
+                  resizeMode="cover"
+                  paused={false}
+                  repeat
+                  muted
+                  controls={false}
+                />
+              ) : (
+                <Image
+                  key={index}
+                  source={{ uri }}
+                  style={{ flex: 1, height: "100%" }}
+                  resizeMode="cover"
+                />
+              )
+            )}
+          </View>
+        </View>
+      )}
+
+      {images.length === 5 && (
+        <View style={{ gap: 4 }}>
+          <View style={{ flexDirection: "row", gap: 4, height: 160 }}>
+            {images.slice(0, 2).map((uri, index) =>
+              uri.match(/\.(mp4|mov|mkv)$/i) ? (
+                <Video
+                  key={index}
+                  source={{ uri }}
+                  style={{ flex: 1, height: "100%" }}
+                  resizeMode="cover"
+                  paused={false}
+                  repeat
+                  muted
+                  controls={false}
+                />
+              ) : (
+                <Image
+                  key={index}
+                  source={{ uri }}
+                  style={{ flex: 1, height: "100%" }}
+                  resizeMode="cover"
+                />
+              )
+            )}
+          </View>
+          <View style={{ flexDirection: "row", gap: 4, height: 130 }}>
+            {images.slice(2, 5).map((uri, index) =>
+              uri.match(/\.(mp4|mov|mkv)$/i) ? (
+                <Video
+                  key={index}
+                  source={{ uri }}
+                  style={{ flex: 1, height: "100%" }}
+                  resizeMode="cover"
+                  paused={false}
+                  repeat
+                  muted
+                  controls={false}
+                />
+              ) : (
+                <Image
+                  key={index}
+                  source={{ uri }}
+                  style={{ flex: 1, height: "100%" }}
+                  resizeMode="cover"
+                />
+              )
+            )}
+          </View>
+        </View>
+      )}
+
+      {images.length >= 6 && (() => {
+        const remaining = images.length - 4;
+        return (
+          <View style={{ gap: 4 }}>
+            <View style={{ flexDirection: "row", gap: 4, height: 160 }}>
+              {images.slice(0, 2).map((uri, index) =>
+                uri.match(/\.(mp4|mov|mkv)$/i) ? (
                   <Video
+                    key={index}
                     source={{ uri }}
-                    style={{ width: "100%", height: "100%" }}
+                    style={{ flex: 1, height: "100%" }}
                     resizeMode="cover"
                     paused={false}
                     repeat
@@ -274,24 +480,63 @@ const Preview: React.FC<PreviewProps> = ({
                     controls={false}
                   />
                 ) : (
-                  <Image source={{ uri }} className="w-full h-full" />
-                )}
-                {isLast && remaining > 0 && (
-                  <View className="absolute inset-0 bg-black/60 items-center justify-center">
-                    <Text className="text-white text-3xl font-bold">
-                      +{remaining}
-                    </Text>
+                  <Image
+                    key={index}
+                    source={{ uri }}
+                    style={{ flex: 1, height: "100%" }}
+                    resizeMode="cover"
+                  />
+                )
+              )}
+            </View>
+            <View style={{ flexDirection: "row", gap: 4, height: 130 }}>
+              {images.slice(2, 5).map((uri, index) => {
+                const isLast = index === 2;
+                return (
+                  <View key={index} style={{ flex: 1, height: "100%", position: "relative" }}>
+                    {uri.match(/\.(mp4|mov|mkv)$/i) ? (
+                      <Video
+                        source={{ uri }}
+                        style={{ width: "100%", height: "100%" }}
+                        resizeMode="cover"
+                        paused={false}
+                        repeat
+                        muted
+                        controls={false}
+                      />
+                    ) : (
+                      <Image
+                        source={{ uri }}
+                        style={{ width: "100%", height: "100%" }}
+                        resizeMode="cover"
+                      />
+                    )}
+                    {isLast && remaining > 0 && (
+                      <View
+                        style={{
+                          position: "absolute",
+                          top: 0, left: 0, right: 0, bottom: 0,
+                          backgroundColor: "rgba(0,0,0,0.6)",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Text style={{ color: "white", fontSize: 28, fontWeight: "bold" }}>
+                          +{remaining}
+                        </Text>
+                      </View>
+                    )}
                   </View>
-                )}
-              </View>
-            );
-          })}
-        </View>
-      )}
+                );
+              })}
+            </View>
+          </View>
+        );
+      })()}
     </View>
   );
 
-  const InstagramPreview: React.FC<{ media: { uri: string; type: string }[]; coverImage?: string }> = ({ media, coverImage }) => {
+  const InstagramPreview: React.FC<{ media: string[]; coverImage?: string }> = ({ media, coverImage }) => {
     const scrollRef = useRef<ScrollView>(null);
     const [activeIndex, setActiveIndex] = useState(0);
 
@@ -349,6 +594,30 @@ const Preview: React.FC<PreviewProps> = ({
         {media.length > 1 && (
           <View
             style={{
+              position: "absolute",
+              top: 12,
+              right: 12,
+              backgroundColor: "rgba(0,0,0,0.65)",
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+              borderRadius: 12,
+            }}
+          >
+            <Text
+              style={{
+                color: "#fff",
+                fontSize: 12,
+                fontWeight: "600",
+              }}
+            >
+              {activeIndex + 1}/{media.length}
+            </Text>
+          </View>
+        )}
+
+        {media.length > 1 && (
+          <View
+            style={{
               flexDirection: "row",
               justifyContent: "center",
               marginTop: 8,
@@ -358,8 +627,8 @@ const Preview: React.FC<PreviewProps> = ({
               <View
                 key={index}
                 style={{
-                  width: 8,
-                  height: 8,
+                  width: 4,
+                  height: 4,
                   borderRadius: 4,
                   backgroundColor:
                     activeIndex === index ? "#3b82f6" : "#d1d5db",
@@ -415,7 +684,6 @@ const Preview: React.FC<PreviewProps> = ({
             </View>
           )}
 
-          {/* +N OVERLAY */}
           {showOverlay && remaining > 0 && (
             <View className="absolute inset-0 bg-black/60 items-center justify-center">
               <Text className="text-white text-2xl font-bold">
@@ -591,157 +859,55 @@ const Preview: React.FC<PreviewProps> = ({
         })()}
       </Text>
 
-      <View className="h-[1px] bg-gray-200 w-full mb-3" />
-      {(() => {
-        let displayedText = text;
-        const normalizedStatus = status?.toUpperCase();
-        if (normalizedStatus === "SENT") {
-          displayedText = displayedText
-            .replace(/\{\{\s*name\s*\}\}/g, contactName || "{{name}}")
-            .replace(/\{\{\s*email\s*\}\}/g, contactEmail || "{{email}}")
-            .replace(/\{\{\s*phone\s*\}\}/g, contactPhone || "{{phone}}")
-            .replace(/\{\{\s*contact\s*\}\}/g, contactPhone || "{{contact}}")
-            .replace(/\{\{\s*mobile\s*\}\}/g, contactPhone || "{{mobile}}")
-            .replace(/\{\{\s*company\s*\}\}/g, contactCompany || "{{company}}");
-        }
-        return <Text className="text-gray-900 mb-3">{displayedText}</Text>;
-      })()}
+      <Text className="text-gray-900 mb-3" style={{ color: isDark ? "#fff" : "#111827" }}>{text}</Text>
 
-      {normalizedMedia.length > 0 && (
-        <View className="mt-2">
-          {normalizedMedia.map((item, index) => {
-            const isPdf = item.type === "application/pdf" || item.uri.match(/\.pdf($|\?)/i);
-            const isImg = !isPdf && (item.type.startsWith("image/") || item.uri.match(/\.(jpg|jpeg|png|webp|gif)($|\?)/i));
-            const isVid = item.type.startsWith("video/") || item.uri.match(/\.(mp4|mov|mkv)($|\?)/i);
+      {images.map((uri, index) => {
+        const isVideo = /\.(mp4|mov|mkv)$/i.test(uri);
+        const isPdf = /\.pdf$/i.test(uri);
 
-            const fullName = item.name || item.uri.split('/').pop()?.split('?')[0] || `File ${index + 1}`;
-            const lastDotIndex = fullName.lastIndexOf('.');
-            const nameOnly = lastDotIndex > 0 ? fullName.substring(0, lastDotIndex) : fullName;
-            const extension = lastDotIndex > 0 ? fullName.substring(lastDotIndex + 1).toUpperCase() : "";
+        let filename = uri.split('/').pop() || "file";
+        if (filename.includes('?')) filename = filename.split('?')[0];
+        const sizeStr = isVideo ? "14.2 MB" : isPdf ? "1.1 MB" : "2.4 MB";
+        const iconName = isVideo ? "videocam-outline" : isPdf ? "document-text-outline" : "image-outline";
 
-            if (isPdf) {
-              return (
-                <View key={index} className="mb-4 bg-gray-50 rounded-lg overflow-hidden border border-gray-200">
-                  <View className="w-full h-40 bg-white items-center justify-center border-b border-gray-100">
-                    <View className="items-center">
-                      <Ionicons name="document-text" size={64} color="#ef4444" />
-                      <Text className="text-gray-400 mt-2 text-xs uppercase font-bold tracking-widest">{extension || 'PDF'}</Text>
-                    </View>
-                  </View>
-                  <View className="flex-row items-center justify-between p-3 bg-white">
-                    <View className="flex-row items-center flex-1">
-                      <Ionicons name="document" size={24} color="#ef4444" />
-                      <View className="ml-3 flex-1">
-                        <Text className="text-sm font-medium text-gray-800" numberOfLines={1}>
-                          {nameOnly}
-                        </Text>
-                        {item.size && (
-                          <Text className="text-xs text-gray-500">
-                            Size: {item.size}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                    {onRemoveMedia && (
-                      <TouchableOpacity onPress={() => onRemoveMedia?.(item.uri)}>
-                        <Ionicons name="close-circle" size={24} color="#ef4444" />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              );
-            }
-
-            if (isImg) {
-              return (
-                <View key={index} className="mb-4 bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
-                  <Image source={{ uri: item.uri }} style={{ width: "100%", height: 200 }} resizeMode="cover" />
-                  <View className="flex-row items-center justify-between p-3 bg-white">
-                    <View className="flex-row items-center flex-1">
-                      <Ionicons name="image" size={24} color="#3b82f6" />
-                      <View className="ml-3 flex-1">
-                        <Text className="text-sm font-medium text-gray-800" numberOfLines={1}>
-                          {nameOnly}
-                        </Text>
-                        {extension && (
-                          <Text className="text-xs text-gray-500">
-                            {extension} File
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                    {onRemoveMedia && (
-                      <TouchableOpacity onPress={() => onRemoveMedia?.(item.uri)}>
-                        <Ionicons name="close-circle" size={24} color="#ef4444" />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              );
-            }
-
-            if (isVid) {
-              return (
-                <View key={index} className="mb-4 bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
-                  <Video
-                    source={{ uri: item.uri }}
-                    style={{ width: "100%", height: 200 }}
-                    resizeMode={ResizeMode.COVER}
-                    shouldPlay={false}
-                    useNativeControls
-                  />
-                  <View className="flex-row items-center justify-between p-3 bg-white">
-                    <View className="flex-row items-center flex-1">
-                      <Ionicons name="videocam" size={24} color="#ef4444" />
-                      <View className="ml-3 flex-1">
-                        <Text className="text-sm font-medium text-gray-800" numberOfLines={1}>
-                          {nameOnly}
-                        </Text>
-                        {extension && (
-                          <Text className="text-xs text-gray-500">
-                            {extension} Video
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                    {onRemoveMedia && (
-                      <TouchableOpacity onPress={() => onRemoveMedia?.(item.uri)}>
-                        <Ionicons name="close-circle" size={24} color="#ef4444" />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              );
-            }
-
-            // Fallback for other files
-            return (
-              <View key={index} className="mb-4 bg-white rounded-lg p-3 border border-gray-200 flex-row items-center justify-between">
-                <View className="flex-row items-center flex-1">
-                  <View className="bg-gray-100 p-2 rounded-lg">
-                    <Ionicons name="document-outline" size={24} color="#6b7280" />
-                  </View>
-                  <View className="ml-3 flex-1">
-                    <Text className="text-sm font-medium text-gray-800" numberOfLines={1}>
-                      {fullName}
-                    </Text>
-                    {item.size && (
-                      <Text className="text-xs text-gray-500">
-                        {item.size}
-                      </Text>
-                    )}
-                  </View>
-                </View>
-                {onRemoveMedia && (
-                  <TouchableOpacity onPress={() => onRemoveMedia?.(item.uri)}>
-                    <Ionicons name="close-circle" size={24} color="#ef4444" />
-                  </TouchableOpacity>
-                )}
+        return (
+          <View
+            key={index}
+            className="mb-3 border rounded-lg overflow-hidden"
+            style={{ borderColor: isDark ? "#333" : "#e5e7eb" }}
+          >
+            <View
+              className="flex-row items-center p-3"
+              style={{ backgroundColor: isDark ? "#2c2c2e" : "#fff" }}
+            >
+              <Ionicons name={iconName} size={24} color={isDark ? "#ccc" : "#555"} />
+              
+              <View className="flex-1 px-3">
+                <Text
+                  className="font-medium text-sm"
+                  numberOfLines={1}
+                  style={{ color: isDark ? "#fff" : "#111827" }}
+                >
+                  {filename}
+                </Text>
+                <Text className="text-xs text-gray-500 mt-0.5">
+                  {sizeStr}
+                </Text>
               </View>
-            );
-          })}
-        </View>
-      )}
+
+              <TouchableOpacity
+                style={{
+                  padding: 4,
+                  borderRadius: 12,
+                  backgroundColor: isDark ? "#444" : "#f3f4f6"
+                }}
+              >
+                <Ionicons name="close" size={16} color={isDark ? "#ccc" : "#555"} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
+      })}
     </View>
 
   );
@@ -776,7 +942,9 @@ const Preview: React.FC<PreviewProps> = ({
   };
 
   const renderPinterestPreview = () => {
-    if (!normalizedMedia || normalizedMedia.length === 0) return null; // early exit
+    if (!images || images.length === 0) return null;
+
+    const isVideo = (uri: string) => /\.(mp4|mov|mkv)$/i.test(uri);
 
     return (
       <View className="p-3 bg-white" style={{ backgroundColor: isDark ? "#161618" : "#fff" }}>
@@ -786,7 +954,6 @@ const Preview: React.FC<PreviewProps> = ({
             className="mb-4 rounded-lg overflow-hidden border border-gray-200"
             style={{ minHeight: 200, position: "relative" }}
           >
-            {/* MEDIA */}
             {isVideo(uri) ? (
               <Video
                 source={{ uri }}
@@ -807,8 +974,7 @@ const Preview: React.FC<PreviewProps> = ({
               </TouchableOpacity>
             )}
 
-            {isVideo(item) && (
-
+            {isVideo(uri) && (
               <View
                 style={{
                   position: "absolute",
@@ -880,351 +1046,315 @@ const Preview: React.FC<PreviewProps> = ({
   };
 
   const renderYouTubePreview = () => {
-    if (!normalizedMedia || normalizedMedia.length === 0) return null;
+    const isDemo = !images || images.length === 0;
+    const thumbnail   = isDemo ? "" : images[0];
+    const isVideoFile = thumbnail ? /\.(mp4|mov|mkv)$/i.test(thumbnail) : false;
+    const bgColor   = isDark ? "#0f0f0f" : "#ffffff";
+    const textColor = isDark ? "#ffffff" : "#0f0f0f";
+    const subColor  = isDark ? "#aaaaaa" : "#606060";
+    const chipBg    = isDark ? "#272727" : "#f2f2f2";
+    const divColor  = isDark ? "#333333" : "#e5e5e5";
+    const iconColor = isDark ? "#ffffff" : "#0f0f0f";
 
-    if (isYouTubeShort) {
-      return renderYouTubeShort(normalizedMedia[0]);
-    }
+    const handleMeta = ({ width, height, duration }: { width: number; height: number; duration: number }) => {
+      setIsYTShort(height > width && duration <= 180);
+    };
 
-    const videoItem = normalizedMedia[0];
-    const bgColor = isDark ? "#0f0f0f" : "#ffffff";
-    const metaColor = isDark ? "#aaaaaa" : "#606060";
-    const titleColor = isDark ? "#ffffff" : "#0f0f0f";
+    const displayAsShort = youTubeContentType === "SHORT" || (isYTShort && isVideoFile);
 
-    return (
-      <View style={{ backgroundColor: bgColor, borderRadius: 0, overflow: "hidden" }}>
-
-        {/* Thumbnail / Video */}
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => {
-            if (!hasStarted && coverImage) {
-              setHasStarted(true);
-              setIsPlaying(true);
-            } else {
-              setIsPlaying(!isPlaying);
-            }
-          }}
-          style={{ width: "100%", aspectRatio: 16 / 9, backgroundColor: "#000", position: "relative" }}
-        >
-          {isVideo(videoItem) ? (
+    if (displayAsShort) {
+      const shortH = SCREEN_WIDTH * 1.65;
+      const actions = [
+        { icon: "thumbs-up",           label: "48K"    },
+        { icon: "thumbs-down",         label: "Dislike" },
+        { icon: "chatbubble-ellipses", label: "250"    },
+        { icon: "arrow-redo",          label: "Share"  },
+        { icon: "repeat",              label: "Repost" },
+      ] as const;
+      return (
+        <View style={{ backgroundColor: "#000", width: "100%", height: shortH, position: "relative", overflow: "hidden" }}>
+          {isDemo ? (
+            <View style={{ width: "100%", height: "100%", backgroundColor: "#222", alignItems: "center", justifyContent: "center" }}>
+              <Ionicons name="play-circle-outline" size={64} color="#555" />
+              <Text style={{ color: "#555", marginTop: 8 }}>Upload a vertical video</Text>
+            </View>
+          ) : isVideoFile ? (
             <Video
-              source={{ uri: videoItem.uri }}
+              source={{ uri: thumbnail }}
+              poster={coverImage || undefined}
               style={{ width: "100%", height: "100%" }}
-              resizeMode={ResizeMode.COVER}
-              shouldPlay={isPlaying && (hasStarted || !coverImage)}
-              isLooping
-              isMuted
-              useNativeControls={false}
-              onPlaybackStatusUpdate={(status: any) => {
-                if (status.isLoaded && status.durationMillis) {
-                  const remaining = Math.max(0, Math.ceil((status.durationMillis - (status.positionMillis ?? 0)) / 1000));
-                  const mins = Math.floor(remaining / 60);
-                  const secs = remaining % 60;
-                  setVideoCountdown(`${mins}:${secs.toString().padStart(2, "0")}`);
-                }
-              }}
+              controls={false}
+              muted={false}
+              onMetadata={handleMeta}
             />
           ) : (
-            <Image
-              source={{ uri: videoItem.uri }}
-              style={{ width: "100%", height: "100%" }}
-              resizeMode="cover"
-            />
+            <Image source={{ uri: thumbnail }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
           )}
 
-          {(!isPlaying || (!hasStarted && coverImage)) && (
-            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.2)", zIndex: 5 }}>
-              <Ionicons name={hasStarted ? (isPlaying ? "pause" : "play") : "play-circle"} size={hasStarted ? 48 : 64} color="white" />
+          <View style={{ position: "absolute", right: 10, bottom: 130, alignItems: "center", gap: 22 }}>
+            {actions.map((btn, i) => (
+              <View key={i} style={{ alignItems: "center" }}>
+                <TouchableOpacity style={{ padding: 4 }}>
+                  <Ionicons name={btn.icon as any} size={30} color="white" />
+                </TouchableOpacity>
+                <Text style={{ color: "white", fontSize: 11, fontWeight: "600", marginTop: 2 }}>{btn.label}</Text>
+              </View>
+            ))}
+            <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: "#333", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#888", marginTop: 4 }}>
+              <Ionicons name="musical-notes" size={16} color="white" />
             </View>
-          )}
-
-          {!!coverImage && !hasStarted && (
-            <Image
-              source={{ uri: coverImage }}
-              style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 1 }}
-              resizeMode="cover"
-              onError={(e) => console.log("Thumbnail Image Load Error:", e.nativeEvent.error)}
-              onLoad={() => console.log("Thumbnail Image Loaded Successfully")}
-            />
-          )}
-
-          <View style={{
-            position: "absolute", bottom: 8, right: 8,
-            backgroundColor: "rgba(0,0,0,0.82)",
-            borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2
-          }}>
-            <Text style={{ color: "white", fontSize: 12, fontWeight: "600", letterSpacing: 0.3 }}>
-              {videoCountdown}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Info Area */}
-        <View style={{ paddingHorizontal: 12, paddingTop: 12, paddingBottom: 14 }}>
-          {/* Row 1: Title */}
-          <View style={{ marginBottom: 4 }}>
-            {onChangeText ? (
-              <TextInput
-                value={text}
-                onChangeText={onChangeText}
-                placeholder="Video title..."
-                placeholderTextColor={metaColor}
-                multiline
-                numberOfLines={2}
-                style={{ color: titleColor, fontSize: 16, fontWeight: "600", padding: 0 }}
-              />
-            ) : (
-              <Text style={{ color: titleColor, fontSize: 16, fontWeight: "600" }} numberOfLines={2}>
-                {text || "Video title..."}
-              </Text>
-            )}
           </View>
 
-          {/* Row 2: Channel Name • Views • Time • Hastags ...more */}
-          <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
-            <Text style={{ color: metaColor, fontSize: 12 }}>
-              1.2K views • {timestamp || "Just now"} • 
-            </Text>
-            <Text style={{ color: isDark ? "#aaa" : "#065fd4", fontSize: 12 }}> #youtube #video </Text>
-            <Text style={{ color: titleColor, fontSize: 12, fontWeight: "600" }}>...more</Text>
-          </View>
-
-          {/* Row 3: Profile, Subscribe, Action Buttons */}
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            
-            {/* Profile + Subscribe */}
-            <View style={{ flexDirection: "row", alignItems: "center", marginRight: 16 }}>
+          <View style={{ position: "absolute", bottom: 0, left: 0, right: 56, paddingHorizontal: 12, paddingBottom: 18 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
               {profilePic ? (
-                <Image source={{ uri: profilePic }} style={{ width: 34, height: 34, borderRadius: 17, marginRight: 8 }} />
+                <Image source={{ uri: profilePic }} style={{ width: 34, height: 34, borderRadius: 17, marginRight: 8, borderWidth: 1.5, borderColor: "white" }} />
               ) : (
-                <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: "#CC0000", alignItems: "center", justifyContent: "center", marginRight: 8 }}>
-                  <Text style={{ color: "white", fontWeight: "bold", fontSize: 16 }}>
-                    {username ? username[0].toUpperCase() : "Y"}
-                  </Text>
+                <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: "#FF0000", alignItems: "center", justifyContent: "center", marginRight: 8, borderWidth: 1.5, borderColor: "white" }}>
+                  <Text style={{ color: "white", fontWeight: "700", fontSize: 13 }}>{username?.charAt(0)?.toUpperCase() || "Y"}</Text>
                 </View>
               )}
-              <Text style={{ color: titleColor, fontWeight: "bold", fontSize: 14, marginRight: 12 }}>
-                {username || "Channel"}
-              </Text>
-              <TouchableOpacity style={{ backgroundColor: isDark ? "white" : "black", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 }}>
-                <Text style={{ color: isDark ? "black" : "white", fontWeight: "bold", fontSize: 13 }}>Subscribe</Text>
+              <Text style={{ color: "white", fontWeight: "700", fontSize: 13, flex: 1 }}>@{username}</Text>
+              <TouchableOpacity style={{ borderWidth: 1.5, borderColor: "white", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 }}>
+                <Text style={{ color: "white", fontWeight: "700", fontSize: 12 }}>Subscribe</Text>
               </TouchableOpacity>
             </View>
-
-            {/* Scrollable Actions */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: "center", gap: 8, paddingRight: 20 }}>
-              {/* Like / Dislike Group */}
-              <View style={{ flexDirection: "row", backgroundColor: isDark ? "#272727" : "#0000000D", borderRadius: 20, alignItems: "center" }}>
-                <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 8, borderRightWidth: 1, borderRightColor: isDark ? "#3f3f3f" : "#0000001A" }}>
-                  <Ionicons name="thumbs-up-outline" size={18} color={titleColor} />
-                  <Text style={{ color: titleColor, fontSize: 13, fontWeight: "600", marginLeft: 6 }}>12K</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
-                  <Ionicons name="thumbs-down-outline" size={18} color={titleColor} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Share */}
-              <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", backgroundColor: isDark ? "#272727" : "#0000000D", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 }}>
-                <Ionicons name="share-social-outline" size={18} color={titleColor} />
-                <Text style={{ color: titleColor, fontSize: 13, fontWeight: "600", marginLeft: 6 }}>Share</Text>
-              </TouchableOpacity>
-
-              {/* Remix */}
-              <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", backgroundColor: isDark ? "#272727" : "#0000000D", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 }}>
-                <Ionicons name="cut-outline" size={18} color={titleColor} />
-                <Text style={{ color: titleColor, fontSize: 13, fontWeight: "600", marginLeft: 6 }}>Remix</Text>
-              </TouchableOpacity>
-
-              {/* Download */}
-              <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", backgroundColor: isDark ? "#272727" : "#0000000D", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 }}>
-                <Ionicons name="download-outline" size={18} color={titleColor} />
-                <Text style={{ color: titleColor, fontSize: 13, fontWeight: "600", marginLeft: 6 }}>Download</Text>
-              </TouchableOpacity>
-
-              {/* Save */}
-              <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", backgroundColor: isDark ? "#272727" : "#0000000D", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 }}>
-                <Ionicons name="bookmark-outline" size={18} color={titleColor} />
-                <Text style={{ color: titleColor, fontSize: 13, fontWeight: "600", marginLeft: 6 }}>Save</Text>
-              </TouchableOpacity>
-
-              {/* Report */}
-              <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", backgroundColor: isDark ? "#272727" : "#0000000D", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 }}>
-                <Ionicons name="flag-outline" size={18} color={titleColor} />
-                <Text style={{ color: titleColor, fontSize: 13, fontWeight: "600", marginLeft: 6 }}>Report</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </View>
-    );
-  };
-
-
-  const renderYouTubeShort = (videoItem: any) => {
-    return (
-      <View style={{ width: "100%", height: 550, backgroundColor: "#000", borderRadius: 12, overflow: "hidden" }}>
-
-        {/* Header Overlay */}
-        <View style={{ position: "absolute", top: 16, left: 16, right: 16, zIndex: 10, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <Text style={{ color: "white", fontWeight: "bold", fontSize: 16, textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 4 }}>Shorts</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-            <Ionicons name="search-outline" size={22} color="white" />
-            <Ionicons name="ellipsis-vertical" size={22} color="white" />
-          </View>
-        </View>
-
-        {/* Core Video Player */}
-        <View style={{ flex: 1, backgroundColor: "#000" }}>
-          {isVideo(videoItem) ? (
-            <Video
-              source={{ uri: videoItem.uri }}
-              style={{ width: "100%", height: "100%" }}
-              resizeMode={ResizeMode.COVER}
-              shouldPlay={!coverImage}
-              isLooping
-              isMuted
-              useNativeControls={false}
-              posterSource={coverImage ? { uri: coverImage } : undefined}
-              usePoster={!!coverImage}
-            />
-          ) : (
-            <Image
-              source={{ uri: videoItem.uri }}
-              style={{ width: "100%", height: "100%" }}
-              resizeMode="cover"
-            />
-          )}
-
-          {/* Custom thumbnail overlay for Shorts */}
-          {!!coverImage && (
-            <Image
-              source={{ uri: coverImage }}
-              style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
-              resizeMode="cover"
-            />
-          )}
-        </View>
-
-        {/* Bottom overlay */}
-        <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 10 }}>
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.8)']}
-            style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 220 }}
-          />
-
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", paddingHorizontal: 16, paddingBottom: 24, paddingTop: 60 }}>
-
-            {/* Left: profile + caption */}
-            <View style={{ flex: 1, paddingRight: 16 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-                {profilePic ? (
-                  <Image source={{ uri: profilePic }} style={{ width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: "white" }} />
-                ) : (
-                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: "#444", borderWidth: 1, borderColor: "white" }} />
-                )}
-                <Text style={{ color: "white", fontWeight: "bold", fontSize: 14, marginLeft: 10, textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 4 }}>
-                  @{username ? username.toLowerCase().replace(/\s+/g, "") : "user"}
-                </Text>
-                <TouchableOpacity style={{ borderColor: 'white', borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 10 }}>
-                  <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>Subscribe</Text>
-                </TouchableOpacity>
-              </View>
-
-              {onChangeText ? (
-                <TextInput
-                  value={text}
-                  onChangeText={onChangeText}
-                  placeholder="Add a caption..."
-                  placeholderTextColor="rgba(255,255,255,0.6)"
-                  multiline
-                  numberOfLines={2}
-                  style={{ color: "white", fontSize: 13, marginBottom: 10, textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 4, padding: 0, textAlignVertical: 'top' }}
-                />
-              ) : (
-                <Text style={{ color: "white", fontSize: 13, marginBottom: 10, textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 4, opacity: text ? 1 : 0.6 }} numberOfLines={2}>
-                  {text || "Add a caption..."}
-                </Text>
-              )}
-
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, alignSelf: 'flex-start' }}>
-                <Ionicons name="musical-note" size={12} color="white" />
-                <Text style={{ color: 'white', fontSize: 12, marginLeft: 6, fontWeight: '500' }}>Original Audio</Text>
-              </View>
-            </View>
-
-            {/* Right: action icons */}
-            <View style={{ alignItems: "center" }}>
-              <View style={{ alignItems: "center", marginBottom: 16 }}>
-                <Ionicons name="thumbs-up" size={28} color="white" />
-                <Text style={{ color: "white", fontSize: 11, fontWeight: "600", marginTop: 4 }}>12K</Text>
-              </View>
-              <View style={{ alignItems: "center", marginBottom: 16 }}>
-                <Ionicons name="thumbs-down" size={28} color="white" />
-                <Text style={{ color: "white", fontSize: 11, fontWeight: "600", marginTop: 4 }}>Dislike</Text>
-              </View>
-              <View style={{ alignItems: "center", marginBottom: 16 }}>
-                <Ionicons name="chatbubble-ellipses" size={28} color="white" />
-                <Text style={{ color: "white", fontSize: 11, fontWeight: "600", marginTop: 4 }}>456</Text>
-              </View>
-              <View style={{ alignItems: "center", marginBottom: 16 }}>
-                <Ionicons name={"share-social" as any} size={28} color="white" />
-                <Text style={{ color: "white", fontSize: 11, fontWeight: "600", marginTop: 4 }}>Share</Text>
-              </View>
-              <View style={{ alignItems: "center" }}>
-                <Ionicons name="sync" size={26} color="white" />
-                <Text style={{ color: "white", fontSize: 11, fontWeight: "600", marginTop: 4 }}>Remix</Text>
-              </View>
+            {/* Caption */}
+            {!!text && (
+              <Text style={{ color: "white", fontSize: 13, lineHeight: 18, marginBottom: 6 }} numberOfLines={2}>{text}</Text>
+            )}
+            {/* Audio row */}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+              <Ionicons name="musical-notes" size={13} color="white" />
+              <Text style={{ color: "white", fontSize: 12 }} numberOfLines={1}>Original audio · @{username}</Text>
             </View>
           </View>
-        </View>
-
-        {/* Tap to fullscreen */}
-        <TouchableOpacity
-          style={{ position: 'absolute', top: 50, left: 0, right: 80, bottom: 0, zIndex: 5 }}
-          onPress={() => setFullscreenIndex(0)}
-        />
-      </View>
-    );
-  };
-
-
-  const renderActions = () => {
-    if (platform === "facebook") {
-      return (
-        <View className="flex-row items-center border-t border-gray-200 pt-2 mt-2 px-4">
-          <TouchableOpacity>
-            <Ionicons name="thumbs-up-outline" size={22} color="#555" />
-          </TouchableOpacity>
-          <TouchableOpacity className="ml-4">
-            <Ionicons name="chatbubble-outline" size={22} color="#555" />
-          </TouchableOpacity>
-          <TouchableOpacity className="ml-4">
-            <Ionicons name="share-social-outline" size={22} color="#555" />
-          </TouchableOpacity>
         </View>
       );
     }
 
+    return (
+      <View style={{ backgroundColor: bgColor }}>
+
+        <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 10 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 5 }}>
+            <View style={{ backgroundColor: "#FF0000", borderRadius: 5, paddingHorizontal: 6, paddingVertical: 3 }}>
+              <Ionicons name="play" size={11} color="white" />
+            </View>
+            <Text style={{ fontWeight: "900", fontSize: 16, color: textColor, letterSpacing: -0.5 }}>YouTube</Text>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
+            <Ionicons name="notifications-outline" size={22} color={iconColor} />
+            <Ionicons name="search-outline"        size={22} color={iconColor} />
+            {profilePic ? (
+              <Image source={{ uri: profilePic }} style={{ width: 28, height: 28, borderRadius: 14 }} />
+            ) : (
+              <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#FF0000", alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ color: "white", fontWeight: "700", fontSize: 13 }}>{username?.charAt(0)?.toUpperCase() || "Y"}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+        <View style={{ width: "100%", height: 210 }}>
+          {isDemo ? (
+            <View style={{ width: "100%", height: "100%", backgroundColor: isDark ? "#222" : "#eee", alignItems: "center", justifyContent: "center" }}>
+              <Ionicons name="play-circle-outline" size={48} color={subColor} />
+              <Text style={{ color: subColor, marginTop: 8 }}>Video thumbnail</Text>
+            </View>
+          ) : isVideoFile ? (
+            <Video
+              source={{ uri: thumbnail }}
+              style={{ width: "100%", height: "100%" }}
+              controls={true}
+              muted={false}
+              onMetadata={handleMeta}
+            />
+          ) : (
+            <>
+              <Image source={{ uri: thumbnail }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+              <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}>
+                <View style={{ backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 40, padding: 14 }}>
+                  <Ionicons name="play" size={30} color="white" />
+                </View>
+              </View>
+              <View style={{ position: "absolute", bottom: 8, right: 8, backgroundColor: "rgba(0,0,0,0.82)", borderRadius: 3, paddingHorizontal: 5, paddingVertical: 2 }}>
+                <Text style={{ color: "white", fontSize: 11, fontWeight: "700" }}>4:32</Text>
+              </View>
+            </>
+          )}
+        </View>
+
+        <View style={{ paddingHorizontal: 12, paddingTop: 10, paddingBottom: 12 }}>
+
+          {!!text && (
+            <Text style={{ fontSize: 15, fontWeight: "700", color: textColor, lineHeight: 21, marginBottom: 5 }} numberOfLines={2}>
+              {text}
+            </Text>
+          )}
+
+          <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 5, marginBottom: 10 }}>
+            <Text style={{ fontSize: 12, color: subColor }}>1.2M views</Text>
+            <Text style={{ fontSize: 12, color: subColor }}>·</Text>
+            <Text style={{ fontSize: 12, color: "#3EA6FF" }}>#trending</Text>
+            <Text style={{ fontSize: 12, color: "#3EA6FF" }}>#shorts</Text>
+            <Text style={{ fontSize: 12, color: subColor }}>·</Text>
+            <Text style={{ fontSize: 12, color: subColor }}>{timestamp || "2 days ago"}</Text>
+          </View>
+
+          <View style={{ height: 1, backgroundColor: divColor, marginBottom: 10 }} />
+
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+            {profilePic ? (
+              <Image source={{ uri: profilePic }} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10 }} />
+            ) : (
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: "#FF0000", alignItems: "center", justifyContent: "center", marginRight: 10 }}>
+                <Text style={{ color: "white", fontWeight: "700", fontSize: 15 }}>{username?.charAt(0)?.toUpperCase() || "Y"}</Text>
+              </View>
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: "700", color: textColor }}>{username}</Text>
+              <Text style={{ fontSize: 11, color: subColor }}>248K subscribers</Text>
+            </View>
+            <TouchableOpacity style={{ backgroundColor: "#FF0000", borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7 }}>
+              <Text style={{ color: "white", fontWeight: "700", fontSize: 13 }}>Subscribe</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ height: 1, backgroundColor: divColor, marginBottom: 10 }} />
+
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: chipBg, borderRadius: 20, overflow: "hidden" }}>
+              <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 8, gap: 5 }}>
+                <Ionicons name="thumbs-up-outline" size={16} color={iconColor} />
+                <Text style={{ fontSize: 13, fontWeight: "600", color: textColor }}>48K</Text>
+              </TouchableOpacity>
+              <View style={{ width: 1, height: 22, backgroundColor: isDark ? "#444" : "#ccc" }} />
+              <TouchableOpacity style={{ paddingHorizontal: 14, paddingVertical: 8 }}>
+                <Ionicons name="thumbs-down-outline" size={16} color={iconColor} />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", backgroundColor: chipBg, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, gap: 6 }}>
+              <Ionicons name="arrow-redo-outline" size={16} color={iconColor} />
+              <Text style={{ fontSize: 13, fontWeight: "600", color: textColor }}>Share</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ height: 1, backgroundColor: divColor, marginBottom: 10 }} />
+
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <Text style={{ fontSize: 14, fontWeight: "700", color: textColor }}>
+              Comments{" "}
+              <Text style={{ color: subColor, fontWeight: "400" }}>1,482</Text>
+            </Text>
+            <Ionicons name="swap-vertical-outline" size={18} color={iconColor} />
+          </View>
+
+          {[
+            { user: "Alex M.",  avatar: "#3EA6FF", comment: "Absolutely love this! 🔥",           time: "2h" },
+            { user: "Sarah K.", avatar: "#FF7043", comment: "Really helpful, thanks for sharing!", time: "5h" },
+          ].map((c, i) => (
+            <View key={i} style={{ flexDirection: "row", marginBottom: 12, gap: 8 }}>
+              <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: c.avatar, alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ color: "white", fontWeight: "700", fontSize: 12 }}>{c.user.charAt(0)}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: textColor }}>{c.user}</Text>
+                  <Text style={{ fontSize: 11, color: subColor }}>{c.time}</Text>
+                </View>
+                <Text style={{ fontSize: 12, color: textColor, marginTop: 2 }}>{c.comment}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 5 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <Ionicons name="thumbs-up-outline" size={13} color={subColor} />
+                    <Text style={{ fontSize: 11, color: subColor }}>142</Text>
+                  </View>
+                  <Ionicons name="thumbs-down-outline" size={13} color={subColor} />
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  };
+
+  const renderActions = () => {
+    if (platform === "facebook") {
+      return (
+  <View className="border-t border-gray-200 pt-2 mt-2">
+    <View className="flex-row items-center px-3">
+      
+      <View className="flex-row items-center mr-4">
+        <Ionicons name="thumbs-up" size={16} color="#1877F2" />
+        <Text className="ml-1 text-xs text-gray-500">12K</Text>
+      </View>
+
+      <View className="flex-row items-center mr-4">
+        <Ionicons name="chatbubble-outline" size={16} color="#555" />
+        <Text className="ml-1 text-xs text-gray-500">250</Text>
+      </View>
+
+      <View className="flex-row items-center">
+        <Ionicons name="arrow-redo-outline" size={16} color="#555" />
+        <Text className="ml-1 text-xs text-gray-500">100</Text>
+      </View>
+
+    </View>
+  </View>
+);
+    }
+
     if (platform === "linkedin") {
       return (
-        <View className="flex-row justify-around border-t border-gray-200 pt-2 mt-2">
-          <View className="flex-row items-center">
-            <Ionicons name="thumbs-up-outline" size={16} color="#555" />
-            <Text className="ml-1 text-gray-500 font-medium">Like</Text>
+        <View>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <View style={{ flexDirection: "row" }}>
+                <Text style={{ fontSize: 14 }}>👍</Text>
+                <Text style={{ fontSize: 14, marginLeft: -4 }}>❤️</Text>
+                <Text style={{ fontSize: 14, marginLeft: -4 }}>💡</Text>
+              </View>
+              <Text style={{ fontSize: 12, color: "#666", marginLeft: 4 }}>12,482</Text>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Text style={{ fontSize: 12, color: "#666" }}>250 comments</Text>
+              <Text style={{ fontSize: 12, color: "#666" }}>·</Text>
+              <Text style={{ fontSize: 12, color: "#666" }}>100 reposts</Text>
+            </View>
           </View>
-          <View className="flex-row items-center">
-            <Ionicons name="chatbubble-outline" size={16} color="#555" />
-            <Text className="ml-1 text-gray-500 font-medium">Comment</Text>
-          </View>
-          <View className="flex-row items-center">
-            <Ionicons name="repeat-outline" size={16} color="#555" />
-            <Text className="ml-1 text-gray-500 font-medium">Repost</Text>
-          </View>
-          <View className="flex-row items-center">
-            <Ionicons name="paper-plane-outline" size={16} color="#555" />
-            <Text className="ml-1 text-gray-500 font-medium">Send</Text>
+
+          <View
+            className="flex-row justify-around border-t border-gray-200 pt-2 mt-1"
+            style={{ paddingBottom: 4 }}
+          >
+            <View className="flex-row items-center">
+              <Ionicons name="thumbs-up-outline" size={16} color="#555" />
+              <Text className="ml-1 text-gray-500 font-medium">Like</Text>
+            </View>
+            <View className="flex-row items-center">
+              <Ionicons name="chatbubble-outline" size={16} color="#555" />
+              <Text className="ml-1 text-gray-500 font-medium">Comment</Text>
+            </View>
+            <View className="flex-row items-center">
+              <Ionicons name="repeat-outline" size={16} color="#555" />
+              <Text className="ml-1 text-gray-500 font-medium">Repost</Text>
+            </View>
+            <View className="flex-row items-center">
+              <Ionicons name="paper-plane-outline" size={16} color="#555" />
+              <Text className="ml-1 text-gray-500 font-medium">Send</Text>
+            </View>
           </View>
         </View>
       );
@@ -1235,13 +1365,29 @@ const Preview: React.FC<PreviewProps> = ({
         <>
           <View className="flex-row justify-between items-center px-3 py-2">
             <View className="flex-row items-center">
-              <Ionicons name="heart-outline" size={22} />
-              <Ionicons name="chatbubble-outline" size={22} style={{ marginLeft: 12 }} />
-              <Ionicons name="paper-plane-outline" size={22} style={{ marginLeft: 12 }} />
+              <View className="flex-row items-center">
+                <Feather name="heart" size={22} color={isDark ? "white" : "black"} />
+                <Text className="ml-1 text-xs font-bold" style={{ color: isDark ? "white" : "black" }}>12k</Text>
+              </View>
+
+              <View className="flex-row items-center ml-4">
+                <Feather name="message-circle" size={22} color={isDark ? "white" : "black"} />
+                <Text className="ml-1 text-xs font-bold" style={{ color: isDark ? "white" : "black" }}>250</Text>
+              </View>
+
+              <View className="flex-row items-center ml-4">
+                <Feather name="repeat" size={22} color={isDark ? "white" : "black"} />
+                <Text className="ml-1 text-xs font-bold" style={{ color: isDark ? "white" : "black" }}>100</Text>
+              </View>
+
+              <View className="flex-row items-center ml-4">
+                <Feather name="send" size={22} color={isDark ? "white" : "black"} />
+                <Text className="ml-1 text-xs font-bold" style={{ color: isDark ? "white" : "black" }}>5k</Text>
+              </View>
             </View>
 
             <TouchableOpacity>
-              <Ionicons name="bookmark-outline" size={22} />
+              <Feather name="bookmark" size={22} color={isDark ? "white" : "black"} />
             </TouchableOpacity>
           </View>
 
@@ -1262,321 +1408,239 @@ const Preview: React.FC<PreviewProps> = ({
     return null;
   };
 
-  const renderMedia = () => {
-    switch (platform) {
-      case "facebook":
-      case "linkedin":
-        if (!normalizedMedia.length) return null;
-        return renderFacebookPreview(normalizedMedia);
-      case "instagram":
-        if (!normalizedMedia.length) return null;
-        if (normalizedMedia.length === 1 && isVideo(normalizedMedia[0])) {
-          return renderInstagramReel(normalizedMedia[0]);
-        }
-        return <InstagramPreview media={normalizedMedia} coverImage={coverImage} />;
-
-      case "whatsapp":
-        return renderWhatsAppPreview();
-      case "sms":
-        return renderSmsPreview();
-      case "email":
-        return renderEmailPreview();
-      case "pinterest":
-        if (!normalizedMedia.length) return null;
-        return renderPinterestPreview();
-      case "youtube":
-        if (!normalizedMedia.length) return null;
-        return renderYouTubePreview();
-
-      default:
-        return null;
-    }
-  };
-
-  const renderInstagramReel = (videoItem: any) => {
-    return (
-      <View style={{ width: "100%", height: 550, backgroundColor: "#000", borderRadius: 12, overflow: "hidden" }}>
-
-        <View style={{ position: "absolute", top: 16, left: 16, right: 16, zIndex: 10, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <Text style={{ color: "white", fontWeight: "bold", fontSize: 16, textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 4 }}>Reels</Text>
-          <Ionicons name="camera-outline" size={24} color="white" />
-        </View>
-
-        <View style={{ flex: 1, backgroundColor: "#111" }}>
-          {isVideo(videoItem) ? (
-            <Video
-              source={{ uri: videoItem.uri }}
-              style={{ width: "100%", height: "100%" }}
-              resizeMode={ResizeMode.COVER}
-              shouldPlay
-              isLooping
-              isMuted
-              useNativeControls={false}
-              posterSource={coverImage ? { uri: coverImage } : undefined}
-              usePoster={!!coverImage}
-            />
-          ) : (
-            <Image
-              source={{ uri: videoItem.uri }}
-              style={{ width: "100%", height: "100%" }}
-              resizeMode="cover"
-            />
-          )}
-        </View>
-
-        <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 10 }}>
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.7)']}
-            style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 200 }}
-          />
-
-
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", paddingHorizontal: 16, paddingBottom: 24, paddingTop: 60 }}>
-            <View style={{ flex: 1, paddingRight: 20 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-                {profilePic ? (
-                  <Image source={{ uri: profilePic }} style={{ width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: "white" }} />
-                ) : (
-                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: "gray", borderWidth: 1, borderColor: "white" }} />
-                )}
-                <Text style={{ color: "white", fontWeight: "bold", fontSize: 14, marginLeft: 10, textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 4 }}>
-                  {username || "User"}
-                </Text>
-                <TouchableOpacity style={{ borderColor: 'white', borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 12 }}>
-                  <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>Follow</Text>
-                </TouchableOpacity>
-              </View>
-
-              {onChangeText ? (
-                <TextInput
-                  value={text}
-                  onChangeText={onChangeText}
-                  placeholder="Write a caption..."
-                  placeholderTextColor="rgba(255,255,255,0.6)"
-                  multiline
-                  numberOfLines={2}
-                  style={{
-                    color: "white",
-                    fontSize: 13,
-                    marginBottom: 12,
-                    textShadowColor: "rgba(0,0,0,0.8)",
-                    textShadowRadius: 4,
-                    padding: 0,
-                    margin: 0,
-                    textAlignVertical: 'top'
-                  }}
-                />
-              ) : (
-                <Text style={{ color: "white", fontSize: 13, marginBottom: 12, textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 4, opacity: text ? 1 : 0.6 }} numberOfLines={2}>
-                  {text || "Write a caption..."}
-                </Text>
-              )}
-
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, alignSelf: 'flex-start' }}>
-                <Ionicons name="musical-note" size={14} color="white" />
-                <Text style={{ color: 'white', fontSize: 12, marginLeft: 6, fontWeight: '500' }}>Original Audio</Text>
-              </View>
-            </View>
-
-            <View style={{ alignItems: "center" }}>
-              <View style={{ alignItems: "center", marginBottom: 16 }}>
-                <Ionicons name="heart-outline" size={32} color="white" />
-                <Text style={{ color: "white", fontSize: 12, fontWeight: "600", marginTop: 4 }}>12.5k</Text>
-              </View>
-              <View style={{ alignItems: "center", marginBottom: 16 }}>
-                <Ionicons name="chatbubble-outline" size={30} color="white" />
-                <Text style={{ color: "white", fontSize: 12, fontWeight: "600", marginTop: 4 }}>1,024</Text>
-              </View>
-              <View style={{ alignItems: "center", marginBottom: 16 }}>
-                <Ionicons name="paper-plane-outline" size={30} color="white" />
-                <Text style={{ color: "white", fontSize: 12, fontWeight: "600", marginTop: 4 }}>456</Text>
-              </View>
-              <View style={{ alignItems: "center" }}>
-                <Ionicons name="ellipsis-vertical" size={24} color="white" />
-              </View>
-            </View>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={{ position: 'absolute', top: 50, left: 0, right: 80, bottom: 0, zIndex: 100 }}
-          onPress={() => setFullscreenIndex(0)}
-        />
-      </View>
-    );
-  };
+  const isInstagramSingleVideo =
+    platform === "instagram" &&
+    images.length === 1 &&
+    /\.(mp4|mov|mkv)$/i.test(images[0]);
 
   return (
 
     <View
-      className={`${isVerticalFull ? "" : "my-2 bg-white border border-gray-300 rounded-lg pb-2"} ${platform === "sms" || platform === "email" ? "" : "overflow-hidden"}`}
-      style={{ backgroundColor: isVerticalFull ? "transparent" : (isDark ? "#161618" : "#fff") }}>
-      {!isVerticalFull && (
-
-        <View className="flex-row items-center px-4 py-4">
-
-          {profilePic && (
-            <Image
-              source={{ uri: profilePic }}
-              className="w-10 h-10 rounded-full"
+      className={`my-2 bg-white border border-gray-300 rounded-lg pb-2 ${platform === "sms" ? "" : "overflow-hidden"
+        } ${platform === "facebook" ? "p-0" : ""}`}
+      style={{ backgroundColor: isDark ? "#161618" : "#fff" }}>
+      {isInstagramSingleVideo ? (
+        <>
+          <View style={{ position: "relative" }}>
+            <Video
+              source={{ uri: images[0] }}
+              style={{ width: "100%", height: SCREEN_WIDTH * 1.4 }}
+              poster={coverImage}
+              posterResizeMode="cover"
+              resizeMode="cover"
+              paused={false}
+              muted={isMuted}
+              controls={false}
+              playLimit={2}
+              playTrigger={playTrigger}
+              onPlayLimitReached={() => setShowWatchAgain(true)}
             />
-          )}
 
-          <View className="flex-1 ml-3 justify-center">
-            <Text className="font-bold text-gray-900 leading-5" style={{ color: isDark ? "#f2f2f7" : "#111827" }}>
-              {platform === "email" ? "" : username}
-            </Text>
+            {showWatchAgain && (
+              <View
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  backgroundColor: "rgba(0,0,0,0.5)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowWatchAgain(false);
+                    setPlayTrigger((prev) => prev + 1);
+                  }}
+                  style={{
+                    backgroundColor: "rgba(0,0,0,0.7)",
+                    paddingHorizontal: 20,
+                    paddingVertical: 12,
+                    borderRadius: 30,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: "white",
+                  }}
+                >
+                  <Ionicons name="refresh" size={24} color="white" />
+                  <Text style={{ color: "white", fontWeight: "bold", fontSize: 16, marginLeft: 8 }}>
+                    Watch Again
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
-            {(platform === "facebook" ||
-              platform === "linkedin" ||
-              platform === "youtube") && (
-                <Text className="text-xs text-gray-500 mt-0.5">
-                  {timestamp || "Just now"}
-                </Text>
+            <TouchableOpacity
+              onPress={() => setIsMuted(!isMuted)}
+              style={{
+                position: "absolute",
+                bottom: 16,
+                right: 12,
+                backgroundColor: "rgba(0,0,0,0.5)",
+                padding: 8,
+                borderRadius: 20,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Ionicons 
+                name={isMuted ? "volume-mute" : "volume-medium"} 
+                size={20} 
+                color="white" 
+              />
+            </TouchableOpacity>
+
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                flexDirection: "row",
+                alignItems: "center",
+                paddingHorizontal: 12,
+                paddingVertical: 12,
+                // backgroundColor: "rgba(0,0,0,0.35)",
+              }}
+            >
+              {profilePic ? (
+                <Image
+                  source={{ uri: profilePic }}
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    borderWidth: 2,
+                    borderColor: "white",
+                  }}
+                />
+              ) : (
+                <View
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: "#555",
+                    borderWidth: 2,
+                    borderColor: "white",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Ionicons name="person" size={20} color="white" />
+                </View>
               )}
 
-            {platform === "email" && (
-              <Text className="text-xs text-gray-500 mt-0.5">
-                Email Campaign Preview
+              <Text
+                style={{
+                  color: "white",
+                  fontWeight: "bold",
+                  marginLeft: 10,
+                  flex: 1,
+                  fontSize: 14,
+                }}
+                numberOfLines={1}
+              >
+                {username}
               </Text>
+
+              <TouchableOpacity
+                style={{
+                  borderWidth: 1,
+                  borderColor: "white",
+                  borderRadius: 6,
+                  paddingHorizontal: 12,
+                  paddingVertical: 4,
+                  marginRight: 10,
+                }}
+              >
+                <Text style={{ color: "white", fontWeight: "600", fontSize: 13 }}>
+                  Follow
+                </Text>
+              </TouchableOpacity>
+
+              <Ionicons name="ellipsis-horizontal" size={22} color="white" />
+            </View>
+          </View>
+
+          {platformConfig?.showActions && renderActions()}
+        </>
+      ) : platform === "youtube" ? (
+        <>{renderYouTubePreview()}</>
+      ) : (
+        <>
+          <View className="flex-row items-center px-4 py-4">
+
+            {profilePic && (
+              <Image
+                source={{ uri: profilePic }}
+                className="w-10 h-10 rounded-full"
+              />
             )}
           </View>
 
-          {platformConfig?.showHeaderMenu && (
-            <Ionicons
-              name="ellipsis-horizontal"
-              size={20}
-              color="#555"
-            />
-          )}
-        </View>
-      )}
+            <View className="flex-1 ml-3 justify-center">
+              <Text className="font-bold text-gray-900 leading-5" style={{ color: isDark ? "#f2f2f7" : "#111827" }}>
+                {platform === "email" ? "From: " : ""}
+                {username}
+              </Text>
 
-      {platformConfig?.showTextAboveMedia && (
-        platform === "facebook" && onChangeText ? (
-          <TextInput
-            value={text}
-            onChangeText={onChangeText}
-            placeholder="What's on your mind?"
-            placeholderTextColor={isDark ? "#9ca3af" : "#9ca3af"}
-            multiline
-            className="px-4 mb-2"
-            style={{
-              color: isDark ? "#f2f2f7" : "#111827",
-              fontSize: 15,
-              minHeight: 40,
-              textAlignVertical: "top",
-            }}
-          />
-        ) : (
-          !!text?.trim() && (
+              {(platform === "facebook" ||
+                platform === "linkedin" ||
+                platform === "youtube") && (
+                  <Text className="text-xs text-gray-500 mt-0.5">
+                    {timestamp || "Just now"}
+                  </Text>
+                )}
+
+              {platform === "email" && (
+                <Text className="text-xs text-gray-500 mt-0.5">
+                  To: client@example.com · {timestamp || "Now"}
+                </Text>
+              )}
+            </View>
+
+            {platform === "instagram" ? (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <TouchableOpacity
+                  style={{
+                    borderWidth: 1,
+                    borderColor: "#3b82f6",
+                    borderRadius: 6,
+                    paddingHorizontal: 12,
+                    paddingVertical: 4,
+                  }}
+                >
+                  <Text style={{ color: "#3b82f6", fontWeight: "600", fontSize: 13 }}>
+                    Follow
+                  </Text>
+                </TouchableOpacity>
+                <Ionicons name="ellipsis-vertical" size={20} color={isDark ? "#aaa" : "#555"} />
+              </View>
+            ) : platformConfig?.showHeaderMenu ? (
+              <Ionicons
+                name="ellipsis-vertical"
+                size={20}
+                color="#555"
+              />
+            ) : null}
+          </View>
+
+          {platformConfig?.showTextAboveMedia && !!text && (
             <Text
-              className={`mt-2 text-gray-900 ${platform === "facebook" || platform === "linkedin" ? "px-4 mb-2" : ""}`}
+              className="px-4 pt-2 pb-2 text-gray-900"
               style={{ color: isDark ? "#f2f2f7" : "#111827" }}
             >
               {text}
             </Text>
-          )
-        )
+          )}
+
+          {renderMedia()}
+
+          {platformConfig?.showActions && renderActions()}
+        </>
       )}
-
-      {renderMedia()}
-
-      {platformConfig?.showActions && !isInstagramReel && renderActions()}
-      <Modal
-        visible={fullscreenIndex !== null}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setFullscreenIndex(null)}
-      >
-        <SafeAreaView className="flex-1 bg-black">
-          <TouchableOpacity
-            style={{
-              position: "absolute",
-              top: 50,
-              right: 20,
-              zIndex: 10,
-              padding: 10,
-            }}
-            onPress={() => setFullscreenIndex(null)}
-          >
-            <Ionicons name="close" size={32} color="white" />
-          </TouchableOpacity>
-
-          <View className="flex-1 items-center justify-center">
-            <FlatList
-              data={normalizedMedia}
-              horizontal
-              pagingEnabled
-              keyExtractor={(_, i) => i.toString()}
-              initialScrollIndex={fullscreenIndex ?? 0}
-              onScrollToIndexFailed={() => { }}
-              getItemLayout={(_, index) => ({
-                length: SCREEN_WIDTH,
-                offset: SCREEN_WIDTH * index,
-                index,
-              })}
-              showsHorizontalScrollIndicator={false}
-              renderItem={({ item }) => {
-                if (platform === "facebook") {
-                  return (
-                    <View style={{ width: SCREEN_WIDTH, height: "100%", backgroundColor: 'black', justifyContent: "center" }}>
-                      <View style={{ width: SCREEN_WIDTH, height: "80%" }}>
-                        {isVideo(item) ? (
-                          <Video
-                            source={{ uri: item.uri }}
-                            style={{ width: "100%", height: "100%" }}
-                            resizeMode={ResizeMode.CONTAIN}
-                            useNativeControls
-                            shouldPlay={true}
-                          />
-                        ) : (
-                          <Image
-                            source={{ uri: item.uri }}
-                            style={{ width: "100%", height: "100%" }}
-                            resizeMode="contain"
-                          />
-                        )}
-                      </View>
-                      <View className="flex-row items-center px-4" style={{ height: 60, position: 'absolute', bottom: 40, left: 0, width: SCREEN_WIDTH }}>
-                        <TouchableOpacity>
-                          <Ionicons name="thumbs-up-outline" size={26} color="white" />
-                        </TouchableOpacity>
-                        <TouchableOpacity className="ml-6">
-                          <Ionicons name="chatbubble-outline" size={26} color="white" />
-                        </TouchableOpacity>
-                        <TouchableOpacity className="ml-6">
-                          <Ionicons name="share-social-outline" size={26} color="white" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  );
-                }
-
-                return (
-                  <View style={{ width: SCREEN_WIDTH, height: "100%", justifyContent: "center" }}>
-                    {isVideo(item) ? (
-                      <Video
-                        source={{ uri: item.uri }}
-                        style={{ width: "100%", height: "80%" }}
-                        resizeMode={ResizeMode.CONTAIN}
-                        useNativeControls
-                        shouldPlay
-                      />
-                    ) : (
-                      <Image
-                        source={{ uri: item.uri }}
-                        style={{ width: "100%", height: "100%" }}
-                        resizeMode="contain"
-                      />
-                    )}
-                  </View>
-                );
-              }}
-            />
-          </View>
-        </SafeAreaView>
-      </Modal>
     </View>
   );
 };

@@ -823,21 +823,16 @@ export function useCampaignPostForm({
         }
       }
 
-      if (platform === "YOUTUBE") {
-        const videoAsset = pickedAssets.find((a) => a.type?.startsWith("video/"));
-        if (videoAsset) {
-          const w = videoAsset.width ?? 0;
-          const h = videoAsset.height ?? 0;
-          const rawDuration = videoAsset.duration ?? 0;
-          const durationSec = rawDuration > 1000 ? rawDuration / 1000 : rawDuration;
-          const isVertical = h > w;         
-          const isShortDuration = durationSec <= 180 && durationSec > 0;
-
-          if (isVertical && isShortDuration) {
-            setYouTubeContentType("SHORT");
-          } else {
-            setYouTubeContentType("VIDEO");
-          }
+      if (platform === "YOUTUBE" && isVideo) {
+        const durationSec = (asset.duration || 0) / 1000;
+        const w = asset.width || 0;
+        const h = asset.height || 0;
+        
+        // YouTube Short criteria: vertical orientation and <= 3 minutes
+        if (h > w && durationSec > 0 && durationSec <= 180) {
+          setYouTubeContentType("SHORT");
+        } else {
+          setYouTubeContentType("VIDEO");
         }
       }
     } catch (error: any) {
@@ -1884,6 +1879,8 @@ export function useCampaignPostForm({
 
   return {
     isDark,
+    organisationId,
+    // state
     platform,
     previewTimestamp,
     senderEmail,

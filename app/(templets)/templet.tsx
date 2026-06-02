@@ -18,8 +18,9 @@ import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { useFocusEffect, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { templetApi, TemplateData } from "@/api/templetApi";
-import { Animated } from "react-native";
+import { getTemplatesApi, deleteTemplateApi } from "@/api/templetsApi";
+import { useAuth } from "@/context/AuthContext";
+import { getUser } from "@/api/dashboardApi";
 
 
 type PlatformType =
@@ -33,8 +34,13 @@ type PlatformType =
   | "LINKEDIN"
   | "PINTEREST";
 
-interface Template extends TemplateData {
-  id: number;
+interface Template {
+  id: string | number;
+  name: string;
+  content: string;
+  platform: PlatformType;
+  createdDate: string;
+  metadata?: string;
 }
 
 interface FilterOption {
@@ -43,7 +49,32 @@ interface FilterOption {
   icon?: string;
   iconLib?: "ionicons" | "fontawesome";
   color: string;
-}
+}[] = [
+    { label: "All", value: "ALL", color: "#6b7280" },
+    { label: "Email", value: "EMAIL", icon: "mail", iconLib: "ionicons", color: "#f59e0b" },
+    { label: "Instagram", value: "INSTAGRAM", icon: "instagram", iconLib: "fontawesome", color: "#c13584" },
+    { label: "Facebook", value: "FACEBOOK", icon: "facebook-square", iconLib: "fontawesome", color: "#1877F2" },
+    { label: "YouTube", value: "YOUTUBE", icon: "youtube-play", iconLib: "fontawesome", color: "#FF0000" },
+    { label: "LinkedIn", value: "LINKEDIN", icon: "linkedin-square", iconLib: "fontawesome", color: "#0A66C2" },
+    { label: "Pinterest", value: "PINTEREST", icon: "pinterest", iconLib: "fontawesome", color: "#E60023" },
+    { label: "SMS", value: "SMS", icon: "chatbubble-ellipses-outline", iconLib: "ionicons", color: "#10b981" },
+    { label: "WhatsApp", value: "WHATSAPP", icon: "logo-whatsapp", iconLib: "ionicons", color: "#25D366" },
+  ];
+
+const handlePlatformFilter = (platform: PlatformType, setSelectedPlatform: (p: PlatformType) => void) => {
+  if (platform === "SMS" || platform === "WHATSAPP") {
+    Alert.alert(
+      "Admin Approval Required",
+      "You need admin approval and a credits pack to view/manage templates for SMS/WhatsApp.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Purchase Pack", onPress: () => router.push("/(tabs)/accounts" as any) }
+      ]
+    );
+    return;
+  }
+  setSelectedPlatform(platform);
+};
 
 const getPlatformColor = (platform: PlatformType): string => {
   const PLATFORMS_MAP = [
@@ -75,22 +106,8 @@ const getPlatformIcon = (platform: PlatformType) => {
   return PLATFORMS_MAP.find((f) => f.value === platform);
 };
 
-const getPlatformLabel = (platform: string) => {
-  const PLATFORMS_MAP = [
-    { label: "All", value: "ALL" },
-    { label: "Email", value: "EMAIL" },
-    { label: "Instagram", value: "INSTAGRAM" },
-    { label: "Facebook", value: "FACEBOOK" },
-    { label: "YouTube", value: "YOUTUBE" },
-    { label: "LinkedIn", value: "LINKEDIN" },
-    { label: "Pinterest", value: "PINTEREST" },
-    { label: "SMS", value: "SMS" },
-    { label: "WhatsApp", value: "WHATSAPP" },
-  ];
-  const filter = PLATFORMS_MAP.find((p) => p.value === platform);
-  return filter ? filter.label : platform;
-};
-
+const MOCK_TEMPLATES: Template[] = [
+];
 
 export default function Templates() {
 
@@ -109,58 +126,43 @@ export default function Templates() {
     { label: "WhatsApp", value: "WHATSAPP", icon: "logo-whatsapp", iconLib: "ionicons", color: "#25D366" },
   ]);
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformType>("ALL");
-  const [templates, setTemplates] = useState<Template[]>([]);
+  const [templates, setTemplates] = useState<Template[]>(MOCK_TEMPLATES);
   const [loading, setLoading] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const { getToken } = useAuth();
+  const [organisationId, setOrganisationId] = useState<number | undefined>(undefined);
 
-  const handlePlatformFilter = (platform: PlatformType, index: number) => {
-    setSelectedPlatform(platform);
-    if (index === 0) return;
+  React.useEffect(() => {
+    const fetchOrgId = async () => {
+      try {
+        const user = await getUser();
+        if (user?.organisation?.id) {
+          setOrganisationId(user.organisation.id);
+        }
+      } catch (err) {
+        console.warn("Could not fetch organisationId:", err);
+      }
+    };
+    fetchOrgId();
+  }, []);
 
-    setFilters((prev) => {
-      const allTab = prev[0];
-      const others = prev.slice(1);
-      const otherIndex = index - 1;
-      const rotatedOthers = [
-        ...others.slice(otherIndex),
-        ...others.slice(0, otherIndex)
-      ];
-      return [allTab, ...rotatedOthers];
-    });
-  };
-
-  const filterScrollRef = useRef<ScrollView>(null);
-
-  useEffect(() => {
-    if (filterScrollRef.current) {
-      filterScrollRef.current.scrollTo({ x: 0, animated: true });
-    }
-  }, [selectedPlatform]);
-
-  const getTemplateCount = (platform: PlatformType) => {
-    if (platform === "ALL") return templates.length;
-    return templates.filter((t) => t.platform === platform).length;
-  };
-
-  const fetchTemplates = async () => {
-
+  const fetchTemplates = useCallback(async () => {
+    if (!organisationId) return;
     setLoading(true);
     try {
-      const response = await templetApi.getTemplates();
-      if (response.success) {
-        setTemplates(response.data as Template[]);
-      }
-    } catch (err) {
-      console.error("Failed to fetch templates:", err);
+      const token = await getToken();
+      const res = await getTemplatesApi(organisationId, token || undefined);
+      setTemplates(res || []);
+    } catch (error) {
+      console.error("Failed to fetch templates:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [organisationId, getToken]);
 
   useFocusEffect(
     useCallback(() => {
       fetchTemplates();
-    }, [])
+    }, [fetchTemplates])
   );
 
   const filteredTemplates = templates.filter((t) => {
@@ -172,24 +174,20 @@ export default function Templates() {
     return matchesPlatform && matchesSearch;
   });
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: string | number) => {
     Alert.alert("Delete Template", "Are you sure you want to delete this template?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
         onPress: async () => {
+          if (!organisationId) return;
           try {
-            const response = await templetApi.deleteTemplate(id);
-            if (response.success) {
-              setTemplates((prev) => prev.filter((t) => t.id !== id));
-              Alert.alert("Success", response.message || "Template deleted successfully");
-            } else {
-              Alert.alert("Error", response.message || "Failed to delete template");
-            }
-          } catch (err: any) {
-            console.error("Delete error:", err);
-            Alert.alert("Error", err.response?.data?.message || err.message || "An error occurred while deleting.");
+            const token = await getToken();
+            await deleteTemplateApi(organisationId, Number(id), token || undefined);
+            setTemplates((prev) => prev.filter((t) => t.id !== id));
+          } catch (error) {
+            Alert.alert("Error", "Failed to delete template");
           }
         },
       },
@@ -375,10 +373,7 @@ export default function Templates() {
           <View style={{ flexDirection: "row", gap: 8 }}>
             <TouchableOpacity
               onPress={() => {
-                router.push({
-                  pathname: "/(templets)/createTemplet",
-                  params: { id: item.id },
-                });
+                Alert.alert("Edit", "Navigate to edit template");
               }}
               style={{
                 padding: 6,
@@ -413,7 +408,7 @@ export default function Templates() {
             textAlign: "right",
           }}
         >
-          {item.createdAt ? new Date(item.createdAt).toLocaleDateString("en-IN", {
+          {item.createdDate ? new Date(item.createdDate).toLocaleDateString("en-IN", {
             day: "2-digit",
             month: "short",
             year: "numeric",
@@ -510,6 +505,7 @@ export default function Templates() {
           backgroundColor: isDark ? "#161618" : "#f3f4f6",
         }}
       >
+        {/* ── Header ── */}
         <View
           style={{
             flexDirection: "row",
@@ -517,9 +513,8 @@ export default function Templates() {
             justifyContent: "space-between",
             paddingHorizontal: 16,
             paddingTop: 16,
-            paddingBottom: 8,
+            paddingBottom: 12,
             backgroundColor: isDark ? "#161618" : "#f3f4f6",
-
           }}
         >
           <ThemedText
@@ -551,6 +546,7 @@ export default function Templates() {
           </TouchableOpacity>
         </View>
 
+        {/* ── Search Bar ── */}
         <View
           style={{
             paddingHorizontal: 16,
@@ -599,34 +595,31 @@ export default function Templates() {
           </View>
         </View>
 
+        {/* ── Platform Filter Chips ── */}
         <ScrollView
-          ref={filterScrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={{ flexGrow: 0, marginVertical: 10 }}
           contentContainerStyle={{
             paddingHorizontal: 16,
-            paddingVertical: 10,
+            paddingBottom: 12,
             gap: 8,
             flexDirection: "row",
             alignItems: "center",
           }}
         >
-
-          {filters.map((filter, index) => {
+          {PLATFORM_FILTERS.map((filter) => {
             const isActive = selectedPlatform === filter.value;
             return (
               <TouchableOpacity
                 key={filter.value}
-                onPress={() => handlePlatformFilter(filter.value, index)}
+                onPress={() => handlePlatformFilter(filter.value, setSelectedPlatform)}
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
                   gap: 6,
                   paddingHorizontal: 14,
-                  height: 36,
-                  justifyContent: "center",
-                  borderRadius: 18,
+                  paddingVertical: 7,
+                  borderRadius: 20,
                   borderWidth: 1.5,
                   borderColor: isActive ? filter.color : isDark ? "#374151" : "#e5e7eb",
                   backgroundColor: isActive
@@ -636,89 +629,52 @@ export default function Templates() {
                       : "#ffffff",
                 }}
               >
-                {(filter.value === "ALL" ? "apps" : filter.icon) &&
+                {filter.icon &&
                   (filter.iconLib === "fontawesome" ? (
                     <FontAwesome
-                      name={(filter.value === "ALL" ? "th-large" : filter.icon) as any}
+                      name={filter.icon as any}
                       size={13}
                       color={isActive ? filter.color : isDark ? "#9ca3af" : "#6b7280"}
                     />
                   ) : (
                     <Ionicons
-                      name={(filter.value === "ALL" ? "apps" : filter.icon) as any}
-                      size={13}
+                      name={filter.icon as any}
+                      size={14}
                       color={isActive ? filter.color : isDark ? "#9ca3af" : "#6b7280"}
                     />
                   ))}
                 <ThemedText
                   style={{
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: isActive ? "700" : "500",
                     color: isActive ? filter.color : isDark ? "#9ca3af" : "#6b7280",
-                    includeFontPadding: false,
-                    textAlignVertical: "center",
                   }}
-                  numberOfLines={1}
                 >
                   {filter.label}
                 </ThemedText>
-
-                {filter.value !== "ALL" && getTemplateCount(filter.value) > 0 && (
-                  <View style={{
-                    backgroundColor: isActive ? filter.color : isDark ? "#374151" : "#e5e7eb",
-                    paddingHorizontal: 6,
-                    height: 18,
-                    minWidth: 18,
-                    borderRadius: 9,
-                    marginLeft: 4,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}>
-                    <ThemedText style={{
-                      fontSize: 10,
-                      fontWeight: "700",
-                      color: isActive ? "#fff" : isDark ? "#fff" : "#666",
-                      includeFontPadding: false,
-                      textAlignVertical: "center"
-                    }}>
-                      {getTemplateCount(filter.value)}
-                    </ThemedText>
-                  </View>
-                )}
               </TouchableOpacity>
-
-
             );
           })}
         </ScrollView>
 
-        {loading && (
-          <View style={{ paddingHorizontal: 16 }}>
-            {[1, 2, 3].map((i) => (
-              <SkeletonCard key={i} />
-            ))}
-          </View>
-        )}
-
-        {!loading && filteredTemplates.length > 0 && (
+        {/* ── Template Count ── */}
+        {filteredTemplates.length > 0 && (
           <ThemedText
             style={{
               paddingHorizontal: 16,
-              paddingBottom: 4,
+              paddingBottom: 8,
               fontSize: 12,
               color: isDark ? "#6b7280" : "#9ca3af",
             }}
           >
             {filteredTemplates.length} template{filteredTemplates.length !== 1 ? "s" : ""} found
           </ThemedText>
-
         )}
 
+        {/* ── Template List ── */}
         <FlatList
-          data={loading ? [] : filteredTemplates}
-
-          keyExtractor={(item) => item.id.toString()}
-
+          data={filteredTemplates}
+          keyExtractor={(item) => String(item.id)}
           renderItem={renderTemplateCard}
           contentContainerStyle={{
             paddingHorizontal: 16,
@@ -726,34 +682,9 @@ export default function Templates() {
             flexGrow: 1,
           }}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={!loading ? <EmptyState /> : null}
+          ListEmptyComponent={<EmptyState />}
         />
-
       </ThemedView>
-
-      <Modal
-        visible={!!previewImage}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setPreviewImage(null)}
-      >
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.9)", justifyContent: "center", alignItems: "center" }}>
-          <TouchableOpacity
-            style={{ position: "absolute", top: 40, right: 20, zIndex: 1, padding: 10 }}
-            onPress={() => setPreviewImage(null)}
-          >
-            <Ionicons name="close" size={30} color="#fff" />
-          </TouchableOpacity>
-
-          {previewImage && (
-            <Image
-              source={{ uri: previewImage }}
-              style={{ width: "100%", height: "80%" }}
-              resizeMode="contain"
-            />
-          )}
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
