@@ -1,6 +1,7 @@
 import {
   deleteCampaignApi,
   getCampaignsApi,
+  getPostsByCampaignIdApi,
 } from "@/api/campaignApi";
 import { useAuth } from "@/context/AuthContext";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
@@ -76,7 +77,24 @@ export default function Campaigns() {
         };
       });
 
-      setCampaigns(mapped);
+      // Fetch dynamic posts count for each campaign in parallel
+      const campaignsWithCounts = await Promise.all(
+        mapped.map(async (c) => {
+          try {
+            const postsRes = await getPostsByCampaignIdApi(c.id, orgId);
+            const postsArray = postsRes?.data || (Array.isArray(postsRes) ? postsRes : []);
+            return {
+              ...c,
+              postsCount: postsArray.length,
+            };
+          } catch (e) {
+            console.log(`Error getting posts count for campaign ${c.id}:`, e);
+            return c;
+          }
+        })
+      );
+
+      setCampaigns(campaignsWithCounts);
     } catch (err) {
       console.log("GET CAMPAIGNS ERROR:", err);
       setCampaigns([]);

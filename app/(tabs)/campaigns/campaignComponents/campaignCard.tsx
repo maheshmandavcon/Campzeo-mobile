@@ -82,7 +82,7 @@ export default function CampaignCard({
 
   // ✅ FIXED POST COUNT LOGIC
   const totalPosts =
-   postLength;
+   postLength ?? campaign.postsCount ?? 0;
 
   const handleEdit = () => {
     // if (onEdit) {
