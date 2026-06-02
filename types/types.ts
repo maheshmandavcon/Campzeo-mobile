@@ -16,16 +16,16 @@ export interface Post {
 }
 
 
-export interface CalendarEvent {
-  id: number;
-  title: string;              
-  start: Date;                 
-  end: Date;  
-  subject: string;                 
-  platform: string;           
-  message: string;             
-  campaign: string;            
-}
+// export interface CalendarEvent {
+//   id: number;
+//   title: string;              
+//   start: Date;                 
+//   end: Date;  
+//   subject: string;                 
+//   platform: string;           
+//   message: string;             
+//   campaign: string;            
+// }
 
 
 // interface CalendarHeaderProps {

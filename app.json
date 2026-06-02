@@ -6,9 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/app-images/app-logo.png",
     "scheme": "campzeo",
-    "jsEngine": "hermes",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mandavconsultancy.campzeo"
@@ -16,6 +14,7 @@
     "android": {
       "package": "com.mandavconsultancy.campzeo",
       "versionCode": 1,
+      "usesCleartextTraffic": true,
       "permissions": [
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
@@ -29,7 +28,6 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "intentFilters": [
         {
@@ -40,10 +38,7 @@
               "scheme": "campzeo"
             }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ]
     },
@@ -65,6 +60,15 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true,
+            "networkSecurityConfig": "./network_security_config.xml"
+          }
+        }
       ]
     ],
     "experiments": {
@@ -72,7 +76,6 @@
       "reactCompiler": true
     },
     "extra": {
-      "clerkPublishableKey": "pk_test_ZmFzdC1yZWRmaXNoLTUyLmNsZXJrLmFjY291bnRzLmRldiQ",
       "apiBaseUrl": "https://campzeo.com/api/",
       "router": {},
       "mobileApiKey": "YEKa-f39c7b12e84d56a1c92f0b4c77e9d3",

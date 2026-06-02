@@ -4,6 +4,7 @@ import { ActivityIndicator, Text } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import CalendarView from "../(calendar)/CalendarComponents/calendarView";
+import { getUser } from "@/api/dashboardApi";
 
 const CalendarWrapper = () => {
   const [posts, setPosts] = useState<any[]>([]);
@@ -13,7 +14,9 @@ const CalendarWrapper = () => {
   useEffect(() => {
     const loadPosts = async () => {
       try {
-        const data = await getScheduledPosts();
+        const user = await getUser();
+        const orgId = user?.organisation?.id;
+        const data = await getScheduledPosts(orgId);
         
         setPosts(data?.posts ?? []);
       } catch (err) {

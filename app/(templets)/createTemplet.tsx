@@ -17,13 +17,12 @@ import { router, useLocalSearchParams } from "expo-router";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@/context/AuthContext";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { uploadMediaApi } from "@/api/campaignApi";
 import { getUser } from "@/api/dashboardApi";
-import { Video, ResizeMode } from "expo-av";
-import { templetApi, TemplateData } from "@/api/templetApi";
+import Video from "react-native-video";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = SCREEN_WIDTH - 32;
@@ -668,101 +667,100 @@ export default function CreateTemplet() {
                   )}
                 </TouchableOpacity>
 
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ gap: 12, paddingVertical: 10, paddingHorizontal: 4 }}
-                >
-                  {media.map((item, index) => (
-                    <View key={index} style={{ position: "relative", marginRight: 4 }}>
+             <ScrollView 
+               horizontal 
+               showsHorizontalScrollIndicator={false} 
+               contentContainerStyle={{ gap: 12, paddingVertical: 10, paddingHorizontal: 4 }}
+             >
+               {media.map((item, index) => (
+                 <View key={index} style={{ position: "relative", marginRight: 4 }}>
+                   <View
+                     style={{
+                       width: 70,
+                       height: 70,
+                      borderRadius: 12,
+                      overflow: "hidden",
+                      backgroundColor: inputBg,
+                      borderWidth: 1,
+                      borderColor: border,
+                    }}
+                  >
+                    {/* Placeholder for actual image component */}
+                    {item.type === "image" ? (
+                      <Image
+                        source={{ uri: item.uri || item.uploadedUrl }}
+                        style={{ width: "100%", height: "100%" }}
+                        resizeMode="cover"
+                      />
+                    ) : item.type === "video" ? (
+                      <View style={{ flex: 1 }}>
+                        <Video
+                          source={{ uri: item.uri || item.uploadedUrl || "" }}
+                          style={{ width: "100%", height: "100%" }}
+                          resizeMode="cover"
+                          paused={false}
+                          repeat
+                          muted
+                          controls={false}
+                        />
+                        <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.2)" }}>
+                           <Ionicons name="play" size={24} color="#fff" />
+                        </View>
+                      </View>
+                    ) : (
                       <View
                         style={{
-                          width: 70,
-                          height: 70,
-                          borderRadius: 12,
-                          overflow: "hidden",
-                          backgroundColor: inputBg,
-                          borderWidth: 1,
-                          borderColor: border,
-                        }}
-                      >
-                        {item.type === "image" ? (
-                          <Image
-                            source={{ uri: item.uri || item.uploadedUrl }}
-                            style={{ width: "100%", height: "100%" }}
-                            resizeMode="cover"
-                          />
-                        ) : item.type === "video" ? (
-                          <View style={{ flex: 1 }}>
-                            <Video
-                              source={{ uri: item.uri || item.uploadedUrl || "" }}
-                              style={{ width: "100%", height: "100%" }}
-                              resizeMode={ResizeMode.COVER}
-                              shouldPlay={true}
-                              isLooping={true}
-                              isMuted={true}
-                              useNativeControls={false}
-                            />
-                            <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.2)" }}>
-                              <Ionicons name="play" size={24} color="#fff" />
-                            </View>
-                          </View>
-                        ) : (
-                          <View
-                            style={{
-                              flex: 1,
-                              backgroundColor: "#ef444411",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              gap: 4,
-                            }}
-                          >
-                            <Ionicons
-                              name="document-text-outline"
-                              size={24}
-                              color="#ef4444"
-                            />
-                            <ThemedText style={{ fontSize: 9, fontWeight: "700", color: "#ef4444" }}>
-                              PDF
-                            </ThemedText>
-                          </View>
-                        )}
-                      </View>
-                      <TouchableOpacity
-                        onPress={() => removeMedia(index)}
-                        style={{
-                          position: "absolute",
-                          top: -8,
-                          right: -8,
-                          backgroundColor: "#ef4444",
-                          width: 22,
-                          height: 22,
-                          borderRadius: 11,
+                          flex: 1,
+                          backgroundColor: "#ef444411",
                           alignItems: "center",
                           justifyContent: "center",
-                          zIndex: 20,
-                          borderWidth: 2,
-                          borderColor: "#fff",
-                          shadowColor: "#000",
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: 0.25,
-                          shadowRadius: 3.84,
-                          elevation: 5,
+                          gap: 4,
                         }}
                       >
-                        <Ionicons name="close" size={14} color="#fff" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </ScrollView>
-              </View>
-              <ThemedText
-                style={{ fontSize: 12, color: textMuted, marginBottom: 20 }}
-              >
-                Images and videos can be changed when creating posts
-              </ThemedText>
-            </>
-          )}
+                        <Ionicons
+                          name="document-text-outline"
+                          size={24}
+                          color="#ef4444"
+                        />
+                        <ThemedText style={{ fontSize: 9, fontWeight: "700", color: "#ef4444" }}>
+                          PDF
+                        </ThemedText>
+                      </View>
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => removeMedia(index)}
+                    style={{
+                      position: "absolute",
+                      top: -8,
+                      right: -8,
+                      backgroundColor: "#ef4444",
+                      width: 22,
+                      height: 22,
+                      borderRadius: 11,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      zIndex: 20,
+                      borderWidth: 2,
+                      borderColor: "#fff",
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 3.84,
+                      elevation: 5,
+                    }}
+                  >
+                    <Ionicons name="close" size={14} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+          <ThemedText
+            style={{ fontSize: 12, color: textMuted, marginBottom: 20 }}
+          >
+            Images and videos can be changed when creating posts
+          </ThemedText>
 
           {(selectedPlatform === "EMAIL" || selectedPlatform === "FACEBOOK" || selectedPlatform === "INSTAGRAM" || selectedPlatform === "LINKEDIN" || selectedPlatform === "PINTEREST" || selectedPlatform === "YOUTUBE") && (
             <>
@@ -899,11 +897,11 @@ export default function CreateTemplet() {
                       <Video
                         source={{ uri: media[0].uri || media[0].uploadedUrl || "" }}
                         style={{ width: "100%", height: "100%" }}
-                        resizeMode={ResizeMode.COVER}
-                        shouldPlay={isPlayingPreview}
-                        isLooping
-                        isMuted
-                        useNativeControls={false}
+                        resizeMode="cover"
+                        paused={!isPlayingPreview}
+                        repeat
+                        muted
+                        controls={false}
                       />
                       {!isPlayingPreview && (
                         <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center" }}>
@@ -974,11 +972,11 @@ export default function CreateTemplet() {
                       <Video
                         source={{ uri: media[0].uri || media[0].uploadedUrl || "" }}
                         style={{ width: "100%", height: "100%" }}
-                        resizeMode={ResizeMode.COVER}
-                        shouldPlay={isPlayingPreview}
-                        isLooping
-                        isMuted
-                        useNativeControls={false}
+                        resizeMode="cover"
+                        paused={!isPlayingPreview}
+                        repeat
+                        muted
+                        controls={false}
                       />
                       {!isPlayingPreview && (
                         <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center" }}>
@@ -1081,11 +1079,11 @@ export default function CreateTemplet() {
                       <Video
                         source={{ uri: media[0].uri || media[0].uploadedUrl || "" }}
                         style={{ width: "100%", height: "100%" }}
-                        resizeMode={ResizeMode.COVER}
-                        shouldPlay={isPlayingPreview}
-                        isLooping
-                        isMuted
-                        useNativeControls={false}
+                        resizeMode="cover"
+                        paused={!isPlayingPreview}
+                        repeat
+                        muted
+                        controls={false}
                       />
                       {!isPlayingPreview && (
                         <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center" }}>
@@ -1150,11 +1148,11 @@ export default function CreateTemplet() {
                       <Video
                         source={{ uri: media[0].uri || media[0].uploadedUrl || "" }}
                         style={{ width: "100%", height: "100%" }}
-                        resizeMode={ResizeMode.COVER}
-                        shouldPlay={isPlayingPreview}
-                        isLooping
-                        isMuted
-                        useNativeControls={false}
+                        resizeMode="cover"
+                        paused={!isPlayingPreview}
+                        repeat
+                        muted
+                        controls={false}
                       />
                       {!isPlayingPreview && (
                         <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center" }}>
@@ -1244,11 +1242,11 @@ export default function CreateTemplet() {
                             <Video
                               source={{ uri: item.uri || item.uploadedUrl || "" }}
                               style={{ width: "100%", height: "100%" }}
-                              resizeMode={ResizeMode.COVER}
-                              shouldPlay={isPlayingPreview && pinterestActiveIndex === index}
-                              isLooping
-                              isMuted
-                              useNativeControls={false}
+                              resizeMode="cover"
+                              paused={!(isPlayingPreview && pinterestActiveIndex === index)}
+                              repeat
+                              muted
+                              controls={false}
                             />
                             {(!isPlayingPreview || pinterestActiveIndex !== index) && (
                               <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center" }}>
