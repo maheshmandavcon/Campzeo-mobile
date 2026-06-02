@@ -1779,6 +1779,7 @@ export function useCampaignPostForm({
   // ================= RETURN =================
   return {
     isDark,
+    organisationId,
     // state
     platform,
     previewTimestamp,

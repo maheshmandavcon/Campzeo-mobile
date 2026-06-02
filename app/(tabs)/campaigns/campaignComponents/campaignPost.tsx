@@ -220,7 +220,6 @@ export default function CampaignPost() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  // Check if any social platform is disconnected (SMS/EMAIL/WHATSAPP are always connected)
   const hasDisconnectedPlatform = ["FACEBOOK", "INSTAGRAM", "LINKEDIN", "YOUTUBE", "PINTEREST"].some(
     (key) => connectedPlatforms[key] === false
   );
@@ -405,7 +404,6 @@ export default function CampaignPost() {
                             );
                             return;
                           }
-                          // Has credits, can proceed to select 
                         } else {
                           Alert.alert(
                             "Admin Approval Required",
