@@ -635,6 +635,19 @@ export function useCampaignPostForm({
           }
         }
       }
+
+      if (platform === "YOUTUBE" && isVideo) {
+        const durationSec = (asset.duration || 0) / 1000;
+        const w = asset.width || 0;
+        const h = asset.height || 0;
+        
+        // YouTube Short criteria: vertical orientation and <= 3 minutes
+        if (h > w && durationSec > 0 && durationSec <= 180) {
+          setYouTubeContentType("SHORT");
+        } else {
+          setYouTubeContentType("VIDEO");
+        }
+      }
     } catch (error: any) {
       console.error("Attachment upload error:", error);
       Alert.alert("Upload failed", error?.message || "Media upload failed");

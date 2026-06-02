@@ -93,14 +93,14 @@ import { Picker } from "@react-native-picker/picker";
 // ---------- Define Props Interface ----------
 interface CampaignPostFormProps {
   platform:
-    | "EMAIL"
-    | "SMS"
-    | "INSTAGRAM"
-    | "WHATSAPP"
-    | "FACEBOOK"
-    | "YOUTUBE"
-    | "LINKEDIN"
-    | "PINTEREST";
+  | "EMAIL"
+  | "SMS"
+  | "INSTAGRAM"
+  | "WHATSAPP"
+  | "FACEBOOK"
+  | "YOUTUBE"
+  | "LINKEDIN"
+  | "PINTEREST";
   existingPost?: any;
   campaignId?: string;
   campaignStartDate?: string;
@@ -246,8 +246,8 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     existingPost: existingPost
       ? existingPost
       : {
-          campaign: { startDate: campaignStartDate, endDate: campaignEndDate },
-        },
+        campaign: { startDate: campaignStartDate, endDate: campaignEndDate },
+      },
     // campaignStartDate,
     onClose,
   });
@@ -269,78 +269,109 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
   const [userData, setUserData] = useState<any>(null);
 
-  // ================= RENDER ATTACHMENTS =================
 
   const renderAttachmentItem = ({ item, index }: any) => {
-    const isImage = item.type.startsWith("image/");
-    const isVideo = item.type.startsWith("video/");
+  const isImage = item.type?.startsWith("image/");
+  const isVideo = item.type?.startsWith("video/");
+  const isPdf =
+  platformState === "EMAIL" &&
+  (item.type === "application/pdf" ||
+    item.name?.toLowerCase().endsWith(".pdf"));
 
-    return (
-      <View className="flex-row items-center bg-gray-200 rounded-lg px-2 py-1 mr-2 mb-2">
-        {isImage && (
-          <Image
+  return (
+    <View className="flex-row items-center bg-gray-200 rounded-lg px-2 py-1 mr-2 mb-2">
+
+      {isImage && (
+        <Image
+          source={{ uri: item.uri }}
+          style={{
+            width: 50,
+            height: 50,
+            borderRadius: 5,
+            marginRight: 5,
+          }}
+        />
+      )}
+
+      {isVideo && (
+        <View
+          style={{
+            width: 50,
+            height: 50,
+            borderRadius: 5,
+            marginRight: 5,
+            overflow: "hidden",
+          }}
+        >
+          <Video
             source={{ uri: item.uri }}
-            style={{ width: 50, height: 50, borderRadius: 5, marginRight: 5 }}
+            style={{ width: "100%", height: "100%" }}
+            resizeMode="cover"
+            paused={false}
+            muted
+            controls={false}
+            repeat
           />
-        )}
 
-        {isVideo && (
           <View
             style={{
-              width: 50,
-              height: 50,
-              borderRadius: 5,
-              marginRight: 5,
-              overflow: "hidden",
+              position: "absolute",
+              width: "100%",
+              height: "100%",
+              justifyContent: "center",
+              alignItems: "center",
             }}
           >
-            <Video
-              source={{ uri: item.uri }}
-              style={{ width: "100%", height: "100%" }}
-              resizeMode="cover"
-              paused={false}
-              muted
-              controls={false}
-              repeat
+            <Ionicons
+              name="play-circle"
+              size={24}
+              color="#fff"
             />
-            {/* Play icon overlay */}
-            <View
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "100%",
-                justifyContent: "center",
-                alignItems: "center",
-                backgroundColor: "rgba(0,0,0,0.2)",
-              }}
-            >
-              <Ionicons name="play-circle" size={24} color="#fff" />
-            </View>
           </View>
-        )}
+        </View>
+      )}
 
-        <Text
-          className="mr-2 text-gray-700"
-          numberOfLines={1}
-          style={{ maxWidth: 80 }}
+      {isPdf && (
+        <View
+          style={{
+            width: 50,
+            height: 50,
+            borderRadius: 5,
+            marginRight: 5,
+            backgroundColor: "#fee2e2",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
         >
-          {item.name}
-        </Text>
+          <Ionicons
+            name="document-text"
+            size={28}
+            color="#dc2626"
+          />
+        </View>
+      )}
 
-        {/* <TouchableOpacity onPress={() => handleRemoveAttachment(index)}>
-          <Ionicons name="close-circle" size={20} color="#dc2626" />
-        </TouchableOpacity> */}
+      <Text
+        numberOfLines={1}
+        style={{ maxWidth: 80 }}
+      >
+        {item.name}
+      </Text>
 
-        <TouchableOpacity
-          onPress={() => handleRemoveAttachment(item.uploadedUrl ?? item.uri)}
-        >
-          <Ionicons name="close-circle" size={20} color="#dc2626" />
-        </TouchableOpacity>
-      </View>
-    );
-  };
+      <TouchableOpacity
+        onPress={() =>
+          handleRemoveAttachment(item.uploadedUrl ?? item.uri)
+        }
+      >
+        <Ionicons
+          name="close-circle"
+          size={20}
+          color="#dc2626"
+        />
+      </TouchableOpacity>
+    </View>
+  );
+};
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -661,14 +692,14 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                               <Text style={{ color: isDark ? "#9ca3af" : "#9ca3af", fontWeight: 'bold', fontSize: 12, marginTop: 4, letterSpacing: 0.5 }}>
                                 {badgeLabel}
                               </Text>
-                              
+
                               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 {item.isLoading ? (
                                   <ActivityIndicator size="small" color="#dc2626" style={{ marginRight: 8 }} />
                                 ) : (
                                   <>
                                     {/* Red Check Button (Replace/Use) */}
-                                    <TouchableOpacity 
+                                    <TouchableOpacity
                                       activeOpacity={0.7}
                                       onPress={() => {
                                         setSubject(item.subject);
@@ -1028,7 +1059,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           )}
 
           {/* ---------- Custom Video Thumbnail Section ---------- */}
-          {hasVideo && (
+          {hasVideo && platformState !== "EMAIL" && (
             <View
               style={{
                 marginTop: 16,
@@ -1569,7 +1600,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
                   {/* Upload Button */}
                   <TouchableOpacity
-                    disabled={coverUploading} // disable while uploading
+                    disabled={coverUploading}
                     onPress={() => {
                       console.log("[Cover] Upload button pressed");
                       handleCoverImageUpload();
@@ -1583,7 +1614,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                       marginBottom: 6,
                       borderWidth: 1,
                       borderColor: isDark ? "#3b82f6" : "#2563eb",
-                      opacity: coverUploading ? 0.6 : 1, // show visually disabled
+                      opacity: coverUploading ? 0.6 : 1,
                       flexDirection: "row",
                       justifyContent: "center",
                     }}
@@ -2690,7 +2721,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map((a) => a.uri)}
-              // timestamp={previewTimestamp}
+            // timestamp={previewTimestamp}
             />
           )}
 
@@ -2703,6 +2734,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               text={message}
               images={attachments?.map((a) => a.uri)}
               timestamp={previewTimestamp}
+              youTubeContentType={youTubeContentType}
             />
           )}
         </View>
