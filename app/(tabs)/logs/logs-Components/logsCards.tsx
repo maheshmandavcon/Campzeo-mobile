@@ -1,21 +1,26 @@
 import {
   View,
   Image,
-  Alert,
   Dimensions,
   TouchableOpacity,
+  ActivityIndicator,
+  FlatList,
+  Text,
 } from "react-native";
-import { BlurView } from "expo-blur";
-import Carousel from "react-native-reanimated-carousel";
+import { useState, useEffect } from "react";
 import { useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { getRefreshLog } from "@/api/logsApi";
+import { refreshPost } from "@/api/logsApi";
 import { useRouter } from "expo-router";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { VStack } from "@/components/ui/vstack";
+import { HStack } from "@/components/ui/hstack";
+import { useAuth } from "@/context/AuthContext";
+import Toast from "react-native-toast-message";
 
 const { width } = Dimensions.get("window");
+const CARD_WIDTH = width - 40; // accounted for parent container padding
 
 type LogsCardProps = {
   record: any;
@@ -24,172 +29,303 @@ type LogsCardProps = {
 
 export default function LogsCard({ record, platformLabel }: LogsCardProps) {
   const router = useRouter();
+  const { token } = useAuth();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  const recordPostId = record?.id;
-  const isDeleted = record?.insight?.isDeleted === true;
-  const media = record?.mediaUrls;
+  // Card local states
+  const [insight, setInsight] = useState(record?.insight);
+  const [syncing, setSyncing] = useState(false);
+  const [activeMediaIndex, setActiveMediaIndex] = useState(0);
 
-  const hasMultipleImages = Array.isArray(media) && media.length > 1;
-  const hasSingleImage =
-    typeof media === "string" ||
-    (Array.isArray(media) && media.length === 1);
+  // Sync state if record updates from parent
+  useEffect(() => {
+    setInsight(record?.insight);
+  }, [record?.insight]);
 
-  const singleImageUrl = typeof media === "string" ? media : media?.[0];
+  const isDeleted = insight?.isDeleted === true;
+  const platformName = (record?.platform || "EMAIL").toUpperCase();
 
+  // Safely parse mediaUrls JSON string
+  let mediaList: string[] = [];
+  try {
+    if (record?.mediaUrls) {
+      if (typeof record.mediaUrls === "string") {
+        mediaList = JSON.parse(record.mediaUrls);
+      } else if (Array.isArray(record.mediaUrls)) {
+        mediaList = record.mediaUrls;
+      }
+    }
+  } catch (err) {
+    console.log("Error parsing mediaUrls JSON:", err);
+    if (typeof record?.mediaUrls === "string" && record.mediaUrls.startsWith("http")) {
+      mediaList = [record.mediaUrls];
+    }
+  }
+
+  // Ensure media array is valid and cleaned from escape slashes
+  mediaList = (mediaList || []).map((url) => url.trim());
+
+  // Check if media contains video formats
+  const isVideoFormat = (url: string) => {
+    const lower = url.toLowerCase();
+    return (
+      lower.endsWith(".mp4") ||
+      lower.endsWith(".mov") ||
+      lower.endsWith(".webm") ||
+      lower.includes("video")
+    );
+  };
+
+  // Get brand specific configurations
+  const getBrandDetails = (pName: string) => {
+    switch (pName) {
+      case "EMAIL": return { icon: "mail-outline", color: "#f59e0b", label: "Email" };
+      case "SMS": return { icon: "chatbubble-ellipses-outline", color: "#10b981", label: "SMS" };
+      case "FACEBOOK": return { icon: "logo-facebook", color: "#1877F2", label: "Facebook" };
+      case "INSTAGRAM": return { icon: "logo-instagram", color: "#c13584", label: "Instagram" };
+      case "LINKEDIN": return { icon: "logo-linkedin", color: "#0A66C2", label: "LinkedIn" };
+      case "YOUTUBE": return { icon: "logo-youtube", color: "#FF0000", label: "YouTube" };
+      case "PINTEREST": return { icon: "logo-pinterest", color: "#E60023", label: "Pinterest" };
+      case "WHATSAPP": return { icon: "logo-whatsapp", color: "#25D366", label: "WhatsApp" };
+      default: return { icon: "globe-outline", color: "#6b7280", label: pName };
+    }
+  };
+
+  const brand = getBrandDetails(platformName);
+
+  // Sync statistics from APIs
   const handleRefreshClick = async () => {
-    if (!platformLabel) {
-      Alert.alert("Error", "Platform not available for refresh");
-      return;
-    }
-
+    if (!token) return;
     if (isDeleted) {
-      Alert.alert(
-        "Post Deleted",
-        "This post has been deleted from the platform."
-      );
+      Toast.show({
+        type: "info",
+        text1: "Post Deleted",
+        text2: "This post has been deleted from the social media channel.",
+      });
       return;
     }
 
+    setSyncing(true);
     try {
-      await getRefreshLog(platformLabel);
-      Alert.alert("Success", "Log refreshed successfully");
+      const res = await refreshPost(token, record.id, platformName, record.postId);
+      if (res?.post?.insight) {
+        setInsight(res.post.insight);
+        Toast.show({
+          type: "success",
+          text1: "Performance Synced",
+          text2: "Stats updated successfully with live social records.",
+        });
+      } else {
+        Toast.show({
+          type: "error",
+          text1: "Sync Failed",
+          text2: "Social insights did not return any updated metrics.",
+        });
+      }
     } catch (error) {
-      console.log("Error refreshing log:", error);
-      Alert.alert("Error", "Failed to refresh log");
+      console.log("Error syncing live stats:", error);
+      Toast.show({
+        type: "error",
+        text1: "Sync Error",
+        text2: "Could not fetch latest social details. Please try again.",
+      });
+    } finally {
+      setSyncing(false);
     }
   };
 
   return (
     <ThemedView
       style={{
-        backgroundColor: isDark ? "#020617" : "#ffffff",
-        borderRadius: 16,
+        backgroundColor: isDark ? "#0f172a" : "#ffffff",
+        borderRadius: 20,
         padding: 16,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: isDark ? "#1e293b" : "#e5e7eb",
+        borderColor: isDark ? "#1e293b" : "#e2e8f0",
+        shadowColor: "#000",
+        shadowOpacity: 0.04,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 2,
       }}
     >
-      {/* ---------- MEDIA ---------- */}
-      {(hasSingleImage || hasMultipleImages) && (
-        <ThemedView
-          style={{
-            borderRadius: 12,
-            overflow: "hidden",
-            marginBottom: 12,
-          }}
-        >
-          {hasSingleImage && (
-            <Image
-              source={{ uri: singleImageUrl }}
-              style={{ width: "100%", height: 200 }}
-              resizeMode="cover"
-            />
-          )}
+      {/* ---------- HEADER ---------- */}
+      <HStack style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <HStack style={{ alignItems: "center", gap: 8 }}>
+          <View
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: isDark ? "#1e293b" : `${brand.color}15`,
+            }}
+          >
+            <Ionicons name={brand.icon as any} size={16} color={brand.color} />
+          </View>
+          <VStack style={{ gap: 2 }}>
+            <ThemedText style={{ fontSize: 14, fontWeight: "800" }} numberOfLines={1}>
+              {record?.campaignName || "Untitled Campaign"}
+            </ThemedText>
+            <Text style={{ fontSize: 11, fontWeight: "600", color: isDark ? "#94a3b8" : "#64748b" }}>
+              {brand.label} • {record.publishedAt ? new Date(record.publishedAt).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric"
+              }) : "Sent"}
+            </Text>
+          </VStack>
+        </HStack>
 
-          {hasMultipleImages && (
-            <Carousel
-              width={width - 64}
-              height={200}
-              data={media}
-              pagingEnabled
-              renderItem={({ item }) => (
-                <Image
-                  source={{ uri: item }}
-                  style={{ width: "100%", height: 200 }}
-                  resizeMode="cover"
-                />
-              )}
-            />
-          )}
+        {isDeleted && (
+          <View
+            style={{
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+              borderRadius: 6,
+              backgroundColor: "#fef2f2",
+            }}
+          >
+            <Text style={{ color: "#ef4444", fontSize: 10, fontWeight: "800" }}>DELETED</Text>
+          </View>
+        )}
+      </HStack>
 
-          {isDeleted && (
-            <>
-              <BlurView
-                intensity={45}
-                tint="dark"
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                }}
-              />
-              <ThemedView
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <ThemedText
+      {/* ---------- MULTI-MEDIA CAROUSEL SLIDER ---------- */}
+      {mediaList.length > 0 && (
+        <View style={{ marginBottom: 12, borderRadius: 14, overflow: "hidden", position: "relative" }}>
+          <FlatList
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            data={mediaList}
+            keyExtractor={(url) => url}
+            onScroll={(e) => {
+              const slide = Math.round(e.nativeEvent.contentOffset.x / CARD_WIDTH);
+              if (slide !== activeMediaIndex) {
+                setActiveMediaIndex(slide);
+              }
+            }}
+            renderItem={({ item: url }) => {
+              const isVideo = isVideoFormat(url);
+              return (
+                <View style={{ width: CARD_WIDTH - 32, height: 180, position: "relative" }}>
+                  <Image
+                    source={{ uri: url }}
+                    style={{ width: "100%", height: "100%", borderRadius: 12 }}
+                    resizeMode="cover"
+                  />
+                  {isVideo && (
+                    <View
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: "rgba(0,0,0,0.3)",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: 12,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 22,
+                          backgroundColor: "rgba(255,255,255,0.85)",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Ionicons name="play" size={20} color="#1e293b" style={{ marginLeft: 3 }} />
+                      </View>
+                    </View>
+                  )}
+                </View>
+              );
+            }}
+          />
+
+          {/* Dots Indicator for Multi-Images */}
+          {mediaList.length > 1 && (
+            <HStack
+              style={{
+                position: "absolute",
+                bottom: 8,
+                left: 0,
+                right: 0,
+                justifyContent: "center",
+                gap: 5,
+              }}
+            >
+              {mediaList.map((_, idx) => (
+                <View
+                  key={idx}
                   style={{
-                    color: "#f87171",
-                    fontSize: 16,
-                    fontWeight: "600",
+                    width: idx === activeMediaIndex ? 14 : 6,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: idx === activeMediaIndex ? "#ffffff" : "rgba(255,255,255,0.5)",
                   }}
-                >
-                  Post Deleted
-                </ThemedText>
-              </ThemedView>
-            </>
+                />
+              ))}
+            </HStack>
           )}
-        </ThemedView>
+        </View>
       )}
 
-      {/* ---------- MESSAGE ---------- */}
-      <ThemedText
-        style={{
-          fontSize: 14,
-          fontWeight: "500",
-          color: isDeleted
-            ? "#dc2626"
-            : isDark
-            ? "#e5e7eb"
-            : "#111827",
-          textDecorationLine: isDeleted ? "line-through" : "none",
-          marginBottom: 6,
-          lineHeight: 20,
-        }}
-      >
-        {record.message}
-      </ThemedText>
-
-      {isDeleted && (
+      {/* ---------- POST MESSAGE ---------- */}
+      {record.message && (
         <ThemedText
           style={{
-            color: "#dc2626",
-            fontSize: 12,
-            fontWeight: "600",
-            marginBottom: 6,
+            fontSize: 13,
+            fontWeight: "500",
+            lineHeight: 18,
+            color: isDark ? "#cbd5e1" : "#334155",
+            marginBottom: 12,
+            textDecorationLine: isDeleted ? "line-through" : "none",
           }}
+          numberOfLines={2}
         >
-          This post has been deleted
+          {record.message}
         </ThemedText>
       )}
 
-      {/* ---------- INSIGHTS ---------- */}
+      {/* ---------- METRICS COUNTERS GRID ---------- */}
       <View
         style={{
           flexDirection: "row",
+          flexWrap: "wrap",
           justifyContent: "space-between",
-          marginTop: 8,
+          backgroundColor: isDark ? "#0f172a" : "#f8fafc",
+          borderRadius: 12,
+          padding: 10,
+          borderWidth: 1,
+          borderColor: isDark ? "#1e293b" : "#f1f5f9",
+          gap: 8,
         }}
       >
         {[
-          { label: "Likes", value: record.insight?.likes },
-          { label: "Comments", value: record.insight?.comments },
-          { label: "Engagement", value: record.insight?.engagementRate },
+          { label: "Reach", value: insight?.reach },
+          { label: "Likes", value: insight?.likes },
+          { label: "Comments", value: insight?.comments },
+          { label: "Engagement", value: `${((insight?.engagementRate ?? 0) * 100).toFixed(1)}%` },
         ].map((item) => (
-          <VStack key={item.label} style={{ alignItems:"center"}}>
-            <ThemedText style={{ fontSize: 13, fontWeight: "600" }}>
-              {isDeleted ? "-" : item.value ?? "-"}
+          <VStack key={item.label} style={{ alignItems: "center", width: "22%" }}>
+            <ThemedText style={{ fontSize: 13, fontWeight: "800" }}>
+              {isDeleted ? "-" : item.value ?? 0}
             </ThemedText>
             <ThemedText
               style={{
-                fontSize: 12,
-                color: isDark ? "#9ca3af" : "#6b7280",
+                fontSize: 10,
+                fontWeight: "700",
+                color: isDark ? "#94a3b8" : "#64748b",
+                marginTop: 2,
               }}
             >
               {item.label}
@@ -198,72 +334,63 @@ export default function LogsCard({ record, platformLabel }: LogsCardProps) {
         ))}
       </View>
 
-      {/* ---------- DIVIDER ---------- */}
-      <ThemedView
+      {/* ---------- SEPARATOR ---------- */}
+      <View
         style={{
           height: 1,
-          backgroundColor: isDark ? "#1e293b" : "#e5e7eb",
-          marginVertical: 14,
+          backgroundColor: isDark ? "#1e293b" : "#e2e8f0",
+          marginVertical: 12,
         }}
       />
 
-      {/* ---------- ACTIONS ---------- */}
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-around",
-        }}
-      >
-        {/* Refresh */}
-        <VStack style={{ alignItems:"center"}}>
-          <TouchableOpacity
-            disabled={isDeleted}
-            onPress={handleRefreshClick}
-          >
-            <Ionicons
-              name="refresh"
-              size={20}
-              color={isDeleted ? "#9ca3af" : "#2563eb"}
-            />
-          </TouchableOpacity>
-          <ThemedText
-            style={{
-              color: isDeleted ? "#9ca3af" : "#2563eb",
-              fontSize: 12,
-              marginTop: 4,
-            }}
-          >
-            Refresh
-          </ThemedText>
-        </VStack>
+      {/* ---------- CARD INTERACTIVE ACTIONS ---------- */}
+      <HStack style={{ justifyContent: "space-between", alignItems: "center" }}>
+        {/* Refresh Sync Action */}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          disabled={syncing || isDeleted}
+          onPress={handleRefreshClick}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            paddingVertical: 4,
+            paddingHorizontal: 8,
+          }}
+        >
+          {syncing ? (
+            <ActivityIndicator size="small" color="#dc2626" />
+          ) : (
+            <Ionicons name="sync-outline" size={16} color={isDeleted ? "#94a3b8" : "#dc2626"} />
+          )}
+          <Text style={{ fontSize: 12, fontWeight: "700", color: isDeleted ? "#94a3b8" : "#dc2626" }}>
+            {syncing ? "Syncing..." : "Sync Stats"}
+          </Text>
+        </TouchableOpacity>
 
-        {/* Analytics */}
-        <VStack style={{ alignItems:"center"}}>
-          <TouchableOpacity
-            onPress={() =>
-              router.push({
-                pathname: "/(tabs)/logs/postAnalytics",
-                params: { postId: Number(recordPostId) },
-              })
-            }
-          >
-            <Ionicons
-              name="stats-chart"
-              size={20}
-              color="#2563eb"
-            />
-          </TouchableOpacity>
-          <ThemedText
-            style={{
-              color: "#2563eb",
-              fontSize: 12,
-              marginTop: 4,
-            }}
-          >
+        {/* View Details Analytics Action */}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() =>
+            router.push({
+              pathname: "/(tabs)/logs/postAnalytics",
+              params: { postId: Number(record.id) },
+            })
+          }
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            paddingVertical: 4,
+            paddingHorizontal: 8,
+          }}
+        >
+          <Ionicons name="bar-chart-outline" size={16} color="#3b82f6" />
+          <Text style={{ fontSize: 12, fontWeight: "700", color: "#3b82f6" }}>
             Analytics
-          </ThemedText>
-        </VStack>
-      </View>
+          </Text>
+        </TouchableOpacity>
+      </HStack>
     </ThemedView>
   );
 }

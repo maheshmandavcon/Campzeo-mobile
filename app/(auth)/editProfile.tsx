@@ -1,4 +1,3 @@
-
 import { Input, InputField } from "@/components/ui/input";
 import { VStack } from "@/components/ui/vstack";
 import {
@@ -11,14 +10,18 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as ImagePicker from "expo-image-picker";
 import { Controller, useForm } from "react-hook-form";
 import { Image, Pressable, Text, useColorScheme } from "react-native";
+import { useEffect } from "react";
+import { updateProfile } from "@/api/dashboardApi";
+import Toast from "react-native-toast-message";
 
 type closeEPFType = {
   closeEPF: () => void;
 };
 
-export default function EditProfile({ closeEPF }: closeEPFType) {
-  const { user } = useUser();
-
+export default function EditProfile({
+  closeEPF,
+  userData,
+}: closeEPFType & { userData: any }) {
   const {
     control,
     handleSubmit,
@@ -26,9 +29,10 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
   } = useForm<EditProfileSchemaType>({
     resolver: zodResolver(editProfileSchema),
     defaultValues: {
-      firstName: user?.firstName || "",
-      lastName: user?.lastName || "",
-      username: user?.username || "",
+      firstName: userData?.firstName || "",
+      lastName: userData?.lastName || "",
+      mobile: userData?.mobile || "",
+      email: userData?.organisation?.email || "",
     },
   });
 
@@ -42,15 +46,6 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
       aspect: [1, 1],
       quality: 0.8,
     });
-
-    if (!res.canceled) {
-      const asset = res.assets[0];
-
-      const response = await fetch(asset.uri);
-      const blob = await response.blob();
-
-      await user?.setProfileImage({ file: blob });
-    }
   };
 
   // =====================
@@ -58,15 +53,24 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
   // =====================
   const onSubmit = async (data: EditProfileSchemaType) => {
     try {
-      await user?.update({
+      const payload = {
         firstName: data.firstName || null,
         lastName: data.lastName || null,
-        username: data.username,
-      });
-
+        mobile: data.mobile || null,
+      };
+      console.log("pppp", payload);
+      await updateProfile(payload);
       closeEPF();
+      Toast.show({
+              type: "success",
+              text1: "Profile updated successfully",
+            });
     } catch (err: any) {
       console.log("Profile update error:", err);
+      Toast.show({
+        type: "error",
+        text1: "Failed to update profile",
+      });
     }
   };
 
@@ -82,9 +86,14 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
       placeholder: "Enter your last name",
     },
     {
-      name: "username",
-      label: "Username",
-      placeholder: "Enter your username",
+      name: "mobile",
+      label: "Mobile Number",
+      placeholder: "Enter your mobile number",
+    },
+    {
+      name: "email",
+      label: "Email (READ ONLY)",
+      placeholder: "Enter your email",
     },
   ];
 
@@ -102,10 +111,7 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
 
   return (
     // <View className="p-5 rounded-lg">
-    <View
-      className="p-5 rounded-lg"
-      style={{ backgroundColor: COLORS.bg }}
-    >
+    <View className="p-5 rounded-lg" style={{ backgroundColor: COLORS.bg }}>
       <VStack space="lg" className="my-5">
         {/* <Text
           style={{
@@ -145,7 +151,7 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
                 }}
               />
             </Pressable> */}
-          
+
             {/* <Text
               style={{
                 textAlign: "center",
@@ -163,9 +169,7 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
           {fields.map((field, idx) => (
             <VStack space="xs" key={idx}>
               {/* <Text className="text-gray-700">{field.label}</Text> */}
-              <Text style={{ color: COLORS.label }}>
-                {field.label}
-              </Text>
+              <Text style={{ color: COLORS.label }}>{field.label}</Text>
               <Controller
                 control={control}
                 name={field.name as any}
@@ -191,8 +195,17 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
                         placeholderTextColor={COLORS.placeholder}
                         value={value}
                         onChangeText={onChange}
+                        keyboardType={
+                          field.name === "mobile"
+                            ? "phone-pad"
+                            : field.name === "email"
+                              ? "email-address"
+                              : "default"
+                        }
+                        editable={field.name !== "email"}
                         style={{
                           color: COLORS.textPrimary,
+                          opacity: field.name === "email" ? 0.6 : 1,
                         }}
                       />
                     </Input>
@@ -236,9 +249,7 @@ export default function EditProfile({ closeEPF }: closeEPFType) {
               className="rounded-xl py-4 mt-4 items-center"
               onPress={closeEPF}
             >
-              <Text style={{ color: "white", fontWeight: "600" }}>
-                Cancel
-              </Text>
+              <Text style={{ color: "white", fontWeight: "600" }}>Cancel</Text>
             </Pressable>
           </VStack>
         </VStack>

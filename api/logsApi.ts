@@ -1,63 +1,14 @@
 import https from "./https";
 
-
-// https://camp-zeo-testing.vercel.app/api/Analytics/posts?platform=EMAIL&page=1&limit=10
-// export const getLogs= async (platform: string) => {
-//   try {
-//     const response = await https.get(`Analytics/posts?platform=${platform}`);    
-
-//     // console.log("logs details: ",response.data);
-
-//     return response.data;
-//   } catch (error) {
-//     console.error("Fetching platform Error:", error);
-//     throw error;
-//   }
-// };
-
-type GetLogsParams = {
-  platform: string;
-  page?: number;
-  limit?: number;
-  startDate?: string;
-  endDate?: string;
-};
-
-export const getLogs = async ({
-  platform,
-  page = 1,
-  limit = 10,
-  startDate,
-  endDate,
-}: GetLogsParams) => {
-  const params = new URLSearchParams();
-
-  params.append("platform", platform);
-  params.append("page", page.toString());
-  params.append("limit", limit.toString());
-
-  if (startDate) params.append("startDate", startDate);
-  if (endDate) params.append("endDate", endDate);
-
-  // console.log("LOGS QUERY →", params.toString());
-
-  const response = await https.get(
-    `Analytics/posts?${params.toString()}`
-  );
-
-  // console.log("response of platform details", response);
-  return response.data;
-};
-
-
-
-// To refresh post details if updated
-export const getRefreshLog = async (platform: string) => {
-  // platform
+// Fetch available platforms from organization
+export const getPlatform = async (token: string) => {
   try {
-    const response = await https.get(`Analytics/posts?platform=${platform}&fresh=true`);
-
-    // console.log("Refreshed logs details: ", response.data);
+    const response = await https.get(`Organization/getplatform`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });    
     return response.data;
   } catch (error) {
     console.error("Fetching platform Error:", error);
@@ -65,18 +16,102 @@ export const getRefreshLog = async (platform: string) => {
   }
 };
 
-// Analytics Page api
-export const getAnalytics = async (postId: number) => {
+// Fetch campaign posts with dynamic pagination, date range, and optional platform
+export const getPosts = async (
+  token: string,
+  orgId: number,
+  platform: string,
+  startDate: string,
+  endDate: string,
+  page: number = 1,
+  limit: number = 10
+) => {
   try {
-    const response = await https.get(`Analytics/post-details/${postId}?fresh=true`);
-    console.log("post details", response.data);
+    let url = `Analytics/posts?page=${page}&limit=${limit}`;
+    if (startDate) url += `&startDate=${startDate}`;
+    if (endDate) url += `&endDate=${endDate}`;
+    
+    // Platform is optional; if it's "all" or empty, skip appending it
+    if (platform && platform.toLowerCase() !== "all") {
+      url += `&platform=${platform}`;
+    }
+
+    const response = await https.get(url, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });    
     return response.data;
-  }
-  catch (error) {
-    console.error("Fetching platform Error:", error);
+  } catch (error) {
+    console.error("Fetching posts Error:", error);
     throw error;
   }
 };
 
+// Fetch Funnel statistics (Reach, Engagement, New Contacts)
+export const getFunnel = async (token: string, startDate: string, endDate: string) => {
+  try {
+    let url = `Analytics/funnel`;
+    const params: string[] = [];
+    if (startDate) params.push(`startDate=${startDate}`);
+    if (endDate) params.push(`endDate=${endDate}`);
+    if (params.length > 0) {
+      url += `?${params.join("&")}`;
+    }
 
+    const response = await https.get(url, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });    
+    return response.data;
+  } catch (error) {
+    console.error("Fetching funnel stats Error:", error);
+    throw error;
+  }
+};
 
+// Fetch general engagement statistics with trend metrics
+export const getEngagement = async (token: string, startDate: string, endDate: string, platform?: string) => {
+  try {
+    let url = `Analytics/organisation`;
+    const params: string[] = [];
+    if (startDate) params.push(`startDate=${startDate}`);
+    if (endDate) params.push(`endDate=${endDate}`);
+    if (platform && platform.toLowerCase() !== "all") {
+      params.push(`platform=${platform}`);
+    }
+    if (params.length > 0) {
+      url += `?${params.join("&")}`;
+    }
+
+    const response = await https.get(url, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });    
+    return response.data;
+  } catch (error) {
+    console.error("Fetching engagement stats Error:", error);
+    throw error;
+  }
+};
+
+// Refresh individual campaign post statistics dynamically
+export const refreshPost = async (token: string, id: number, platform: string, postId: string) => {
+  try {
+    const response = await https.get(`Analytics/post-details/${id}?fresh=true&platform=${platform}&postId=${postId}`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error refreshing posts:", error);
+    throw error;
+  }
+};

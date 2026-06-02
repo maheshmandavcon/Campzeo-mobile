@@ -1,9 +1,21 @@
 import { getUser } from "@/api/dashboardApi";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export function useUserDetails(enabled = true) {
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(enabled);
+
+  const fetchUser = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await getUser();
+      setUserData(data);
+    } catch (error) {
+      console.error("Failed to fetch user", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!enabled) {
@@ -11,26 +23,9 @@ export function useUserDetails(enabled = true) {
       return;
     }
 
-    let mounted = true;
-
-    const fetchUser = async () => {
-      try {
-        setLoading(true);
-        const data = await getUser();
-        if (mounted) setUserData(data);
-      } catch (error) {
-        console.error("Failed to fetch user", error);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
     fetchUser();
+  }, [enabled, fetchUser]);
 
-    return () => {
-      mounted = false;
-    };
-  }, [enabled]);
-
-  return { userData, loading, setUserData };
+  return { userData, loading, setUserData, refetch: fetchUser };
 }
+

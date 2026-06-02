@@ -1,619 +1,760 @@
-import { getLogs } from "@/api/logsApi";
+import { getPlatform, getPosts, getFunnel, getEngagement } from "@/api/logsApi";
+import { getSocialStatus } from "@/api/accountsApi";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { FontAwesome, Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { useEffect, useState, useCallback } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
-  View as RNView,
+  View,
+  Text,
   TouchableOpacity,
   useColorScheme,
+  Dimensions,
 } from "react-native";
 import DateTimePicker from "react-native-modal-datetime-picker";
+import Toast from "react-native-toast-message";
 import LogsCard from "./logs-Components/logsCards";
 import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
 import { useFocusEffect } from "expo-router";
-import { useCallback } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
 
+const { width } = Dimensions.get("window");
 
 export default function Logs() {
-  const [selected, setSelected] = useState<string | null>(null);
-  const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
-  const [backendPlatform, setBackendPlatform] = useState<string | null>(null);
+  // Auth context
+  const { token, user } = useAuth();
+  const orgId = user?.organisationId ? Number(user.organisationId) : 0;
 
-  const [startDate, setStartDate] = useState<Date | null>(null);
-  const [endDate, setEndDate] = useState<Date | null>(null);
+  // Active filters states
+  const [duration, setDuration] = useState<"7d" | "30d" | "90d" | "custom">("30d");
+  const [activePlatform, setActivePlatform] = useState<string>("all");
+  const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
+  const [customEndDate, setCustomEndDate] = useState<Date | null>(null);
 
+  // Date picker visibility
   const [openFrom, setOpenFrom] = useState(false);
   const [openTo, setOpenTo] = useState(false);
 
-  // const [search, setSearch] = useState("");
+  // Data states
+  const [platforms, setPlatforms] = useState<any[]>([]);
+  const [socialStatus, setSocialStatus] = useState<any>(null);
+  const [funnelData, setFunnelData] = useState<any[]>([]);
+  const [engagement, setEngagement] = useState<any>(null);
+  const [posts, setPosts] = useState<any[]>([]);
 
-  // Platform icons
-  // const icons = [
-  //   { name: "mail", label: "Email", library: Ionicons, color: "#E60023" },
-  //   {
-  //     name: "chatbubble-ellipses-outline",
-  //     label: "SMS",
-  //     library: Ionicons,
-  //     color: "#f59e0b",
-  //   },
-  //   {
-  //     name: "instagram",
-  //     label: "Instagram",
-  //     library: FontAwesome,
-  //     color: "#c13584",
-  //   },
-  //   {
-  //     name: "logo-whatsapp",
-  //     label: "Whatsapp",
-  //     library: Ionicons,
-  //     color: "#25D366",
-  //   },
-  //   {
-  //     name: "facebook-square",
-  //     label: "Facebook",
-  //     library: FontAwesome,
-  //     color: "#1877F2",
-  //   },
-  //   {
-  //     name: "youtube-play",
-  //     label: "YouTube",
-  //     library: FontAwesome,
-  //     color: "#FF0000",
-  //   },
-  //   {
-  //     name: "linkedin-square",
-  //     label: "LinkedIn",
-  //     library: FontAwesome,
-  //     color: "#0A66C2",
-  //   },
-  //   {
-  //     name: "pinterest",
-  //     label: "Pinterest",
-  //     library: FontAwesome,
-  //     color: "#E60023",
-  //   },
-  // ];
+  // Page / Pagination states
+  const [page, setPage] = useState<number>(1);
+  const [hasMore, setHasMore] = useState<boolean>(true);
 
-  const icons = [
-    { name: "chatbubble-ellipses-outline", label: "SMS" as const, library: Ionicons, color: "#10b981" },
-    { name: "mail", label: "EMAIL" as const, library: Ionicons, color: "#f59e0b" },
-    { name: "logo-whatsapp", label: "WHATSAPP" as const, library: Ionicons, color: "#25D366" },
-    { name: "instagram", label: "INSTAGRAM" as const, library: FontAwesome, color: "#c13584" },
-    { name: "facebook-square", label: "FACEBOOK" as const, library: FontAwesome, color: "#1877F2" },
-    { name: "youtube-play", label: "YOUTUBE" as const, library: FontAwesome, color: "#FF0000" },
-    { name: "linkedin-square", label: "LINKEDIN" as const, library: FontAwesome, color: "#0A66C2" },
-    { name: "pinterest", label: "PINTEREST" as const, library: FontAwesome, color: "#E60023" },
-  ];
+  // Loading states
+  const [initialLoading, setInitialLoading] = useState<boolean>(true);
+  const [analyticsLoading, setAnalyticsLoading] = useState<boolean>(false);
+  const [feedLoading, setFeedLoading] = useState<boolean>(false);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const [showFilters, setShowFilters] = useState(false);
+  // Date formatter: yyyy-MM-dd
+  const getFormattedDateString = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
 
-  const handleFilterMenuPress = () => {
-    if (!selected) {
-      Alert.alert(
-        "Select Platform",
-        "Please select a platform first to apply filters."
-      );
+  // Check connection status
+  const isPlatformConnected = (platformName: string) => {
+    const name = platformName.toUpperCase();
+    if (name === "EMAIL" || name === "SMS" || name === "WHATSAPP") {
+      return true;
+    }
+    if (!socialStatus) return true; // fallback to active while loading
+    const key = platformName.toLowerCase();
+    const status = socialStatus[key];
+    return status?.connected === true;
+  };
+
+  // Get dynamic premium icons
+  const getPlatformIcon = (platformName: string) => {
+    switch (platformName.toUpperCase()) {
+      case "EMAIL": return "mail-outline";
+      case "SMS": return "chatbubble-ellipses-outline";
+      case "FACEBOOK": return "logo-facebook";
+      case "INSTAGRAM": return "logo-instagram";
+      case "LINKEDIN": return "logo-linkedin";
+      case "YOUTUBE": return "logo-youtube";
+      case "PINTEREST": return "logo-pinterest";
+      case "WHATSAPP": return "logo-whatsapp";
+      default: return "globe-outline";
+    }
+  };
+
+  // Get platform specific brand colors
+  const getPlatformColor = (platformName: string) => {
+    switch (platformName.toUpperCase()) {
+      case "EMAIL": return "#f59e0b";
+      case "SMS": return "#10b981";
+      case "FACEBOOK": return "#1877F2";
+      case "INSTAGRAM": return "#c13584";
+      case "LINKEDIN": return "#0A66C2";
+      case "YOUTUBE": return "#FF0000";
+      case "PINTEREST": return "#E60023";
+      case "WHATSAPP": return "#25D366";
+      default: return "#6b7280";
+    }
+  };
+
+  // Compute start/end dates
+  const getDateRange = () => {
+    const now = new Date();
+    let startStr = "";
+    let endStr = "";
+
+    if (duration === "7d") {
+      const past = new Date();
+      past.setDate(now.getDate() - 7);
+      startStr = getFormattedDateString(past);
+      endStr = getFormattedDateString(now);
+    } else if (duration === "30d") {
+      const past = new Date();
+      past.setDate(now.getDate() - 30);
+      startStr = getFormattedDateString(past);
+      endStr = getFormattedDateString(now);
+    } else if (duration === "90d") {
+      const past = new Date();
+      past.setDate(now.getDate() - 90);
+      startStr = getFormattedDateString(past);
+      endStr = getFormattedDateString(now);
+    } else if (duration === "custom") {
+      if (customStartDate && customEndDate) {
+        startStr = getFormattedDateString(customStartDate);
+        endStr = getFormattedDateString(customEndDate);
+      } else {
+        const past = new Date();
+        past.setDate(now.getDate() - 30);
+        startStr = getFormattedDateString(past);
+        endStr = getFormattedDateString(now);
+      }
+    }
+    return { startStr, endStr };
+  };
+
+  // Fetch initial base values (platforms and social accounts status)
+  const fetchMetadata = async () => {
+    if (!token) return;
+    try {
+      const [platformList, socialAcc] = await Promise.all([
+        getPlatform(token),
+        getSocialStatus()
+      ]);
+      setPlatforms(platformList || []);
+      setSocialStatus(socialAcc);
+    } catch (err) {
+      console.log("Error loading logs metadata:", err);
+    } finally {
+      setInitialLoading(false);
+    }
+  };
+
+  // Fetch performance metrics and posts list
+  const fetchAnalyticsAndLogs = async (resetPosts = true) => {
+    if (!token) return;
+    const { startStr, endStr } = getDateRange();
+
+    setAnalyticsLoading(true);
+    try {
+      // 1. Fetch funnel data
+      const funnelRes = await getFunnel(token, startStr, endStr);
+      setFunnelData(funnelRes?.funnel || []);
+
+      // 2. Fetch engagement overview
+      const engagementRes = await getEngagement(token, startStr, endStr, activePlatform);
+      setEngagement(engagementRes);
+    } catch (err) {
+      console.log("Error loading performance charts:", err);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+
+    if (resetPosts) {
+      setPage(1);
+      setHasMore(true);
+      setFeedLoading(true);
+      try {
+        const postsRes = await getPosts(token, orgId, activePlatform, startStr, endStr, 1, 10);
+        setPosts(postsRes?.posts || []);
+        if ((postsRes?.posts || []).length < 10) {
+          setHasMore(false);
+        }
+      } catch (err) {
+        console.log("Error loading posts feed:", err);
+        setPosts([]);
+      } finally {
+        setFeedLoading(false);
+      }
+    }
+  };
+
+  // Pull-to-refresh
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.all([
+      fetchMetadata(),
+      fetchAnalyticsAndLogs(true)
+    ]);
+    setIsRefreshing(false);
+  };
+
+  // Infinite Scroll - Load more records on scroll end
+  const handleLoadMore = async () => {
+    if (feedLoading || !hasMore || !token) return;
+
+    const nextPage = page + 1;
+    setFeedLoading(true);
+    const { startStr, endStr } = getDateRange();
+
+    try {
+      const postsRes = await getPosts(token, orgId, activePlatform, startStr, endStr, nextPage, 10);
+      const newPosts = postsRes?.posts || [];
+      if (newPosts.length === 0) {
+        setHasMore(false);
+      } else {
+        setPosts((prev) => [...prev, ...newPosts]);
+        setPage(nextPage);
+        if (newPosts.length < 10) {
+          setHasMore(false);
+        }
+      }
+    } catch (err) {
+      console.log("Error appending paginated logs:", err);
+    } finally {
+      setFeedLoading(false);
+    }
+  };
+
+  // Trigger metadata fetch on mount / screen focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchMetadata();
+    }, [token])
+  );
+
+  // Trigger metrics reload when platform or date configurations change
+  useEffect(() => {
+    if (!initialLoading) {
+      fetchAnalyticsAndLogs(true);
+    }
+  }, [duration, activePlatform, customStartDate, customEndDate, initialLoading]);
+
+  // Handle platform tab press validation
+  const handlePlatformPress = (platformName: string) => {
+    const name = platformName.toUpperCase();
+    if (name === "ALL") {
+      setActivePlatform("all");
       return;
     }
 
-    setShowFilters((prev) => !prev);
-  };
-
-  useFocusEffect(
-  useCallback(() => {
-    // 🔄 Reset page state every time screen is opened
-    setSelected(null);
-    setBackendPlatform(null);
-    setLogs([]);
-    setStartDate(null);
-    setEndDate(null);
-    setShowFilters(false);
-    setError(null);
-
-    return () => {
-      // optional cleanup
-    };
-  }, [])
-);
-
-
-  // Platform click handler
-  // const handlePlatformSelect = async (platformLabel: string) => {
-  //   try {
-  //     setSelected(platformLabel);
-  //     setLoading(true);
-  //     setError(null);
-
-  //     const platformMap: Record<string, string> = {
-  //       Facebook: "FACEBOOK",
-  //       Instagram: "INSTAGRAM",
-  //       LinkedIn: "LINKEDIN",
-  //     };
-
-  //     const platform = platformMap[platformLabel];
-  //     setBackendPlatform(platform);
-
-  //     if (!platform) {
-  //       setLogs([]);
-  //       return;
-  //     }
-
-  //     const response = await getLogs({ platform });
-  //     setLogs(response.posts || []);
-  //   } catch (err) {
-  //     setError("Failed to fetch logs");
-  //     setLogs([]);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
-  const handlePlatformSelect = async (platformLabel: string) => {
-    try {
-      setSelected(platformLabel);
-      setShowFilters(true);
-      setLoading(true);
-      setError(null);
-
-      const platformMap: Record<string, string> = {
-        Facebook: "FACEBOOK",
-        Instagram: "INSTAGRAM",
-        LinkedIn: "LINKEDIN",
-      };
-
-      const platform = platformMap[platformLabel];
-      setBackendPlatform(platform);
-
-      if (!platform) {
-        setLogs([]);
-        return;
-      }
-
-      const response = await getLogs({ platform });
-      setLogs(response.posts || []);
-    } catch (err) {
-      setError("Failed to fetch logs");
-      setLogs([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // const buildQuery = () => {
-  //   const params = new URLSearchParams();
-
-  //   params.append("platform", backendPlatform);
-  //   params.append("page", "1");
-  //   params.append("limit", "10");
-
-  //   if (startDate) params.append("startDate", startDate);
-  //   if (endDate) params.append("endDate", endDate);
-
-  //   return params.toString();
-  // };
-
-  const formatDate = (date: Date | null) => {
-    if (!date) return undefined;
-
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-
-    return `${year}-${month}-${day}`;
-  };
-
-  const handleApplyFilters = async () => {
-    if (!backendPlatform) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await getLogs({
-        platform: backendPlatform,
-        page: 1,
-        limit: 10,
-        startDate: startDate ? formatDate(startDate) : undefined,
-        endDate: endDate ? formatDate(endDate) : undefined,
+    if (!isPlatformConnected(platformName)) {
+      Toast.show({
+        type: "error",
+        text1: "Account Not Connected",
+        text2: `Please connect your ${platformName} account to get stats.`,
+        position: "bottom",
       });
-
-      setLogs(response.posts || []);
-
-      // console.log("APPLY FILTERS →", {
-      //   platform: backendPlatform,
-      //   startDate: startDate ? formatDate(startDate) : null,
-      //   endDate: endDate ? formatDate(endDate) : null,
-      // });
-    } catch (err) {
-      setError("Failed to apply filters");
-      setLogs([]);
-    } finally {
-      setLoading(false);
+      return;
     }
+
+    setActivePlatform(name);
   };
 
-  const handleClearFilters = async () => {
-    if (!backendPlatform) return;
+  // Render Segmented top duration buttons
+  const renderDurationFilter = () => {
+    const segments: Array<{ key: typeof duration; label: string }> = [
+      { key: "7d", label: "7 Days" },
+      { key: "30d", label: "30 Days" },
+      { key: "90d", label: "90 Days" },
+      { key: "custom", label: "Custom" },
+    ];
 
-    try {
-      setStartDate(null);
-      setEndDate(null);
-      setLoading(true);
-      setError(null);
-
-      const response = await getLogs({
-        platform: backendPlatform,
-        page: 1,
-        limit: 10,
-      });
-
-      setLogs(response.posts || []);
-    } catch (err) {
-      setError("Failed to reset filters");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // const fetchLogs = async () => {
-  //   const params = new URLSearchParams();
-
-  //   params.append("platform", selectedPlatform);
-  //   params.append("page", "1");
-  //   params.append("limit", "10");
-
-  //   if (startDate) params.append("startDate", formatDate(startDate));
-  //   if (endDate) params.append("endDate", formatDate(endDate));
-
-  //   await getLogsWithQuery(params.toString());
-  // };
-
-  const renderDateFilters = () => {
     return (
-      <ThemedView
+      <View
+        style={{
+          flexDirection: "row",
+          backgroundColor: isDark ? "#0f172a" : "#f1f5f9",
+          borderRadius: 25,
+          padding: 4,
+          marginHorizontal: 12,
+          marginVertical: 12,
+          borderWidth: 1,
+          borderColor: isDark ? "#1e293b" : "#e2e8f0",
+        }}
+      >
+        {segments.map((seg) => {
+          const isActive = duration === seg.key;
+          return (
+            <TouchableOpacity
+              key={seg.key}
+              activeOpacity={0.8}
+              onPress={() => setDuration(seg.key)}
+              style={{
+                flex: 1,
+                paddingVertical: 10,
+                alignItems: "center",
+                borderRadius: 22,
+                backgroundColor: isActive ? "#dc2626" : "transparent",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: "700",
+                  color: isActive ? "#ffffff" : isDark ? "#94a3b8" : "#475569",
+                }}
+              >
+                {seg.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
+
+  // Render Horizontal platform tabs
+  const renderPlatformTabs = () => {
+    if (initialLoading) {
+      return (
+        <View style={{ flexDirection: "row", gap: 12, paddingHorizontal: 12, marginVertical: 8 }}>
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <ShimmerSkeleton key={idx} height={40} width={85} borderRadius={20} />
+          ))}
+        </View>
+      );
+    }
+
+    const allTabs = [
+      { platformName: "ALL", isEnabled: true },
+      ...platforms.filter((p) => p.isEnabled)
+    ];
+
+    return (
+      <FlatList
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        data={allTabs}
+        keyExtractor={(item) => item.platformName}
+        contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 10 }}
+        renderItem={({ item }) => {
+          const isSelected = activePlatform.toUpperCase() === item.platformName.toUpperCase();
+          const connected = isPlatformConnected(item.platformName);
+          const brandColor = getPlatformColor(item.platformName);
+          const iconName = getPlatformIcon(item.platformName);
+
+          return (
+            <TouchableOpacity
+              activeOpacity={connected ? 0.8 : 0.6}
+              onPress={() => handlePlatformPress(item.platformName)}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                borderRadius: 24,
+                backgroundColor: isSelected
+                  ? "#dc2626"
+                  : isDark
+                  ? "#0f172a"
+                  : "#ffffff",
+                borderWidth: 1,
+                borderColor: isSelected
+                  ? "#dc2626"
+                  : isDark
+                  ? "#1e293b"
+                  : "#cbd5e1",
+                opacity: connected ? 1 : 0.45,
+              }}
+            >
+              {item.platformName !== "ALL" && (
+                <Ionicons
+                  name={iconName as any}
+                  size={16}
+                  color={isSelected ? "#fff" : brandColor}
+                />
+              )}
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "700",
+                  color: isSelected ? "#fff" : isDark ? "#e2e8f0" : "#334155",
+                }}
+              >
+                {item.platformName === "ALL" ? "All Platforms" : item.platformName}
+              </Text>
+            </TouchableOpacity>
+          );
+        }}
+      />
+    );
+  };
+
+  // Render Visual Stack Funnel
+  const renderFunnel = () => {
+    if (analyticsLoading) {
+      return (
+        <VStack style={{ padding: 16, gap: 12 }}>
+          <ShimmerSkeleton height={18} width="50%" />
+          <ShimmerSkeleton height={35} borderRadius={8} />
+          <ShimmerSkeleton height={35} borderRadius={8} />
+          <ShimmerSkeleton height={35} borderRadius={8} />
+        </VStack>
+      );
+    }
+
+    if (funnelData.length === 0) {
+      return null;
+    }
+
+    const maxVal = Math.max(...funnelData.map((d: any) => d.value), 1);
+
+    return (
+      <VStack
         style={{
           marginHorizontal: 12,
           marginBottom: 16,
-          padding: 12,
-          borderRadius: 14,
+          backgroundColor: isDark ? "#0f172a" : "#ffffff",
+          borderRadius: 16,
+          padding: 16,
           borderWidth: 1,
-          borderColor: "#e5e7eb",
-          // backgroundColor: "#ffffff",
+          borderColor: isDark ? "#1e293b" : "#e2e8f0",
+          shadowColor: "#000",
+          shadowOpacity: 0.03,
+          shadowRadius: 10,
+          elevation: 1,
         }}
       >
-        {/* TITLE */}
-        <ThemedText
-          style={{
-            fontSize: 13,
-            fontWeight: "600",
-            marginBottom: 9,
-          }}
-        >
-          Filter by Date
+        <ThemedText style={{ fontSize: 15, fontWeight: "800", marginBottom: 14 }}>
+          Acquisition Funnel Overview
         </ThemedText>
-
-        {/* DATE FIELDS */}
-        <HStack space="md">
-          {/* FROM */}
-          {/*  flex={1} */}
-          <VStack style={{ flex: 1 }}>
-            <ThemedText
-              style={{
-                fontSize: 11,
-                marginBottom: 4,
-              }}
-            >
-              From
-            </ThemedText>
-
-            <Pressable
-              onPress={() => setOpenFrom(true)}
-              style={{
-                borderWidth: 1,
-                borderColor: "#d1d5db",
-                borderRadius: 10,
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-              }}
-            >
-              <HStack style={{ alignItems: "center", justifyContent: "space-between" }}>
-                <ThemedText
+        <VStack style={{ gap: 12 }}>
+          {funnelData.map((item: any, idx: number) => {
+            const percent = (item.value / maxVal) * 100;
+            const fill = item.fill || (idx === 0 ? "#8884d8" : idx === 1 ? "#82ca9d" : "#ffc658");
+            return (
+              <VStack key={item.name || idx} style={{ gap: 6 }}>
+                <HStack style={{ justifyContent: "space-between", alignItems: "center" }}>
+                  <ThemedText style={{ fontSize: 12, fontWeight: "700" }}>{item.name}</ThemedText>
+                  <ThemedText style={{ fontSize: 12, fontWeight: "800", color: fill }}>
+                    {item.value}
+                  </ThemedText>
+                </HStack>
+                <View
                   style={{
-                    fontSize: 13,
+                    height: 10,
+                    width: "100%",
+                    backgroundColor: isDark ? "#1e293b" : "#f1f5f9",
+                    borderRadius: 5,
+                    overflow: "hidden",
                   }}
                 >
-                  {startDate ? formatDate(startDate) : "Select date"}
-                </ThemedText>
-                <Ionicons name="calendar-outline" size={18} color="#6b7280" />
-              </HStack>
-            </Pressable>
-          </VStack>
-
-          {/* TO */}
-          <VStack style={{ flex: 1 }}>
-            <ThemedText
-              style={{
-                fontSize: 11,
-                marginBottom: 4,
-              }}
-            >
-              To
-            </ThemedText>
-
-            <Pressable
-              onPress={() => setOpenTo(true)}
-              style={{
-                borderWidth: 1,
-                borderColor: "#d1d5db",
-                borderRadius: 10,
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-              }}
-            >
-              <HStack style={{ alignItems: "center", justifyContent: "space-between" }} >
-                <ThemedText
-                  style={{
-                    fontSize: 13,
-                    // color: endDate ? "#111827" : "#9ca3af",
-                  }}
-                >
-                  {endDate ? formatDate(endDate) : "Select date"}
-                </ThemedText>
-                <Ionicons name="calendar-outline" size={18} color="#6b7280" />
-              </HStack>
-            </Pressable>
-          </VStack>
-        </HStack>
-
-        {/* ACTION BUTTONS */}
-        <HStack space="md" style={{ marginTop: 14 }}>
-          <TouchableOpacity
-            style={{
-              flex: 1,
-              backgroundColor: "#dc2626",
-              paddingVertical: 12,
-              borderRadius: 10,
-            }}
-            onPress={() => {
-              // console.log(" APPLY BUTTON PRESSED");
-              handleApplyFilters();
-            }}
-          >
-            <ThemedText
-              style={{
-                color: "#ffffff",
-                textAlign: "center",
-                fontSize: 13,
-                fontWeight: "600",
-              }}
-            >
-              Apply Filter
-            </ThemedText>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={{
-              flex: 1,
-              borderWidth: 1,
-              borderColor: "#d1d5db",
-              paddingVertical: 12,
-              borderRadius: 10,
-            }}
-            onPress={handleClearFilters}
-          >
-            <ThemedText
-              style={{
-                textAlign: "center",
-                fontSize: 13,
-                fontWeight: "600",
-              }}
-            >
-              Clear
-            </ThemedText>
-          </TouchableOpacity>
-        </HStack>
-
-        {/* DATE PICKERS */}
-        <DateTimePicker
-          isVisible={openFrom}
-          mode="date"
-          date={startDate || new Date()}
-          onConfirm={(date) => {
-            setOpenFrom(false);
-            setStartDate(date);
-          }}
-          onCancel={() => setOpenFrom(false)}
-        />
-
-        <DateTimePicker
-          isVisible={openTo}
-          mode="date"
-          date={endDate || new Date()}
-          minimumDate={startDate || undefined}
-          onConfirm={(date) => {
-            setOpenTo(false);
-            setEndDate(date);
-          }}
-          onCancel={() => setOpenTo(false)}
-        />
-      </ThemedView>
+                  <View
+                    style={{
+                      height: "100%",
+                      width: `${percent}%`,
+                      backgroundColor: fill,
+                      borderRadius: 5,
+                    }}
+                  />
+                </View>
+              </VStack>
+            );
+          })}
+        </VStack>
+      </VStack>
     );
   };
 
-  // Header
+  // Render Metric Trend Grid
+  const renderMetricsGrid = () => {
+    if (analyticsLoading) {
+      return (
+        <VStack style={{ gap: 12, paddingHorizontal: 12, marginBottom: 16 }}>
+          <HStack space="md">
+            <View style={{ flex: 1 }}><ShimmerSkeleton height={95} borderRadius={16} /></View>
+            <View style={{ flex: 1 }}><ShimmerSkeleton height={95} borderRadius={16} /></View>
+          </HStack>
+          <HStack space="md">
+            <View style={{ flex: 1 }}><ShimmerSkeleton height={95} borderRadius={16} /></View>
+            <View style={{ flex: 1 }}><ShimmerSkeleton height={95} borderRadius={16} /></View>
+          </HStack>
+        </VStack>
+      );
+    }
+
+    const stats = [
+      {
+        label: "Total Reach",
+        value: engagement?.totalReach ?? 0,
+        trend: engagement?.reachTrend,
+        icon: "eye-outline",
+        color: "#3b82f6",
+      },
+      {
+        label: "Engagement Rate",
+        value: `${((engagement?.engagementRate ?? 0) * 100).toFixed(1)}%`,
+        trend: engagement?.engagementTrend,
+        icon: "pie-chart-outline",
+        color: "#10b981",
+      },
+      {
+        label: "Total Followers",
+        value: engagement?.totalFollowers ?? 0,
+        newFollowers: engagement?.followersTrend?.newFollowers,
+        icon: "people-outline",
+        color: "#f59e0b",
+      },
+      {
+        label: "Conversions",
+        value: engagement?.totalConversions ?? 0,
+        trend: engagement?.conversionsTrend,
+        icon: "cash-outline",
+        color: "#8b5cf6",
+      },
+    ];
+
+    return (
+      <View style={{ paddingHorizontal: 12, marginBottom: 16 }}>
+        <HStack style={{ flexWrap: "wrap", justifyContent: "space-between" }}>
+          {stats.map((stat, idx) => {
+            const isPositive = stat.trend?.isPositive ?? true;
+            const percent = stat.trend?.percentage ?? 0;
+            return (
+              <View
+                key={idx}
+                style={{
+                  width: "48%",
+                  backgroundColor: isDark ? "#0f172a" : "#ffffff",
+                  borderRadius: 16,
+                  padding: 14,
+                  marginBottom: 12,
+                  borderWidth: 1,
+                  borderColor: isDark ? "#1e293b" : "#e2e8f0",
+                  elevation: 2,
+                  shadowColor: "#000",
+                  shadowOpacity: 0.05,
+                  shadowRadius: 8,
+                  shadowOffset: { width: 0, height: 2 },
+                }}
+              >
+                <HStack style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <ThemedText style={{ fontSize: 11, fontWeight: "700", opacity: 0.6 }}>
+                    {stat.label}
+                  </ThemedText>
+                  <Ionicons name={stat.icon as any} size={16} color={stat.color} />
+                </HStack>
+                <ThemedText style={{ fontSize: 18, fontWeight: "800", marginBottom: 4 }}>
+                  {stat.value}
+                </ThemedText>
+                
+                {stat.newFollowers !== undefined ? (
+                  <HStack style={{ alignItems: "center" }} space="xs">
+                    <Ionicons name="arrow-up" size={12} color="#10b981" />
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: "#10b981" }}>
+                      +{stat.newFollowers} new
+                    </Text>
+                  </HStack>
+                ) : stat.trend ? (
+                  <HStack style={{ alignItems: "center" }} space="xs">
+                    <Ionicons
+                      name={isPositive ? "arrow-up" : "arrow-down"}
+                      size={12}
+                      color={isPositive ? "#10b981" : "#ef4444"}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: "700",
+                        color: isPositive ? "#10b981" : "#ef4444",
+                      }}
+                    >
+                      {percent}%
+                    </Text>
+                  </HStack>
+                ) : (
+                  <Text style={{ fontSize: 10, opacity: 0.5 }}>Stable</Text>
+                )}
+              </View>
+            );
+          })}
+        </HStack>
+      </View>
+    );
+  };
+
+  // Complete header render block
   const renderHeader = () => (
-    <ThemedView>
-      {/* HEADING */}
-      <ThemedView style={{ marginBottom: 16, paddingHorizontal: 10 }}>
-        <ThemedText
-          style={{
-            fontSize: 18,
-            fontWeight: "600",
-            marginTop: 7,
-            textAlign: "center",
-          }}
-        >
-          Select a platform to view its logs
+    <ThemedView style={{ paddingBottom: 8 }}>
+      {/* Dynamic Date segments */}
+      {renderDurationFilter()}
+
+      {/* Inline calendars if "Custom" chosen */}
+      {duration === "custom" && (
+        <HStack space="md" style={{ marginBottom: 12, paddingHorizontal: 12 }}>
+          <VStack style={{ flex: 1, gap: 4 }}>
+            <ThemedText style={{ fontSize: 11, fontWeight: "600", opacity: 0.6 }}>From</ThemedText>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setOpenFrom(true)}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                borderWidth: 1,
+                borderColor: isDark ? "#334155" : "#cbd5e1",
+                borderRadius: 12,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                backgroundColor: isDark ? "#1e293b" : "#ffffff",
+              }}
+            >
+              <Text style={{ color: isDark ? "#fff" : "#000", fontSize: 13 }}>
+                {customStartDate ? getFormattedDateString(customStartDate) : "Start Date"}
+              </Text>
+              <Ionicons name="calendar-outline" size={16} color={isDark ? "#aaa" : "#64748b"} />
+            </TouchableOpacity>
+          </VStack>
+
+          <VStack style={{ flex: 1, gap: 4 }}>
+            <ThemedText style={{ fontSize: 11, fontWeight: "600", opacity: 0.6 }}>To</ThemedText>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setOpenTo(true)}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                borderWidth: 1,
+                borderColor: isDark ? "#334155" : "#cbd5e1",
+                borderRadius: 12,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                backgroundColor: isDark ? "#1e293b" : "#ffffff",
+              }}
+            >
+              <Text style={{ color: isDark ? "#fff" : "#000", fontSize: 13 }}>
+                {customEndDate ? getFormattedDateString(customEndDate) : "End Date"}
+              </Text>
+              <Ionicons name="calendar-outline" size={16} color={isDark ? "#aaa" : "#64748b"} />
+            </TouchableOpacity>
+          </VStack>
+        </HStack>
+      )}
+
+      {/* Date Pickers Modals */}
+      <DateTimePicker
+        isVisible={openFrom}
+        mode="date"
+        date={customStartDate || new Date()}
+        onConfirm={(date) => {
+          setOpenFrom(false);
+          setCustomStartDate(date);
+        }}
+        onCancel={() => setOpenFrom(false)}
+      />
+
+      <DateTimePicker
+        isVisible={openTo}
+        mode="date"
+        date={customEndDate || new Date()}
+        minimumDate={customStartDate || undefined}
+        onConfirm={(date) => {
+          setOpenTo(false);
+          setCustomEndDate(date);
+        }}
+        onCancel={() => setOpenTo(false)}
+      />
+
+      {/* Platforms selector */}
+      {renderPlatformTabs()}
+
+      {/* Acquisition funnel overview */}
+      {renderFunnel()}
+
+      {/* Metric trends grid */}
+      {renderMetricsGrid()}
+
+      {/* Logs section subtitle */}
+      <View style={{ paddingHorizontal: 12, marginTop: 4, marginBottom: 8 }}>
+        <ThemedText style={{ fontSize: 16, fontWeight: "800" }}>
+          Recent Post Performance
         </ThemedText>
-      </ThemedView>
-
-      {/* PLATFORM ICONS */}
-      <ThemedView className="flex-row flex-wrap mb-4">
-        {icons.map((icon, index) => {
-          const IconComponent = icon.library;
-          const isSelected = selected === icon.label;
-
-          return (
-            <ThemedView key={index} className="w-1/4 mb-5 items-center">
-              {/* <RNView
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: isSelected ? 50 : 32,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  shadowColor: icon.color,
-                  shadowOpacity: isSelected ? 0.5 : 0,
-                  shadowRadius: isSelected ? 10 : 0,
-                  elevation: isSelected ? 8 : 0,
-                }}
-              > */}
-              <RNView
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 32,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  shadowColor: icon.color,
-                  shadowOffset: { width: 0, height: 0 },
-                  shadowOpacity: isSelected ? 0.5 : 0,
-                  shadowRadius: isSelected ? 12 : 0,
-                  elevation: isSelected ? 12 : 0,
-                }}
-              >
-                {/* <TouchableOpacity
-                  onPress={() => handlePlatformSelect(icon.label)}
-                  style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    borderWidth: 2,
-                    borderColor: icon.color,
-                  }}
-                > */}
-                <TouchableOpacity
-                  onPress={() => handlePlatformSelect(icon.label)}
-                  style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: isDark ? "#161618" : "#ffffff",
-                    borderWidth: 2,
-                    borderColor: isSelected ? icon.color : "#d1d5db",
-                  }}
-                >
-                  <IconComponent
-                    name={icon.name as any}
-                    size={28}
-                    color={isDark ? "#ffffff" : icon.color}
-                  />
-                </TouchableOpacity>
-              </RNView>
-
-              {/* <ThemedText className="mt-2 text-center text-sm font-medium">
-                {icon.label}
-              </ThemedText> */}
-              <ThemedText
-                style={{
-                  marginTop: 8,
-                  textAlign: "center",
-                  fontSize: 14,
-                  fontWeight: "bold",
-                }}
-              >
-                {icon.label}
-              </ThemedText>
-            </ThemedView>
-          );
-        })}
-      </ThemedView>
-
-      {/* ✅ DATE FILTERS */}
-      {/* {renderDateFilters()} */}
-      {showFilters && renderDateFilters()}
-
+      </View>
     </ThemedView>
   );
 
-  // Loading state
-  if (loading) {
+  // Footer spinner for infinite scrolling
+  const renderFooter = () => {
+    if (!feedLoading) return null;
     return (
-      <ThemedView className="flex-1 items-center justify-center">
+      <View style={{ paddingVertical: 20, alignItems: "center" }}>
+        <ActivityIndicator size="small" color="#dc2626" />
+      </View>
+    );
+  };
+
+  // Base loader when opening screen
+  if (initialLoading) {
+    return (
+      <ThemedView style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator size="large" color="#dc2626" />
-        <ThemedText
-          style={{
-            marginTop: 12,
-            fontSize: 14,
-            color: "#6b7280",
-          }}
-        >
-          Loading Logs…
+        <ThemedText style={{ marginTop: 12, fontSize: 14, opacity: 0.6 }}>
+          Syncing Account Records...
         </ThemedText>
-      </ThemedView>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <ThemedView className="flex-1 items-center justify-center">
-        <ThemedText>{error}</ThemedText>
-      </ThemedView>
-    );
-  }
-
-  // Empty state
-  if (selected && !loading && logs.length === 0) {
-    return (
-      <ThemedView className="flex-1 p-3">
-        {renderHeader()}
-        <ThemedView className="items-center mt-10">
-          <ThemedText>No logs found for {selected?.toLowerCase() ?? "this platform"}</ThemedText>
-        </ThemedView>
       </ThemedView>
     );
   }
 
   return (
-    <ThemedView className="flex-1">
-      {/* SCROLLABLE LIST */}
-      <ThemedView className="flex-1 px-3">
-        <FlatList
-          data={logs}
-          keyExtractor={(item) => item.id.toString()}
-          ListHeaderComponent={renderHeader}
-          renderItem={({ item }) => (
-            <LogsCard record={item} platformLabel={selected} />
-          )}
-          showsVerticalScrollIndicator={false}
-        />
-      </ThemedView>
+    <ThemedView style={{ flex: 1, backgroundColor: isDark ? "#020617" : "#f8fafc" }}>
+      <FlatList
+        data={posts}
+        keyExtractor={(item) => item.id.toString()}
+        ListHeaderComponent={renderHeader}
+        ListFooterComponent={renderFooter}
+        renderItem={({ item }) => (
+          <View style={{ paddingHorizontal: 12 }}>
+            <LogsCard record={item} platformLabel={item.platform} />
+          </View>
+        )}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        refreshing={isRefreshing}
+        onRefresh={handleRefresh}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          !feedLoading ? (
+            <View style={{ padding: 40, alignItems: "center", justifyContent: "center" }}>
+              <Ionicons
+                name="chatbox-ellipses-outline"
+                size={44}
+                color={isDark ? "#334155" : "#94a3b8"}
+                style={{ marginBottom: 12 }}
+              />
+              <ThemedText style={{ fontSize: 14, fontWeight: "600", opacity: 0.6, textAlign: "center" }}>
+                No posts found for the selected platform
+              </ThemedText>
+            </View>
+          ) : null
+        }
+      />
+      {/* Toast Notification Mount */}
+      <Toast />
     </ThemedView>
   );
 }
