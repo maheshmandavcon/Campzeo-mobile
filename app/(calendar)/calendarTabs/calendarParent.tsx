@@ -36,7 +36,7 @@ export default function CalendarParent() {
             alignItems: "center",
             justifyContent: "center",
             borderWidth: 1,
-              borderColor: "#e5e7eb",
+            borderColor: isDark ? "#334155" : "#e5e7eb",
           }}
         >
           {tabs.map((tab) => {
