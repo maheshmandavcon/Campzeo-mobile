@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   },
   drawer: {
     position: 'absolute',
-    backgroundColor: 'transparent',
+    backgroundColor: '#fff',
     shadowColor: '#000',
     shadowOffset: { width: -2, height: 0 },
     shadowOpacity: 0.25,
@@ -277,18 +277,18 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 0,
-    paddingTop: 0,
-    paddingBottom: 0,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
   },
   header: {
-    paddingVertical: 0,
+    paddingVertical: 16,
   },
   body: {
     flex: 1,
   },
   footer: {
-    paddingVertical: 0,
+    paddingVertical: 16,
   },
 });
 

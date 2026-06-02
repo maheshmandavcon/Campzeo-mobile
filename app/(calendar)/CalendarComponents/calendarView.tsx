@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Calendar } from "react-native-big-calendar";
 
 import { ThemedView } from "@/components/themed-view";
-import { Post } from "@/types/types";
+import { CalendarEvent, Post } from "@/types/types";
 import { ScrollView } from "react-native";
 import { groupEventsByDate } from "../../../utils/groupEventsByDate";
 import { mapEvents } from "../../../utils/mapEvents";
@@ -22,7 +22,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts }) => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
 
   // Event Modal State
-  const [selectedEvent, setSelectedEvent] = useState(
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
     null
   );
   const [isModalVisible, setModalVisible] = useState(false);
@@ -34,7 +34,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts }) => {
   const groupedEvents = useMemo(() => groupEventsByDate(events), [events]);
 
   // When user taps an event in the calendar
-  const handleEventPress = (event: any) => {
+  const handleEventPress = (event: CalendarEvent) => {
     setSelectedEvent(event);
     setModalVisible(true);
   };

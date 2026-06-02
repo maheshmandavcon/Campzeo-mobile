@@ -1,4 +1,4 @@
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@clerk/clerk-expo';
 import { api } from '../lib/api';
 
 export function useApi() {

@@ -1,4 +1,73 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+// import React, { useState } from "react";
+// import {
+//   View,
+//   Text,
+//   TouchableOpacity,
+//   SafeAreaView,
+//   StyleSheet,
+// } from "react-native";
+// import Insights from "./dashboardComponents/insights";
+// import CalendarWrapper from "@/app/(common)/calendarWrapper";
+// import { ThemedView } from "@/components/themed-view";
+
+// const DashboardTabs = () => {
+//   const [activeTab, setActiveTab] = useState("dashboard");
+
+//   return (
+//     <SafeAreaView style={styles.container}>
+//       {/* TOP TABS */}
+//       <ThemedView style={styles.tabsContainer}>
+//         {/* DASHBOARD TAB */}
+//         <TouchableOpacity
+//           style={styles.tab}
+//           onPress={() => setActiveTab("dashboard")}
+//           activeOpacity={0.7}
+//         >
+//           <Text
+//             style={[
+//               styles.tabText,
+//               activeTab === "dashboard" && styles.activeTabText,
+//             ]}
+//           >
+//             Dashboard
+//           </Text>
+
+//           {activeTab === "dashboard" && <View style={styles.activeIndicator} />}
+//         </TouchableOpacity>
+
+//         {/* CALENDAR TAB */}
+//         <TouchableOpacity
+//           style={styles.tab}
+//           onPress={() => setActiveTab("calendar")}
+//           activeOpacity={0.7}
+//         >
+//           <Text
+//             style={[
+//               styles.tabText,
+//               activeTab === "calendar" && styles.activeTabText,
+//             ]}
+//           >
+//             Calendar
+//           </Text>
+
+//           {activeTab === "calendar" && <View style={styles.activeIndicator} />}
+//         </TouchableOpacity>
+//       </ThemedView>
+
+//       {/* TAB CONTENT */}
+//       <View style={styles.content}>
+//         {activeTab === "dashboard" ? (
+//           <Insights />
+//         ) : (
+//           <CalendarWrapper />
+//         )}
+//       </View>
+//     </SafeAreaView>
+//   );
+// };
+
+// export default DashboardTabs;
+import React, { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -9,43 +78,11 @@ import {
 import PagerView from "react-native-pager-view";
 
 import Insights from "./dashboardComponents/insights";
+import CalendarWrapper from "@/app/(common)/calendarWrapper";
 import { ThemedView } from "@/components/themed-view";
-import CalendarParent from "@/app/(calendar)/calendarTabs/calendarParent";
-import { ScrollView } from "react-native-gesture-handler";
-import { getUser } from "@/api/dashboardApi";
-import { getUsage } from "@/api/billingApi";
-import { useFocusEffect } from "expo-router";
 
 const DashboardTabs = () => {
   const [activeTab, setActiveTab] = useState(0);
-   const [userData, setUserData] = useState<any>(null);
-    const [usageData, setUsageData] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
-  
-    /* ================= API ================= */
-      const fetchInsights = async () => {
-        try {
-          const user = await getUser();
-          const usage = await getUsage();
-          setUserData(user);
-          setUsageData(usage);
-        } catch (error) {
-          console.error("Dashboard fetch error:", error);
-        } finally {
-          setLoading(false);
-        }
-      };
-    useEffect(() => {
-
-      fetchInsights();
-    }, []);
-  
-    useFocusEffect(
-      useCallback(() => {
-        fetchInsights();
-      }, [])
-    );
-
   const pagerRef = useRef<PagerView>(null);
 
   const onTabPress = (index: number) => {
@@ -88,13 +125,12 @@ const DashboardTabs = () => {
         onPageSelected={(e) => setActiveTab(e.nativeEvent.position)}
       >
         <View key="dashboard">
-          <Insights userData={userData} usageData={usageData} loading={loading} />
+          <Insights />
         </View>
 
-        <ScrollView key="calendar">
-          <CalendarParent />
-          {/* <CalendarWrapper /> */}
-        </ScrollView>
+        <View key="calendar">
+          <CalendarWrapper />
+        </View>
       </PagerView>
     </SafeAreaView>
   );

@@ -1,6 +1,6 @@
 import { createContactApi, updateContactApi, getContactsApi } from "@/api/contactApi";
 import { getCampaignsApi } from "@/api/campaignApi";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { FormControl, Input, InputField } from "@gluestack-ui/themed";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,7 +21,6 @@ import {
 } from "react-native";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
-import { getUser } from "@/api/dashboardApi";
 
 type Contact = {
   id?: number;
@@ -79,10 +78,8 @@ export default function CreateContact() {
       try {
         const token = await getToken();
         if (!token) throw new Error("Token missing");
-        const user = await getUser();        
-        const orgId = user?.organisation?.id; 
 
-        const data = await getContactsApi(orgId); 
+        const data = await getContactsApi(1, 1000); 
         const emails = data.contacts?.map((c: any) => c.contactEmail.toLowerCase()) || [];
         setExistingEmails(emails);
       } catch (err) {
@@ -100,10 +97,8 @@ export default function CreateContact() {
       try {
         const token = await getToken();
         if (!token) throw new Error("Token missing");
-        const user = await getUser();        
-        const orgId = user?.organisation?.id; 
 
-        const data = await getContactsApi(orgId); 
+        const data = await getContactsApi(1, 1000); 
         const emails = data.contacts?.map((c: any) => c.contactEmail.toLowerCase()) || [];
         const numbers = data.contacts?.map((c: any) => c.contactMobile) || [];
 
@@ -139,9 +134,8 @@ export default function CreateContact() {
       try {
         const token = await getToken();
         if (!token) throw new Error("Token missing");
-        const user = await getUser();        
-        const orgId = user?.organisation?.id;      
-        const data = await getCampaignsApi(orgId);
+
+        const data = await getCampaignsApi(1, 50);
         const options =
           data?.campaigns?.map((c: any) => ({ id: c.id, name: c.name })) ?? [];
         setCampaignOptions(options);
@@ -182,16 +176,12 @@ export default function CreateContact() {
 
       const token = await getToken();
       if (!token) throw new Error("Authentication token not found");
-      const user = await getUser();        
-      const orgId = user?.organisation?.id; 
 
       if (isEdit) {
-await updateContactApi(orgId, {
-  ...data,
-  id: editingContact?.id,
-});        Alert.alert("Success", "Contact updated successfully");
+        await updateContactApi(Number(contactId), data);
+        Alert.alert("Success", "Contact updated successfully");
       } else {
-        await createContactApi(orgId, data);
+        await createContactApi(data);
         Alert.alert("Success", "Contact created successfully");
       }
 

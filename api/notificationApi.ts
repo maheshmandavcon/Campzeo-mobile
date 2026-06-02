@@ -24,19 +24,6 @@ export const getNotificationsApi = async (
   }
 };
 
-export const getAllNotificationsApi = async (page: number, limit: number) => {
-  try {
-    const res = await https.get(`/notifications?page=${page}&limit=${limit}&filter=all`);
-
-    return res.data; // Return API response
-  } catch (error: any) {
-    console.error("Get All Notifications API Error:", error.response || error.message);
-    throw new Error(
-      error?.response?.data?.message || error?.response?.data || "Failed to fetch all notifications"
-    );
-  }
-};
-
 // ---------------- MARK ALL NOTIFICATIONS AS READ ----------------
 
 export const markAllNotificationsReadApi = async (token: AuthToken) => {

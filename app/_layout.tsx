@@ -1,4 +1,4 @@
-import "react-native-gesture-handler";
+import "react-native-gesture-handler"; // MUST BE FIRST
 import "react-native-reanimated";
 import "../global.css";
 
@@ -15,9 +15,12 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 
+import { ClerkLoaded, ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import Constants from "expo-constants";
+import * as SecureStore from "expo-secure-store";
 
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { setTokenGetter } from "@/lib/authToken";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { ThemedView } from "@/components/themed-view";
 import * as Linking from "expo-linking";
@@ -26,33 +29,57 @@ import { GluestackUIProvider } from "@gluestack-ui/themed";
 import { config } from "@gluestack-ui/config";
 import { NetworkGate } from "../network/networkGate";
 import { OverlayProvider } from "@gluestack-ui/core/overlay/creator";
-import Toast from "react-native-toast-message";
 
+/* ---------------- TOKEN CACHE ---------------- */
+
+const tokenCache = {
+  async getToken(key: string) {
+    try {
+      const item = await SecureStore.getItemAsync(key);
+      console.log(
+        item
+          ? `[TokenCache] Token found for key: ${key}`
+          : `[TokenCache] No token found for key: ${key}`,
+      );
+      return item;
+    } catch (err) {
+      console.error(`[TokenCache] Error getting token for key: ${key}`, err);
+      return null;
+    }
+  },
+  async saveToken(key: string, value: string) {
+    try {
+      await SecureStore.setItemAsync(key, value);
+      console.log(`[TokenCache] SAVE SUCCESS for key: ${key}`);
+    } catch (err) {
+      console.error(`[TokenCache] SAVE FAILED for key: ${key}`, err);
+    }
+  },
+};
 
 /* ---------------- AUTH GUARD ---------------- */
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isSignedIn, isLoaded } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
     if (!isLoaded || !pathname) return;
 
-    const authRoutes = [
-      "/",
-      "/login",
-      "/auth-callback",
-      "/expiredPlan",
-      "/changePassword",
-    ];
-    const isAuthRoute = authRoutes.includes(pathname);
+    console.log("[AuthGuard]", { isSignedIn, pathname });
 
-    if (!isSignedIn && !isAuthRoute && pathname !== "/") {
+    const authRoutes = ["/", "/login", "/changePassword", "/editProfile"];
+
+    if (
+      !isSignedIn &&
+      !authRoutes.includes(pathname) &&
+      pathname !== "/auth-callback"
+    ) {
       router.replace("/(auth)/login");
     }
 
-    if (isSignedIn && (isAuthRoute || pathname === "/")) {
+    if (isSignedIn && authRoutes.includes(pathname)) {
       router.replace("/(tabs)/dashboard");
     }
   }, [isLoaded, isSignedIn, router, pathname]);
@@ -82,6 +109,15 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
 /* ---------------- AUTH BRIDGE ---------------- */
 
+function AuthBridge() {
+  const { getToken } = useAuth();
+
+  useEffect(() => {
+    setTokenGetter(getToken);
+  }, [getToken]);
+
+  return null;
+}
 
 /* ---------------- LINKING DEBUG ---------------- */
 
@@ -108,37 +144,45 @@ function GlobalLinkingHandler() {
 /* ---------------- ROOT LAYOUT ---------------- */
 
 export default function RootLayout() {
+  const publishableKey = Constants.expoConfig?.extra?.clerkPublishableKey;
   const colorScheme = useColorScheme();
   const queryClient = new QueryClient();
 
+  if (!publishableKey) {
+    throw new Error("Missing Clerk Publishable Key");
+  }
+
   return (
-    <NetworkGate>
-      <AuthProvider>
-        <AuthGuard>
-          <GlobalLinkingHandler />
-          <GluestackUIProvider config={config}>
-            <OverlayProvider>
-              <SafeAreaProvider>
-                <ThemeProvider
-                  value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-                >
-                  <GestureHandlerRootView style={{ flex: 1 }}>
-                    <QueryClientProvider client={queryClient}>
-                      <Stack screenOptions={{ headerShown: false }}>
-                        <Stack.Screen name="(auth)" />
-                        <Stack.Screen name="(tabs)" />
-                        <Stack.Screen name="auth-callback" />
-                      </Stack>
-                      <StatusBar style="auto" />
-                      <Toast />
-                    </QueryClientProvider>
-                  </GestureHandlerRootView>
-                </ThemeProvider>
-              </SafeAreaProvider>
-            </OverlayProvider>
-          </GluestackUIProvider>
-        </AuthGuard>
-      </AuthProvider>
-    </NetworkGate>
+    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+      <ClerkLoaded>
+        <AuthBridge />
+
+        <NetworkGate>
+          <AuthGuard>
+            <GlobalLinkingHandler />
+            <GluestackUIProvider config={config}>
+              <OverlayProvider>
+                <SafeAreaProvider>
+                  <ThemeProvider
+                    value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+                  >
+                    <GestureHandlerRootView style={{ flex: 1 }}>
+                      <QueryClientProvider client={queryClient}>
+                        <Stack screenOptions={{ headerShown: false }}>
+                          <Stack.Screen name="(auth)" />
+                          <Stack.Screen name="(tabs)" />
+                          <Stack.Screen name="auth-callback" />
+                        </Stack>
+                        <StatusBar style="auto" />
+                      </QueryClientProvider>
+                    </GestureHandlerRootView>
+                  </ThemeProvider>
+                </SafeAreaProvider>
+              </OverlayProvider>
+            </GluestackUIProvider>
+          </AuthGuard>
+        </NetworkGate>
+      </ClerkLoaded>
+    </ClerkProvider>
   );
 }

@@ -20,12 +20,11 @@ import {
 } from "@/api/contactApi";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@clerk/clerk-expo";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
-import * as Clipboard from "expo-clipboard";
+import * as Clipboard from 'expo-clipboard';
 import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
-import { getUser } from "@/api/dashboardApi";
 
 export default function Contacts() {
   const [visibleCount, setVisibleCount] = useState(10);
@@ -48,11 +47,8 @@ export default function Contacts() {
       setLoading(true);
       const token = await getToken();
       if (!token) throw new Error("Authentication token not found");
-      const user = await getUser();
-      const orgId = user?.organisation?.id;
 
-      const res = await getContactsApi(orgId);
-
+      const res = await getContactsApi(1, 50, search);
       const contactsArray = res?.contacts ?? [];
 
       const mapped: ContactsRecord[] = contactsArray.map((item: any) => ({
@@ -77,7 +73,7 @@ export default function Contacts() {
   useFocusEffect(
     useCallback(() => {
       fetchContacts();
-    }, [search]),
+    }, [search])
   );
 
   const filteredRecords = [...records].sort((a, b) => {
@@ -107,18 +103,16 @@ Mobile: ${record.mobile || "-"}
 WhatsApp: ${record.whatsapp || "-"}
   `;
 
-    Clipboard.setStringAsync(textToCopy)
-      .then(() => {
-        Alert.alert("Copied!", "Contact details copied to clipboard.");
-      })
-      .catch((err) => {
-        console.error("Clipboard error:", err);
-        Alert.alert("Error", "Failed to copy contact details.");
-      });
+    Clipboard.setStringAsync(textToCopy).then(() => {
+      Alert.alert("Copied!", "Contact details copied to clipboard.");
+    }).catch((err) => {
+      console.error("Clipboard error:", err);
+      Alert.alert("Error", "Failed to copy contact details.");
+    });
   };
 
   const handleDelete = (record: ContactsRecord) => {
-    Alert.alert("Delete Contact", `Are you sure you want to delete this contact? This action cannot be undone. Delete ${record.name}?`, [
+    Alert.alert("Delete Contact", `Delete ${record.name}?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -126,15 +120,10 @@ WhatsApp: ${record.whatsapp || "-"}
         onPress: async () => {
           try {
             setLoading(true);
-
             const token = await getToken();
             if (!token) return;
 
-            const user = await getUser();
-            const orgId = user?.organisation?.id;
-
-            await deleteContactApi(orgId, record.id,token);
-
+            await deleteContactApi([record.id]);
             setRecords((prev) => prev.filter((r) => r.id !== record.id));
           } catch (e: any) {
             Alert.alert("Error", e.message || "Failed to delete");
@@ -158,7 +147,7 @@ WhatsApp: ${record.whatsapp || "-"}
       const binary = new Uint8Array(arrayBuffer);
       let binaryString = "";
       binary.forEach((b) => (binaryString += String.fromCharCode(b)));
-      const base64Data = Buffer.from(binaryString, "binary").toString("base64");
+      const base64Data = btoa(binaryString);
 
       const fileUri = `${FileSystem.cacheDirectory}contacts_${Date.now()}.csv`;
 
@@ -181,7 +170,9 @@ WhatsApp: ${record.whatsapp || "-"}
   };
 
   const handleLoadToggle = () => {
-    isAllVisible ? setVisibleCount(5) : setVisibleCount(filteredRecords.length);
+    isAllVisible
+      ? setVisibleCount(5)
+      : setVisibleCount(filteredRecords.length);
   };
 
   const toggleShow = (record: ContactsRecord) => {
@@ -198,7 +189,7 @@ WhatsApp: ${record.whatsapp || "-"}
 
   const ContactSkeletonCard = () => (
     <ThemedView className="bg-gray-50 rounded-xl p-4 mb-3 border border-gray-200">
-      {/* NAME + ACTIONS */}
+
       <View className="flex-row items-center justify-between mb-3">
         <ShimmerSkeleton height={16} width="45%" />
 
@@ -229,10 +220,13 @@ WhatsApp: ${record.whatsapp || "-"}
         <ShimmerSkeleton height={12} width="30%" />
         <ShimmerSkeleton height={14} width={40} borderRadius={6} />
       </View>
+
     </ThemedView>
   );
 
-  const listData = loading ? skeletonData : visibleRecords;
+  const listData = loading
+    ? skeletonData
+    : visibleRecords;
 
   return (
     <ThemedView className="flex-1">
@@ -281,7 +275,7 @@ WhatsApp: ${record.whatsapp || "-"}
               setVisibleCount(5);
             }}
             placeholder="Search contacts..."
-            placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+            placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"} 
             style={{
               flex: 1,
               backgroundColor: isDark ? "#161618" : "#ffffff",
@@ -290,7 +284,7 @@ WhatsApp: ${record.whatsapp || "-"}
               paddingVertical: 8,
               borderRadius: 9999,
               borderWidth: 1,
-              borderColor: isDark ? "#fff" : "#d1d5db",
+              borderColor: isDark ? "#fff" : "#d1d5db", 
             }}
           />
 
@@ -328,9 +322,7 @@ WhatsApp: ${record.whatsapp || "-"}
                 size={18}
                 color={isDark ? "#ffffff" : "#111827"}
               />
-              <ThemedText className="ml-3 font-medium text-white">
-                Export All
-              </ThemedText>
+              <ThemedText className="ml-3 font-medium text-white">Export All</ThemedText>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -400,6 +392,7 @@ WhatsApp: ${record.whatsapp || "-"}
             flexGrow: listData.length === 0 ? 1 : undefined,
           }}
         />
+
       </ThemedView>
     </ThemedView>
   );

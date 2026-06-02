@@ -1,12 +1,9 @@
-import { deleteCampaignApi } from "@/api/campaignApi";
-import { getUser } from "@/api/dashboardApi";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { getToken } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect } from "react";
-import { Alert, Text, TouchableOpacity, useColorScheme, View } from "react-native";
+import React from "react";
+import { Text, TouchableOpacity, useColorScheme, View } from "react-native";
 
 export interface Campaign {
   id: number;
@@ -17,12 +14,11 @@ export interface Campaign {
   dates: string;
   posts: string[];
   show?: boolean;
-  contactCount?: number;
+  contactsCount?: number;
   postsCount?: number;
 }
 
 interface CampaignCardProps {
-  postLength?: number;
   campaign: Campaign;
   postsCount?: number;
   onDelete: (c: Campaign) => void;
@@ -40,7 +36,6 @@ interface CampaignCardProps {
 }
 
 export default function CampaignCard({
-  postLength,
   campaign,
   onDelete,
   onCopy,
@@ -81,45 +76,22 @@ export default function CampaignCard({
 
   // ✅ FIXED POST COUNT LOGIC
   const totalPosts =
-   postLength;
+    campaign.postsCount ??
+    postsCount ??
+    campaign.posts?.length ??
+    0;
 
   const handleEdit = () => {
     if (onEdit) {
-      onEdit(campaign);      
+      onEdit(campaign);
     } else {
       router.push({
         pathname: "/campaigns/createCampaign",
         params: { campaign: JSON.stringify(campaign) },
       });
-      // console.log("kempains",campaign);
     }
   };
-  
-const handleDelete = async (cId: number) => {
-    Alert.alert("Delete Campaign?", `Are you sure you want to delete this campaign?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            const token = await getToken();
-            if (!token) throw new Error("Authentication token missing");
-            const user = await getUser();
-            const orgId = user?.organisation?.id;
-            await deleteCampaignApi(cId, orgId);
-            // setCampaigns((prev) => prev.filter((x) => x.id !== c.id));
-          } catch (error: any) {
-            console.error("Error deleting campaign:", error);
-            Alert.alert(
-              "Failed to delete campaign",
-              error?.message || "Unknown error"
-            );
-          }
-        },
-      },
-    ]);
-  };
+
   const handleAddPost = () => {
     if (onPressPost) {
       onPressPost();
@@ -215,95 +187,6 @@ const handleDelete = async (cId: number) => {
       : "#e5e7eb"
     : borderColorStyle; // 👈 status-based color when hidden
 
-  if (alwaysExpanded) {
-    return (
-      <View
-        style={{
-          borderRadius: 20,
-          padding: 20,
-          backgroundColor: isDark ? "#1e1e20" : "#ffffff",
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: 0.08,
-          shadowRadius: 10,
-          elevation: 4,
-          marginBottom: 20,
-          borderWidth: 1,
-          borderColor: isDark ? "#2c2c2e" : "#e5e7eb",
-        }}
-      >
-        {/* Top Header Row with Status */}
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <Text style={{ fontSize: 22, fontWeight: "800", color: isDark ? "#ffffff" : "#111827", flex: 1, marginRight: 10 }} numberOfLines={1}>
-            {campaign.details ?? "Untitled Campaign"}
-          </Text>
-          <StatusBadge />
-        </View>
-
-        {/* Description Section */}
-        {campaign.description ? (
-          <Text style={{ fontSize: 14, color: isDark ? "#a1a1aa" : "#4b5563", lineHeight: 20, marginBottom: 16 }}>
-            {campaign.description}
-          </Text>
-        ) : null}
-
-        {/* Grid Stats Row */}
-        <View style={{ flexDirection: "row", justifyContent: "space-between", backgroundColor: isDark ? "#262629" : "#f8fafc", padding: 16, borderRadius: 16, borderStyle: "solid", borderWidth: 1, borderColor: isDark ? "#2c2c2e" : "#f1f5f9", marginBottom: 16 }}>
-          <View style={{ flex: 1.2, alignItems: "center" }}>
-            <Ionicons name="calendar-outline" size={18} color="#ef4444" style={{ marginBottom: 4 }} />
-            <Text style={{ fontSize: 10, color: "#9ca3af", fontWeight: "700", marginBottom: 2, letterSpacing: 0.5 }}>DURATION</Text>
-            <Text style={{ fontSize: 11, fontWeight: "700", color: isDark ? "#e5e7eb" : "#1f2937", textAlign: "center" }}>
-              {campaign.dates}
-            </Text>
-          </View>
-          <View style={{ width: 1, backgroundColor: isDark ? "#2c2c2e" : "#e5e7eb", marginHorizontal: 8 }} />
-          <View style={{ flex: 0.9, alignItems: "center" }}>
-            <Ionicons name="people-outline" size={18} color="#3b82f6" style={{ marginBottom: 4 }} />
-            <Text style={{ fontSize: 10, color: "#9ca3af", fontWeight: "700", marginBottom: 2, letterSpacing: 0.5 }}>CONTACTS</Text>
-            <Text style={{ fontSize: 14, fontWeight: "800", color: isDark ? "#e5e7eb" : "#1f2937" }}>
-              {campaign.contactCount ?? 0}
-            </Text>
-          </View>
-          <View style={{ width: 1, backgroundColor: isDark ? "#2c2c2e" : "#e5e7eb", marginHorizontal: 8 }} />
-          <View style={{ flex: 0.9, alignItems: "center" }}>
-            <Ionicons name="albums-outline" size={18} color="#10b981" style={{ marginBottom: 4 }} />
-            <Text style={{ fontSize: 10, color: "#9ca3af", fontWeight: "700", marginBottom: 2, letterSpacing: 0.5 }}>POSTS</Text>
-            <Text style={{ fontSize: 14, fontWeight: "800", color: isDark ? "#e5e7eb" : "#1f2937" }}>
-              {totalPosts}
-            </Text>
-          </View>
-        </View>
-
-        {/* Action Button Row */}
-        {showPostButton && createPostButton && (
-          <TouchableOpacity
-            onPress={handleAddPost}
-            activeOpacity={0.85}
-            style={{
-              height: 48,
-              borderRadius: 24,
-              backgroundColor: "#2563eb",
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              shadowColor: "#2563eb",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 6,
-              elevation: 4,
-            }}
-          >
-            <Ionicons name="add-circle" size={20} color="#ffffff" />
-            <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: 15 }}>
-              Create Campaign Post
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    );
-  }
-
   return (
     // <ThemedView
     //   className="p-4 rounded-xl mb-4"
@@ -341,7 +224,7 @@ const handleDelete = async (cId: number) => {
                 <Ionicons name="create-outline" size={22} style={{ color: isDark ? "#73f3c9" : "#10b981" }} />
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => handleDelete(campaign.id)} className="mx-1">
+              <TouchableOpacity onPress={() => onDelete(campaign)} className="mx-1">
                 <Ionicons name="trash-outline" size={22} style={{ color: isDark ? "#f47a7a" : "#ef4444" }} />
               </TouchableOpacity>
 
@@ -381,7 +264,7 @@ const handleDelete = async (cId: number) => {
               <ThemedView className="flex-row items-center">
                 <Ionicons name="people-outline" size={18} color={isDark ? "#ffffff" : "#4b5563"} />
                 <Text className={`ml-1.5 ${isDark ? "text-gray-200" : "text-gray-700"}`}>
-                  {campaign.contactCount ?? 0} Contacts
+                  {campaign.contactsCount ?? 0} Contacts
                 </Text>
               </ThemedView>
 

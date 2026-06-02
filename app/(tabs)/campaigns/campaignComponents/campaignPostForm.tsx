@@ -1,76 +1,11 @@
 import { getUser } from "@/api/dashboardApi";
 import { useCampaignPostForm } from "@/hooks/useCampaignPostForm";
-import { useUser } from "@/context/AuthContext";
+import { useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { Button, Switch } from "@gluestack-ui/themed";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { WebView } from "react-native-webview";
+import { ResizeMode, Video } from "expo-av";
 import React, { useEffect, useState } from "react";
-
-const Video = ({
-  source,
-  style,
-  poster,
-  controls = false,
-  ...rest
-}: {
-  source: { uri: string };
-  style?: any;
-  poster?: string;
-  controls?: boolean;
-  [key: string]: any;
-}) => {
-  return (
-    <View style={[{ overflow: "hidden" }, style]}>
-      <WebView
-        source={{
-          html: `
-            <html>
-              <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-                <style>
-                  html, body {
-                    margin: 0;
-                    padding: 0;
-                    width: 100%;
-                    height: 100%;
-                    background: #000000;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    overflow: hidden;
-                  }
-                  video {
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                  }
-                </style>
-              </head>
-              <body>
-                <video
-                  src="${source.uri}"
-                  ${poster ? `poster="${poster}"` : ""}
-                  autoplay
-                  loop
-                  muted
-                  playsinline
-                  ${controls ? "controls" : ""}
-                />
-              </body>
-            </html>
-          `,
-        }}
-        style={{
-          flex: 1,
-          backgroundColor: "#000000",
-        }}
-        javaScriptEnabled
-        domStorageEnabled
-      />
-    </View>
-  );
-};
 import {
   ActivityIndicator,
   Alert,
@@ -88,20 +23,19 @@ import {
 } from "react-native";
 import DraggableFlatList from "react-native-draggable-flatlist";
 import Preview from "./preview";
-import { Picker } from "@react-native-picker/picker";
 import { ThemedText } from "@/components/themed-text";
 import * as Linking from "expo-linking";
 
 interface CampaignPostFormProps {
   platform:
-    | "EMAIL"
-    | "SMS"
-    | "INSTAGRAM"
-    | "WHATSAPP"
-    | "FACEBOOK"
-    | "YOUTUBE"
-    | "LINKEDIN"
-    | "PINTEREST";
+  | "EMAIL"
+  | "SMS"
+  | "INSTAGRAM"
+  | "WHATSAPP"
+  | "FACEBOOK"
+  | "YOUTUBE"
+  | "LINKEDIN"
+  | "PINTEREST";
   existingPost?: any;
   campaignId?: string;
   campaignStartDate?: string;
@@ -109,7 +43,7 @@ interface CampaignPostFormProps {
   onClose?: () => void;
 }
 
-export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
+const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
   platform,
   existingPost = null,
   campaignId,
@@ -120,15 +54,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
   const isDark = useColorScheme() === "dark";
 
   const {
-    // state
-    platform: platformState,
-    senderEmail,
-    subject,
-    message,
-    attachments,
-    postDate,
-    loading,
-    previewTimestamp,
     platform: platformState,
     senderEmail,
     subject,
@@ -143,16 +68,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     aiResults,
     loadingAI,
     imageLoadingMap,
-    aiModalVisible,
-    aiPrompt,
-    aiResults,
-    loadingAI,
-    imageLoadingMap,
 
-    imageModalVisible,
-    imagePrompt,
-    generatedImages,
-    loadingImage,
     imageModalVisible,
     imagePrompt,
     generatedImages,
@@ -175,42 +91,12 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
     facebookPages,
     selectedFacebookPage,
-    selectedFacebookPageId,
-    selectedFacebookPageAccessToken,
-    leadFormId,
-    leadForms,
-    isLoadingLeadForms,
-    facebookContentType,
-    isFacebookPageLoading,
-    coverImage,
-    coverUploading,
-    setCoverImage,
-    facebookPages,
-    selectedFacebookPage,
     facebookContentType,
     isFacebookPageLoading,
     coverImage,
     coverUploading,
     setCoverImage,
 
-    youTubeContentType,
-    youTubeTags,
-    youTubeStatus,
-    showStatusDropdown,
-    isCreatingPlaylist,
-    customThumbnail,
-    playlistId,
-    playlistTitle,
-    playlists,
-    showPlaylistDropdown,
-    selectedPlaylist,
-    newPlaylistName,
-    selectedAccount,
-    hasVideo,
-    hasImage,
-    hasAttachment,
-    canSelectStandard,
-    canSelectReel,
     youTubeContentType,
     youTubeTags,
     youTubeStatus,
@@ -239,25 +125,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     isPinterestBoardLoading,
     allPinterestBoards,
     loadingBoards,
-    pinterestBoard,
-    destinationLink,
-    isCreatingPinterestBoard,
-    pinterestModalVisible,
-    newPinterestBoard,
-    pinterestDescription,
-    isPinterestBoardLoading,
-    allPinterestBoards,
-    loadingBoards,
 
-    showPicker,
-    showTimePicker,
-    minSelectableStartDate,
-    minSelectableEndDate,
-    maxSelectableEndDate,
-    imageErrorMap,
-    selectingImage,
-
-    // setters
     showPicker,
     showTimePicker,
     minSelectableStartDate,
@@ -287,7 +155,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     setIsCreatingPlaylist,
     setPlaylistId,
     setPlaylistTitle,
-    setCustomThumbnail,
     setTemplateModalVisible,
     setIsCreatingPinterestBoard,
     setSelectedFacebookPage,
@@ -326,19 +193,12 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     handleCustomThumbnailUpload,
     handleCreatePinterestBoard,
     handleSelectGeneratedImage,
-    handleSelectFacebookPage,
-    setLeadFormId,
-    handleCreateYoutubePlaylist,
     handleSelectTemplate,
   } = useCampaignPostForm({
     platform,
     campaignId,
     existingPost: existingPost
       ? existingPost
-      : {
-          campaign: { startDate: campaignStartDate, endDate: campaignEndDate },
-        },
-    // campaignStartDate,
       : {
         campaign: { startDate: campaignStartDate, endDate: campaignEndDate },
       },
@@ -352,6 +212,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
   const YOUTUBE_TYPES = [
     { label: "Standard Video", value: "VIDEO" },
     { label: "YouTube Short", value: "SHORT" },
+    { label: "Playlist", value: "PLAYLIST" },
   ] as const;
 
 
@@ -371,63 +232,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     Linking.openURL(url);
   };
 
-  const renderAttachmentItem = ({ item, index }: any) => {
-    const isImage = item.type.startsWith("image/");
-    const isVideo = item.type.startsWith("video/");
-
-    return (
-      <View className="flex-row items-center bg-gray-200 rounded-lg px-2 py-1 mr-2 mb-2">
-        {isImage && (
-          <Image
-            source={{ uri: item.uri }}
-            style={{ width: 50, height: 50, borderRadius: 5, marginRight: 5 }}
-          />
-        )}
-
-        {isVideo && (
-          <View
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: 5,
-              marginRight: 5,
-              overflow: "hidden",
-            }}
-          >
-            <Video
-              source={{ uri: item.uri }}
-              style={{ width: "100%", height: "100%" }}
-              resizeMode="cover"
-              paused={false}
-              muted
-              controls={false}
-              repeat
-            />
-            {/* Play icon overlay */}
-            <View
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "100%",
-                justifyContent: "center",
-                alignItems: "center",
-                backgroundColor: "rgba(0,0,0,0.2)",
-              }}
-            >
-              <Ionicons name="play-circle" size={24} color="#fff" />
-            </View>
-          </View>
-        )}
-
-        <Text
-          className="mr-2 text-gray-700"
-          numberOfLines={1}
-          style={{ maxWidth: 80 }}
-        >
-          {item.name}
-        </Text>
   const renderAttachmentItem = ({ item }: any) => {
     const isImage =
       item.type?.startsWith("image/") || item.type === "image";
@@ -487,7 +291,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
         { }
         <TouchableOpacity
-          onPress={() => handleRemoveAttachment(item.uploadedUrl ?? item.uri)}
           onPress={() =>
             item.uploading
               ? Alert.alert("Wait", "Please wait for upload to complete")
@@ -531,12 +334,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
   }, []);
 
   const { user } = useUser();
-
-  // useEffect(() => {
-  //   console.log("🚀 ~ CampaignPostForm ~ generatedImages:", generatedImages)
-  //   console.log("🚀 ~ CampaignPostForm ~ aiResults:", aiResults)
-  //   console.log("🚀 ~ CampaignPostForm ~ attachments:", attachments)
-  // }, [generatedImages, aiResults, attachments]);
 
   return (
     <KeyboardAvoidingView
@@ -829,35 +626,27 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           { }
           <TouchableOpacity
             onPress={() => setAiModalVisible(true)}
-            activeOpacity={0.8}
             style={{
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "center",
-              backgroundColor: isDark ? "#4c1d95" : "#6d28d9",
-              paddingVertical: 12,
-              paddingHorizontal: 20,
-              borderRadius: 14,
-              marginBottom: 16,
-              borderWidth: 1,
-              borderColor: isDark ? "#6d28d9" : "#8b5cf6",
-              shadowColor: "#6d28d9",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.15,
-              shadowRadius: 6,
-              elevation: 4,
+              backgroundColor: "#dc2626",
+              paddingVertical: 10,
+              paddingHorizontal: 16,
+              borderRadius: 25,
+              marginBottom: 8,
             }}
           >
             <Ionicons
               name="sparkles"
-              size={18}
-              color="#ffffff"
-              style={{ marginRight: 8 }}
+              size={20}
+              color="#fff"
+              style={{ marginRight: 12 }}
             />
             <Text
-              style={{ color: "#ffffff", fontWeight: "bold", fontSize: 13 }}
+              style={{ color: "#fff", fontWeight: "bold", textAlign: "center" }}
             >
-              Generate Content with AI Assistant
+              Text Generate AI Assistant
             </Text>
           </TouchableOpacity>
 
@@ -889,12 +678,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               marginBottom: 8,
               minHeight: 120,
               backgroundColor: isDark ? "#161618" : "#ffffff",
-              color: isDark ? "#e5e7eb" : "#111111", // text color
-            }}
-          />
-
-          {/* AI IMAGE BUTTON */}
-          {platformState !== "SMS" && platformState !== "YOUTUBE" && (
               color: isDark ? "#e5e7eb" : "#111111",
             }}
           />
@@ -964,40 +747,32 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           {platformState !== "SMS" && (
             <TouchableOpacity
               onPress={() => setImageModalVisible(true)}
-              activeOpacity={0.8}
               style={{
                 flexDirection: "row",
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: isDark ? "#064e3b" : "#0f766e",
-                paddingVertical: 12,
-                paddingHorizontal: 20,
-                borderRadius: 14,
-                marginBottom: 16,
+                backgroundColor: "#2563eb",
+                paddingVertical: 10,
+                paddingHorizontal: 16,
+                borderRadius: 25,
+                marginBottom: 8,
                 marginTop: 8,
-                borderWidth: 1,
-                borderColor: isDark ? "#0f766e" : "#14b8a6",
-                shadowColor: "#0f766e",
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.15,
-                shadowRadius: 6,
-                elevation: 4,
               }}
             >
               <Ionicons
                 name="sparkles"
-                size={18}
-                color="#ffffff"
-                style={{ marginRight: 8 }}
+                size={24}
+                color="#fff"
+                style={{ marginRight: 12 }}
               />
               <Text
                 style={{
-                  color: "#ffffff",
+                  color: "#fff",
                   fontWeight: "bold",
-                  fontSize: 13,
+                  textAlign: "center",
                 }}
               >
-                Generate Image with AI Assistant
+                Image Generate AI Assistant
               </Text>
             </TouchableOpacity>
           )}
@@ -1070,104 +845,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   </TouchableOpacity>
                 </View>
 
-                {aiResults.length > 0 ? (
-                  <View style={{ flexShrink: 1, marginTop: 4 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                      <Text style={{ fontWeight: 'bold', fontSize: 14, color: isDark ? '#ffffff' : '#374151', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                        AI SUGGESTIONS ({aiResults.length})
-                      </Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Ionicons name="checkmark-circle" size={16} color="#10b981" />
-                        <Text style={{ color: '#10b981', fontWeight: 'bold', fontSize: 12, marginLeft: 4 }}>Ready</Text>
-                      </View>
-                    </View>
-                    <FlatList
-                      data={aiResults}
-                      keyExtractor={(_, index) => index.toString()}
-                      showsVerticalScrollIndicator={false}
-                      contentContainerStyle={{ paddingBottom: 16 }}
-                      renderItem={({ item, index }) => {
-                        const STYLE_BADGES = ["PROFESSIONAL", "CREATIVE", "CONCISE"];
-                        const badgeLabel = STYLE_BADGES[index] || "SUGGESTION";
-
-                        return (
-                          <View
-                            style={{
-                              backgroundColor: isDark ? "#1e1e1e" : "#ffffff",
-                              borderRadius: 12,
-                              borderWidth: 1,
-                              borderColor: isDark ? "#333" : "#e5e7eb",
-                              padding: 16,
-                              marginBottom: 12,
-                            }}
-                          >
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                              <Text style={{ color: isDark ? "#9ca3af" : "#9ca3af", fontWeight: 'bold', fontSize: 12, marginTop: 4, letterSpacing: 0.5 }}>
-                                {badgeLabel}
-                              </Text>
-                              
-                              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                {item.isLoading ? (
-                                  <ActivityIndicator size="small" color="#dc2626" style={{ marginRight: 8 }} />
-                                ) : (
-                                  <>
-                                    {/* Red Check Button (Replace/Use) */}
-                                    <TouchableOpacity 
-                                      activeOpacity={0.7}
-                                      onPress={() => {
-                                        setSubject(item.subject);
-                                        setMessage(item.content);
-                                        setAiModalVisible(false);
-                                      }}
-                                      style={{
-                                        backgroundColor: "#dc2626", // red
-                                        width: 32,
-                                        height: 32,
-                                        borderRadius: 10,
-                                        justifyContent: 'center',
-                                        alignItems: 'center',
-                                        marginRight: 8
-                                      }}
-                                    >
-                                      <Ionicons name="checkmark" size={18} color="#fff" />
-                                    </TouchableOpacity>
-
-                                    {/* White Plus Button (Append) */}
-                                    {/* <TouchableOpacity 
-                                      activeOpacity={0.7}
-                                      onPress={() => {
-                                        if (!subject && item.subject) {
-                                          setSubject(item.subject);
-                                        }
-                                        setMessage(message ? `${message}\n\n${item.content}` : item.content);
-                                        setAiModalVisible(false);
-                                      }}
-                                      style={{
-                                        backgroundColor: isDark ? "#374151" : "#ffffff",
-                                        width: 32,
-                                        height: 32,
-                                        borderRadius: 10,
-                                        borderWidth: 1,
-                                        borderColor: isDark ? "#4b5563" : "#d1d5db",
-                                        justifyContent: 'center',
-                                        alignItems: 'center'
-                                      }}
-                                    >
-                                      <Ionicons name="add" size={18} color={isDark ? "#fff" : "#374151"} />
-                                    </TouchableOpacity> */}
-                                  </>
-                                )}
-                              </View>
-                            </View>
-
-                            <Text style={{ fontSize: 14, color: isDark ? "#d1d5db" : "#374151", lineHeight: 22 }}>
-                              {item.subject ? `Title: ${item.subject}\n` : ""}{item.content}
-                            </Text>
-                          </View>
-                        );
-                      }}
-                    />
-                  </View>
                 {loadingAI ? (
                   <View
                     style={{
@@ -1342,21 +1019,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     renderItem={({ item }) => (
                       <TouchableOpacity
                         disabled={imageLoadingMap[item] || imageErrorMap[item]}
-                        // onPress={() => {
-                        //   if (imageErrorMap[item]) return;
-
-                        //   setAttachments((prev) => [
-                        //     ...prev,
-                        //     {
-                        //       uri: item,
-                        //       name: "ai-image.jpg",
-                        //       type: "image/jpeg",
-                        //       uploading: false,
-                        //     },
-                        //   ]);
-
-                        //   setImageModalVisible(false);
-                        // }}
                         onPress={() => {
                           if (imageErrorMap[item]) return;
                           handleSelectGeneratedImage(item);
@@ -1410,10 +1072,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                               width: "100%",
                               height: "100%",
                               borderRadius: 6,
-                              opacity:
-                                imageLoadingMap[item] || imageErrorMap[item]
-                                  ? 0
-                                  : 1,
                               opacity:
                                 imageLoadingMap[item] || imageErrorMap[item]
                                   ? 0
@@ -1529,115 +1187,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             </View>
           )}
 
-          {/* ---------- Custom Video Thumbnail Section ---------- */}
-          {hasVideo && (
-            <View
-              style={{
-                marginTop: 16,
-                marginBottom: 16,
-                borderWidth: 1,
-                borderColor: isDark ? "#374151" : "#e2e8f0",
-                borderRadius: 12,
-                padding: 16,
-                backgroundColor: isDark ? "#1a1a1c" : "#f8fafc",
-              }}
-            >
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <View style={{ flex: 1, paddingRight: 8 }}>
-                  <Text
-                    style={{
-                      color: isDark ? "#ffffff" : "#1e293b",
-                      fontWeight: "bold",
-                      fontSize: 14,
-                    }}
-                  >
-                    Custom Video Thumbnail
-                  </Text>
-                  <Text
-                    style={{
-                      color: isDark ? "#94a3b8" : "#64748b",
-                      fontSize: 12,
-                      marginTop: 2,
-                    }}
-                  >
-                    Upload an image to use as the custom thumbnail for your video.
-                  </Text>
-                </View>
-                <Ionicons name="image-outline" size={22} color="#2563eb" />
-              </View>
-
-              {customThumbnail ? (
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    backgroundColor: isDark ? "#27272a" : "#ffffff",
-                    borderRadius: 8,
-                    padding: 8,
-                    borderWidth: 1,
-                    borderColor: isDark ? "#3f3f46" : "#e2e8f0",
-                  }}
-                >
-                  <Image
-                    source={{ uri: customThumbnail }}
-                    style={{ width: 60, height: 60, borderRadius: 6, marginRight: 12 }}
-                    resizeMode="cover"
-                  />
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        color: isDark ? "#e2e8f0" : "#334155",
-                        fontWeight: "600",
-                        fontSize: 13,
-                      }}
-                      numberOfLines={1}
-                    >
-                      {customThumbnail.substring(customThumbnail.lastIndexOf("/") + 1)}
-                    </Text>
-                    <Text
-                      style={{
-                        color: "#16a34a",
-                        fontSize: 11,
-                        fontWeight: "bold",
-                        marginTop: 2,
-                      }}
-                    >
-                      ✅ Uploaded & Active
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setCustomThumbnail(null)}
-                    style={{
-                      padding: 8,
-                      borderRadius: 8,
-                      backgroundColor: isDark ? "rgba(239, 68, 68, 0.15)" : "#fee2e2",
-                    }}
-                  >
-                    <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  onPress={handleCustomThumbnailUpload}
-                  style={{
-                    backgroundColor: "#2563eb",
-                    paddingVertical: 12,
-                    borderRadius: 8,
-                    alignItems: "center",
-                    flexDirection: "row",
-                    justifyContent: "center",
-                    gap: 8,
-                  }}
-                >
-                  <Ionicons name="cloud-upload-outline" size={18} color="#ffffff" />
-                  <Text style={{ color: "#ffffff", fontWeight: "bold", fontSize: 13 }}>
-                    Upload Custom Thumbnail
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
-
           {(platformState === "FACEBOOK" || platformState === "INSTAGRAM") && (
             <View
               style={{
@@ -1675,82 +1224,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 </Text>
               </View>
 
-              <View
-                style={{
-                  borderWidth: 1,
-                  borderColor: isDark ? "#374151" : "#d1d5db",
-                  borderRadius: 8,
-                  backgroundColor: isDark ? "#1f1f22" : "#ffffff",
-                  overflow: "hidden",
-                }}
-              >
-                <Picker
-                  selectedValue={selectedAccount}
-                  onValueChange={(itemValue) => setSelectedAccount(itemValue)}
-                  style={{
-                    color: isDark ? "#fff" : "#000",
-                  }}
-                  dropdownIconColor={isDark ? "#fff" : "#000"}
-                >
-                  <Picker.Item
-                    label="Select author"
-                    value={null}
-                    enabled={false}
-                    color={isDark ? "#9ca3af" : "#6b7280"}
-                  />
-
-                  {linkedinAccounts.map((account) => (
-                    <Picker.Item
-                      key={account.id}
-                      label={account.name}
-                      value={String(account.id)}
-                    />
-                  ))}
-                </Picker>
-              </View>
-            </View>
-          )} */}
-
-          {(platformState === "FACEBOOK" || platformState === "INSTAGRAM") && (
-            <View
-              style={{
-                borderWidth: 1,
-                borderColor: isDark ? "#2d2d30" : "#e5e7eb",
-                borderRadius: 16,
-                padding: 16,
-                marginBottom: 16,
-                backgroundColor: isDark ? "#1a1a1c" : "#ffffff",
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.05,
-                shadowRadius: 8,
-                elevation: 2,
-              }}
-            >
-              {/* 🔵 Header */}
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 12,
-                }}
-              >
-                <Ionicons
-                  name={platformState === "FACEBOOK" ? "logo-facebook" : "logo-instagram"}
-                  size={22}
-                  color={platformState === "FACEBOOK" ? "#1877F2" : "#E1306C"}
-                />
-                <Text
-                  style={{
-                    marginLeft: 10,
-                    fontSize: 15,
-                    fontWeight: "700",
-                    color: isDark ? "#ffffff" : "#1f2937",
-                  }}
-                >
-                  {platformState === "FACEBOOK" ? "Facebook Page" : "Instagram Business Account"}
-                </Text>
-              </View>
               { }
               {isFacebookPageLoading ? (
                 <ActivityIndicator size="small" color="#1877F2" />
@@ -1838,169 +1311,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                           </TouchableOpacity>
                         </View>
 
-              {/* 🔄 Pages Selector Dropdown */}
-              {isFacebookPageLoading ? (
-                <View style={{ paddingVertical: 12, alignItems: "center" }}>
-                  <ActivityIndicator size="small" color={platformState === "FACEBOOK" ? "#1877F2" : "#E1306C"} />
-                </View>
-              ) : (
-                (() => {
-                  const filteredPages = facebookPages.filter(
-                    (p) => platformState !== "INSTAGRAM" || p.instagram_business_account
-                  );
-                  if (filteredPages.length > 0) {
-                    return (
-                      <View
-                        style={{
-                          borderWidth: 1,
-                          borderColor: isDark ? "#3f3f46" : "#e4e4e7",
-                          borderRadius: 10,
-                          backgroundColor: isDark ? "#27272a" : "#f4f4f5",
-                          overflow: "hidden",
-                          marginBottom: 16,
-                        }}
-                      >
-                        <Picker
-                          selectedValue={selectedFacebookPageId}
-                          onValueChange={(itemValue) => itemValue && handleSelectFacebookPage(String(itemValue))}
-                          style={{
-                            color: isDark ? "#fff" : "#000",
-                            height: 50,
-                          }}
-                          dropdownIconColor={isDark ? "#fff" : "#000"}
-                        >
-                          <Picker.Item
-                            label={platformState === "FACEBOOK" ? "Select Facebook Page" : "Select Connected Page"}
-                            value={null}
-                            enabled={false}
-                            color={isDark ? "#a1a1aa" : "#71717a"}
-                          />
-                          {filteredPages.map((page) => (
-                            <Picker.Item
-                              key={page.id}
-                              label={platformState === "FACEBOOK" ? page.name : `${page.name} (${page.instagram_business_account?.username || 'Instagram'})`}
-                              value={String(page.id)}
-                              color={isDark ? "#fff" : "#000"}
-                            />
-                          ))}
-                        </Picker>
-                      </View>
-                    );
-                  } else {
-                    return (
-                      <View
-                        style={{
-                          padding: 12,
-                          borderRadius: 8,
-                          backgroundColor: isDark ? "#3f1a1a" : "#fee2e2",
-                          marginBottom: 16,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 13,
-                            color: isDark ? "#fca5a5" : "#b91c1c",
-                            fontWeight: "500",
-                          }}
-                        >
-                          {platformState === "INSTAGRAM"
-                            ? "No connected Facebook Pages with linked Instagram Business accounts found."
-                            : "No connected Facebook Pages found. Connect one in Accounts first."}
-                        </Text>
-                      </View>
-                    );
-                  }
-                })()
-              )}
-
-              {/* 🟢 Lead Forms Section */}
-              {(platformState === "FACEBOOK" || platformState === "INSTAGRAM") && (
-                <>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      marginBottom: 12,
-                      marginTop: 4,
-                    }}
-                  >
-                    <Ionicons
-                      name="document-text-outline"
-                      size={22}
-                      color="#10b981"
-                    />
-                    <Text
-                      style={{
-                        marginLeft: 10,
-                        fontSize: 15,
-                        fontWeight: "700",
-                        color: isDark ? "#ffffff" : "#1f2937",
-                      }}
-                    >
-                      Facebook Lead Form
-                    </Text>
-                  </View>
-
-                  {isLoadingLeadForms ? (
-                    <View style={{ paddingVertical: 12, alignItems: "center" }}>
-                      <ActivityIndicator size="small" color="#10b981" />
-                    </View>
-                  ) : leadForms.length > 0 ? (
-                    <View
-                      style={{
-                        borderWidth: 1,
-                        borderColor: isDark ? "#3f3f46" : "#e4e4e7",
-                        borderRadius: 10,
-                        backgroundColor: isDark ? "#27272a" : "#f4f4f5",
-                        overflow: "hidden",
-                      }}
-                    >
-                      <Picker
-                        selectedValue={leadFormId ? String(leadFormId) : null}
-                        onValueChange={(itemValue) => setLeadFormId(itemValue)}
-                        style={{
-                          color: isDark ? "#fff" : "#000",
-                          height: 50,
-                        }}
-                        dropdownIconColor={isDark ? "#fff" : "#000"}
-                      >
-                        <Picker.Item
-                          label="None (Select Lead Form)"
-                          value={null}
-                          color={isDark ? "#a1a1aa" : "#71717a"}
-                        />
-                        {leadForms.map((form) => (
-                          <Picker.Item
-                            key={form.id}
-                            label={form.name}
-                            value={String(form.id)}
-                            color={isDark ? "#fff" : "#000"}
-                          />
-                        ))}
-                      </Picker>
-                    </View>
-                  ) : (
-                    <View
-                      style={{
-                        padding: 12,
-                        borderRadius: 8,
-                        backgroundColor: isDark ? "#18221b" : "#f0fdf4",
-                        borderWidth: 1,
-                        borderColor: isDark ? "#1b4d24" : "#bbf7d0",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          color: isDark ? "#86efac" : "#15803d",
-                          fontWeight: "500",
-                          fontStyle: "italic",
-                        }}
-                      >
-                        No lead form found
-                      </Text>
-                    </View>
-                  )}
                         <FlatList
                           data={facebookPages}
                           keyExtractor={(item) => item.id}
@@ -2059,18 +1369,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 </Text>
               )}
 
-                  {/* ℹ️ Page Footer Cues */}
-                  <Text
-                    style={{
-                      marginTop: 12,
-                      fontSize: 11,
-                      color: isDark ? "#a1a1aa" : "#71717a",
-                    }}
-                  >
-                    Lead form data will dynamically map to selected pages.
-                  </Text>
-                </>
-              )}
               { }
               <Text
                 style={{
@@ -2273,8 +1571,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                           ? "#161618"
                           : "#ffffff",
                     alignItems: "center",
-                    // opacity: !hasAttachment || hasVideo ? 0.5 : 1,
-                    opacity: !canSelectStandard || !hasAttachment ? 0.5 : 1,
 
                     opacity: !canSelectStandard || !hasAttachment ? 0.5 : 1,
                   }}
@@ -2322,8 +1618,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                           ? "#161618"
                           : "#ffffff",
                     alignItems: "center",
-                    // opacity: !hasAttachment || hasImage ? 0.5 : 1,
-                    opacity: !canSelectReel || !hasAttachment ? 0.5 : 1,
 
                     opacity: !canSelectReel || !hasAttachment ? 0.5 : 1,
                   }}
@@ -2566,47 +1860,9 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     })}
                   </View>
 
-                  {/* Playlist Dropdown Section (Optional for Standard Video and Short) */}
-                  {(youTubeContentType === "VIDEO" || youTubeContentType === "SHORT") && (
                   { }
                   {youTubeContentType === "PLAYLIST" && (
                     <View style={{ marginTop: 12 }}>
-                      <Text
-                        style={{
-                          color: isDark ? "#ffffff" : "#000000",
-                          fontWeight: "bold",
-                          marginBottom: 8,
-                          marginLeft: 4,
-                        }}
-                      >
-                        YouTube Playlist (Optional)
-                      </Text>
-
-                      {/* Dropdown Toggle Button */}
-                      {!isCreatingPlaylist && (
-                        <TouchableOpacity
-                          onPress={() =>
-                            setShowPlaylistDropdown(!showPlaylistDropdown)
-                          }
-                          style={{
-                            borderWidth: 1,
-                            borderColor: isDark ? "#374151" : "#d1d5db",
-                            borderRadius: 8,
-                            paddingHorizontal: 12,
-                            paddingVertical: 12,
-                            backgroundColor: isDark ? "#161618" : "#ffffff",
-                            flexDirection: "row",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: selectedPlaylist ? (isDark ? "#ffffff" : "#000") : "#9ca3af",
-                              fontWeight: selectedPlaylist ? "600" : "normal",
-                            }}
-                          >
-                            {selectedPlaylist
                       { }
                       <TouchableOpacity
                         onPress={() =>
@@ -2635,15 +1891,9 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                             ? "Creating New Playlist..."
                             : selectedPlaylist
                               ? selectedPlaylist.name
-                              : "Select a playlist (optional)"}
-                          </Text>
-                          <Ionicons
-                            name={showPlaylistDropdown ? "chevron-up" : "chevron-down"}
-                            size={18}
-                            color={isDark ? "#9ca3af" : "#6b7280"}
-                          />
-                        </TouchableOpacity>
-                      )}
+                              : "Select a playlist"}
+                        </Text>
+                      </TouchableOpacity>
 
                       { }
                       {showPlaylistDropdown && !isCreatingPlaylist && (
@@ -2653,9 +1903,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                             borderWidth: 1,
                             borderColor: isDark ? "#374151" : "#d1d5db",
                             borderRadius: 8,
-                            backgroundColor: isDark ? "#161618" : "#ffffff",
-                            maxHeight: 200,
-                            overflow: "hidden",
+                            backgroundColor: isDark ? "#1f2933" : "#f3f4f6",
                           }}
                         >
                           { }
@@ -2663,14 +1911,13 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                             onPress={() => {
                               setIsCreatingPlaylist(true);
                               setShowPlaylistDropdown(false);
-                              setShowPlaylistDropdown(false);
                             }}
                             style={{
-                              paddingVertical: 12,
+                              paddingVertical: 10,
                               paddingHorizontal: 12,
                               borderBottomWidth: 1,
-                              borderBottomColor: isDark ? "#374151" : "#e5e7eb",
-                              backgroundColor: isDark ? "#1f2937" : "#f3f4f6",
+                              borderBottomColor: isDark ? "#374151" : "#d1d5db",
+                              backgroundColor: isDark ? "#161618" : "#ffffff",
                             }}
                           >
                             <Text
@@ -2680,49 +1927,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                             </Text>
                           </TouchableOpacity>
 
-                          {/* Playlist Items List */}
-                          <ScrollView nestedScrollEnabled style={{ maxHeight: 150 }}>
-                            {playlists.length === 0 ? (
-                              <View style={{ padding: 12, alignItems: "center" }}>
-                                <Text style={{ color: isDark ? "#9ca3af" : "#6b7280", fontSize: 13 }}>
-                                  No playlists found. Create one above!
-                                </Text>
-                              </View>
-                            ) : (
-                              playlists.map((playlist) => (
-                                <TouchableOpacity
-                                  key={playlist.id}
-                                  onPress={() => {
-                                    setSelectedPlaylist(playlist);
-                                    setPlaylistId(playlist.id);
-                                    setPlaylistTitle(playlist.name);
-                                    setShowPlaylistDropdown(false);
-                                  }}
-                                  style={{
-                                    paddingVertical: 12,
-                                    paddingHorizontal: 12,
-                                    borderBottomWidth: 1,
-                                    borderBottomColor: isDark ? "#374151" : "#f3f4f6",
-                                    flexDirection: "row",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                  }}
-                                >
-                                  <Text
-                                    style={{
-                                      color: isDark ? "#ffffff" : "#000000",
-                                      fontWeight: selectedPlaylist?.id === playlist.id ? "bold" : "normal",
-                                    }}
-                                  >
-                                    {playlist.name}
-                                  </Text>
-                                  {selectedPlaylist?.id === playlist.id && (
-                                    <Ionicons name="checkmark" size={16} color="#2563eb" />
-                                  )}
-                                </TouchableOpacity>
-                              ))
-                            )}
-                          </ScrollView>
                           { }
                           {playlists.map((playlist) => (
                             <TouchableOpacity
@@ -2753,29 +1957,9 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                         </View>
                       )}
 
-                      {/* New Playlist Form */}
                       { }
                       {isCreatingPlaylist && (
-                        <View
-                          style={{
-                            marginTop: 8,
-                            padding: 12,
-                            borderWidth: 1,
-                            borderColor: isDark ? "#374151" : "#d1d5db",
-                            borderRadius: 8,
-                            backgroundColor: isDark ? "#1f2937" : "#f8fafc",
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: isDark ? "#ffffff" : "#000000",
-                              fontWeight: "bold",
-                              fontSize: 13,
-                              marginBottom: 8,
-                            }}
-                          >
-                            Create New Playlist
-                          </Text>
+                        <View style={{ marginTop: 12 }}>
                           <TextInput
                             placeholder="Enter playlist name"
                             placeholderTextColor={
@@ -2791,45 +1975,9 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                               paddingVertical: 10,
                               backgroundColor: isDark ? "#161618" : "#ffffff",
                               color: isDark ? "#ffffff" : "#000000",
-                              marginBottom: 12,
+                              marginBottom: 8,
                             }}
                           />
-                          <View style={{ flexDirection: "row", gap: 8 }}>
-                            <TouchableOpacity
-                              onPress={handleCreateYoutubePlaylist}
-                              style={{
-                                flex: 1,
-                                paddingVertical: 10,
-                                backgroundColor: "#2563eb",
-                                borderRadius: 8,
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                            >
-                              <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 13 }}>
-                                Create
-                              </Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                              onPress={() => {
-                                setIsCreatingPlaylist(false);
-                                setShowPlaylistDropdown(true);
-                              }}
-                              style={{
-                                flex: 1,
-                                paddingVertical: 10,
-                                backgroundColor: isDark ? "#27272a" : "#e2e8f0",
-                                borderRadius: 8,
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                            >
-                              <Text style={{ color: isDark ? "#e2e8f0" : "#334155", fontWeight: "bold", fontSize: 13 }}>
-                                Select Existing
-                              </Text>
-                            </TouchableOpacity>
-                          </View>
                           { }
                         </View>
                       )}
@@ -4111,39 +3259,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   0,
                 );
 
-                // 🚨 STRICT FUTURE CHECK (not now, not past)
-                // if (selectedDateTime.getTime() <= Date.now()) {
-                //   Alert.alert(
-                //     "Invalid Time",
-                //     "Please select a future time (for example, 10:01 instead of 10:00)."
-                //   );
-                //   return;
-                // }
-
-                if (selectedDateTime.getTime() <= Date.now()) {
-                  const now = new Date();
-
-                  const currentTime = now.toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  });
-
-                  const future = new Date(now.getTime() + 60 * 1000);
-
-                  const futureTime = future.toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  });
-
-                  Alert.alert(
-                    "Invalid Time",
-                    `Please select a future time (for example, ${futureTime} instead of ${currentTime}).`,
-                  );
-                  return;
-                }
-                  0,
-                );
-
                 setPostDate(selectedDateTime);
               }}
             />
@@ -4167,8 +3282,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     date.getMonth(),
                     date.getDate(),
                     base.getHours(),
-                    base.getMinutes(),
-                  ),
                     base.getMinutes(),
                   ),
                 );
@@ -4266,8 +3379,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               profilePic={user?.imageUrl}
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
-              images={attachments?.map((a) => a.uri)}
-              // timestamp={previewTimestamp}
               onRemoveMedia={handleRemoveAttachment}
               images={attachments?.map((a) => a.uri)}
               media={attachments?.map((a) => ({ uri: a.uri, type: a.type, name: a.name, size: a.size }))}
@@ -4290,24 +3401,8 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           )}
         </View>
 
-        <TouchableOpacity
+        <Button
           onPress={handleSubmit}
-          activeOpacity={0.85}
-          style={{
-            backgroundColor: "#2563eb",
-            borderRadius: 14,
-            height: 52,
-            justifyContent: "center",
-            alignItems: "center",
-            marginBottom: 32,
-            marginTop: 16,
-            shadowColor: "#2563eb",
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.2,
-            shadowRadius: 8,
-            elevation: 4,
-            opacity: loading ? 0.6 : 1,
-          }}
           className="rounded-full mb-8 px-4 py-3 flex-row justify-center items-center"
           style={{
             backgroundColor: "#dc2626",
@@ -4317,19 +3412,19 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           }}
           disabled={loading}
         >
-          <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center" }}>
+          <View className="flex-row justify-center items-center">
             {loading && (
               <ActivityIndicator
                 size="small"
-                color="#ffffff"
+                color="#fff"
                 style={{ marginRight: 8 }}
               />
             )}
-            <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: 16 }}>
+            <Text style={{ color: "#fff", fontWeight: "bold" }}>
               {existingPost ? "Update Campaign Post" : "Create Campaign Post"}
             </Text>
           </View>
-        </TouchableOpacity>
+        </Button>
       </ScrollView>
     </KeyboardAvoidingView>
   );

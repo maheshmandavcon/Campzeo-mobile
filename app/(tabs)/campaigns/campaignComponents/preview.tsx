@@ -1,72 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { WebView } from "react-native-webview";
+import { ResizeMode, Video } from 'expo-av';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useRef, useState } from "react";
-import { Dimensions, Image, ScrollView, Text, TouchableOpacity, useColorScheme, View } from "react-native";
 
-const Video = ({
-  source,
-  style,
-  poster,
-  controls = false,
-  ...rest
-}: {
-  source: { uri: string };
-  style?: any;
-  poster?: string;
-  controls?: boolean;
-  [key: string]: any;
-}) => {
-  return (
-    <View style={[{ overflow: "hidden" }, style]}>
-      <WebView
-        source={{
-          html: `
-            <html>
-              <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-                <style>
-                  html, body {
-                    margin: 0;
-                    padding: 0;
-                    width: 100%;
-                    height: 100%;
-                    background: #000000;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    overflow: hidden;
-                  }
-                  video {
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                  }
-                </style>
-              </head>
-              <body>
-                <video
-                  src="${source.uri}"
-                  ${poster ? `poster="${poster}"` : ""}
-                  autoplay
-                  loop
-                  muted
-                  playsinline
-                  ${controls ? "controls" : ""}
-                />
-              </body>
-            </html>
-          `,
-        }}
-        style={{
-          flex: 1,
-          backgroundColor: "#000000",
-        }}
-        javaScriptEnabled
-        domStorageEnabled
-      />
-    </View>
-  );
-};
+import { Dimensions, Image, ScrollView, Text, TextInput, TouchableOpacity, useColorScheme, View, Modal, SafeAreaView, FlatList } from "react-native";
 
 type PreviewProps = {
   profilePic?: string;
@@ -178,20 +115,30 @@ const Preview: React.FC<PreviewProps> = ({
 
   const platformConfig = PLATFORM_CONFIG[platform as keyof typeof PLATFORM_CONFIG];
 
-  // Facebook & LinkedIn style media renderer
-  const renderFacebookPreview = (images: string[]) => (
-    <View className="overflow-hidden mt-2">
-      {images.length === 1 && (
-        images[0].match(/\.(mp4|mov|mkv)$/i) ? (
-          <Video
-            source={{ uri: images[0] }}
-            style={{ width: "100%", height: 300 }}
-            resizeMode="cover"
-            paused={false}
-            repeat
-            muted
-            controls={false}
-          />
+  const isInstagramReel = platform === "instagram" && normalizedMedia.length === 1 && isVideo(normalizedMedia[0]);
+  // SHORT: vertical video ≤ 180s (auto-set by hook); show reel-style immersive preview
+  const isYouTubeShort = platform === "youtube" && youtubeContentType === "SHORT" && normalizedMedia.length === 1 && isVideo(normalizedMedia[0]);
+  // Standard YouTube video — single video, not a Short
+  const isYouTubeVideo = platform === "youtube" && normalizedMedia.length === 1 && isVideo(normalizedMedia[0]) && !isYouTubeShort;
+  // Hide outer card header/border for Reels, Shorts, and standard YT videos (they render their own metadata)
+  const isVerticalFull = isInstagramReel || isYouTubeShort || isYouTubeVideo;
+
+
+
+  const renderFacebookPreview = (media: { uri: string; type: string }[]) => (
+    <View className="overflow-hidden mt-2" style={{ backgroundColor: "#fff" }}>
+      {media.length === 1 && (
+        isVideo(media[0]) ? (
+          <TouchableOpacity onPress={() => setFullscreenIndex(0)}>
+            <Video
+              source={{ uri: media[0].uri }}
+              style={{ width: "100%", height: 300 }}
+              resizeMode={ResizeMode.COVER}
+              shouldPlay
+              isLooping
+              isMuted
+            />
+          </TouchableOpacity>
         ) : (
           <TouchableOpacity onPress={() => setFullscreenIndex(0)}>
             <Image source={{ uri: media[0].uri }} className="w-full h-[300px]" />
@@ -199,93 +146,180 @@ const Preview: React.FC<PreviewProps> = ({
         )
       )}
 
-      {images.length === 2 && (
-        <View className="w-full h-[300px] flex-row">
-          {images.map((uri, index) => (
-            uri.match(/\.(mp4|mov|mkv)$/i) ? (
-              <Video
-                key={index}
-                source={{ uri }}
-                style={{ width: "50%", height: "100%" }}
-                resizeMode="cover"
-                paused={false}
-                repeat
-                muted
-                controls={false}
-              />
-            ) : (
-              <Image key={index} source={{ uri }} className="w-1/2 h-full" />
-            )
+      {media.length === 2 && (
+        <View className="w-full h-[300px] flex-row" style={{ gap: 4 }}>
+          {media.map((item, index) => (
+            <TouchableOpacity
+              key={index}
+              onPress={() => setFullscreenIndex(index)}
+              style={{ flex: 1, height: "100%" }}
+            >
+              {isVideo(item) ? (
+                <Video
+                  source={{ uri: item.uri }}
+                  style={{ width: "100%", height: "100%" }}
+                  resizeMode={ResizeMode.COVER}
+                  shouldPlay
+                  isLooping
+                  isMuted
+                />
+              ) : (
+                <Image source={{ uri: item.uri }} className="w-full h-full" />
+              )}
+            </TouchableOpacity>
           ))}
         </View>
       )}
 
-      {images.length === 3 && (
-        <View>
-          <View className="flex-row h-[150px]">
-            {images.slice(0, 2).map((uri, index) =>
-              uri.match(/\.(mp4|mov|mkv)$/i) ? (
-                <Video
-                  key={index}
-                  source={{ uri }}
-                  style={{ width: "50%", height: "100%" }}
-                  resizeMode="cover"
-                  paused={false}
-                  repeat
-                  muted
-                  controls={false}
-                />
-              ) : (
-                <Image key={index} source={{ uri }} className="w-1/2 h-full" />
-              )
+      {media.length === 3 && (
+        <View className="w-full h-[300px] flex-row" style={{ gap: 4 }}>
+          <TouchableOpacity
+            onPress={() => setFullscreenIndex(0)}
+            style={{ flex: 1.5, height: "100%" }}
+          >
+            {isVideo(media[0]) ? (
+              <Video
+                source={{ uri: media[0].uri }}
+                style={{ width: "100%", height: "100%" }}
+                resizeMode={ResizeMode.COVER}
+                shouldPlay
+                isLooping
+                isMuted
+              />
+            ) : (
+              <Image source={{ uri: media[0].uri }} className="w-full h-full" />
             )}
+          </TouchableOpacity>
+
+          <View style={{ flex: 1, height: "100%", gap: 4 }}>
+            {media.slice(1, 3).map((item, index) => (
+              <TouchableOpacity
+                key={index + 1}
+                onPress={() => setFullscreenIndex(index + 1)}
+                style={{ flex: 1 }}
+              >
+                {isVideo(item) ? (
+                  <Video
+                    source={{ uri: item.uri }}
+                    style={{ width: "100%", height: "100%" }}
+                    resizeMode={ResizeMode.COVER}
+                    shouldPlay
+                    isLooping
+                    isMuted
+                  />
+                ) : (
+                  <Image source={{ uri: item.uri }} className="w-full h-full" />
+                )}
+              </TouchableOpacity>
+            ))}
           </View>
-          {images[2].match(/\.(mp4|mov|mkv)$/i) ? (
-            <Video
-              source={{ uri: images[2] }}
-              style={{ width: "100%", height: 150 }}
-              resizeMode="cover"
-              paused={false}
-              repeat
-              muted
-              controls={false}
-            />
-          ) : (
-            <Image source={{ uri: images[2] }} className="w-full h-[150px]" />
-          )}
         </View>
       )}
 
-      {images.length >= 4 && (
-        <View className="flex-row flex-wrap h-[300px]">
-          {images.slice(0, 4).map((uri, index) => {
-            const remaining = images.length - 4;
-            const isLast = index === 3;
-            return (
-              <View key={index} className="w-1/2 h-1/2 relative">
-                {uri.match(/\.(mp4|mov|mkv)$/i) ? (
+      {media.length === 4 && (
+        <View className="w-full h-[300px] flex-row" style={{ gap: 4 }}>
+          <TouchableOpacity
+            onPress={() => setFullscreenIndex(0)}
+            style={{ flex: 1.5, height: "100%" }}
+          >
+            {isVideo(media[0]) ? (
+              <Video
+                source={{ uri: media[0].uri }}
+                style={{ width: "100%", height: "100%" }}
+                resizeMode={ResizeMode.COVER}
+                shouldPlay
+                isLooping
+                isMuted
+              />
+            ) : (
+              <Image source={{ uri: media[0].uri }} className="w-full h-full" />
+            )}
+          </TouchableOpacity>
+
+          <View style={{ flex: 1, height: "100%", gap: 4 }}>
+            {media.slice(1, 4).map((item, index) => (
+              <TouchableOpacity
+                key={index + 1}
+                onPress={() => setFullscreenIndex(index + 1)}
+                style={{ flex: 1 }}
+              >
+                {isVideo(item) ? (
                   <Video
-                    source={{ uri }}
+                    source={{ uri: item.uri }}
                     style={{ width: "100%", height: "100%" }}
-                    resizeMode="cover"
-                    paused={false}
-                    repeat
-                    muted
-                    controls={false}
+                    resizeMode={ResizeMode.COVER}
+                    shouldPlay
+                    isLooping
+                    isMuted
                   />
                 ) : (
-                  <Image source={{ uri }} className="w-full h-full" />
+                  <Image source={{ uri: item.uri }} className="w-full h-full" />
                 )}
-                {isLast && remaining > 0 && (
-                  <View className="absolute inset-0 bg-black/60 items-center justify-center">
-                    <Text className="text-white text-3xl font-bold">
-                      +{remaining}
-                    </Text>
-                  </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {media.length >= 5 && (
+        <View className="w-full h-[300px]" style={{ gap: 4 }}>
+          <View className="flex-row flex-1" style={{ gap: 4 }}>
+            {media.slice(0, 2).map((item, index) => (
+              <TouchableOpacity
+                key={index}
+                onPress={() => setFullscreenIndex(index)}
+                style={{ flex: 1, position: "relative" }}
+              >
+                {isVideo(item) ? (
+                  <Video
+                    source={{ uri: item.uri }}
+                    style={{ width: "100%", height: "100%" }}
+                    resizeMode={ResizeMode.COVER}
+                    shouldPlay
+                    isLooping
+                    isMuted
+                  />
+                ) : (
+                  <Image source={{ uri: item.uri }} className="w-full h-full" />
                 )}
-              </View>
-            );
-          })}
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View className="flex-row flex-1" style={{ gap: 4 }}>
+            {media.slice(2, 5).map((item, index) => {
+              const actualIndex = index + 2;
+              const isLast = actualIndex === 4;
+              const remaining = media.length - 4;
+
+              return (
+                <TouchableOpacity
+                  key={actualIndex}
+                  onPress={() => setFullscreenIndex(actualIndex)}
+                  style={{ flex: 1, position: "relative" }}
+                >
+                  {isVideo(item) ? (
+                    <Video
+                      source={{ uri: item.uri }}
+                      style={{ width: "100%", height: "100%" }}
+                      resizeMode={ResizeMode.COVER}
+                      shouldPlay
+                      isLooping
+                      isMuted
+                    />
+                  ) : (
+                    <Image source={{ uri: item.uri }} className="w-full h-full" />
+                  )}
+                  {isLast && media.length > 5 && (
+                    <View className="absolute inset-0 bg-black/60 items-center justify-center">
+                      <Text className="text-white text-3xl font-bold">
+                        +{remaining}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
       )}
     </View>
@@ -325,15 +359,14 @@ const Preview: React.FC<PreviewProps> = ({
             >
               {isVideo(item) ? (
                 <Video
-                  source={{ uri }}
+                  source={{ uri: item.uri }}
+                  posterSource={index === 0 && coverImage ? { uri: coverImage } : undefined}
+                  usePoster={index === 0 && !!coverImage}
                   style={{ width: "100%", height: "100%" }}
-                  poster={index === 0 && coverImage ? coverImage : undefined}
-                  posterResizeMode="cover"
-                  resizeMode="cover"
-                  paused={false}
-                  repeat
-                  muted
-                  controls={false}
+                  resizeMode={ResizeMode.COVER}
+                  shouldPlay
+                  isLooping
+                  isMuted
                 />
               ) : (
                 <Image
@@ -396,8 +429,8 @@ const Preview: React.FC<PreviewProps> = ({
             <Video
               source={{ uri: item.uri }}
               style={{ width: "100%", height: "100%" }}
-              resizeMode="cover"
-              controls
+              resizeMode={ResizeMode.COVER}
+              useNativeControls
             />
           ) : (
             <Image
@@ -786,17 +819,17 @@ const Preview: React.FC<PreviewProps> = ({
             className="mb-4 rounded-lg overflow-hidden border border-gray-200"
             style={{ minHeight: 200, position: "relative" }}
           >
-            {/* MEDIA */}
-            {isVideo(uri) ? (
-              <Video
-                source={{ uri }}
-                style={{ width: "100%", height: 200 }}
-                resizeMode="cover"
-                paused
-                repeat
-                muted
-                controls={false}
-              />
+            {isVideo(item) ? (
+              <TouchableOpacity onPress={() => setFullscreenIndex(index)}>
+                <Video
+                  source={{ uri: item.uri }}
+                  style={{ width: "100%", height: 200 }}
+                  resizeMode={ResizeMode.COVER}
+                  shouldPlay={false}
+                  isLooping
+                  isMuted
+                />
+              </TouchableOpacity>
             ) : (
               <TouchableOpacity onPress={() => setFullscreenIndex(index)}>
                 <Image

@@ -4,7 +4,7 @@ import {
   changePasswordSchema,
   ChangePasswordSchemaType,
 } from "@/validations/profileSchema";
-import { useUser } from "@/context/AuthContext";
+import { useUser } from "@clerk/clerk-expo";
 import { View } from "@gluestack-ui/themed";
 // import { Input, InputField, VStack } from "@gluestack-ui/themed";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -218,7 +218,7 @@ export default function ChangePassword({ closeCP }: closeCPType) {
             </VStack>
           ))}
 
-          {/* Server Error */}
+          {/* Server Error from Clerk */}
           {serverError && (
             <Text className="text-red-500 text-center mt-2">
               *{serverError}

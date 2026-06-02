@@ -1,7 +1,8 @@
 import Constants from 'expo-constants';
 
-const API_BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl
-// const MOBILE_API_KEY = Constants.expoConfig?.extra?.mobileApiKey || '';
+const API_BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl ||
+    'https://campzeo.com/';
+const MOBILE_API_KEY = Constants.expoConfig?.extra?.mobileApiKey || '';
 
 interface ApiOptions extends RequestInit {
     userId?: string;
@@ -20,11 +21,12 @@ async function apiRequest<T = any>(
     endpoint: string,
     options: ApiOptions = {}
 ): Promise<ApiResponse<T>> {
-    const { ...fetchOptions } = options;
+    const { userId, ...fetchOptions } = options;
 
     const headers: HeadersInit = {
         'Content-Type': 'application/json',
         'x-api-key': MOBILE_API_KEY,
+        ...(userId && { 'x-clerk-user-id': userId }),
         ...options.headers,
     };
 
@@ -231,6 +233,7 @@ export const api = {
                 method: 'POST',
                 headers: {
                     'x-api-key': MOBILE_API_KEY,
+                    'x-clerk-user-id': userId,
                 },
                 body: formData,
             });

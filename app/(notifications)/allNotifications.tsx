@@ -12,9 +12,8 @@ import {
   getNotificationsApi,
   deleteNotificationApi,
   markAllNotificationsReadApi,
-  getAllNotificationsApi,
 } from "@/api/notificationApi";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@clerk/clerk-expo";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -38,10 +37,8 @@ export default function AllNotifications() {
     const dateObj = new Date(item.createdAt);
     return {
       id: item.id,
-title:
-  item.platform ||
-  item.type?.replaceAll("_", " ") ||
-  "Notification",      desc: item.message,
+      title: item.platform || "Notification",
+      desc: item.message,
       read: item.isRead, // ✅ ALWAYS TRUST SERVER
       time: dateObj.toLocaleTimeString([], {
         hour: "2-digit",
@@ -53,24 +50,29 @@ title:
 
   // ---------------- FETCH NOTIFICATIONS ----------------
   const fetchNotifications = async () => {
-  try {
-    setLoading(true);
-    const res = await getAllNotificationsApi(1, 20);
-    const notificationsArray = Array.isArray(res?.notifications)
-      ? res.notifications
-      : [];
+    try {
+      setLoading(true);
+      const token = await getToken();
+      if (!token) return;
 
-    const formatted = notificationsArray.map((item: any) =>
-      formatNotification(item)
-    );
+      const res = await getNotificationsApi(token, 1, 99);
+      const notificationsArray =
+        res?.data?.notifications && Array.isArray(res.data.notifications)
+          ? res.data.notifications
+          : [];
 
-    setNotifications(formatted);
-  } catch (error) {
-    console.log("Notification API error:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+      const formatted = notificationsArray.map((item: any) => {
+        const existing = notifications.find((n) => n.id === item.id);
+        return formatNotification(item);
+      });
+
+      setNotifications(formatted);
+    } catch (error) {
+      console.log("Notification API error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchNotifications();

@@ -5,8 +5,7 @@ import {
   updateCampaignApi,
 } from "@/api/campaignApi";
 import { getContactsApi } from "@/api/contactApi";
-import { getUser } from "@/api/dashboardApi";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { FormControl, Input, InputField } from "@gluestack-ui/themed";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -123,9 +122,8 @@ export default function CreateCampaign() {
         setLoadingCampaign(true);
         const token = await getToken();
         if (!token) throw new Error("Token missing");
-        const user = await getUser();
-        const orgId = user?.organisation?.id;
-        const res = await getCampaignByIdApi(campaignId,orgId, token);
+
+        const res = await getCampaignByIdApi(campaignId);
         const campaign = res.campaign;
 
         reset({
@@ -140,7 +138,7 @@ export default function CreateCampaign() {
           setStartDateObj(new Date(campaign.startDate));
         }
 
-        const postsRes = await getPostsByCampaignIdApi(campaignId, orgId);
+        const postsRes = await getPostsByCampaignIdApi(campaignId);
         console.log("Posts API returned:", postsRes);
 
         const postsArray = Array.isArray(postsRes)
@@ -169,9 +167,8 @@ export default function CreateCampaign() {
         setLoadingContacts(true);
         const token = await getToken();
         if (!token) throw new Error("Token missing");
-        const user = await getUser();
-        const orgId = user?.organisation?.id;
-        const res = await getContactsApi(orgId);
+
+        const res = await getContactsApi();
         setContacts(
           (res.contacts ?? []).map((c: any) => ({
             id: c.id,
@@ -230,17 +227,11 @@ export default function CreateCampaign() {
           return;
         }
       }
-      const user = await getUser();
-      const orgId = user?.organisation?.id;
-
-      const fullData = {
-        ...data,
-        organisationId:orgId,
-      }
 
       isEditMode && campaignId
-        ? await updateCampaignApi(fullData,token)
-        : await createCampaignApi(fullData);        
+        ? await updateCampaignApi(campaignId, data)
+        : await createCampaignApi(data);
+
       router.back();
     } catch (err: any) {
       Alert.alert("Error", err.message || "Something went wrong");

@@ -11,13 +11,11 @@ import {
 } from "react-native";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import CampaignPostForm from "./campaignPostForm";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@clerk/clerk-expo";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
-import Toast from "react-native-toast-message";
 import { router, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { getUser } from "@/api/dashboardApi";
-import { getPostDetails, getPostsByCampaignIdApi, getSocialStatus } from "@/api/campaignApi";
+import { getSocialStatus } from "@/api/accountsApi";
 
 export default function CampaignPost() {
   const icons = [
@@ -131,8 +129,7 @@ export default function CampaignPost() {
     }, [])
   );
 
-  // ---------- FETCH EXISTING POST IF postId EXISTS ----------
-  useEffect(() => {    
+  useEffect(() => {
     if (!campaignIdStr || !postIdStr) return;
 
     let isMounted = true;
@@ -144,29 +141,20 @@ export default function CampaignPost() {
         if (!token) throw new Error("Token missing");
 
         // const url = `https://campzeo-v1-oym2.vercel.app/api/campaigns/${campaignIdStr}/posts/${postIdStr}`;
-        // const url = `https://campzeo.com/api/campaigns/${campaignIdStr}/posts/${postIdStr}`;
+        const url = `https://campzeo.com/api/campaigns/${campaignIdStr}/posts/${postIdStr}`;
 
-        // console.log("Fetching post details from:", url);
+        console.log("Fetching post details from:", url);
 
-        // const response = await fetch(url, {
-        //   headers: { Authorization: `Bearer ${token}` },
-        // });
-        // const data = await response.json();
+        const response = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
 
-        // console.log("Post details API response:", data);
-        
-        const user = await getUser();
-        const orgId = user?.organisation?.id;
-        console.log("cid", campaignIdStr);
-        console.log("pid", postIdStr);
-        console.log("org", orgId);
+        console.log("Post details API response:", data);
 
-        const cp = await getPostDetails(Number(campaignIdStr), Number(postIdStr), orgId, token)
-        console.log("Post details API responsennnmm:", cp);
-
-        if (isMounted && cp?.data) {
-          setExistingPost(cp.data);
-          setSelected((prev) => prev || cp.data.type);
+        if (isMounted && data?.post) {
+          setExistingPost(data.post);
+          setSelected((prev) => prev || data.post.type);
         }
       } catch (error) {
         if (error instanceof Error) {
@@ -335,135 +323,224 @@ export default function CampaignPost() {
               Edit Campaign Post
             </ThemedText>
 
-        {/* ---------- ICON SECTION ---------- */}
-        <ThemedView
-          className="flex-row flex-wrap justify-between mb-4"
-          style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
-        >
-          {sortedIcons
-            .filter((icon) => connectedPlatforms[icon.label] !== false)
-            .map((icon, index) => {
-            const IconComponent = icon.library;
-            const isSelected = selected === icon.label;
-            const isConnected = connectedPlatforms[icon.label] ?? false;
-            const isEditingThisPlatform =
-              isEditMode &&
-              !loadingPost &&
-              !!existingPost &&
-              existingPost.type === icon.label;
-            const forceDisabledInEdit = isEditMode && !isEditingThisPlatform;
-            const isDisabled = loadingConnections || !isConnected || (isEditMode && !isEditingThisPlatform);
-
-            const isRestrictedPlatform = restrictedPlatforms.includes(icon.label as any);
-            const credits = icon.label === "SMS" ? smsCredits : whatsappCredits;
-            const isFullyApprovedAndFunded = isRestrictedPlatform && twilioAccessStatus === "APPROVED" && credits > 0;
-            const visuallyRestricted = isRestrictedPlatform && !isFullyApprovedAndFunded;
-
-            return (
-              <ThemedView
-                key={index}
-                className="w-1/4 mb-6 items-center"
-                style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
-              >
-                <RNView
-                  style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    shadowColor: icon.color,
-                    shadowOffset: { width: 0, height: 0 },
-                    shadowOpacity: isSelected && !isDisabled && !visuallyRestricted ? 0.5 : 0,
-                    shadowRadius: isSelected && !isDisabled && !visuallyRestricted ? 12 : 0,
-                    elevation: isSelected && !isDisabled && !visuallyRestricted ? 12 : 0,
-                  }}
-                >
-                  <TouchableOpacity
-                    disabled={forceDisabledInEdit || (!isRestrictedPlatform && isDisabled)}
-                    onPress={() => {
-                      if (forceDisabledInEdit) return;
-
-                      if (isRestrictedPlatform) {
-                        if (twilioAccessStatus === "APPROVED") {
-                          if (credits <= 0) {
-                            Alert.alert(
-                              "No Credits Available",
-                              `You have 0 ${icon.label} credits. Please purchase a pack to use this channel.`,
-                              [
-                                { text: "Cancel", style: "cancel" },
-                                { text: "Add Credits", onPress: () => router.push("/(billing)/billingPage") },
-                              ]
-                            );
-                            return;
-                          }
-                          // Has credits, can proceed to select 
-                        } else {
-                          Alert.alert(
-                            "Admin Approval Required",
-                            "SMS and WhatsApp messaging requires admin approval and credit purchase.",
-                            [
-                              { text: "Cancel", style: "cancel" },
-                              { text: "Purchase Pack", onPress: () => router.push("/(billing)/billingPage") },
-                            ]
-                          );
-                          return;
-                        }
-                      }
-
-                      if (isDisabled) {
-                        Toast.show({
-                          type: "error",
-                          text1: "Platform Not Connected",
-                          text2: `Please connect your ${icon.label} account from Accounts first.`
-                        });
-                        return;
-                      }
-                      setSelected(icon.label as any);
-                    }}
-                    style={{
-                      width: 64,
-                      height: 64,
-                      borderRadius: 32,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderWidth: 2,
-                      borderColor: forceDisabledInEdit
-                        ? (isDark ? "#2c2c2e" : "#e5e7eb")
-                        : (visuallyRestricted
-                          ? "#9ca3af"
-                          : isDisabled
-                            ? "#9ca3af"
-                            : isSelected
-                              ? icon.color
-                              : "#d1d5db"),
-                      backgroundColor: isDark ? "#161618" : "#ffffff",
-                      opacity: forceDisabledInEdit ? 0.25 : (visuallyRestricted ? 0.6 : (isDisabled ? 0.4 : 1)),
-                    }}
-                  >
+            <RNView
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: isDark ? "#1f2937" : "#fff",
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: isDark ? "#374151" : "#e5e7eb",
+              }}
+            >
+              {(() => {
+                const icon = icons.find((i) => i.label === selected);
+                if (!icon) return null;
+                const IconComponent = icon.library;
+                return (
+                  <>
                     <IconComponent
                       name={icon.name as any}
-                      size={28}
-                      color={isDark ? "#ffffff" : (visuallyRestricted || forceDisabledInEdit ? "#9ca3af" : icon.color)}
+                      size={18}
+                      color={icon.color}
+                      style={{ marginRight: 8 }}
                     />
-                  </TouchableOpacity>
-                </RNView>
+                    <ThemedText style={{ fontSize: 13, fontWeight: "bold" }}>
+                      {selected}
+                    </ThemedText>
+                  </>
+                );
+              })()}
+            </RNView>
+          </ThemedView>
+        ) : (
+          <>
+            <ThemedView
+              style={{
+                paddingVertical: 16,
+                paddingHorizontal: 16,
+                marginHorizontal: -16,
+                marginTop: -16,
+                marginBottom: 12,
+                backgroundColor: isDark ? "#161618" : "#f3f4f6",
+                alignItems: "flex-start",
+              }}
+            >
+              <ThemedText
+                style={{
+                  fontSize: 18,
+                  fontWeight: "bold",
+                  color: isDark ? "#ffffff" : "#111827",
+                  textAlign: "left",
+                }}
+              >
+                Create Campaign Post
+              </ThemedText>
+            </ThemedView>
 
-                <ThemedText
-                  style={{
-                    marginTop: 8,
-                    textAlign: "center",
-                    fontSize: 14,
-                    fontWeight: "bold",
-                    opacity: forceDisabledInEdit ? 0.3 : (visuallyRestricted ? 0.6 : 1),
-                  }}
-                >
-                  {icon.label}
-                </ThemedText>
-              </ThemedView>
-            );
-            })}
-        </ThemedView>
+            <ThemedView
+              className="flex-row flex-wrap justify-between mb-4"
+              style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
+            >
+              {sortedIcons
+                .filter((icon) => connectedPlatforms[icon.label] !== false)
+                .map((icon, index) => {
+                  const IconComponent = icon.library;
+                  const isSelected = selected === icon.label;
+                  const isConnected = connectedPlatforms[icon.label] ?? false;
+                  const isEditingThisPlatform =
+                    isEditMode &&
+                    !loadingPost &&
+                    !!existingPost &&
+                    existingPost.type === icon.label;
+                  const isDisabled =
+                    loadingConnections ||
+                    !isConnected ||
+                    (isEditMode && !isEditingThisPlatform);
+
+                  const isRestrictedPlatform = restrictedPlatforms.includes(
+                    icon.label as any,
+                  );
+                  const credits =
+                    icon.label === "SMS" ? smsCredits : whatsappCredits;
+                  const isFullyApprovedAndFunded =
+                    isRestrictedPlatform &&
+                    twilioAccessStatus === "APPROVED" &&
+                    credits > 0;
+                  const visuallyRestricted =
+                    isRestrictedPlatform && !isFullyApprovedAndFunded;
+
+                  return (
+                    <ThemedView
+                      key={index}
+                      className="w-1/4 mb-6 items-center"
+                      style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
+                    >
+                      <RNView
+                        style={{
+                          width: 64,
+                          height: 64,
+                          borderRadius: 32,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          shadowColor: icon.color,
+                          shadowOffset: { width: 0, height: 0 },
+                          shadowOpacity:
+                            isSelected && !isDisabled && !visuallyRestricted
+                              ? 0.5
+                              : 0,
+                          shadowRadius:
+                            isSelected && !isDisabled && !visuallyRestricted
+                              ? 12
+                              : 0,
+                          elevation:
+                            isSelected && !isDisabled && !visuallyRestricted
+                              ? 12
+                              : 0,
+                        }}
+                      >
+                        <TouchableOpacity
+                          disabled={!isRestrictedPlatform && isDisabled}
+                          onPress={() => {
+                            if (isRestrictedPlatform) {
+                              if (twilioAccessStatus === "APPROVED") {
+                                if (credits <= 0) {
+                                  Alert.alert(
+                                    "No Credits Available",
+                                    `You have 0 ${icon.label} credits. Please purchase a pack to use this channel.`,
+                                    [
+                                      { text: "Cancel", style: "cancel" },
+                                      {
+                                        text: "Add Credits",
+                                        onPress: () =>
+                                          router.push("/(billing)/billingPage"),
+                                      },
+                                    ],
+                                  );
+                                  return;
+                                }
+                                // Has credits, can proceed to select
+                              } else {
+                                Alert.alert(
+                                  "Admin Approval Required",
+                                  "SMS and WhatsApp messaging requires admin approval and credit purchase.",
+                                  [
+                                    { text: "Cancel", style: "cancel" },
+                                    {
+                                      text: "Purchase Pack",
+                                      onPress: () =>
+                                        router.push("/(billing)/billingPage"),
+                                    },
+                                  ],
+                                );
+                                return;
+                              }
+                            }
+
+                            if (isDisabled) {
+                              Alert.alert(
+                                "Platform not connected",
+                                `Please connect your ${icon.label} account from Accounts first.`,
+                              );
+                              return;
+                            }
+                            setSelected(icon.label as any);
+                          }}
+                          style={{
+                            width: 64,
+                            height: 64,
+                            borderRadius: 32,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderWidth: 2,
+                            borderColor: visuallyRestricted
+                              ? "#9ca3af"
+                              : isDisabled
+                                ? "#9ca3af"
+                                : isSelected
+                                  ? icon.color
+                                  : "#d1d5db",
+                            backgroundColor: isDark ? "#161618" : "#ffffff",
+                            opacity: visuallyRestricted
+                              ? 0.6
+                              : isDisabled
+                                ? 0.4
+                                : 1,
+                          }}
+                        >
+                          <IconComponent
+                            name={icon.name as any}
+                            size={28}
+                            color={
+                              isDark
+                                ? "#ffffff"
+                                : visuallyRestricted
+                                  ? "#9ca3af"
+                                  : icon.color
+                            }
+                          />
+                        </TouchableOpacity>
+                      </RNView>
+
+                      <ThemedText
+                        style={{
+                          marginTop: 8,
+                          textAlign: "center",
+                          fontSize: 14,
+                          fontWeight: "bold",
+                          opacity: visuallyRestricted ? 0.6 : 1,
+                        }}
+                      >
+                        {icon.label}
+                      </ThemedText>
+                    </ThemedView>
+                  );
+                })}
+            </ThemedView>
+          </>
+        )}
 
         {hasDisconnectedPlatform && (
           <ThemedView style={{
