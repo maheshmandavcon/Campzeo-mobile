@@ -1,7 +1,5 @@
 import https from "./https";
 
-// import * as FileSystem from "expo-file-system";
-
 // ---------------------- Types ---------------------- //
 
 export interface CampaignData {
@@ -19,7 +17,7 @@ export interface CampaignPostData {
   message: string;
   type: string;
   mediaUrls?: string[];
-  scheduledPostTime: string;
+  scheduledPostTime?: string | null;
 
   pinterestBoardId?: string;
   pinterestLink?: string;
@@ -71,11 +69,12 @@ export const getSocialStatus = async (token?: string) => {
 
 // Create a new campaign
 
-export const createCampaignApi = async (data: CampaignData) => {
+export const createCampaignApi = async (data: CampaignData,token?:string) => {
   try {
     const response = await https.post("Campaigns/AddCampaign", data, {
-      headers: { "Content-Type": "application/json" },
-    });
+      headers: { "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }), },
+    });    
     return response.data;
   } catch (error: any) {
     console.error(
@@ -106,14 +105,13 @@ export const getCampaignsApi = async (orgId: number,
 // Get single campaign by ID
 
 export const getCampaignByIdApi = async (id: number, orgId: number, token: string) => {
-
   try {
-    const response = await https.get(`Campaigns/${id}`, {
+    const response = await https.get(`Campaigns/${id}?organisationId=${orgId}`, {
       headers: {
         "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
       }
-    });
+    });    
     return response.data;
   } catch (error: any) {
     console.error(
@@ -124,17 +122,35 @@ export const getCampaignByIdApi = async (id: number, orgId: number, token: strin
   }
 };
 
+// export const getCampaignByIdApi = async (id: number, orgId: number, token: string) => {
+//   try {
+//     const response = await https.get(`Campaigns/${id}?organisationId=${orgId}`, {
+//       headers: {
+//         "Content-Type": "application/json",
+//         ...(token && { Authorization: `Bearer ${token}` }),
+//       }
+//     });
+//     return response.data;
+//   } catch (error: any) {
+//     console.error(
+//       "Get Campaign By ID API Error:",
+//       error.response || error.message,
+//     );
+//     throw error;
+//   }
+// };
+
 // Update campaign by ID
 
 export const updateCampaignApi = async (data: CampaignData, token: string) => {
   try {
-    const response = await https.put(`Campaigns/UpdateCampaign`, data, {
+    const response = await https.post(`Campaigns/UpdateCampaign`, data, {
       headers: {
         "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
       },
-    });
-    return response.data;
+    });    
+    return response;
   } catch (error: any) {
     console.error(
       "Update Campaign API Error:",
@@ -311,8 +327,6 @@ export const updatePostForCampaignApi = async (
     throw error;
   }
 };
-
-// Delete a post for a specific campaign
 
 export const deletePostForCampaignApi = async (
   orgId: number,
@@ -547,6 +561,7 @@ export interface FacebookPage {
   id: string;
   name: string;
   accessToken: string;
+  category?: string;
 }
 
 export const getFacebookPagesApi = async (
@@ -559,10 +574,42 @@ export const getFacebookPagesApi = async (
       },
     });
     if (response.data.error) throw new Error(response.data.error);
-    return response.data.pages || [];
+    const rawPages = response.data.pages || [];
+    return rawPages.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      accessToken: p.accessToken || p.access_token,
+      category: p.category,
+    }));
+  } catch (error: any) {
+    throw error;
+  }
+};
+
+// ---------------------- Meta Ads APIs ---------------------- //
+
+export interface MetaAdsAccount {
+  name: string;
+  account_id: string;
+  account_status: number;
+  currency: string;
+  balance: string;
+  id: string;
+}
+
+export const getMetaAdsAccountsApi = async (
+  token?: string,
+): Promise<MetaAdsAccount[]> => {
+  try {
+    const response = await https.get("/socialmedia/meta-ads/accounts", {
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+    return response.data.accounts || [];
   } catch (error: any) {
     console.error(
-      "Get Facebook Pages API Error:",
+      "Get Meta Ads Accounts API Error:",
       error.response?.data || error.message,
     );
     throw error;
@@ -669,6 +716,7 @@ export const getYoutubePlaylists = async (token: string) => {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
+        "x-api-key": process.env.EXPO_PUBLIC_APP_API_KEY || "",
       },
     });
     return response.data;

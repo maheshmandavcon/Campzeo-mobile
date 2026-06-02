@@ -8,6 +8,7 @@ import {
   useColorScheme,
   ActivityIndicator,
   Alert,
+  Text,
 } from "react-native";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import CampaignPostForm from "./campaignPostForm";
@@ -18,8 +19,17 @@ import Toast from "react-native-toast-message";
 import { router, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { getUser } from "@/api/dashboardApi";
 import { getPostDetails, getPostsByCampaignIdApi, getSocialStatus } from "@/api/campaignApi";
+import { View } from "react-native";
 
 export default function CampaignPost() {
+  const getRgba = (hex: string, alpha: number) => {
+    const cleanHex = hex.replace("#", "");
+    const r = parseInt(cleanHex.substring(0, 2), 16);
+    const g = parseInt(cleanHex.substring(2, 4), 16);
+    const b = parseInt(cleanHex.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
   // ---------- SOCIAL MEDIA ICONS ----------
   const icons = [
     { name: "chatbubble-ellipses-outline", label: "SMS" as const, library: Ionicons, color: "#10b981" },
@@ -350,56 +360,92 @@ export default function CampaignPost() {
           {sortedIcons
             .filter((icon) => connectedPlatforms[icon.label] !== false)
             .map((icon, index) => {
-            const IconComponent = icon.library;
-            const isSelected = selected === icon.label;
-            const isConnected = connectedPlatforms[icon.label] ?? false;
-            const isEditingThisPlatform =
-              isEditMode &&
-              !loadingPost &&
-              !!existingPost &&
-              existingPost.type === icon.label;
-            const forceDisabledInEdit = isEditMode && !isEditingThisPlatform;
-            const isDisabled = loadingConnections || !isConnected || (isEditMode && !isEditingThisPlatform);
+              const IconComponent = icon.library;
+              const isSelected = selected === icon.label;
+              const isConnected = connectedPlatforms[icon.label] ?? false;
+              const isEditingThisPlatform =
+                isEditMode &&
+                !loadingPost &&
+                !!existingPost &&
+                existingPost.type === icon.label;
+              const forceDisabledInEdit = isEditMode && !isEditingThisPlatform;
+              const isDisabled = loadingConnections || !isConnected || (isEditMode && !isEditingThisPlatform);
 
-            const isRestrictedPlatform = restrictedPlatforms.includes(icon.label as any);
-            const credits = icon.label === "SMS" ? smsCredits : whatsappCredits;
-            const isFullyApprovedAndFunded = isRestrictedPlatform && twilioAccessStatus === "APPROVED" && credits > 0;
-            const visuallyRestricted = isRestrictedPlatform && !isFullyApprovedAndFunded;
+              const isRestrictedPlatform = restrictedPlatforms.includes(icon.label as any);
+              const credits = icon.label === "SMS" ? smsCredits : whatsappCredits;
+              const isFullyApprovedAndFunded = isRestrictedPlatform && twilioAccessStatus === "APPROVED" && credits > 0;
+              const visuallyRestricted = isRestrictedPlatform && !isFullyApprovedAndFunded;
 
-            return (
-              <ThemedView
-                key={index}
-                className="w-1/4 mb-6 items-center"
-                style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
-              >
-                <RNView
+              return (
+                <View
+                  key={index}
                   style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
+                    width: "25%",
+                    marginBottom: 18,
                     alignItems: "center",
-                    justifyContent: "center",
-                    shadowColor: icon.color,
-                    shadowOffset: { width: 0, height: 0 },
-                    shadowOpacity: isSelected && !isDisabled && !visuallyRestricted ? 0.5 : 0,
-                    shadowRadius: isSelected && !isDisabled && !visuallyRestricted ? 12 : 0,
-                    elevation: isSelected && !isDisabled && !visuallyRestricted ? 12 : 0,
+                    backgroundColor: "transparent",
                   }}
                 >
-                  <TouchableOpacity
-                    disabled={forceDisabledInEdit || (!isRestrictedPlatform && isDisabled)}
-                    onPress={() => {
-                      if (forceDisabledInEdit) return;
+                  <View
+                    style={{
+                      width: 72,
+                      height: 72,
+                      borderRadius: 18,
+                      position: "relative",
+                      // shadowColor: icon.color,
+                      // shadowOffset: { width: 0, height: 6 },
+                      // shadowOpacity: isSelected && !isDisabled && !visuallyRestricted ? 0.35 : 0,
+                      // shadowRadius: isSelected && !isDisabled && !visuallyRestricted ? 10 : 0,
+                      // elevation: isSelected && !isDisabled && !visuallyRestricted ? 6 : 0,
+                    }}
+                  >
+                    {/* Active Checkmark Badge top right */}
+                    {isSelected && !isDisabled && !visuallyRestricted && (
+                      <View
+                        style={{
+                          position: "absolute",
+                          top: -4,
+                          right: -4,
+                          width: 18,
+                          height: 18,
+                          borderRadius: 9,
+                          backgroundColor: icon.color,
+                          borderWidth: 2,
+                          borderColor: isDark ? "#161618" : "#f3f4f6",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          zIndex: 10,
+                        }}
+                      >
+                        <Ionicons name="checkmark" size={10} color="#ffffff" />
+                      </View>
+                    )}
 
-                      if (isRestrictedPlatform) {
-                        if (twilioAccessStatus === "APPROVED") {
-                          if (credits <= 0) {
+                    <TouchableOpacity
+                      disabled={forceDisabledInEdit || (!isRestrictedPlatform && isDisabled)}
+                      onPress={() => {
+                        if (forceDisabledInEdit) return;
+
+                        if (isRestrictedPlatform) {
+                          if (twilioAccessStatus === "APPROVED") {
+                            if (credits <= 0) {
+                              Alert.alert(
+                                "No Credits Available",
+                                `You have 0 ${icon.label} credits. Please purchase a pack to use this channel.`,
+                                [
+                                  { text: "Cancel", style: "cancel" },
+                                  { text: "Add Credits", onPress: () => router.push("/(billing)/billingPage") },
+                                ]
+                              );
+                              return;
+                            }
+                          } else {
                             Alert.alert(
-                              "No Credits Available",
-                              `You have 0 ${icon.label} credits. Please purchase a pack to use this channel.`,
+                              "Admin Approval Required",
+                              "SMS and WhatsApp messaging requires admin approval and credit purchase.",
                               [
                                 { text: "Cancel", style: "cancel" },
-                                { text: "Add Credits", onPress: () => router.push("/(billing)/billingPage") },
+                                { text: "Purchase Pack", onPress: () => router.push("/(billing)/billingPage") },
                               ]
                             );
                             return;
@@ -415,59 +461,56 @@ export default function CampaignPost() {
                           );
                           return;
                         }
-                      }
+                        setSelected(icon.label as any);
+                      }}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        borderRadius: 18,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderWidth: isSelected ? 2 : 1,
+                        borderColor: forceDisabledInEdit
+                          ? (isDark ? "#2a2a32" : "#e2e8f0")
+                          : (visuallyRestricted
+                            ? "#94a3b8"
+                            : isDisabled
+                              ? "#94a3b8"
+                              : isSelected
+                                ? icon.color
+                                : (isDark ? "#2a2a32" : "#e2e8f0")),
+                        backgroundColor: forceDisabledInEdit
+                          ? (isDark ? "#121214" : "#f1f5f9")
+                          : (isSelected
+                            ? (isDark ? getRgba(icon.color, 0.16) : getRgba(icon.color, 0.08))
+                            : (isDark ? "#1e1e24" : "#ffffff")),
+                        opacity: forceDisabledInEdit ? 0.25 : (visuallyRestricted ? 0.65 : (isDisabled ? 0.45 : 1)),
+                      }}
+                    >
+                      <IconComponent
+                        name={icon.name as any}
+                        size={25}
+                        color={isDark ? "#ffffff" : (visuallyRestricted || forceDisabledInEdit ? "#94a3b8" : icon.color)}
+                      />
+                    </TouchableOpacity>
+                  </View>
 
-                      if (isDisabled) {
-                        Toast.show({
-                          type: "error",
-                          text1: "Platform Not Connected",
-                          text2: `Please connect your ${icon.label} account from Accounts first.`
-                        });
-                        return;
-                      }
-                      setSelected(icon.label as any);
-                    }}
+                  <Text
                     style={{
-                      width: 64,
-                      height: 64,
-                      borderRadius: 32,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderWidth: 2,
-                      borderColor: forceDisabledInEdit
-                        ? (isDark ? "#2c2c2e" : "#e5e7eb")
-                        : (visuallyRestricted
-                          ? "#9ca3af"
-                          : isDisabled
-                            ? "#9ca3af"
-                            : isSelected
-                              ? icon.color
-                              : "#d1d5db"),
-                      backgroundColor: isDark ? "#161618" : "#ffffff",
-                      opacity: forceDisabledInEdit ? 0.25 : (visuallyRestricted ? 0.6 : (isDisabled ? 0.4 : 1)),
+                      marginTop: 6,
+                      textAlign: "center",
+                      fontSize: 11,
+                      fontWeight: "700",
+                      color: isSelected
+                        ? (isDark ? "#ffffff" : "#0f172a")
+                        : (isDark ? "#94a3b8" : "#64748b"),
+                      opacity: forceDisabledInEdit ? 0.35 : (visuallyRestricted ? 0.65 : 1),
                     }}
                   >
-                    <IconComponent
-                      name={icon.name as any}
-                      size={28}
-                      color={isDark ? "#ffffff" : (visuallyRestricted || forceDisabledInEdit ? "#9ca3af" : icon.color)}
-                    />
-                  </TouchableOpacity>
-                </RNView>
-
-                <ThemedText
-                  style={{
-                    marginTop: 8,
-                    textAlign: "center",
-                    fontSize: 14,
-                    fontWeight: "bold",
-                    opacity: forceDisabledInEdit ? 0.3 : (visuallyRestricted ? 0.6 : 1),
-                  }}
-                >
-                  {icon.label}
-                </ThemedText>
-              </ThemedView>
-            );
+                    {icon.label}
+                  </Text>
+                </View>
+              );
             })}
         </ThemedView>
 

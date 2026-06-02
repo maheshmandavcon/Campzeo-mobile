@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+
 import {
   FlatList,
   TextInput,
@@ -7,7 +8,11 @@ import {
   ScrollView,
   useColorScheme,
   Alert,
+  Image,
+  Modal,
 } from "react-native";
+
+
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
@@ -17,7 +22,6 @@ import { getTemplatesApi, deleteTemplateApi } from "@/api/templetsApi";
 import { useAuth } from "@/context/AuthContext";
 import { getUser } from "@/api/dashboardApi";
 
-// ─── Types ──────────────────────────────────────────────────────────────────
 
 type PlatformType =
   | "ALL"
@@ -39,9 +43,7 @@ interface Template {
   metadata?: string;
 }
 
-// ─── Platform filter config ──────────────────────────────────────────────────
-
-const PLATFORM_FILTERS: {
+interface FilterOption {
   label: string;
   value: PlatformType;
   icon?: string;
@@ -74,21 +76,55 @@ const handlePlatformFilter = (platform: PlatformType, setSelectedPlatform: (p: P
   setSelectedPlatform(platform);
 };
 
-const getPlatformColor = (platform: PlatformType): string =>
-  PLATFORM_FILTERS.find((p) => p.value === platform)?.color ?? "#6b7280";
+const getPlatformColor = (platform: PlatformType): string => {
+  const PLATFORMS_MAP = [
+    { label: "All", value: "ALL", color: "#6b7280" },
+    { label: "Email", value: "EMAIL", color: "#f59e0b" },
+    { label: "Instagram", value: "INSTAGRAM", color: "#c13584" },
+    { label: "Facebook", value: "FACEBOOK", color: "#1877F2" },
+    { label: "YouTube", value: "YOUTUBE", color: "#FF0000" },
+    { label: "LinkedIn", value: "LINKEDIN", color: "#0A66C2" },
+    { label: "Pinterest", value: "PINTEREST", color: "#E60023" },
+    { label: "SMS", value: "SMS", color: "#10b981" },
+    { label: "WhatsApp", value: "WHATSAPP", color: "#25D366" },
+  ];
+  return PLATFORMS_MAP.find((p) => p.value === platform)?.color ?? "#6b7280";
+};
 
 const getPlatformIcon = (platform: PlatformType) => {
-  const p = PLATFORM_FILTERS.find((f) => f.value === platform);
-  return p;
+  const PLATFORMS_MAP = [
+    { value: "ALL", icon: "apps-outline", iconLib: "ionicons", color: "#6b7280" },
+    { value: "EMAIL", icon: "mail", iconLib: "ionicons", color: "#f59e0b" },
+    { value: "INSTAGRAM", icon: "instagram", iconLib: "fontawesome", color: "#c13584" },
+    { value: "FACEBOOK", icon: "facebook-square", iconLib: "fontawesome", color: "#1877F2" },
+    { value: "YOUTUBE", icon: "youtube-play", iconLib: "fontawesome", color: "#FF0000" },
+    { value: "LINKEDIN", icon: "linkedin-square", iconLib: "fontawesome", color: "#0A66C2" },
+    { value: "PINTEREST", icon: "pinterest", iconLib: "fontawesome", color: "#E60023" },
+    { value: "SMS", icon: "chatbubble-ellipses-outline", iconLib: "ionicons", color: "#10b981" },
+    { value: "WHATSAPP", icon: "logo-whatsapp", iconLib: "ionicons", color: "#25D366" },
+  ];
+  return PLATFORMS_MAP.find((f) => f.value === platform);
 };
 
 const MOCK_TEMPLATES: Template[] = [
 ];
 
 export default function Templates() {
+
   const isDark = useColorScheme() === "dark";
 
   const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState<FilterOption[]>([
+    { label: "All", value: "ALL", icon: "apps-outline", iconLib: "ionicons", color: "#6b7280" },
+    { label: "Email", value: "EMAIL", icon: "mail", iconLib: "ionicons", color: "#f59e0b" },
+    { label: "Instagram", value: "INSTAGRAM", icon: "instagram", iconLib: "fontawesome", color: "#c13584" },
+    { label: "Facebook", value: "FACEBOOK", icon: "facebook-square", iconLib: "fontawesome", color: "#1877F2" },
+    { label: "YouTube", value: "YOUTUBE", icon: "youtube-play", iconLib: "fontawesome", color: "#FF0000" },
+    { label: "LinkedIn", value: "LINKEDIN", icon: "linkedin-square", iconLib: "fontawesome", color: "#0A66C2" },
+    { label: "Pinterest", value: "PINTEREST", icon: "pinterest", iconLib: "fontawesome", color: "#E60023" },
+    { label: "SMS", value: "SMS", icon: "chatbubble-ellipses-outline", iconLib: "ionicons", color: "#10b981" },
+    { label: "WhatsApp", value: "WHATSAPP", icon: "logo-whatsapp", iconLib: "ionicons", color: "#25D366" },
+  ]);
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformType>("ALL");
   const [templates, setTemplates] = useState<Template[]>(MOCK_TEMPLATES);
   const [loading, setLoading] = useState(false);
@@ -129,7 +165,6 @@ export default function Templates() {
     }, [fetchTemplates])
   );
 
-  // Filter logic
   const filteredTemplates = templates.filter((t) => {
     const matchesPlatform =
       selectedPlatform === "ALL" || t.platform === selectedPlatform;
@@ -168,8 +203,125 @@ export default function Templates() {
     return <Ionicons name={config.icon as any} size={size} color={config.color} />;
   };
 
+  const MiniPreview = ({ item }: { item: Template }) => {
+    const platform = item.platform as PlatformType;
+    const mediaUrl = item.mediaUrls && item.mediaUrls.length > 0 ? item.mediaUrls[0] : null;
+
+    if (platform === "SMS" || platform === "WHATSAPP") {
+      const isWhatsApp = platform === "WHATSAPP";
+      const hasMedia = isWhatsApp && item.mediaUrls && item.mediaUrls.length > 0;
+
+      return (
+        <View style={{
+          backgroundColor: isDark ? (isWhatsApp ? "#056162" : "#374151") : (isWhatsApp ? "#DCF8C6" : "#007AFF"),
+          borderRadius: 12,
+          borderBottomRightRadius: 2,
+          padding: 10,
+          marginTop: 8,
+          alignSelf: "flex-end",
+          maxWidth: "94%",
+          minWidth: hasMedia ? 200 : undefined,
+        }}>
+          {hasMedia && (
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => setPreviewImage(item.mediaUrls![0])}
+              style={{ marginBottom: 6, borderRadius: 6, overflow: "hidden", width: "100%" }}
+            >
+              <Image source={{ uri: item.mediaUrls![0] }} style={{ width: "100%", aspectRatio: 4 / 3 }} resizeMode="cover" />
+            </TouchableOpacity>
+          )}
+          <ThemedText style={{ fontSize: 13, color: (isDark || !isWhatsApp) ? "#fff" : "#000" }}>{item.content}</ThemedText>
+        </View>
+
+      );
+    }
+
+    return (
+      <View style={{
+        marginTop: 10,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: isDark ? "#374151" : "#e5e7eb",
+        overflow: "hidden",
+        backgroundColor: isDark ? "#111827" : "#f9fafb"
+      }}>
+        {(platform === "FACEBOOK" || platform === "INSTAGRAM" || platform === "LINKEDIN") && (
+          <View style={{ padding: 8, flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: "#E4E6EB", alignItems: "center", justifyContent: "center" }}>
+              <Ionicons name="person" size={12} color="#8A8D91" />
+            </View>
+            <ThemedText style={{ fontSize: 11, fontWeight: "700" }}>Your Brand</ThemedText>
+          </View>
+        )}
+
+        {mediaUrl && (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => setPreviewImage(mediaUrl)}
+            style={{ aspectRatio: 1.91, backgroundColor: "#000" }}
+          >
+            <Image source={{ uri: mediaUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+          </TouchableOpacity>
+        )}
+
+        <View style={{ padding: 10 }}>
+          {item.subject ? (
+            <ThemedText style={{ fontSize: 13, fontWeight: "700", marginBottom: 4 }} numberOfLines={1}>{item.subject}</ThemedText>
+          ) : null}
+          <ThemedText style={{ fontSize: 12, color: isDark ? "#9ca3af" : "#6b7280" }} numberOfLines={2}>{item.content}</ThemedText>
+        </View>
+      </View>
+    );
+  };
+
+  const SkeletonCard = () => {
+    const opacity = React.useRef(new Animated.Value(0.3)).current;
+
+    React.useEffect(() => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(opacity, {
+            toValue: 0.7,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacity, {
+            toValue: 0.3,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }, []);
+
+    return (
+      <ThemedView
+        style={{
+          backgroundColor: isDark ? "#1f2937" : "#ffffff",
+          borderRadius: 16,
+          padding: 16,
+          marginBottom: 12,
+          borderWidth: 1,
+          borderColor: isDark ? "#374151" : "#e5e7eb",
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+          <Animated.View style={{ width: 60, height: 20, borderRadius: 10, backgroundColor: isDark ? "#374151" : "#e5e7eb", opacity }} />
+          <Animated.View style={{ flex: 1, height: 20, borderRadius: 4, backgroundColor: isDark ? "#374151" : "#e5e7eb", marginLeft: 10, opacity }} />
+        </View>
+        <Animated.View style={{ height: 60, borderRadius: 8, backgroundColor: isDark ? "#374151" : "#e5e7eb", marginBottom: 12, opacity }} />
+        <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
+          <Animated.View style={{ width: 80, height: 12, borderRadius: 4, backgroundColor: isDark ? "#374151" : "#e5e7eb", opacity }} />
+        </View>
+      </ThemedView>
+    );
+  };
+
   const renderTemplateCard = ({ item }: { item: Template }) => {
-    const platformColor = getPlatformColor(item.platform);
+
+    const platformColor = getPlatformColor(item.platform as PlatformType);
+
     return (
       <ThemedView
         style={{
@@ -186,9 +338,7 @@ export default function Templates() {
           elevation: 2,
         }}
       >
-        {/* Header row */}
         <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-          {/* Platform badge */}
           <View
             style={{
               flexDirection: "row",
@@ -201,12 +351,13 @@ export default function Templates() {
               marginRight: 10,
             }}
           >
-            {renderPlatformIcon(item.platform)}
+
+            {renderPlatformIcon(item.platform as PlatformType)}
+
             <ThemedText style={{ fontSize: 11, fontWeight: "600", color: platformColor, marginLeft: 4 }}>
-              {item.platform}
+              {getPlatformLabel(item.platform)}
             </ThemedText>
           </View>
-
           <ThemedText
             style={{
               flex: 1,
@@ -219,7 +370,6 @@ export default function Templates() {
             {item.name}
           </ThemedText>
 
-          {/* Action buttons */}
           <View style={{ flexDirection: "row", gap: 8 }}>
             <TouchableOpacity
               onPress={() => {
@@ -234,6 +384,7 @@ export default function Templates() {
               <Ionicons name="pencil-outline" size={16} color={isDark ? "#9ca3af" : "#6b7280"} />
             </TouchableOpacity>
 
+
             <TouchableOpacity
               onPress={() => handleDelete(item.id)}
               style={{
@@ -247,17 +398,7 @@ export default function Templates() {
           </View>
         </View>
 
-        {/* Content preview */}
-        <ThemedText
-          style={{
-            fontSize: 13,
-            color: isDark ? "#9ca3af" : "#6b7280",
-            lineHeight: 20,
-          }}
-          numberOfLines={3}
-        >
-          {item.content}
-        </ThemedText>
+        <MiniPreview item={item} />
 
         <ThemedText
           style={{
@@ -355,7 +496,7 @@ export default function Templates() {
 
   return (
     <SafeAreaView
-      edges={["top"]}
+      edges={["top", "bottom"]}
       style={{ flex: 1, backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
     >
       <ThemedView
@@ -547,3 +688,4 @@ export default function Templates() {
     </SafeAreaView>
   );
 }
+

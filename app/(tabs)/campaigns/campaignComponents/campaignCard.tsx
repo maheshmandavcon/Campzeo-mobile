@@ -8,7 +8,6 @@ import { router } from "expo-router";
 import { useEffect } from "react";
 import { Alert, Text, TouchableOpacity, useColorScheme, View } from "react-native";
 
-// Define Campaign type
 export interface Campaign {
   id: number;
   details: string;
@@ -85,15 +84,19 @@ export default function CampaignCard({
    postLength;
 
   const handleEdit = () => {
-    if (onEdit) {
-      onEdit(campaign);      
-    } else {
-      router.push({
+    // if (onEdit) {
+      // onEdit(campaign); 
+           console.log(campaign.id);
+           router.push({
         pathname: "/campaigns/createCampaign",
-        params: { campaign: JSON.stringify(campaign) },
+        params: { Id: campaign.id },
       });
-      // console.log("kempains",campaign);
-    }
+    // } else {
+    //   router.push({
+    //     pathname: "/campaigns/createCampaign",
+    //     params: { Id: campaign.id },
+    //   });
+    // }
   };
   
 const handleDelete = async (cId: number) => {
@@ -305,135 +308,270 @@ const handleDelete = async (cId: number) => {
     );
   }
 
+  const COLORS = {
+    screenBg: isDark ? "#121214" : "#f8fafc",
+    cardBg: isDark ? "#1e1e24" : "#ffffff",
+    cardBorder: isDark ? "#2a2a32" : "#e2e8f0",
+    textPrimary: isDark ? "#ffffff" : "#0f172a",
+    textSecondary: isDark ? "#94a3b8" : "#64748b",
+
+    actionEditBg: isDark ? "rgba(16,185,129,0.12)" : "#ecfdf5",
+    actionEditBorder: isDark ? "rgba(16,185,129,0.25)" : "#d1fae5",
+    actionEditIcon: "#10b981",
+
+    actionDeleteBg: isDark ? "rgba(239,68,68,0.12)" : "#fef2f2",
+    actionDeleteBorder: isDark ? "rgba(239,68,68,0.25)" : "#fee2e2",
+    actionDeleteIcon: "#ef4444",
+
+    actionCopyBg: isDark ? "rgba(59,130,246,0.12)" : "#eff6ff",
+    actionCopyBorder: isDark ? "rgba(59,130,246,0.25)" : "#dbeafe",
+    actionCopyIcon: "#3b82f6",
+
+    actionShowBg: isDark ? "rgba(156,163,175,0.12)" : "#f3f4f6",
+    actionShowBorder: isDark ? "rgba(156,163,175,0.25)" : "#e5e7eb",
+    actionShowIcon: isDark ? "#9ca3af" : "#4b5563",
+  };
+
   return (
-    // <ThemedView
-    //   className="p-4 rounded-xl mb-4"
-    //   style={{
-    //     backgroundColor: isDark ? "#161618" : "#fff",
-    //     borderWidth: 2,
-    //     borderColor: highlightBorder ? borderColorStyle : isDark ? "#ffffff" : "#e5e7eb",
-    //   }}
-    // >
     <ThemedView
-      className="p-4 rounded-xl mb-4"
       style={{
-        backgroundColor: isDark ? "#161618" : "#ffffff", // unchanged
-        borderWidth: 2,
-        borderColor: highlightBorder
-          ? borderColorStyle
-          : finalBorderColor,
+        padding: 16,
+        borderRadius: 16,
+        marginBottom: 12,
+        backgroundColor: COLORS.cardBg,
+        borderWidth: 1,
+        borderColor: highlightBorder ? borderColorStyle : COLORS.cardBorder,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: isDark ? 0.2 : 0.04,
+        shadowRadius: 8,
+        elevation: 2,
       }}
     >
       {/* Title + Actions */}
-      <ThemedView className="flex-row mb-2 items-start">
-        <ThemedView className="flex-1 pr-10">
-          <ThemedText className="font-bold text-lg" numberOfLines={1}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <View style={{ flex: 1, paddingRight: 8 }}>
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: "800",
+              color: COLORS.textPrimary,
+            }}
+            numberOfLines={1}
+          >
             {campaign.details ?? "Untitled Campaign"}
-          </ThemedText>
-        </ThemedView>
+          </Text>
+        </View>
 
-        <ThemedView className="flex-row items-start w-24 justify-end">
-          {(statusPosition === "top") && (
-            <StatusBadge />
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          {statusPosition === "top" && (
+            <View style={{ marginRight: 8 }}>
+              <StatusBadge />
+            </View>
           )}
+
           {showActions && (
-            <ThemedView className="flex-row">
-              <TouchableOpacity onPress={handleEdit} className="mx-1">
-                <Ionicons name="create-outline" size={22} style={{ color: isDark ? "#73f3c9" : "#10b981" }} />
+            <View style={{ flexDirection: "row", gap: 6 }}>
+              {/* Edit Badge */}
+              <TouchableOpacity
+                onPress={handleEdit}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: COLORS.actionEditBg,
+                  borderWidth: 1,
+                  borderColor: COLORS.actionEditBorder,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons name="create-outline" size={16} color={COLORS.actionEditIcon} />
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => handleDelete(campaign.id)} className="mx-1">
-                <Ionicons name="trash-outline" size={22} style={{ color: isDark ? "#f47a7a" : "#ef4444" }} />
+              {/* Delete Badge */}
+              <TouchableOpacity
+                onPress={() => onDelete(campaign)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: COLORS.actionDeleteBg,
+                  borderWidth: 1,
+                  borderColor: COLORS.actionDeleteBorder,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons name="trash-outline" size={16} color={COLORS.actionDeleteIcon} />
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => onCopy(campaign)} className="mx-1">
-                <Ionicons name="copy-outline" size={22} style={{ color: isDark ? "#73a6f9" : "#3b82f6" }} />
+              {/* Copy Badge */}
+              <TouchableOpacity
+                onPress={() => onCopy(campaign)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: COLORS.actionCopyBg,
+                  borderWidth: 1,
+                  borderColor: COLORS.actionCopyBorder,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons name="copy-outline" size={16} color={COLORS.actionCopyIcon} />
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => onToggleShow(campaign)} className="mx-1">
+              {/* Toggle Show Badge */}
+              <TouchableOpacity
+                onPress={() => onToggleShow(campaign)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: COLORS.actionShowBg,
+                  borderWidth: 1,
+                  borderColor: COLORS.actionShowBorder,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
                 <Ionicons
-                  name={campaign.show ? "eye-off-outline" : "eye-outline"} size={22} style={{ color: isDark ? "#b4b8c0" : "6b7280" }} />
+                  name={campaign.show ? "eye-off-outline" : "eye-outline"}
+                  size={16}
+                  color={COLORS.actionShowIcon}
+                />
               </TouchableOpacity>
-            </ThemedView>
+            </View>
           )}
-        </ThemedView>
-      </ThemedView>
+        </View>
+      </View>
 
       {isExpanded && (
-        <ThemedView>
-          <ThemedText className="font-bold text-gray-900 mb-1">Description</ThemedText>
-          <Text className={`mb-3 ${isDark ? "text-gray-200" : "text-gray-700"}`}>
+        <View style={{ marginTop: 4 }}>
+          {/* Description */}
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: "700",
+              color: COLORS.textSecondary,
+              marginBottom: 4,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+            }}
+          >
+            Description
+          </Text>
+          <Text
+            style={{
+              fontSize: 14,
+              color: isDark ? "#d1d5db" : "#475569",
+              lineHeight: 20,
+              marginBottom: 16,
+            }}
+          >
             {campaign.description ?? "No description available"}
           </Text>
 
-          <ThemedView className="mb-3">
-            {/* Duration + Status */}
-            <ThemedView className="flex-row justify-between items-center mb-2">
-              <ThemedText className="font-bold text-gray-900">Duration</ThemedText>
-              {(statusPosition === "middle") && (
-                <StatusBadge />
-              )}
+          {/* Duration section */}
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "700",
+                color: COLORS.textSecondary,
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+              }}
+            >
+              Duration
+            </Text>
+            {statusPosition === "middle" && <StatusBadge />}
+          </View>
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "600",
+              color: COLORS.textPrimary,
+              marginBottom: 16,
+            }}
+          >
+            {campaign.dates}
+          </Text>
 
-            </ThemedView>
-
-            <Text className={`mb-3 ${isDark ? "text-gray-200" : "text-gray-700"}`}>{campaign.dates}</Text>
-
-            <ThemedView className="flex-row justify-between items-center">
-              <ThemedView className="flex-row items-center">
-                <Ionicons name="people-outline" size={18} color={isDark ? "#ffffff" : "#4b5563"} />
-                <Text className={`ml-1.5 ${isDark ? "text-gray-200" : "text-gray-700"}`}>
-                  {campaign.contactCount ?? 0} Contacts
+          {/* Stats Bar and Action Buttons */}
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingTop: 12,
+              borderTopWidth: 1,
+              borderTopColor: COLORS.cardBorder,
+            }}
+          >
+            <View style={{ flexDirection: "row", gap: 16 }}>
+              {/* Contacts Stat */}
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Ionicons name="people-outline" size={16} color={COLORS.textSecondary} />
+                <Text style={{ marginLeft: 6, fontSize: 13, fontWeight: "700", color: COLORS.textPrimary }}>
+                  {campaign.contactCount ?? 0}
+                  <Text style={{ fontWeight: "500", color: COLORS.textSecondary }}> Contacts</Text>
                 </Text>
-              </ThemedView>
+              </View>
 
-              <ThemedView className="flex-row items-center">
-                <Ionicons name="albums-outline" size={18} color={isDark ? "#ffffff" : "#4b5563"} />
-                <Text className={`ml-1.5 ${isDark ? "text-gray-200" : "text-gray-700"}`}>
-                  {totalPosts} Posts
+              {/* Posts Stat */}
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Ionicons name="albums-outline" size={16} color={COLORS.textSecondary} />
+                <Text style={{ marginLeft: 6, fontSize: 13, fontWeight: "700", color: COLORS.textPrimary }}>
+                  {totalPosts}
+                  <Text style={{ fontWeight: "500", color: COLORS.textSecondary }}> Posts</Text>
                 </Text>
-              </ThemedView>
+              </View>
+            </View>
 
-              {showPostButton && !createPostButton && (
-                <TouchableOpacity
-                  onPress={handleAddPost}
-                  className="flex-row items-center px-3 py-1.5 rounded-full"
-                  style={{
-                    backgroundColor: isDark
-                      ? "rgba(255,255,255,0.08)"
-                      : "rgba(59,130,246,0.18)",
-                    borderWidth: 1,
-                    borderColor: isDark ? "#ffffff" : "transparent",
-                  }}
-                >
-                  <Ionicons
-                    name="add-circle-outline"
-                    size={16}
-                    color={isDark ? "#ffffff" : "#3b82f6"}
-                  />
+            {/* Post Buttons */}
+            {showPostButton && !createPostButton && (
+              <TouchableOpacity
+                onPress={handleAddPost}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 99,
+                  backgroundColor: isDark ? "rgba(59,130,246,0.12)" : "#eff6ff",
+                  borderWidth: 1,
+                  borderColor: isDark ? "rgba(59,130,246,0.25)" : "#dbeafe",
+                }}
+              >
+                <Ionicons name="add-circle-outline" size={14} color="#3b82f6" />
+                <Text style={{ marginLeft: 4, fontSize: 12, fontWeight: "700", color: "#3b82f6" }}>
+                  Post
+                </Text>
+              </TouchableOpacity>
+            )}
 
-                  <Text
-                    className="ml-1.5 text-[12px] font-semibold"
-                    style={{ color: isDark ? "#e5e7eb" : "#3b82f6" }}
-                  >
-                    Post
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {createPostButton && showPostButton && (
-                <TouchableOpacity
-                  onPress={handleAddPost}
-                  className="px-4 py-2 rounded-full bg-blue-100 items-center justify-center"
-                  style={{ minWidth: 100 }}
-                >
-                  <Text className="text-blue-500 font-semibold text-sm text-center">
-                    Create Post
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </ThemedView>
-          </ThemedView>
-        </ThemedView>
+            {createPostButton && showPostButton && (
+              <TouchableOpacity
+                onPress={handleAddPost}
+                style={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  borderRadius: 99,
+                  backgroundColor: "#0284c7",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: 13 }}>
+                  Create Post
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
       )}
     </ThemedView>
   );

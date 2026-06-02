@@ -154,22 +154,28 @@ type PreviewProps = {
   profilePic?: string;
   platform: string;
   text: string;
+  onChangeText?: (value: string) => void;
+  onRemoveMedia?: (uri: string) => void;
   coverImage?: string;
   images?: string[];
+  media?: { uri: string; type: string; name?: string; size?: string }[];
   timestamp?: string;
   username: string;
   youTubeContentType?: string;
 };
 
-const SCREEN_WIDTH = Dimensions.get("window").width;
 
+const SCREEN_WIDTH = Dimensions.get("window").width;
 const Preview: React.FC<PreviewProps> = ({
   profilePic,
   platform,
   username,
   text,
+  onChangeText,
+  onRemoveMedia,
   coverImage,
   images = [],
+  media,
   timestamp,
   youTubeContentType,
 }) => {
@@ -177,6 +183,23 @@ const Preview: React.FC<PreviewProps> = ({
   const [showWatchAgain, setShowWatchAgain] = useState(false);
   const [playTrigger, setPlayTrigger] = useState(0);
   const [isYTShort, setIsYTShort] = useState(false);
+
+  const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
+  const [videoCountdown, setVideoCountdown] = useState<string>("0:00");
+  const [isPlaying, setIsPlaying] = useState<boolean>(true);
+  const [hasStarted, setHasStarted] = useState<boolean>(false);
+
+  const normalizedMedia: { uri: string; type: string; name?: string; size?: string }[] =
+    media ? media : (images || []).map(uri => ({
+      uri,
+      type: uri.match(/\.(mp4|mov|mkv)($|\?)/i) ? "video/mp4" : "image/jpeg",
+      name: uri.split('/').pop()?.split('?')[0] || 'File',
+      size: undefined
+    }));
+
+  const isVideo = (item: { uri: string; type: string; name?: string; size?: string }) =>
+    item.type.startsWith("video/") || item.uri.match(/\.(mp4|mov|mkv)($|\?)/i);
+
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -218,7 +241,7 @@ const Preview: React.FC<PreviewProps> = ({
       showTextAboveMedia: false,
     },
     youtube: {
-      showHeaderMenu: true,
+      showHeaderMenu: false,
       showActions: false,
       showTextAboveMedia: false,
     },
@@ -266,7 +289,9 @@ const Preview: React.FC<PreviewProps> = ({
             controls={false}
           />
         ) : (
-          <Image source={{ uri: images[0] }} className="w-full h-[300px]" />
+          <TouchableOpacity onPress={() => setFullscreenIndex(0)}>
+            <Image source={{ uri: media[0].uri }} className="w-full h-[300px]" />
+          </TouchableOpacity>
         )
       )}
 
@@ -522,9 +547,6 @@ const Preview: React.FC<PreviewProps> = ({
       setActiveIndex(index);
     };
 
-    const isVideo = (uri: string) =>
-      /\.(mp4|mov|mkv)$/i.test(uri);
-
     return (
       <View style={{ marginTop: 10 }}>
         <ScrollView
@@ -536,16 +558,17 @@ const Preview: React.FC<PreviewProps> = ({
           scrollEventThrottle={16}
           style={{ width: SCREEN_WIDTH }}
         >
-          {media.map((uri, index) => (
-            <View
+          {media.map((item, index) => (
+            <TouchableOpacity
               key={index}
+              onPress={() => setFullscreenIndex(index)}
               style={{
                 width: SCREEN_WIDTH,
                 height: SCREEN_WIDTH,
                 overflow: "hidden",
               }}
             >
-              {isVideo(uri) ? (
+              {isVideo(item) ? (
                 <Video
                   source={{ uri }}
                   style={{ width: "100%", height: "100%" }}
@@ -559,12 +582,12 @@ const Preview: React.FC<PreviewProps> = ({
                 />
               ) : (
                 <Image
-                  source={{ uri }}
+                  source={{ uri: item.uri }}
                   style={{ width: "100%", height: "100%" }}
                   resizeMode="cover"
                 />
               )}
-            </View>
+            </TouchableOpacity>
           ))}
         </ScrollView>
 
@@ -620,33 +643,34 @@ const Preview: React.FC<PreviewProps> = ({
   };
 
   const renderWhatsAppPreview = () => {
-    const isVideo = (uri: string) => /\.(mp4|mov|mkv)$/i.test(uri);
-    const media = images.slice(0, 4);
-    const remaining = images.length - 4;
+    const media = normalizedMedia.slice(0, 4);
+    const remaining = normalizedMedia.length - 4;
 
     const MediaItem = ({
-      uri,
+      item,
+      index,
       style,
       showOverlay,
     }: {
-      uri: string;
+      item: { uri: string; type: string };
+      index: number;
       style: any;
       showOverlay?: boolean;
     }) => {
-      const video = isVideo(uri);
+      const video = isVideo(item);
 
       return (
-        <View style={[style, { overflow: "hidden" }]}>
+        <TouchableOpacity onPress={() => setFullscreenIndex(index)} style={[style, { overflow: "hidden" }]}>
           {video ? (
             <Video
-              source={{ uri }}
+              source={{ uri: item.uri }}
               style={{ width: "100%", height: "100%" }}
               resizeMode="cover"
               controls
             />
           ) : (
             <Image
-              source={{ uri }}
+              source={{ uri: item.uri }}
               style={{ width: "100%", height: "100%" }}
               resizeMode="cover"
             />
@@ -667,7 +691,7 @@ const Preview: React.FC<PreviewProps> = ({
               </Text>
             </View>
           )}
-        </View>
+        </TouchableOpacity>
       );
     };
 
@@ -677,19 +701,21 @@ const Preview: React.FC<PreviewProps> = ({
       }}>
         <View className="self-end max-w-[85%] bg-[#dcf8c6] rounded-xl p-2">
           {/* MEDIA */}
-          {images.length === 1 && (
+          {normalizedMedia.length === 1 && (
             <MediaItem
-              uri={images[0]}
+              item={normalizedMedia[0]}
+              index={0}
               style={{ width: 220, height: 220, borderRadius: 12 }}
             />
           )}
 
-          {images.length === 2 && (
+          {normalizedMedia.length === 2 && (
             <View>
-              {media.map((uri, i) => (
+              {media.map((item, i) => (
                 <MediaItem
                   key={i}
-                  uri={uri}
+                  item={item}
+                  index={i}
                   style={{
                     width: 220,
                     height: 110,
@@ -701,10 +727,11 @@ const Preview: React.FC<PreviewProps> = ({
             </View>
           )}
 
-          {images.length === 3 && (
+          {normalizedMedia.length === 3 && (
             <View className="flex-row">
               <MediaItem
-                uri={media[0]}
+                item={media[0]}
+                index={0}
                 style={{
                   width: 110,
                   height: 220,
@@ -714,7 +741,8 @@ const Preview: React.FC<PreviewProps> = ({
               />
               <View>
                 <MediaItem
-                  uri={media[1]}
+                  item={media[1]}
+                  index={1}
                   style={{
                     width: 110,
                     height: 108,
@@ -723,7 +751,8 @@ const Preview: React.FC<PreviewProps> = ({
                   }}
                 />
                 <MediaItem
-                  uri={media[2]}
+                  item={media[2]}
+                  index={2}
                   style={{
                     width: 110,
                     height: 108,
@@ -734,9 +763,9 @@ const Preview: React.FC<PreviewProps> = ({
             </View>
           )}
 
-          {images.length >= 4 && (
+          {normalizedMedia.length >= 4 && (
             <View className="flex-row flex-wrap">
-              {media.slice(0, 4).map((uri, i) => (
+              {media.slice(0, 4).map((item, i) => (
                 <View
                   key={i}
                   style={{
@@ -747,7 +776,8 @@ const Preview: React.FC<PreviewProps> = ({
                   }}
                 >
                   <MediaItem
-                    uri={uri}
+                    item={item}
+                    index={i}
                     showOverlay={i === 3}
                     style={{
                       width: "100%",
@@ -761,7 +791,22 @@ const Preview: React.FC<PreviewProps> = ({
           )}
 
           {!!text && (
-            <Text className="text-gray-900 mt-2">{text}</Text>
+            <Text className="text-gray-900 mt-2">
+              {(() => {
+                let displayedText = text;
+                const normalizedStatus = status?.toUpperCase();
+                if (normalizedStatus === "SENT") {
+                  displayedText = displayedText
+                    .replace(/\{\{\s*name\s*\}\}/g, contactName || "{{name}}")
+                    .replace(/\{\{\s*email\s*\}\}/g, contactEmail || "{{email}}")
+                    .replace(/\{\{\s*phone\s*\}\}/g, contactPhone || "{{phone}}")
+                    .replace(/\{\{\s*contact\s*\}\}/g, contactPhone || "{{contact}}")
+                    .replace(/\{\{\s*mobile\s*\}\}/g, contactPhone || "{{mobile}}")
+                    .replace(/\{\{\s*company\s*\}\}/g, contactCompany || "{{company}}");
+                }
+                return displayedText;
+              })()}
+            </Text>
           )}
 
           <View className="flex-row justify-end items-center mt-1">
@@ -784,9 +829,8 @@ const Preview: React.FC<PreviewProps> = ({
       }}
     >
       <View className="flex-row justify-between mb-2">
-        <Text className="font-semibold text-gray-900"
-          style={{ color: isDark ? "#f2f2f7" : "#111827" }}>
-          Subject: Campaign Update
+        <Text className="text-xs text-gray-500">
+          From: {senderEmail || `${username.toLowerCase().replace(/\s+/g, '.')}@company.com`}
         </Text>
         <Text className="text-xs text-gray-500">
           {timestamp || "Now"}
@@ -794,10 +838,25 @@ const Preview: React.FC<PreviewProps> = ({
       </View>
 
       <Text className="text-xs text-gray-500 mb-1">
-        From: {username}@company.com
+        To: Customer {"<"}customer@example.com{">"}
       </Text>
-      <Text className="text-xs text-gray-500 mb-3">
-        To: client@example.com
+
+      <Text className="font-semibold text-gray-900 mt-1 mb-2"
+        style={{ color: isDark ? "#f2f2f7" : "#111827" }}>
+        Subject: {(() => {
+          let displayedSubject = subject || "No Subject";
+          const normalizedStatus = status?.toUpperCase();
+          if (normalizedStatus === "SENT") {
+            displayedSubject = displayedSubject
+              .replace(/\{\{\s*name\s*\}\}/g, contactName || "{{name}}")
+              .replace(/\{\{\s*email\s*\}\}/g, contactEmail || "{{email}}")
+              .replace(/\{\{\s*phone\s*\}\}/g, contactPhone || "{{phone}}")
+              .replace(/\{\{\s*contact\s*\}\}/g, contactPhone || "{{contact}}")
+              .replace(/\{\{\s*mobile\s*\}\}/g, contactPhone || "{{mobile}}")
+              .replace(/\{\{\s*company\s*\}\}/g, contactCompany || "{{company}}");
+          }
+          return displayedSubject;
+        })()}
       </Text>
 
       <Text className="text-gray-900 mb-3" style={{ color: isDark ? "#fff" : "#111827" }}>{text}</Text>
@@ -850,6 +909,7 @@ const Preview: React.FC<PreviewProps> = ({
         );
       })}
     </View>
+
   );
 
   const renderSmsPreview = () => {
@@ -857,7 +917,20 @@ const Preview: React.FC<PreviewProps> = ({
       <View className="px-3 py-4 bg-[#f2f2f7]" style={{ backgroundColor: isDark ? "#161618" : "#f2f2f7" }}>
         <View className="self-end max-w-[85%] bg-[#007AFF] rounded-2xl px-3 py-2">
           <Text className="text-white text-[15px] leading-5">
-            {text || "Your SMS message will appear here"}
+            {(() => {
+              let displayedText = text || "Your SMS message will appear here";
+              const normalizedStatus = status?.toUpperCase();
+              if (normalizedStatus === "SENT") {
+                displayedText = displayedText
+                  .replace(/\{\{\s*name\s*\}\}/g, contactName || "{{name}}")
+                  .replace(/\{\{\s*email\s*\}\}/g, contactEmail || "{{email}}")
+                  .replace(/\{\{\s*phone\s*\}\}/g, contactPhone || "{{phone}}")
+                  .replace(/\{\{\s*contact\s*\}\}/g, contactPhone || "{{contact}}")
+                  .replace(/\{\{\s*mobile\s*\}\}/g, contactPhone || "{{mobile}}")
+                  .replace(/\{\{\s*company\s*\}\}/g, contactCompany || "{{company}}");
+              }
+              return displayedText;
+            })()}
           </Text>
 
           <Text className="text-[10px] text-white/70 text-right mt-1">
@@ -875,7 +948,7 @@ const Preview: React.FC<PreviewProps> = ({
 
     return (
       <View className="p-3 bg-white" style={{ backgroundColor: isDark ? "#161618" : "#fff" }}>
-        {images.map((uri, index) => (
+        {normalizedMedia.map((item, index) => (
           <View
             key={index}
             className="mb-4 rounded-lg overflow-hidden border border-gray-200"
@@ -892,11 +965,13 @@ const Preview: React.FC<PreviewProps> = ({
                 controls={false}
               />
             ) : (
-              <Image
-                source={{ uri }}
-                style={{ width: "100%", height: 200 }}
-                resizeMode="cover"
-              />
+              <TouchableOpacity onPress={() => setFullscreenIndex(index)}>
+                <Image
+                  source={{ uri: item.uri }}
+                  style={{ width: "100%", height: 200 }}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
             )}
 
             {isVideo(uri) && (
@@ -1080,6 +1155,9 @@ const Preview: React.FC<PreviewProps> = ({
             )}
           </View>
         </View>
+      </View>
+    );
+  };
 
         <View style={{ width: "100%", height: 210 }}>
           {isDemo ? (
@@ -1336,6 +1414,7 @@ const Preview: React.FC<PreviewProps> = ({
     /\.(mp4|mov|mkv)$/i.test(images[0]);
 
   return (
+
     <View
       className={`my-2 bg-white border border-gray-300 rounded-lg pb-2 ${platform === "sms" ? "" : "overflow-hidden"
         } ${platform === "facebook" ? "p-0" : ""}`}
@@ -1499,6 +1578,7 @@ const Preview: React.FC<PreviewProps> = ({
                 className="w-10 h-10 rounded-full"
               />
             )}
+          </View>
 
             <View className="flex-1 ml-3 justify-center">
               <Text className="font-bold text-gray-900 leading-5" style={{ color: isDark ? "#f2f2f7" : "#111827" }}>

@@ -15,3 +15,13 @@ export const fetchInvoices = async ()=> {
   }
 };
 
+ export const getInvoiceById = async (id: string) => {
+    try {
+      const response = await https.get(`Invoices/${id}`);
+      return response.data;
+    } catch (error) {
+      console.log("Fetching Invoice Error:", error);
+      return null;
+    }
+  };
+

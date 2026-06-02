@@ -1,13 +1,16 @@
-import { createContactApi, updateContactApi, getContactsApi } from "@/api/contactApi";
+import {
+  createContactApi,
+  updateContactApi,
+  getContactsApi,
+} from "@/api/contactApi";
 import { getCampaignsApi } from "@/api/campaignApi";
 import { useAuth } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
-import { FormControl, Input, InputField } from "@gluestack-ui/themed";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { contactSchema } from "@/validations/contactSchema";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   Alert,
@@ -18,10 +21,12 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   useColorScheme,
+  TextInput,
+  View,
+  StyleSheet,
 } from "react-native";
-import { ThemedView } from "@/components/themed-view";
-import { ThemedText } from "@/components/themed-text";
 import { getUser } from "@/api/dashboardApi";
+import Toast from "react-native-toast-message";
 
 type Contact = {
   id?: number;
@@ -74,25 +79,6 @@ export default function CreateContact() {
   const hasResetRef = useRef(false);
 
   const [existingEmails, setExistingEmails] = useState<string[]>([]);
-  useEffect(() => {
-    const fetchContactsEmails = async () => {
-      try {
-        const token = await getToken();
-        if (!token) throw new Error("Token missing");
-        const user = await getUser();        
-        const orgId = user?.organisation?.id; 
-
-        const data = await getContactsApi(orgId); 
-        const emails = data.contacts?.map((c: any) => c.contactEmail.toLowerCase()) || [];
-        setExistingEmails(emails);
-      } catch (err) {
-        console.error("Failed to fetch contact emails:", err);
-      }
-    };
-
-    fetchContactsEmails();
-  }, []);
-
   const [existingNumbers, setExistingNumbers] = useState<string[]>([]);
 
   useEffect(() => {
@@ -100,11 +86,12 @@ export default function CreateContact() {
       try {
         const token = await getToken();
         if (!token) throw new Error("Token missing");
-        const user = await getUser();        
-        const orgId = user?.organisation?.id; 
+        const user = await getUser();
+        const orgId = user?.organisation?.id;
 
-        const data = await getContactsApi(orgId); 
-        const emails = data.contacts?.map((c: any) => c.contactEmail.toLowerCase()) || [];
+        const data = await getContactsApi(orgId);
+        const emails =
+          data.contacts?.map((c: any) => c.contactEmail.toLowerCase()) || [];
         const numbers = data.contacts?.map((c: any) => c.contactMobile) || [];
 
         setExistingEmails(emails);
@@ -128,21 +115,19 @@ export default function CreateContact() {
       whatsapp: editingContact.whatsapp || "+91",
       campaignIds: editingContact.campaigns
         ? editingContact.campaigns.map((c) => c.id)
-        : editingContact.campaignIds ?? [],
+        : (editingContact.campaignIds ?? []),
     });
 
     hasResetRef.current = true;
   }, [editingContact, reset]);
 
-  /* Fetch campaigns dynamically */
-  useEffect(() => {
-    const fetchCampaigns = async () => {
+   const fetchCampaigns = async () => {
       setLoadingCampaigns(true);
       try {
         const token = await getToken();
         if (!token) throw new Error("Token missing");
-        const user = await getUser();        
-        const orgId = user?.organisation?.id;      
+        const user = await getUser();
+        const orgId = user?.organisation?.id;
         const data = await getCampaignsApi(orgId);
         const options =
           data?.campaigns?.map((c: any) => ({ id: c.id, name: c.name })) ?? [];
@@ -155,12 +140,13 @@ export default function CreateContact() {
       }
     };
 
+  /* Fetch campaigns dynamically */
+  useEffect(() => {
     fetchCampaigns();
   }, []);
 
   const { fromCampaign } = useLocalSearchParams<{ fromCampaign?: string }>();
 
-  // 3️⃣ Update onSubmit to check both email and mobile
   const onSubmit = async (data: z.infer<typeof contactSchema>) => {
     if (isSubmitting) return;
     try {
@@ -169,10 +155,10 @@ export default function CreateContact() {
 
       // Exclude current contact if editing
       const otherEmails = existingEmails.filter(
-        (e) => e.toLowerCase() !== editingContact?.email?.toLowerCase()
+        (e) => e.toLowerCase() !== editingContact?.email?.toLowerCase(),
       );
       const otherNumbers = existingNumbers.filter(
-        (n) => n !== editingContact?.mobile
+        (n) => n !== editingContact?.mobile,
       );
 
       // Check duplicates
@@ -188,25 +174,29 @@ export default function CreateContact() {
 
       const token = await getToken();
       if (!token) throw new Error("Authentication token not found");
-      const user = await getUser();        
-      const orgId = user?.organisation?.id; 
+      const user = await getUser();
+      const orgId = user?.organisation?.id;
 
       if (isEdit) {
-await updateContactApi(orgId, {
-  ...data,
-  id: editingContact?.id,
-});        Alert.alert("Success", "Contact updated successfully");
+        await updateContactApi(orgId, {
+          ...data,
+          id: editingContact?.id,
+        });
+        Toast.show({
+          type: "success",
+          text1: "Contact updated successfully",
+        });
       } else {
         await createContactApi(orgId, data);
-        Alert.alert("Success", "Contact created successfully");
+        Toast.show({
+          type: "success",
+          text1: "Contact created successfully",
+        });
       }
 
       // create contact from the shareCampaignPost
       if (fromCampaign === "true") {
-        // First reset Contacts tab to index
         router.replace("/(tabs)/contacts");
-
-        // Then immediately go to CampaignDetails
         setTimeout(() => {
           router.replace("/(tabs)/campaigns/campaignsDetails");
         }, 1);
@@ -215,381 +205,462 @@ await updateContactApi(orgId, {
       }
     } catch (error: any) {
       console.error("Contact Error:", error.response || error);
-      Alert.alert("Error", error.message || "Something went wrong");
+      Toast.show({
+        type: "error",
+        text1: error.response?.data?.message || "Something went wrong",
+      });
     }
   };
 
-  const requiredLabel = (label: string) => (
-    <ThemedText
-      style={{
-        fontSize: 14,
-        fontWeight: "600",
-        marginTop: 12,
-        color: isDark ? "#e5e7eb" : "#111",
-      }}
-    >
-      {label} <ThemedText style={{ color: "#ef4444" }}>*</ThemedText>
-    </ThemedText>
-  );
-
-  // ✅ Dynamic colors for light/dark
-  const inputBg = isDark ? "#161618" : "#f3f4f6";
-  const inputBorder = isDark ? "#fff" : "#d1d5db";
-  const inputText = isDark ? "#fff" : "#111";
-  const labelText = isDark ? "#f3f4f6" : "#111";
+  // Dynamic Theme Palette
+  const COLORS = {
+    screenBg: isDark ? "#121214" : "#f8fafc",
+    cardBg: isDark ? "#1e1e24" : "#ffffff",
+    cardBorder: isDark ? "#2e2e38" : "#f1f5f9",
+    textPrimary: isDark ? "#ffffff" : "#0f172a",
+    textSecondary: isDark ? "#94a3b8" : "#475569",
+    inputBg: isDark ? "#16161a" : "#f1f5f9",
+    inputBorder: isDark ? "#2e2e38" : "#cbd5e1",
+    inputText: isDark ? "#ffffff" : "#0f172a",
+    iconBg: isDark ? "#2a2a32" : "#e2e8f0",
+    iconColor: isDark ? "#94a3b8" : "#64748b",
+  };
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={{ flex: 1, backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
+      style={{ flex: 1, backgroundColor: COLORS.screenBg }}
     >
-      <ScrollView className="flex-1 px-6 py-6" keyboardShouldPersistTaps="handled">
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{ position: "absolute", right: 10, zIndex: 10, padding: 8 }}
-        >
-          <Ionicons name="close" size={24} color={isDark ? "#fff" : "#111"} />
-        </TouchableOpacity>
-
-        {/* Header */}
-        <ThemedView
-          className="flex-row items-center"
-          style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
-        >
-          <ThemedView
-            className="w-14 h-14 rounded-lg border-transparent items-center justify-center"
-            style={{ backgroundColor: "#dc2626" }}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Navigation & Header row */}
+        {/* <View style={styles.topRow}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={[styles.backButton, { backgroundColor: COLORS.cardBg }]}
           >
-            <Ionicons name={isEdit ? "person" : "person-add"} size={28} color="#fff" />
-          </ThemedView>
+            <Ionicons name="chevron-back" size={22} color={COLORS.textPrimary} />
+          </TouchableOpacity>
+        </View> */}
 
-          <ThemedView
-            className="ml-4 p-4 rounded-lg"
-            style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
-          >
-            <ThemedText
-              style={{
-                fontSize: 22,
-                fontWeight: "700",
-                color: isDark ? "#f3f4f6" : "#111",
-                marginLeft: 8,
-              }}
-            >
-              {isEdit ? "Edit Contact" : "Create Contact"}
-            </ThemedText>
-            <ThemedText
-              className="text-sm mt-1"
-              style={{ color: isDark ? "#d1d5db" : "#6b7280", marginLeft: 8 }}
-            >
-              {isEdit ? "Update the contact details" : "Add a new contact to your list"}
-            </ThemedText>
-          </ThemedView>
-        </ThemedView>
+        {/* Hero Section */}
+        <View style={[styles.heroCard, { backgroundColor: COLORS.cardBg, borderColor: COLORS.cardBorder }]}>
+          <View style={styles.heroLeft}>
+            <View style={styles.badgeContainer}>
+              <Ionicons name={isEdit ? "person" : "person-add"} size={26} color="#fff" />
+            </View>
+            <View>
+              <Text style={[styles.heroTitle, { color: COLORS.textPrimary }]}>
+                {isEdit ? "Edit Contact" : "Create Contact"}
+              </Text>
+              <Text style={[styles.heroSubtitle, { color: COLORS.textSecondary }]}>
+                {isEdit ? "Modify and update contact details" : "Manage your contact list and campaign associations"}
+              </Text>
+            </View>
+          </View>
+        </View>
 
-        {/* Divider */}
-        <ThemedView
-          style={{
-            height: 1,
-            backgroundColor: isDark ? "#ffffff" : "#000",
-            marginVertical: 12,
-          }}
-        />
-
-        {/* Form Fields */}
-        <ThemedView className="space-y-6" style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
-          {/* Name */}
-          <FormControl isInvalid={!!errors.name}>
-            <FormControl.Label style={{ marginLeft: 8 }}>
-              {requiredLabel("Name")}
-            </FormControl.Label>
+        {/* Form Area */}
+        <View style={[styles.formCard, { backgroundColor: COLORS.cardBg, borderColor: COLORS.cardBorder }]}>
+          
+          {/* Name Field */}
+          <View style={styles.fieldBlock}>
+            <View style={styles.labelRow}>
+              <Text style={[styles.fieldLabel, { color: COLORS.textPrimary }]}>Full Name</Text>
+              <Text style={styles.requiredStar}>*</Text>
+            </View>
             <Controller
               control={control}
               name="name"
               render={({ field: { onChange, value } }) => (
-                <Input
-                  size="md"
-                  style={{
-                    backgroundColor: inputBg,
-                    borderColor: inputBorder,
-                    borderWidth: 1,
-                    borderRadius: 999,
-                  }}
-                >
-                  <InputField
-                    placeholder="Enter Name"
+                <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBg, borderColor: COLORS.inputBorder }]}>
+                  <View style={styles.inputPrefixIcon}>
+                    <Ionicons name="person-outline" size={18} color={COLORS.iconColor} />
+                  </View>
+                  <TextInput
+                    placeholder="e.g. Amit Jamwal"
+                    placeholderTextColor={isDark ? "#52525b" : "#94a3b8"}
                     value={value}
                     onChangeText={onChange}
-                    style={{ color: inputText }}
-                    placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+                    style={[styles.textInput, { color: COLORS.inputText }]}
                   />
-                </Input>
+                </View>
               )}
             />
             {errors.name && (
-              <Text className="text-red-500 text-xs mt-1">{errors.name.message}</Text>
+              <Text style={styles.errorMsg}>{errors.name.message}</Text>
             )}
-          </FormControl>
+          </View>
 
-          {/* Email */}
-          <FormControl isInvalid={!!errors.email}>
-            <FormControl.Label style={{ marginLeft: 8 }}>
-              {requiredLabel("Email")}
-            </FormControl.Label>
+          {/* Email Field */}
+          <View style={styles.fieldBlock}>
+            <View style={styles.labelRow}>
+              <Text style={[styles.fieldLabel, { color: COLORS.textPrimary }]}>Email Address</Text>
+              <Text style={styles.requiredStar}>*</Text>
+            </View>
             <Controller
               control={control}
               name="email"
               render={({ field: { onChange, value } }) => (
-                <Input
-                  style={{
-                    backgroundColor: inputBg,
-                    borderColor: inputBorder,
-                    borderWidth: 1,
-                    borderRadius: 999,
-                  }}
-                >
-                  <InputField
-                    placeholder="Enter Email"
+                <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBg, borderColor: COLORS.inputBorder }]}>
+                  <View style={styles.inputPrefixIcon}>
+                    <Ionicons name="mail-outline" size={18} color={COLORS.iconColor} />
+                  </View>
+                  <TextInput
+                    placeholder="e.g. name@domain.com"
+                    placeholderTextColor={isDark ? "#52525b" : "#94a3b8"}
                     value={value}
                     onChangeText={onChange}
                     keyboardType="email-address"
                     autoCapitalize="none"
-                    style={{ color: inputText }}
-                    placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+                    style={[styles.textInput, { color: COLORS.inputText }]}
                   />
-                </Input>
+                </View>
               )}
             />
             {errors.email && (
-              <Text className="text-red-500 text-xs mt-1">{errors.email.message}</Text>
+              <Text style={styles.errorMsg}>{errors.email.message}</Text>
             )}
-          </FormControl>
+          </View>
 
-          {/* Mobile */}
-          <FormControl isInvalid={!!errors.mobile}>
-            <FormControl.Label style={{ marginLeft: 8 }}>
-              {requiredLabel("Mobile")}
-            </FormControl.Label>
+          {/* Mobile Field */}
+          <View style={styles.fieldBlock}>
+            <View style={styles.labelRow}>
+              <Text style={[styles.fieldLabel, { color: COLORS.textPrimary }]}>Mobile Phone</Text>
+              <Text style={styles.requiredStar}>*</Text>
+            </View>
             <Controller
               control={control}
               name="mobile"
               render={({ field: { onChange, value } }) => (
-                <Input
-                  style={{
-                    backgroundColor: inputBg,
-                    borderColor: inputBorder,
-                    borderWidth: 1,
-                    borderRadius: 999,
-                  }}
-                >
-                  <InputField
-                    placeholder="Enter Mobile"
+                <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBg, borderColor: COLORS.inputBorder }]}>
+                  <View style={styles.inputPrefixIcon}>
+                    <Ionicons name="call-outline" size={18} color={COLORS.iconColor} />
+                  </View>
+                  <TextInput
+                    placeholder="e.g. +91 99999 99999"
+                    placeholderTextColor={isDark ? "#52525b" : "#94a3b8"}
                     value={value}
                     onChangeText={onChange}
                     keyboardType="phone-pad"
-                    style={{ color: inputText }}
-                    placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+                    style={[styles.textInput, { color: COLORS.inputText }]}
                   />
-                </Input>
+                </View>
               )}
             />
             {errors.mobile && (
-              <Text className="text-red-500 text-xs mt-1">{errors.mobile.message}</Text>
+              <Text style={styles.errorMsg}>{errors.mobile.message}</Text>
             )}
-          </FormControl>
+          </View>
 
-          {/* WhatsApp */}
-          <FormControl isInvalid={!!errors.whatsapp}>
-            <FormControl.Label style={{ marginLeft: 8 }}>
-              {requiredLabel("WhatsApp")}
-            </FormControl.Label>
+          {/* WhatsApp Field */}
+          <View style={styles.fieldBlock}>
+            <View style={styles.labelRow}>
+              <Text style={[styles.fieldLabel, { color: COLORS.textPrimary }]}>WhatsApp Number</Text>
+              <Text style={styles.requiredStar}>*</Text>
+            </View>
             <Controller
               control={control}
               name="whatsapp"
               render={({ field: { onChange, value } }) => (
-                <Input
-                  style={{
-                    backgroundColor: inputBg,
-                    borderColor: inputBorder,
-                    borderWidth: 1,
-                    borderRadius: 999,
-                  }}
-                >
-                  <InputField
-                    placeholder="Enter WhatsApp"
+                <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBg, borderColor: COLORS.inputBorder }]}>
+                  <View style={styles.inputPrefixIcon}>
+                    <Ionicons name="logo-whatsapp" size={18} color="#22c55e" />
+                  </View>
+                  <TextInput
+                    placeholder="e.g. +91 99999 99999"
+                    placeholderTextColor={isDark ? "#52525b" : "#94a3b8"}
                     value={value}
                     onChangeText={onChange}
                     keyboardType="phone-pad"
-                    style={{ color: inputText }}
-                    placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+                    style={[styles.textInput, { color: COLORS.inputText }]}
                   />
-                </Input>
+                </View>
               )}
             />
             {errors.whatsapp && (
-              <Text className="text-red-500 text-xs mt-1">{errors.whatsapp.message}</Text>
+              <Text style={styles.errorMsg}>{errors.whatsapp.message}</Text>
             )}
-          </FormControl>
+          </View>
 
-          {/* Associate with Campaigns */}
-          <FormControl>
-            <FormControl.Label>
-              <Text
-                className="text-base mt-3 font-semibold"
-                style={{ color: labelText, marginLeft: 8 }}
-              >
-                Associate with Campaigns
-              </Text>
-            </FormControl.Label>
+          {/* Associate Campaigns Chips Selection */}
+          <View style={styles.fieldBlock}>
+            <Text style={[styles.fieldLabel, { color: COLORS.textPrimary, marginBottom: 8 }]}>
+              Linked Marketing Campaigns
+            </Text>
 
             {loadingCampaigns ? (
-              <ActivityIndicator size="small" color="#dc2626" />
+              <View style={styles.centeredLoading}>
+                <ActivityIndicator size="small" color="#dc2626" />
+              </View>
             ) : campaignOptions.length === 0 ? (
-              <ThemedView
-                style={{
-                  marginTop: 12,
-                  paddingVertical: 28,
-                  borderRadius: 24,
-                  borderWidth: 1,
-                  borderColor: inputBorder,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: isDark ? "#161618" : "#f3f4f6",
-                }}
-              >
-                <Ionicons
-                  name="megaphone-outline"
-                  size={32}
-                  color={isDark ? "#9ca3af" : "#6b7280"}
-                  style={{ marginBottom: 8 }}
-                />
-
-                <Text
-                  style={{
-                    fontSize: 15,
-                    fontWeight: "600",
-                    color: isDark ? "#e5e7eb" : "#374151",
-                    marginBottom: 4,
-                  }}
-                >
-                  No campaigns found
-                </Text>
-
-                <Text
-                  style={{
-                    fontSize: 13,
-                    textAlign: "center",
-                    color: isDark ? "#9ca3af" : "#6b7280",
-                    paddingHorizontal: 20,
-                  }}
-                >
-                  Create a campaign first to attach it here.
-                </Text>
-
-                {/* Optional CTA */}
+              <View style={[styles.emptyCampaignContainer, { backgroundColor: COLORS.inputBg, borderColor: COLORS.inputBorder }]}>
+                <Ionicons name="megaphone-outline" size={28} color={COLORS.iconColor} style={{ marginBottom: 6 }} />
+                <Text style={[styles.emptyCampaignText, { color: COLORS.textPrimary }]}>No active campaigns found</Text>
+                <Text style={[styles.emptyCampaignSub, { color: COLORS.textSecondary }]}>Create a campaign before connecting contacts.</Text>
                 <TouchableOpacity
                   onPress={() => router.push("/campaigns/createCampaign")}
-                  style={{
-                    marginTop: 12,
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
-                    borderRadius: 999,
-                    backgroundColor: "#dc2626",
-                  }}
+                  style={styles.campaignBtnCTA}
                 >
-                  <Text style={{ color: "#fff", fontWeight: "600" }}>
-                    + Create Campaign
-                  </Text>
+                  <Text style={styles.campaignBtnCTAText}>+ Create Campaign</Text>
                 </TouchableOpacity>
-              </ThemedView>
+              </View>
             ) : (
-              <ThemedView
-                className="border p-4"
-                style={{
-                  borderColor: inputBorder,
-                  backgroundColor: isDark ? "#161618" : "#f3f4f6",
-                  borderRadius: 24,
-                }}
-              >
+              <View style={styles.chipsContainer}>
                 {campaignOptions.map((campaign) => {
                   const checked = selectedCampaigns.includes(campaign.id);
                   return (
                     <TouchableOpacity
                       key={campaign.id}
+                      activeOpacity={0.7}
                       onPress={() => {
                         const current = [...selectedCampaigns];
                         setValue(
                           "campaignIds",
                           checked
                             ? current.filter((id) => id !== campaign.id)
-                            : [...current, campaign.id]
+                            : [...current, campaign.id],
                         );
                       }}
-                      className="flex-row items-center my-2"
+                      style={[
+                        styles.chipPill,
+                        checked
+                          ? styles.chipPillSelected
+                          : [styles.chipPillUnselected, { backgroundColor: COLORS.inputBg, borderColor: COLORS.inputBorder }]
+                      ]}
                     >
-                      <ThemedView
-                        style={{
-                          marginRight: 12,
-                          height: 20,
-                          width: 20,
-                          borderRadius: 6,
-                          borderWidth: 1,
-                          borderColor: "#d1d5db",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          backgroundColor: inputBg,
-                        }}
-                      >
-                        {checked && (
-                          <Ionicons name="checkmark-outline" size={16} color="#dc2626" />
-                        )}
-                      </ThemedView>
-
-                      <Text
-                        style={{
-                          color: inputText,
-                          flexShrink: 1,
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <Text className="font-medium text-gray-700 dark:text-gray-200">
-                          {campaign.name}
-                        </Text>
+                      <Ionicons
+                        name={checked ? "checkmark-circle" : "add-circle-outline"}
+                        size={16}
+                        color={checked ? "#ffffff" : COLORS.iconColor}
+                        style={{ marginRight: 6 }}
+                      />
+                      <Text style={[styles.chipText, { color: checked ? "#ffffff" : COLORS.textPrimary }]}>
+                        {campaign.name}
                       </Text>
                     </TouchableOpacity>
                   );
                 })}
-              </ThemedView>
+              </View>
             )}
-          </FormControl>
+          </View>
 
-        </ThemedView>
+        </View>
 
-        {/* Submit Button */}
+        {/* Submit Action Block */}
         <TouchableOpacity
           disabled={isSubmitting}
           onPress={handleSubmit(onSubmit)}
-          className="w-full mt-5 mb-10 rounded-xl items-center justify-center py-4"
-          style={{
-            backgroundColor: "#dc2626",
-            shadowColor: "#000",
-            shadowOpacity: 0.18,
-            shadowOffset: { width: 0, height: 6 },
-            shadowRadius: 12,
-            elevation: 6,
-            opacity: isSubmitting ? 0.6 : 1,
-          }}
+          style={[styles.submitButton, { opacity: isSubmitting ? 0.6 : 1 }]}
         >
-          <Text className="text-white font-semibold text-lg">
+          {isSubmitting ? (
+            <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 8 }} />
+          ) : null}
+          <Text style={styles.submitButtonText}>
             {isSubmitting
               ? isEdit
-                ? "Updating..."
-                : "Creating..."
+                ? "Updating Account..."
+                : "Registering Contact..."
               : isEdit
-                ? "Update Contact"
-                : "Create Contact"}
+                ? "Update Contact Details"
+                : "Save New Contact"}
           </Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 48,
+  },
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#0f172a",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  heroCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: "#0f172a",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 2,
+  },
+  heroLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  badgeContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: "#dc2626",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+  heroSubtitle: {
+    fontSize: 12,
+    fontWeight: "500",
+    marginTop: 4,
+    paddingRight: 52,
+    lineHeight: 16,
+  },
+  formCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 24,
+    gap: 20,
+    shadowColor: "#0f172a",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 2,
+  },
+  fieldBlock: {
+    gap: 6,
+  },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginLeft: 4,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  requiredStar: {
+    color: "#ef4444",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 16,
+    borderWidth: 1,
+    height: 54,
+    paddingHorizontal: 16,
+  },
+  inputPrefixIcon: {
+    marginRight: 12,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  errorMsg: {
+    color: "#ef4444",
+    fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 6,
+    marginTop: 2,
+  },
+  centeredLoading: {
+    paddingVertical: 20,
+    alignItems: "center",
+  },
+  emptyCampaignContainer: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyCampaignText: {
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+  emptyCampaignSub: {
+    fontSize: 12,
+    fontWeight: "500",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  campaignBtnCTA: {
+    backgroundColor: "#dc2626",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 99,
+  },
+  campaignBtnCTAText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  chipsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+  },
+  chipPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 99,
+    borderWidth: 1,
+  },
+  chipPillSelected: {
+    backgroundColor: "#dc2626",
+    borderColor: "#dc2626",
+  },
+  chipPillUnselected: {
+    borderColor: "transparent",
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  submitButton: {
+    flexDirection: "row",
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: "#dc2626",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#dc2626",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  submitButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+});

@@ -62,7 +62,7 @@ export default function CalendarInsights() {
       const to = toDate ? toDate.toISOString() : "";
 
       const response = await getPostsInsights(platform, from, to);
-      console.log("Insights Data:", response);
+      // console.log("Insights Data:", response);
       setInsightsData(response);
     } catch (error) {
       console.error("Error fetching insights:", error);

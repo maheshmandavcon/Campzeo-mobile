@@ -298,129 +298,204 @@ Contacts Count: ${c.contactCount ?? 0}
       setVisibleCount(INITIAL_COUNT);
     }, [])
   );
+  const COLORS = {
+    screenBg: isDark ? "#121214" : "#f8fafc",
+    cardBg: isDark ? "#1e1e24" : "#ffffff",
+    cardBorder: isDark ? "#2a2a32" : "#f1f5f9",
+    textPrimary: isDark ? "#ffffff" : "#0f172a",
+    textSecondary: isDark ? "#94a3b8" : "#64748b",
+    inputBg: isDark ? "#1e1e24" : "#f8fafc",
+    inputBorder: isDark ? "#2a2a32" : "#e2e8f0",
+    inputText: isDark ? "#ffffff" : "#0f172a",
+    newButtonBg: "#0284c7",
+    newButtonText: "#ffffff",
+  };
 
   return (
-    <View className="flex-1 p-4"
-      style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
-      {/* {loading && (
-        <ThemedView className="absolute inset-0 justify-center items-center bg-black/10 z-10">
-          <ActivityIndicator color={isDark ? "#ffffff" : "#dc2626"} size="large" />
-          <ThemedText
-            style={{
-              marginTop: 12,
-              color: isDark ? "#fff" : "#111",
-              fontWeight: "600",
-              fontSize: 16,
-            }}
-          >
-            Loading campaigns...
-          </ThemedText>
-        </ThemedView>
-      )} */}
+    <View
+      className="flex-1 p-4"
+      style={{ backgroundColor: COLORS.screenBg }}
+    >
+      {/* Heading & New Campaign Button Row */}
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 16,
+          backgroundColor: "transparent",
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 28,
+            fontWeight: "900",
+            color: COLORS.textPrimary,
+            letterSpacing: 0.3,
+          }}
+        >
+          Campaigns
+        </Text>
 
-      {/* Top Controls */}
-      <View className="flex-row items-center mb-4 relative"
-        style={{ backgroundColor: "transparent" }}>
-        {/* New Campaign Button */}
         <TouchableOpacity
           onPress={() => router.push("/campaigns/createCampaign")}
           style={{
             flexDirection: "row",
             alignItems: "center",
-            justifyContent: "center",
-            paddingHorizontal: 12,
-            paddingVertical: 8,
-            borderRadius: 9999,
-            marginRight: 8,
-            backgroundColor: isDark ? "#161618" : "#dbeafe",
-            borderWidth: isDark ? 1 : 0,
-            borderColor: isDark ? "#ffffff" : "transparent",
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            borderRadius: 99,
+            backgroundColor: COLORS.newButtonBg,
+            shadowColor: "#0284c7",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.15,
+            shadowRadius: 8,
+            elevation: 3,
           }}
         >
           <Ionicons
-            name="add-circle-outline"
-            size={20}
-            color={isDark ? "#ffffff" : "#0284c7"}
+            name="add-circle"
+            size={18}
+            color={COLORS.newButtonText}
           />
-
           <Text
             style={{
-              marginLeft: 8,
-              fontWeight: "600",
-              color: isDark ? "#ffffff" : "#0284c7",
+              marginLeft: 6,
+              fontWeight: "700",
+              fontSize: 14,
+              color: COLORS.newButtonText,
             }}
           >
-            New
+            New Campaign
           </Text>
         </TouchableOpacity>
+      </View>
 
+      {/* Search input box & 3 dots in single row */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          marginBottom: 20,
+          backgroundColor: "transparent",
+        }}
+      >
         {/* Search Bar */}
-        <TextInput
-          value={search}
-          onChangeText={(value) => {
-            setSearch(value);
-            setVisibleCount(5);
-          }}
-          placeholder="Search campaigns..."
-          placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+        <View
           style={{
             flex: 1,
-            paddingHorizontal: 12,
-            paddingVertical: 8,
-            borderRadius: 9999,
-
-            backgroundColor: isDark ? "#161618" : "#ffffff",
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: COLORS.inputBg,
+            borderRadius: 99,
             borderWidth: 1,
-            borderColor: isDark ? "#ffffff" : "#d1d5db",
-
-            color: isDark ? "#ffffff" : "#111827",
+            borderColor: COLORS.inputBorder,
+            paddingHorizontal: 12,
+            height: 46,
           }}
-        />
+        >
+          <Ionicons name="search-outline" size={16} color={COLORS.textSecondary} style={{ marginRight: 8 }} />
+          <TextInput
+            value={search}
+            onChangeText={(value) => {
+              setSearch(value);
+              setVisibleCount(5);
+            }}
+            placeholder="Search campaigns..."
+            placeholderTextColor={isDark ? "#52525b" : "#94a3b8"}
+            style={{
+              flex: 1,
+              color: COLORS.inputText,
+              fontSize: 14,
+              fontWeight: "600",
+              height: "100%",
+              padding: 0,
+            }}
+          />
+        </View>
 
-        {/* 3-dot Menu */}
+        {/* 3-dot menu */}
         <TouchableOpacity
-          onPress={() => setMenuVisible((prev) => !prev)}
-          className="ml-2 rounded-full"
+          onPress={() => setMenuVisible(!menuVisible)}
+          style={{
+            padding: 12,
+            borderRadius: 23,
+            backgroundColor: COLORS.cardBg,
+            borderWidth: 1,
+            borderColor: COLORS.cardBorder,
+            marginLeft: 10,
+            alignItems: "center",
+            justifyContent: "center",
+            width: 46,
+            height: 46,
+          }}
         >
           <MaterialIcons
             name="more-vert"
-            size={24}
-            color={isDark ? "#ffffff" : "#000000"}
+            size={20}
+            color={COLORS.textPrimary}
           />
         </TouchableOpacity>
-
-        {/* Dropdown Menu */}
-        {menuVisible && (
-          <ThemedView
-            className="absolute top-12 right-2 w-40 bg-white rounded-md shadow-md z-50"
-            style={{ elevation: 10 }}
-          >
-            <TouchableOpacity
-              onPress={() => {
-                setMenuVisible(false);
-                handleShare();
-              }}
-              className="flex-row items-center px-4 py-3 border-b border-gray-200"
-            >
-              <Ionicons name="share-social-outline" size={20} color="#16a34a" />
-              <ThemedText className="ml-2 text-gray-800 font-semibold">Share</ThemedText>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                setMenuVisible(false);
-                toggleFilter();
-              }}
-              className="flex-row items-center px-4 py-3"
-            >
-              <Ionicons name="funnel-outline" size={20} color="#f59e0b" />
-              <ThemedText className="ml-2 text-gray-800 font-semibold">
-                {filter === "show" ? "Hide" : "Show"}
-              </ThemedText>
-            </TouchableOpacity>
-          </ThemedView>
-        )}
       </View>
+
+      {/* Dropdown Menu */}
+      {menuVisible && (
+        <ThemedView
+          style={{
+            backgroundColor: COLORS.cardBg,
+            borderColor: COLORS.cardBorder,
+            borderWidth: 1,
+            position: "absolute",
+            right: 16,
+            top: 124,
+            borderRadius: 16,
+            zIndex: 50,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.08,
+            shadowRadius: 16,
+            elevation: 8,
+            minWidth: 150,
+            overflow: "hidden",
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => {
+              setMenuVisible(false);
+              handleShare();
+            }}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+              borderBottomWidth: 1,
+              borderBottomColor: COLORS.cardBorder,
+            }}
+          >
+            <Ionicons name="share-social-outline" size={18} color="#16a34a" />
+            <Text style={{ marginLeft: 10, fontWeight: "600", color: COLORS.textPrimary, fontSize: 14 }}>Share</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => {
+              setMenuVisible(false);
+              toggleFilter();
+            }}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+            }}
+          >
+            <Ionicons name="funnel-outline" size={18} color="#f59e0b" />
+            <Text style={{ marginLeft: 10, fontWeight: "600", color: COLORS.textPrimary, fontSize: 14 }}>
+              {filter === "show" ? "Hide" : "Show"}
+            </Text>
+          </TouchableOpacity>
+        </ThemedView>
+      )}
 
       {/* Campaign List */}
       <FlatList<Campaign | null>
@@ -455,15 +530,20 @@ Contacts Count: ${c.contactCount ?? 0}
         ListEmptyComponent={
           !loading ? (
             <ThemedView
-              className="flex-1 justify-center items-center"
-              style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: COLORS.screenBg,
+                paddingVertical: 40,
+              }}
             >
-              <ThemedText style={{ fontSize: 18, fontWeight: "bold" }}>
+              <ThemedText style={{ fontSize: 18, fontWeight: "bold", color: COLORS.textPrimary }}>
                 No campaigns yet
               </ThemedText>
 
-              <ThemedText style={{ marginTop: 6, opacity: 0.7 }}>
-                Tap + New to create your first campaign...
+              <ThemedText style={{ marginTop: 6, opacity: 0.7, color: COLORS.textSecondary }}>
+                Tap New Campaign to create your first campaign...
               </ThemedText>
             </ThemedView>
           ) : null
