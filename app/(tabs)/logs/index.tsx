@@ -509,7 +509,7 @@ export default function Logs() {
         label: "Engagement Rate",
         value: `${((engagement?.engagementRate ?? 0) * 100).toFixed(1)}%`,
         trend: engagement?.engagementTrend,
-        icon: "pie-chart-outline",
+        icon: "trending-up-outline",
         color: "#10b981",
       },
       {
@@ -520,10 +520,10 @@ export default function Logs() {
         color: "#f59e0b",
       },
       {
-        label: "Conversions",
+        label: "New Contacts",
         value: engagement?.totalConversions ?? 0,
         trend: engagement?.conversionsTrend,
-        icon: "cash-outline",
+        icon: "person-add-outline",
         color: "#8b5cf6",
       },
     ];
@@ -583,7 +583,7 @@ export default function Logs() {
                         color: isPositive ? "#10b981" : "#ef4444",
                       }}
                     >
-                      {percent}%
+                      {percent}% vs last period
                     </Text>
                   </HStack>
                 ) : (
