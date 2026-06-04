@@ -490,7 +490,6 @@ export default function Templates() {
         </View>
       </View>
 
-      {/* ── Platform Filter Chips ── */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}

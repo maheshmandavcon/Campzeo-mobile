@@ -34,26 +34,40 @@ export default function CalendarInsights() {
   const barRef = useRef<any>(null);
 
 
+  // const platformColors: any = {
+  //   FACEBOOK: "#3b82f6",
+  //   INSTAGRAM: "#22c55e",
+  //   LINKEDIN: "#f59e0b",
+  //   PINTEREST: "#ef4444",
+  //   YOUTUBE: "#8b5cf6",
+  // };
+
   const platformColors: any = {
-    FACEBOOK: "#3b82f6",
-    INSTAGRAM: "#22c55e",
-    LINKEDIN: "#f59e0b",
-    PINTEREST: "#ef4444",
-    YOUTUBE: "#8b5cf6",
+    FACEBOOK: "#1877F2",
+    INSTAGRAM: "#E4405F",
+    LINKEDIN: "#0A66C2",
+    PINTEREST: "#BD081C",
+    YOUTUBE: "#FF0000",
+    WHATSAPP: "#25D366",
+    EMAIL: "#F59E0B",
+    SMS: "#8B5CF6",
   };
+
   const barData =
     insightsData?.platformMix?.map((item: any) => ({
       value: item.count,
       label: item.platform,
+      frontColor: platformColors[item.platform] || "#999",
     })) || [];
 
-  const total = insightsData?.insights?.totalPosts || 1;
+  const total = insightsData?.totalPosts || 1;
 
   const pieData =
     insightsData?.platformMix?.map((item: any) => ({
       value: item.count,
       color: platformColors[item.platform] || "#999",
       text: `${Math.round((item.count / total) * 100)}%`,
+      // shiftTextX: -10,
     })) || [];
 
   const fetchInsights = async () => {
@@ -91,6 +105,11 @@ export default function CalendarInsights() {
     return `${d}-${m}-${y}`;
   };
 
+  const maxCount = Math.max(
+    ...barData.map((item: any) => item.value),
+    1
+  );
+
   return (
     <ThemedView
       style={{
@@ -109,7 +128,6 @@ export default function CalendarInsights() {
           borderRadius: 16,
         }}
       >
-        {/* Time Header - Two Calendars */}
         <HStack style={{ gap: 10, width: "100%" }}>
           {/* From Date */}
           <VStack style={{ flex: 1, gap: 4 }}>
@@ -389,7 +407,7 @@ export default function CalendarInsights() {
               <ThemedText style={{ fontSize: 16, fontWeight: "600" }}>
                 Platform Distribution
               </ThemedText>
-            
+
             </HStack>
             <ThemedText
               style={{ fontSize: 12, color: "#6a7282", marginBottom: 10 }}
@@ -397,61 +415,75 @@ export default function CalendarInsights() {
               Distribution of posts across different social platforms.
             </ThemedText>
           </VStack>
-         
-            <View collapsable={false} renderToHardwareTextureAndroid>
-              <HStack
-                style={{
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                {/* Pie Chart */}
-                <PieChart
-                  data={pieData}
-                  donut
-                  showText
-                  textColor="white"
-                  radius={90}
-                  textSize={12}
-                />
 
-                {/* Legend */}
-                <VStack style={{ marginLeft: 10, gap: 8 }}>
-                  {insightsData?.platformMix?.map((item: any) => {
-                    const percentage = Math.round(
-                      (item.count / (insightsData?.totalPosts || 1)) *
-                        100,
-                    );
+          <View collapsable={false} renderToHardwareTextureAndroid>
+            <HStack
+              style={{
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              {/* Pie Chart */}
+              <PieChart
+                data={pieData}
+                donut
+                innerRadius={30}
+                radius={90}
+                showText
+                textColor="white"
+                textSize={12}
+              />
 
-                    return (
-                      <HStack
-                        key={item.platform}
-                        style={{ alignItems: "center", gap: 8 }}
+              {/* Legend */}
+              <VStack style={{ marginLeft: 10, gap: 8 }}>
+                {insightsData?.platformMix?.map((item: any) => {
+                  const percentage = Math.round(
+                    (item.count / (insightsData?.totalPosts || 1)) *
+                    100,
+                  );
+
+                  return (
+                    <HStack
+                      key={item.platform}
+                      style={{
+                        alignItems: "center",
+                        width: 120,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: 5,
+                          backgroundColor: platformColors[item.platform] || "#999",
+                          marginRight: 8,
+                        }}
+                      />
+
+                      <Text
+                        style={{
+                          flex: 1,
+                          fontSize: 12,
+                        }}
                       >
-                        {/* Color Dot */}
-                        <View
-                          style={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: 5,
-                            backgroundColor:
-                              platformColors[item.platform] || "#999",
-                          }}
-                        />
+                        {item.platform}
+                      </Text>
 
-                        {/* Platform Name */}
-                        <Text style={{ fontSize: 12 }}>{item.platform}</Text>
-
-                        {/* Percentage */}
-                        <Text style={{ fontSize: 12, color: "#6b7280" }}>
-                          ({percentage}%)
-                        </Text>
-                      </HStack>
-                    );
-                  })}
-                </VStack>
-              </HStack>
-            </View>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: "#6b7280",
+                          marginLeft: 6,
+                        }}
+                      >
+                        {percentage}%
+                      </Text>
+                    </HStack>
+                  );
+                })}
+              </VStack>
+            </HStack>
+          </View>
         </VStack>
 
         {/* Bar Chart */}
@@ -477,23 +509,23 @@ export default function CalendarInsights() {
               Compare post volumes across different social platforms.
             </ThemedText>
           </VStack>
-        
-            <BarChart
-              data={barData}
-              frontColor="#2563eb"
-              barWidth={30}
-              spacing={25}
-              rulesType="dashed"
-              dashWidth={4}
-              dashGap={4}
-              rulesColor="#d1d5db"
-              xAxisThickness={0}
-              yAxisThickness={0}
-              yAxisTextStyle={{ color: "#888" }}
-              noOfSections={5}
-              maxValue={Math.max(...barData.map((item: any) => item.value), 1)}
-            />
-          
+
+          <BarChart
+            data={barData}
+            barWidth={30}
+            spacing={25}
+            rulesType="dashed"
+            dashWidth={4}
+            dashGap={4}
+            rulesColor="#d1d5db"
+            xAxisThickness={0}
+            yAxisThickness={0}
+            yAxisTextStyle={{ color: "#888" }}
+            noOfSections={maxCount}
+            maxValue={maxCount}
+            stepValue={1}
+          />
+
         </VStack>
       </VStack>
     </ThemedView>

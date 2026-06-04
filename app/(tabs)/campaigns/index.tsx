@@ -1,6 +1,7 @@
 import {
   deleteCampaignApi,
   getCampaignsApi,
+  getPostsByCampaignIdApi
 } from "@/api/campaignApi";
 import { useAuth } from "@/context/AuthContext";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
@@ -52,7 +53,7 @@ export default function Campaigns() {
         return;
       }
 
-      const mapped: Campaign[] = campaignsArray.map((item: any) => {        
+      const mapped: Campaign[] = await Promise.all(campaignsArray.map(async (item: any) => {        
         const formatDate = (dateString?: string) => {
           if (!dateString) return "";
           const date = new Date(dateString);
@@ -62,6 +63,17 @@ export default function Campaigns() {
           return `${day}/${month}/${year}`;
         };
 
+        let count = item.postsCount || item.postCount || item.totalPosts || item._count?.posts || item.posts?.length || 0;
+        
+        if (count === 0 && item.id) {
+          try {
+            const postsRes = await getPostsByCampaignIdApi(item.id, orgId);
+            count = postsRes?.data?.length || postsRes?.length || 0;
+          } catch (e) {
+            console.warn("Failed to fetch posts for campaign", item.id, e);
+          }
+        }
+
         return {
           id: item.id,
           details: item.name ?? "Untitled Campaign",
@@ -70,11 +82,11 @@ export default function Campaigns() {
           endDate: item.endDate,
           dates: `${formatDate(item.startDate)} - ${formatDate(item.endDate)}`,
           posts: [],
-          postsCount: item.postsCount ?? 0,
+          postsCount: count,
           contactCount: item.contactCount ?? 0,
           show: true,
         };
-      });
+      }));
 
       setCampaigns(mapped);
     } catch (err) {

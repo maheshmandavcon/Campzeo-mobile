@@ -87,7 +87,6 @@ interface PostDetailsModalProps {
   onDelete?: (postId: number) => void;
 }
 
-// PREMIUM CUSTOM AUDIO PLAYER COMPONENT (WEBVIEW BACKED)
 function PremiumAudioPlayer({ url, isDark }: { url: string; isDark: boolean }) {
   return (
     <View
@@ -143,7 +142,6 @@ function PremiumAudioPlayer({ url, isDark }: { url: string; isDark: boolean }) {
   );
 }
 
-// PREMIUM CUSTOM VIDEO CARD COMPONENT (WEBVIEW BACKED)
 function PremiumVideoPlayer({ url, isDark }: { url: string; isDark: boolean }) {
   return (
     <View style={styles.videoPlayerWrapper}>
@@ -250,7 +248,6 @@ export default function PostDetailsModal({
     allMedia.push(post.videoUrl);
   }
 
-  // Detect type (audio, video, image)
   const getMediaType = (url: string): "image" | "video" | "audio" => {
     const cleanUrl = url.toLowerCase().split("?")[0];
     if (cleanUrl.match(/\.(mp3|wav|m4a|aac|ogg|flac)$/i) || url.includes("audio")) {
@@ -264,6 +261,20 @@ export default function PostDetailsModal({
       return "video";
     }
     return "image";
+  };
+
+  const formatLocalDateTime = (dateString?: string | null): string => {
+    if (!dateString) return "Unknown";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "Unknown";
+    return date.toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
   };
 
   const handleCopyToClipboard = (text: string) => {
@@ -361,19 +372,33 @@ export default function PostDetailsModal({
                 </View>
               </View>
 
-              <View style={styles.metaRow}>
-                <ThemedText style={styles.metaLabel}>Schedule Time</ThemedText>
-                <ThemedText style={styles.metaValue}>
-                  {post.scheduledPostTime || post.publishedDate || post.createdDate
-                    ? new Date(
-                        post.scheduledPostTime || post.publishedDate || post.createdDate
-                      ).toLocaleString()
-                    : "Not Scheduled"}
-                </ThemedText>
-              </View>
+              {post.scheduledPostTime && (
+                <View style={styles.metaRow}>
+                  <ThemedText style={styles.metaLabel}>Scheduled Time</ThemedText>
+                  <ThemedText style={styles.metaValue}>
+                    {formatLocalDateTime(post.scheduledPostTime)}
+                  </ThemedText>
+                </View>
+              )}
+
+              {!post.scheduledPostTime && status !== "SENT" && (
+                <View style={styles.metaRow}>
+                  <ThemedText style={styles.metaLabel}>Scheduled Time</ThemedText>
+                  <ThemedText style={[styles.metaValue, { color: "#94a3b8" }]}>Not Scheduled</ThemedText>
+                </View>
+              )}
+
+              {status === "SENT" && (
+                <View style={styles.metaRow}>
+                  <ThemedText style={styles.metaLabel}>Sent Time</ThemedText>
+                  <ThemedText style={[styles.metaValue, { color: "#22c55e" }]}>
+                    {formatLocalDateTime(post.publishedDate || post.createdDate)}
+                  </ThemedText>
+                </View>
+              )}
             </View>
 
-            {/* FAILURE REASON VISUALIZER */}
+
             {post.failureReason && (
               <View style={styles.failureBox}>
                 <View style={styles.failureHeader}>
@@ -384,7 +409,6 @@ export default function PostDetailsModal({
               </View>
             )}
 
-            {/* Message preview / Full message */}
             <View style={styles.messageBox}>
               <View style={styles.subjectHeader}>
                 <ThemedText style={styles.sectionTitle}>Message Content</ThemedText>
@@ -408,7 +432,6 @@ export default function PostDetailsModal({
               )}
             </View>
 
-            {/* RICH MEDIA ITEMS PREVIEW GALLERY */}
             {allMedia.length > 0 && (
               <View style={styles.mediaSection}>
                 <ThemedText style={styles.sectionTitle}>Rich Media Attachments</ThemedText>
@@ -450,72 +473,73 @@ export default function PostDetailsModal({
 
           {/* ACTION BUTTON FOOTER */}
           <View style={[styles.footer, isDark && styles.footerDark]}>
-            <TouchableOpacity
-              onPress={onClose}
-              style={[styles.actionBtn, styles.cancelBtn]}
-              activeOpacity={0.8}
-            >
-              <ThemedText style={styles.cancelBtnText}>Close</ThemedText>
-            </TouchableOpacity>
+            {status === "SENT" && (
+              <TouchableOpacity
+                onPress={onClose}
+                style={[styles.actionBtn, styles.cancelBtn]}
+                activeOpacity={0.8}
+              >
+                <ThemedText style={styles.cancelBtnText}>Close</ThemedText>
+              </TouchableOpacity>
+            )}
 
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              {onEdit && (
-                <TouchableOpacity
-                  onPress={() => {
-                    onClose();
-                    onEdit(post.id);
-                  }}
-                  disabled={!canEdit}
-                  activeOpacity={0.8}
-                  style={[
-                    styles.actionBtn,
-                    styles.editBtn,
-                    !canEdit && styles.disabledBtn,
-                  ]}
-                >
-                  <Ionicons name="create-outline" size={18} color="#fff" />
-                  <ThemedText style={styles.btnText}>Edit</ThemedText>
-                </TouchableOpacity>
-              )}
+            {status !== "SENT" && (
+              <View style={{ flexDirection: "row", flex: 1, gap: 8 }}>
+                {canShare && onShare && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      onClose();
+                      onShare(post.id);
+                    }}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.actionBtn,
+                      styles.shareBtn,
+                      { flex: 1 }
+                    ]}
+                  >
+                    <Ionicons name="share-social-outline" size={18} color="#fff" />
+                    <ThemedText style={styles.btnText}>Share</ThemedText>
+                  </TouchableOpacity>
+                )}
 
-              {onShare && (
-                <TouchableOpacity
-                  onPress={() => {
-                    onClose();
-                    onShare(post.id);
-                  }}
-                  disabled={!canShare}
-                  activeOpacity={0.8}
-                  style={[
-                    styles.actionBtn,
-                    styles.shareBtn,
-                    !canShare && styles.disabledBtn,
-                  ]}
-                >
-                  <Ionicons name="share-social-outline" size={18} color="#fff" />
-                  <ThemedText style={styles.btnText}>Share</ThemedText>
-                </TouchableOpacity>
-              )}
+                {canEdit && onEdit && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      onClose();
+                      onEdit(post.id);
+                    }}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.actionBtn,
+                      styles.editBtn,
+                      { flex: 1 }
+                    ]}
+                  >
+                    <Ionicons name="create-outline" size={18} color="#fff" />
+                    <ThemedText style={styles.btnText}>Edit</ThemedText>
+                  </TouchableOpacity>
+                )}
 
-              {onDelete && (
-                <TouchableOpacity
-                  onPress={() => {
-                    onClose();
-                    onDelete(post.id);
-                  }}
-                  disabled={!canDelete}
-                  activeOpacity={0.8}
-                  style={[
-                    styles.actionBtn,
-                    styles.deleteBtn,
-                    !canDelete && styles.disabledBtn,
-                  ]}
-                >
-                  <Ionicons name="trash-outline" size={18} color="#fff" />
-                  <ThemedText style={styles.btnText}>Delete</ThemedText>
-                </TouchableOpacity>
-              )}
-            </View>
+                {canDelete && onDelete && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      onClose();
+                      onDelete(post.id);
+                    }}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.actionBtn,
+                      styles.deleteBtn,
+                      { flex: 1 }
+                    ]}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#fff" />
+                    <ThemedText style={styles.btnText}>Delete</ThemedText>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
         </View>
       </View>
@@ -712,7 +736,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.3,
   },
-  // Premium custom audio player styles
   audioContainer: {
     padding: 12,
     borderRadius: 16,
@@ -754,7 +777,6 @@ const styles = StyleSheet.create({
     height: "100%",
     backgroundColor: "#3b82f6",
   },
-  // Premium custom video player styles
   videoPlayerWrapper: {
     width: "100%",
     height: 200,

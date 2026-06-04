@@ -48,7 +48,7 @@ export const getContactsApi = async (
   try {
     
 
-    const res = await https.get(`Contacts?organisationId=${orgId}&page=${1}&limit=${10}&sortBy=createdDate&sortOrder=desc`);
+    const res = await https.get(`Contacts?organisationId=${orgId}&page=${1}&limit=${1000}&sortBy=createdDate&sortOrder=desc`);
     return res.data;
   } catch (error: any) {
     console.error("Get contacts error:", error.response || error.message);
@@ -158,6 +158,31 @@ export const exportContactsApi = async () => {
     console.error("Export contacts error:", error.response || error.message);
     throw new Error(
       error?.response?.data?.message || error?.response?.data || "Failed to export contacts"
+    );
+  }
+};
+
+// IMPORT CONTACTS
+export const importContactsApi = async (orgId: number, fileUri: string, fileName: string, fileType: string) => {
+  try {
+    const formData = new FormData();
+    formData.append("file", {
+      uri: fileUri,
+      name: fileName,
+      type: fileType,
+    } as any);
+
+    const res = await https.post(`Contacts/Import?organisationId=${orgId}`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    return res.data;
+  } catch (error: any) {
+    console.error("Import contacts error:", error.response || error.message);
+    throw new Error(
+      error?.response?.data?.message || error?.response?.data || "Failed to import contacts"
     );
   }
 };

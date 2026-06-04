@@ -20,6 +20,7 @@ import {
   getContactsApi,
   deleteContactApi,
   exportContactsApi,
+  importContactsApi,
 } from "@/api/contactApi";
 import * as DocumentPicker from "expo-document-picker";
 import { ThemedView } from "@/components/themed-view";
@@ -255,6 +256,9 @@ WhatsApp: ${record.whatsapp || "-"}
           const lines = fileString.split(/\r?\n/).filter((line) => line.trim() !== "");
           const rows = lines.slice(0, 4).map((line) => line.split(","));
           setPreviewData(rows);
+          
+          // Attach total rows to the file object or a new state
+          (file as any).totalRows = Math.max(0, lines.length - 1);
         } catch (e) {
           console.log("Failed to read CSV for preview", e);
         }
@@ -271,27 +275,46 @@ WhatsApp: ${record.whatsapp || "-"}
     }
     setImportStatus("importing");
     
-    // Mocking an API call
-    setTimeout(() => {
+    try {
+      const user = await getUser();
+      const orgId = user?.organisation?.id;
+      
+      if (!orgId) {
+        throw new Error("Organisation ID not found");
+      }
+
+      const res = await importContactsApi(
+        orgId,
+        selectedFile.uri,
+        selectedFile.name,
+        selectedFile.mimeType || "text/csv"
+      );
+      
       setImportStatus("complete");
       setImportResult({
-        successful: 2,
-        failed: 1,
-        duplicates: 0,
-        errors: [
-          { row: 3, field: "ContactMobile", error: "Invalid mobile format" },
-          { row: 3, field: "ContactWhatsApp", error: "Invalid WhatsApp format" }
-        ]
+        successful: res.successCount || 0,
+        failed: res.failed || 0,
+        duplicates: res.duplicates || 0,
+        errors: res.errors || []
       });
-    }, 1500);
+      
+    } catch (error: any) {
+      console.log("Import error:", error);
+      setImportStatus("idle");
+      Alert.alert("Import Failed", error.message || "Failed to import contacts");
+    }
   };
 
   const toggleSortOrder = () => {
     setSortOrder(sortOrder === "asc" ? "desc" : "asc");
   };
 
-  const handleLoadToggle = () => {
-    isAllVisible ? setVisibleCount(5) : setVisibleCount(filteredRecords.length);
+  const handleShowMore = () => {
+    setVisibleCount((prev) => prev + 10);
+  };
+
+  const handleShowLess = () => {
+    setVisibleCount(10);
   };
 
   const toggleShow = (record: ContactsRecord) => {
@@ -555,8 +578,42 @@ WhatsApp: ${record.whatsapp || "-"}
               </ThemedView>
             ) : null
           }
+          ListFooterComponent={
+            filteredRecords.length > 10 ? (
+              <View style={{ flexDirection: "row", justifyContent: "center", paddingVertical: 16, gap: 16 }}>
+                {visibleCount < filteredRecords.length && (
+                  <TouchableOpacity
+                    onPress={handleShowMore}
+                    style={{
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      backgroundColor: isDark ? "#374151" : "#e5e7eb",
+                      borderRadius: 20,
+                    }}
+                  >
+                    <ThemedText style={{ fontWeight: "600" }}>Show More</ThemedText>
+                  </TouchableOpacity>
+                )}
+                
+                {visibleCount > 10 && (
+                  <TouchableOpacity
+                    onPress={handleShowLess}
+                    style={{
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      backgroundColor: isDark ? "#374151" : "#e5e7eb",
+                      borderRadius: 20,
+                    }}
+                  >
+                    <ThemedText style={{ fontWeight: "600" }}>Show Less</ThemedText>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : null
+          }
           contentContainerStyle={{
             flexGrow: listData.length === 0 ? 1 : undefined,
+            paddingBottom: 20,
           }}
         />
         <Modal
@@ -619,7 +676,7 @@ WhatsApp: ${record.whatsapp || "-"}
                             <View key={idx} style={{ flexDirection: "row", padding: 8, borderTopWidth: 1, borderColor: isDark ? "#374151" : "#e5e7eb" }}>
                               <ThemedText style={{ flex: 1 }}>{err.row}</ThemedText>
                               <ThemedText style={{ flex: 2 }}>{err.field}</ThemedText>
-                              <ThemedText style={{ flex: 3, color: "#ef4444" }}>{err.error}</ThemedText>
+                              <ThemedText style={{ flex: 3, color: "#ef4444" }}>{err.message}</ThemedText>
                             </View>
                           ))}
                         </View>
@@ -723,7 +780,10 @@ WhatsApp: ${record.whatsapp || "-"}
                           Step 3: Preview Data
                         </ThemedText>
                         <ThemedText style={{ fontSize: 12, marginBottom: 8, color: "#6b7280" }}>
-                          Showing first {previewData.length - 1} rows from your CSV file
+                          Showing first {previewData.length - 1} rows as a preview. 
+                          {selectedFile?.totalRows !== undefined && (
+                            <Text style={{ fontWeight: "bold", color: isDark ? "#fff" : "#000" }}> ({selectedFile.totalRows} total records found)</Text>
+                          )}
                         </ThemedText>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                           <View style={{ borderWidth: 1, borderColor: isDark ? "#374151" : "#e5e7eb", borderRadius: 8, overflow: "hidden" }}>

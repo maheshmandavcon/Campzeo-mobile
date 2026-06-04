@@ -1,4 +1,4 @@
-import { Ionicons, Feather } from "@expo/vector-icons";
+    import { Ionicons, Feather } from "@expo/vector-icons";
 import { WebView } from "react-native-webview";
 import React, { useRef, useState, useEffect } from "react";
 import { Dimensions, Image, ScrollView, Text, TouchableOpacity, useColorScheme, View } from "react-native";
