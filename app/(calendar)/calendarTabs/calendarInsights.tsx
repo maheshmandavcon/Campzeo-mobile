@@ -328,7 +328,24 @@ export default function CalendarInsights() {
             <ThemedText style={{ fontWeight: "medium", fontSize: 17 }}>
               Upcoming Posts
             </ThemedText>
-            <ThemedText style={{ fontWeight: "bold", fontSize: 20 }}>
+          </HStack>
+        </VStack>
+
+        {/* Upcoming Posts */}
+        <VStack
+          style={{
+            padding: 15,
+            gap: 9,
+            width: 150,
+            borderWidth: 1,
+            borderColor: "#e5e7eb",
+            borderRadius: 16,
+            minHeight: 120,
+            backgroundColor: isDark ? "#0f172a" : "#fff",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <ThemedText style={{ fontWeight: "bold", fontSize: 22 }}>
               {insightsData?.stats?.upcoming ?? "-"}
             </ThemedText>
             <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#00a63e22", alignItems: "center", justifyContent: "center" }}>
@@ -362,7 +379,24 @@ export default function CalendarInsights() {
             <ThemedText style={{ fontWeight: "medium", fontSize: 17 }}>
               Past (Published)
             </ThemedText>
-            <ThemedText style={{ fontWeight: "bold", fontSize: 20 }}>
+          </HStack>
+        </VStack>
+
+        {/* Past (Published) */}
+        <VStack
+          style={{
+            padding: 15,
+            gap: 9,
+            width: 150,
+            borderWidth: 1,
+            borderColor: "#e5e7eb",
+            borderRadius: 16,
+            minHeight: 120,
+            backgroundColor: isDark ? "#0f172a" : "#fff",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <ThemedText style={{ fontWeight: "bold", fontSize: 22 }}>
               {insightsData?.stats?.past ?? "-"}
             </ThemedText>
             <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#155dfc22", alignItems: "center", justifyContent: "center" }}>
@@ -395,7 +429,24 @@ export default function CalendarInsights() {
             <ThemedText style={{ fontWeight: "medium", fontSize: 17 }}>
               Drafts
             </ThemedText>
-            <ThemedText style={{ fontWeight: "bold", fontSize: 20 }}>
+          </HStack>
+        </VStack>
+
+        {/* Drafts */}
+        <VStack
+          style={{
+            padding: 15,
+            gap: 9,
+            width: 150,
+            borderWidth: 1,
+            borderColor: "#e5e7eb",
+            borderRadius: 16,
+            minHeight: 120,
+            backgroundColor: isDark ? "#0f172a" : "#fff",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <ThemedText style={{ fontWeight: "bold", fontSize: 22 }}>
               {insightsData?.stats?.drafts ?? "-"}
             </ThemedText>
             <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#f54a0022", alignItems: "center", justifyContent: "center" }}>

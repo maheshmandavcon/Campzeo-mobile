@@ -1,7 +1,5 @@
 import https from "./https";
 
-// import * as FileSystem from "expo-file-system";
-
 // ---------------------- Types ---------------------- //
 
 export interface CampaignData {
@@ -19,7 +17,7 @@ export interface CampaignPostData {
   message: string;
   type: string;
   mediaUrls?: string[];
-  scheduledPostTime: string;
+  scheduledPostTime?: string | null;
 
   pinterestBoardId?: string;
   pinterestLink?: string;
@@ -338,8 +336,6 @@ export const updatePostForCampaignApi = async (
   }
 };
 
-// Delete a post for a specific campaign
-
 export const deletePostForCampaignApi = async (
   orgId: number,
   campaignId: number,
@@ -573,6 +569,7 @@ export interface FacebookPage {
   id: string;
   name: string;
   accessToken: string;
+  category?: string;
 }
 
 export const getFacebookPagesApi = async (
@@ -585,10 +582,42 @@ export const getFacebookPagesApi = async (
       },
     });
     if (response.data.error) throw new Error(response.data.error);
-    return response.data.pages || [];
+    const rawPages = response.data.pages || [];
+    return rawPages.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      accessToken: p.accessToken || p.access_token,
+      category: p.category,
+    }));
+  } catch (error: any) {
+    throw error;
+  }
+};
+
+// ---------------------- Meta Ads APIs ---------------------- //
+
+export interface MetaAdsAccount {
+  name: string;
+  account_id: string;
+  account_status: number;
+  currency: string;
+  balance: string;
+  id: string;
+}
+
+export const getMetaAdsAccountsApi = async (
+  token?: string,
+): Promise<MetaAdsAccount[]> => {
+  try {
+    const response = await https.get("/socialmedia/meta-ads/accounts", {
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+    return response.data.accounts || [];
   } catch (error: any) {
     console.error(
-      "Get Facebook Pages API Error:",
+      "Get Meta Ads Accounts API Error:",
       error.response?.data || error.message,
     );
     throw error;
@@ -695,6 +724,7 @@ export const getYoutubePlaylists = async (token: string) => {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
+        "x-api-key": process.env.EXPO_PUBLIC_APP_API_KEY || "",
       },
     });
     return response.data;
