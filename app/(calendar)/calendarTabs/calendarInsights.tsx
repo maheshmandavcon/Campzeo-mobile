@@ -33,18 +33,23 @@ export default function CalendarInsights() {
   const pieRef = useRef<any>(null);
   const barRef = useRef<any>(null);
 
-
-  const platformColors: any = {
-    FACEBOOK: "#3b82f6",
-    INSTAGRAM: "#22c55e",
-    LINKEDIN: "#f59e0b",
-    PINTEREST: "#ef4444",
-    YOUTUBE: "#8b5cf6",
-  };
+ const platformColors: any = {
+  FACEBOOK: "#3B82F6",   // Blue
+  INSTAGRAM: "#EC4899",  // Pink
+  LINKEDIN: "#0EA5E9",   // Sky Blue
+  PINTEREST: "#EF4444",  // Red
+  YOUTUBE: "#DC2626",    // Dark Red
+  SMS: "#10B981",        // Emerald
+  EMAIL: "#F59E0B",      // Amber
+  WHATSAPP: "#22C55E",   // Green
+};
   const barData =
     insightsData?.platformMix?.map((item: any) => ({
       value: item.count,
-      label: item.platform,
+      label: item.platform
+        ? item.platform.charAt(0) + item.platform.slice(1).toLowerCase()
+        : "",
+      frontColor: platformColors[item.platform] || "#2563eb",
     })) || [];
 
   const total = insightsData?.insights?.totalPosts || 1;
@@ -53,8 +58,10 @@ export default function CalendarInsights() {
     insightsData?.platformMix?.map((item: any) => ({
       value: item.count,
       color: platformColors[item.platform] || "#999",
-      text: `${Math.round((item.count / total) * 100)}%`,
+      text: ``,
     })) || [];
+//  ${Math.round((item.count / total) * 100)}%
+// ${item.platform}
 
   const fetchInsights = async () => {
     try {
@@ -274,9 +281,10 @@ export default function CalendarInsights() {
               gap: 9,
               width: "48%",
               borderWidth: 1,
-              borderColor: "#e5e7eb",
+              borderColor: isDark ? "#333" : "#e5e7eb",
               borderRadius: 16,
               minHeight: 130,
+              backgroundColor: isDark ? "#121212" : "#fff",
             }}
           >
             <ThemedText style={{ fontWeight: "medium", fontSize: 17 }}>
@@ -299,9 +307,10 @@ export default function CalendarInsights() {
               gap: 9,
               width: "48%",
               borderWidth: 1,
-              borderColor: "#e5e7eb",
+              borderColor: isDark ? "#333" : "#e5e7eb",
               borderRadius: 16,
               minHeight: 130,
+              backgroundColor: isDark ? "#121212" : "#fff",
             }}
           >
             <ThemedText style={{ fontWeight: "medium", fontSize: 17 }}>
@@ -326,9 +335,10 @@ export default function CalendarInsights() {
               gap: 9,
               width: "48%",
               borderWidth: 1,
-              borderColor: "#e5e7eb",
+              borderColor: isDark ? "#333" : "#e5e7eb",
               borderRadius: 16,
               minHeight: 130,
+              backgroundColor: isDark ? "#121212" : "#fff",
             }}
           >
             <ThemedText style={{ fontWeight: "medium", fontSize: 17 }}>
@@ -351,9 +361,10 @@ export default function CalendarInsights() {
               gap: 9,
               width: "48%",
               borderWidth: 1,
-              borderColor: "#e5e7eb",
+              borderColor: isDark ? "#333" : "#e5e7eb",
               borderRadius: 16,
               minHeight: 130,
+              backgroundColor: isDark ? "#121212" : "#fff",
             }}
           >
             <ThemedText style={{ fontWeight: "medium", fontSize: 17 }}>
@@ -380,8 +391,9 @@ export default function CalendarInsights() {
           style={{
             padding: 15,
             borderWidth: 1,
-            borderColor: "#e5e7eb",
+            borderColor: isDark ? "#333" : "#e5e7eb",
             borderRadius: 16,
+            backgroundColor: isDark ? "#121212" : "#fff",
           }}
         >
           <VStack>
@@ -418,10 +430,10 @@ export default function CalendarInsights() {
                 {/* Legend */}
                 <VStack style={{ marginLeft: 10, gap: 8 }}>
                   {insightsData?.platformMix?.map((item: any) => {
-                    const percentage = Math.round(
-                      (item.count / (insightsData?.totalPosts || 1)) *
-                        100,
-                    );
+                    // const percentage = Math.round(
+                    //   (item.count / (insightsData?.totalPosts || 1)) *
+                    //     100,
+                    // );
 
                     return (
                       <HStack
@@ -440,11 +452,12 @@ export default function CalendarInsights() {
                         />
 
                         {/* Platform Name */}
-                        <Text style={{ fontSize: 12 }}>{item.platform}</Text>
+                        <ThemedText style={{ fontSize: 12 }}>{item.platform}</ThemedText>
 
                         {/* Percentage */}
                         <Text style={{ fontSize: 12, color: "#6b7280" }}>
-                          ({percentage}%)
+                          {item.count} Posts
+                          {/* ({percentage}%) */}
                         </Text>
                       </HStack>
                     );
@@ -460,9 +473,10 @@ export default function CalendarInsights() {
           style={{
             padding: 15,
             borderWidth: 1,
-            borderColor: "#e5e7eb",
+            borderColor: isDark ? "#333" : "#e5e7eb",
             borderRadius: 16,
             overflow: "hidden",
+            backgroundColor: isDark ? "#121212" : "#fff",
           }}
         >
           <VStack>
@@ -480,18 +494,22 @@ export default function CalendarInsights() {
         
             <BarChart
               data={barData}
-              frontColor="#2563eb"
-              barWidth={30}
-              spacing={25}
+              barWidth={24}
+              spacing={20}
               rulesType="dashed"
               dashWidth={4}
               dashGap={4}
-              rulesColor="#d1d5db"
+              rulesColor={isDark ? "#333" : "#e5e7eb"}
               xAxisThickness={0}
               yAxisThickness={0}
-              yAxisTextStyle={{ color: "#888" }}
+              yAxisTextStyle={{ color: isDark ? "#9ca3af" : "#6b7280", fontSize: 10 }}
+              xAxisLabelTextStyle={{ color: isDark ? "#9ca3af" : "#6b7280", fontSize: 10 }}
               noOfSections={5}
               maxValue={Math.max(...barData.map((item: any) => item.value), 1)}
+              topBorderRadius={6}
+              showValuesAsTopLabel
+              topLabelTextStyle={{ color: isDark ? "#f3f4f6" : "#1f2937", fontSize: 9 }}
+              yAxisLabelWidth={30}
             />
           
         </VStack>
