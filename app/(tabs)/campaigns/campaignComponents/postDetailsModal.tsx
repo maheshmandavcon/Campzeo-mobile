@@ -266,6 +266,21 @@ export default function PostDetailsModal({
     return "image";
   };
 
+  // Format date using device local timezone (fixes UTC display issue in Hermes)
+  const formatLocalDateTime = (dateString?: string | null): string => {
+    if (!dateString) return "Unknown";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "Unknown";
+    return date.toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
   const handleCopyToClipboard = (text: string) => {
     Clipboard.setString(text);
     Toast.show({
@@ -361,19 +376,39 @@ export default function PostDetailsModal({
                 </View>
               </View>
 
-              <View style={styles.metaRow}>
-                <ThemedText style={styles.metaLabel}>Schedule Time</ThemedText>
-                <ThemedText style={styles.metaValue}>
-                  {post.scheduledPostTime || post.publishedDate || post.createdDate
-                    ? new Date(
-                        post.scheduledPostTime || post.publishedDate || post.createdDate
-                      ).toLocaleString()
-                    : "Not Scheduled"}
-                </ThemedText>
-              </View>
+              {/* Scheduled Time — always show if it exists */}
+              {post.scheduledPostTime && (
+                <View style={styles.metaRow}>
+                  <ThemedText style={styles.metaLabel}>Scheduled Time</ThemedText>
+                  <ThemedText style={styles.metaValue}>
+                    {new Date(post.scheduledPostTime).toLocaleString()}
+                  </ThemedText>
+                </View>
+              )}
+
+              {/* No schedule and not yet sent */}
+              {!post.scheduledPostTime && status !== "SENT" && (
+                <View style={styles.metaRow}>
+                  <ThemedText style={styles.metaLabel}>Scheduled Time</ThemedText>
+                  <ThemedText style={[styles.metaValue, { color: "#94a3b8" }]}>Not Scheduled</ThemedText>
+                </View>
+              )}
+
+              {/* Sent Time — only show when post is actually sent */}
+              {status === "SENT" && (
+                <View style={styles.metaRow}>
+                  <ThemedText style={styles.metaLabel}>Sent Time</ThemedText>
+                  <ThemedText style={[styles.metaValue, { color: "#22c55e" }]}>
+                    {post.publishedDate
+                      ? new Date(post.publishedDate).toLocaleString()
+                      : post.createdDate
+                        ? new Date(post.createdDate).toLocaleString()
+                        : "Unknown"}
+                  </ThemedText>
+                </View>
+              )}
             </View>
 
-            {/* FAILURE REASON VISUALIZER */}
             {post.failureReason && (
               <View style={styles.failureBox}>
                 <View style={styles.failureHeader}>
@@ -384,7 +419,6 @@ export default function PostDetailsModal({
               </View>
             )}
 
-            {/* Message preview / Full message */}
             <View style={styles.messageBox}>
               <View style={styles.subjectHeader}>
                 <ThemedText style={styles.sectionTitle}>Message Content</ThemedText>
@@ -450,72 +484,73 @@ export default function PostDetailsModal({
 
           {/* ACTION BUTTON FOOTER */}
           <View style={[styles.footer, isDark && styles.footerDark]}>
-            <TouchableOpacity
-              onPress={onClose}
-              style={[styles.actionBtn, styles.cancelBtn]}
-              activeOpacity={0.8}
-            >
-              <ThemedText style={styles.cancelBtnText}>Close</ThemedText>
-            </TouchableOpacity>
+            {status === "SENT" && (
+              <TouchableOpacity
+                onPress={onClose}
+                style={[styles.actionBtn, styles.cancelBtn]}
+                activeOpacity={0.8}
+              >
+                <ThemedText style={styles.cancelBtnText}>Close</ThemedText>
+              </TouchableOpacity>
+            )}
 
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              {onEdit && (
-                <TouchableOpacity
-                  onPress={() => {
-                    onClose();
-                    onEdit(post.id);
-                  }}
-                  disabled={!canEdit}
-                  activeOpacity={0.8}
-                  style={[
-                    styles.actionBtn,
-                    styles.editBtn,
-                    !canEdit && styles.disabledBtn,
-                  ]}
-                >
-                  <Ionicons name="create-outline" size={18} color="#fff" />
-                  <ThemedText style={styles.btnText}>Edit</ThemedText>
-                </TouchableOpacity>
-              )}
+            {status !== "SENT" && (
+              <View style={{ flexDirection: "row", flex: 1, gap: 8 }}>
+                {canShare && onShare && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      onClose();
+                      onShare(post.id);
+                    }}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.actionBtn,
+                      styles.shareBtn,
+                      { flex: 1 }
+                    ]}
+                  >
+                    <Ionicons name="share-social-outline" size={18} color="#fff" />
+                    <ThemedText style={styles.btnText}>Share</ThemedText>
+                  </TouchableOpacity>
+                )}
 
-              {onShare && (
-                <TouchableOpacity
-                  onPress={() => {
-                    onClose();
-                    onShare(post.id);
-                  }}
-                  disabled={!canShare}
-                  activeOpacity={0.8}
-                  style={[
-                    styles.actionBtn,
-                    styles.shareBtn,
-                    !canShare && styles.disabledBtn,
-                  ]}
-                >
-                  <Ionicons name="share-social-outline" size={18} color="#fff" />
-                  <ThemedText style={styles.btnText}>Share</ThemedText>
-                </TouchableOpacity>
-              )}
+                {canEdit && onEdit && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      onClose();
+                      onEdit(post.id);
+                    }}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.actionBtn,
+                      styles.editBtn,
+                      { flex: 1 }
+                    ]}
+                  >
+                    <Ionicons name="create-outline" size={18} color="#fff" />
+                    <ThemedText style={styles.btnText}>Edit</ThemedText>
+                  </TouchableOpacity>
+                )}
 
-              {onDelete && (
-                <TouchableOpacity
-                  onPress={() => {
-                    onClose();
-                    onDelete(post.id);
-                  }}
-                  disabled={!canDelete}
-                  activeOpacity={0.8}
-                  style={[
-                    styles.actionBtn,
-                    styles.deleteBtn,
-                    !canDelete && styles.disabledBtn,
-                  ]}
-                >
-                  <Ionicons name="trash-outline" size={18} color="#fff" />
-                  <ThemedText style={styles.btnText}>Delete</ThemedText>
-                </TouchableOpacity>
-              )}
-            </View>
+                {canDelete && onDelete && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      onClose();
+                      onDelete(post.id);
+                    }}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.actionBtn,
+                      styles.deleteBtn,
+                      { flex: 1 }
+                    ]}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#fff" />
+                    <ThemedText style={styles.btnText}>Delete</ThemedText>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
         </View>
       </View>

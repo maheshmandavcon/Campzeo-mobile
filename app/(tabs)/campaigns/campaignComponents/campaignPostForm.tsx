@@ -1,7 +1,6 @@
 import { getUser } from "@/api/dashboardApi";
 import { useCampaignPostForm } from "@/hooks/useCampaignPostForm";
-import { useUser, useAuth } from "@/context/AuthContext";
-import { getTemplatesApi } from "@/api/templetsApi";
+import { useUser } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@gluestack-ui/themed";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -94,14 +93,14 @@ import { Picker } from "@react-native-picker/picker";
 // ---------- Define Props Interface ----------
 interface CampaignPostFormProps {
   platform:
-  | "EMAIL"
-  | "SMS"
-  | "INSTAGRAM"
-  | "WHATSAPP"
-  | "FACEBOOK"
-  | "YOUTUBE"
-  | "LINKEDIN"
-  | "PINTEREST";
+    | "EMAIL"
+    | "SMS"
+    | "INSTAGRAM"
+    | "WHATSAPP"
+    | "FACEBOOK"
+    | "YOUTUBE"
+    | "LINKEDIN"
+    | "PINTEREST";
   existingPost?: any;
   campaignId?: string;
   campaignStartDate?: string;
@@ -122,7 +121,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
   const {
     // state
     platform: platformState,
-    organisationId,
     senderEmail,
     subject,
     message,
@@ -248,8 +246,8 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     existingPost: existingPost
       ? existingPost
       : {
-        campaign: { startDate: campaignStartDate, endDate: campaignEndDate },
-      },
+          campaign: { startDate: campaignStartDate, endDate: campaignEndDate },
+        },
     // campaignStartDate,
     onClose,
   });
@@ -271,139 +269,78 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
   const [userData, setUserData] = useState<any>(null);
 
-  const { getToken } = useAuth();
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
-
-  useEffect(() => {
-    const fetchTemplates = async () => {
-      if (!organisationId) {
-        setTemplates([]);
-        return;
-      }
-      try {
-        const token = await getToken();
-        const res = await getTemplatesApi(organisationId, token || undefined);
-        const filtered = (res || []).filter(
-          (t: any) =>
-            t.platform?.toUpperCase() === platform.toUpperCase() && t.isActive
-        );
-        setTemplates(filtered);
-      } catch (error) {
-        console.error("Failed to fetch templates in CampaignPostForm:", error);
-      }
-    };
-
-    fetchTemplates();
-  }, [organisationId, platform]);
-
-  useEffect(() => {
-    setSelectedTemplateId("");
-  }, [platform]);
-
+  // ================= RENDER ATTACHMENTS =================
 
   const renderAttachmentItem = ({ item, index }: any) => {
-  const isImage = item.type?.startsWith("image/");
-  const isVideo = item.type?.startsWith("video/");
-  const isPdf =
-  platformState === "EMAIL" &&
-  (item.type === "application/pdf" ||
-    item.name?.toLowerCase().endsWith(".pdf"));
+    const isImage = item.type.startsWith("image/");
+    const isVideo = item.type.startsWith("video/");
 
-  return (
-    <View className="flex-row items-center bg-gray-200 rounded-lg px-2 py-1 mr-2 mb-2">
-
-      {isImage && (
-        <Image
-          source={{ uri: item.uri }}
-          style={{
-            width: 50,
-            height: 50,
-            borderRadius: 5,
-            marginRight: 5,
-          }}
-        />
-      )}
-
-      {isVideo && (
-        <View
-          style={{
-            width: 50,
-            height: 50,
-            borderRadius: 5,
-            marginRight: 5,
-            overflow: "hidden",
-          }}
-        >
-          <Video
+    return (
+      <View className="flex-row items-center bg-gray-200 rounded-lg px-2 py-1 mr-2 mb-2">
+        {isImage && (
+          <Image
             source={{ uri: item.uri }}
-            style={{ width: "100%", height: "100%" }}
-            resizeMode="cover"
-            paused={false}
-            muted
-            controls={false}
-            repeat
+            style={{ width: 50, height: 50, borderRadius: 5, marginRight: 5 }}
           />
+        )}
 
+        {isVideo && (
           <View
             style={{
-              position: "absolute",
-              width: "100%",
-              height: "100%",
-              justifyContent: "center",
-              alignItems: "center",
+              width: 50,
+              height: 50,
+              borderRadius: 5,
+              marginRight: 5,
+              overflow: "hidden",
             }}
           >
-            <Ionicons
-              name="play-circle"
-              size={24}
-              color="#fff"
+            <Video
+              source={{ uri: item.uri }}
+              style={{ width: "100%", height: "100%" }}
+              resizeMode="cover"
+              paused={false}
+              muted
+              controls={false}
+              repeat
             />
+            {/* Play icon overlay */}
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: "rgba(0,0,0,0.2)",
+              }}
+            >
+              <Ionicons name="play-circle" size={24} color="#fff" />
+            </View>
           </View>
-        </View>
-      )}
+        )}
 
-      {isPdf && (
-        <View
-          style={{
-            width: 50,
-            height: 50,
-            borderRadius: 5,
-            marginRight: 5,
-            backgroundColor: "#fee2e2",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
+        <Text
+          className="mr-2 text-gray-700"
+          numberOfLines={1}
+          style={{ maxWidth: 80 }}
         >
-          <Ionicons
-            name="document-text"
-            size={28}
-            color="#dc2626"
-          />
-        </View>
-      )}
+          {item.name}
+        </Text>
 
-      <Text
-        numberOfLines={1}
-        style={{ maxWidth: 80 }}
-      >
-        {item.name}
-      </Text>
+        {/* <TouchableOpacity onPress={() => handleRemoveAttachment(index)}>
+          <Ionicons name="close-circle" size={20} color="#dc2626" />
+        </TouchableOpacity> */}
 
-      <TouchableOpacity
-        onPress={() =>
-          handleRemoveAttachment(item.uploadedUrl ?? item.uri)
-        }
-      >
-        <Ionicons
-          name="close-circle"
-          size={20}
-          color="#dc2626"
-        />
-      </TouchableOpacity>
-    </View>
-  );
-};
+        <TouchableOpacity
+          onPress={() => handleRemoveAttachment(item.uploadedUrl ?? item.uri)}
+        >
+          <Ionicons name="close-circle" size={20} color="#dc2626" />
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -443,85 +380,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           className="flex-1"
           style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
         >
-          {/* Quick Start with Template */}
-          {templates.length > 0 && (
-            <View style={{ marginBottom: 16 }}>
-              <Text
-                style={{
-                  color: isDark ? "#ffffff" : "#000000",
-                  fontWeight: "bold",
-                  marginBottom: 8,
-                  marginLeft: 4,
-                }}
-              >
-                Quick Start with Template
-              </Text>
-              <View
-                style={{
-                  borderWidth: 1,
-                  borderColor: isDark ? "#374151" : "#d1d5db",
-                  borderRadius: 12,
-                  backgroundColor: isDark ? "#161618" : "#ffffff",
-                  overflow: "hidden",
-                }}
-              >
-                <Picker
-                  selectedValue={selectedTemplateId}
-                  onValueChange={(itemValue) => {
-                    if (itemValue) {
-                      const selectedTpl = templates.find((t) => String(t.id) === String(itemValue));
-                      if (selectedTpl) {
-                        setSelectedTemplateId(String(itemValue));
-                        if (selectedTpl.subject) {
-                          setSubject(selectedTpl.subject);
-                        }
-                        if (selectedTpl.content) {
-                          setMessage(selectedTpl.content);
-                        }
-                        // Apply media urls if present and not SMS
-                        if (
-                          Array.isArray(selectedTpl.mediaUrls) &&
-                          selectedTpl.mediaUrls.length > 0 &&
-                          platformState !== "SMS"
-                        ) {
-                          const newAttachments = selectedTpl.mediaUrls.map((url: string, index: number) => ({
-                            uri: url,
-                            uploadedUrl: url,
-                            name: url.substring(url.lastIndexOf("/") + 1) || `template-media-${index + 1}`,
-                            type: url.endsWith(".mp4") || url.endsWith(".mov") ? "video/mp4" : "image/jpeg",
-                            uploading: false,
-                          }));
-                          setAttachments(newAttachments);
-                        }
-                      }
-                    } else {
-                      setSelectedTemplateId("");
-                    }
-                  }}
-                  style={{
-                    color: isDark ? "#fff" : "#000",
-                    height: 50,
-                  }}
-                  dropdownIconColor={isDark ? "#fff" : "#000"}
-                >
-                  <Picker.Item
-                    label="Select template"
-                    value=""
-                    color={isDark ? "#9ca3af" : "#6b7280"}
-                  />
-                  {templates.map((tpl) => (
-                    <Picker.Item
-                      key={tpl.id}
-                      label={tpl.name}
-                      value={String(tpl.id)}
-                      color={isDark ? "#fff" : "#000"}
-                    />
-                  ))}
-                </Picker>
-              </View>
-            </View>
-          )}
-
           {platformState === "EMAIL" && (
             <View style={{ marginBottom: 16 }}>
               <Text
@@ -839,14 +697,14 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                               <Text style={{ color: isDark ? "#9ca3af" : "#9ca3af", fontWeight: 'bold', fontSize: 12, marginTop: 4, letterSpacing: 0.5 }}>
                                 {badgeLabel}
                               </Text>
-
+                              
                               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 {item.isLoading ? (
                                   <ActivityIndicator size="small" color="#dc2626" style={{ marginRight: 8 }} />
                                 ) : (
                                   <>
                                     {/* Red Check Button (Replace/Use) */}
-                                    <TouchableOpacity
+                                    <TouchableOpacity 
                                       activeOpacity={0.7}
                                       onPress={() => {
                                         setSubject(item.subject);
@@ -1205,7 +1063,8 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             </>
           )}
 
-          {hasVideo && platformState !== "EMAIL" && (
+          {/* ---------- Custom Video Thumbnail Section ---------- */}
+          {hasVideo && (
             <View
               style={{
                 marginTop: 16,
@@ -1746,7 +1605,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
                   {/* Upload Button */}
                   <TouchableOpacity
-                    disabled={coverUploading}
+                    disabled={coverUploading} // disable while uploading
                     onPress={() => {
                       console.log("[Cover] Upload button pressed");
                       handleCoverImageUpload();
@@ -1760,7 +1619,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                       marginBottom: 6,
                       borderWidth: 1,
                       borderColor: isDark ? "#3b82f6" : "#2563eb",
-                      opacity: coverUploading ? 0.6 : 1,
+                      opacity: coverUploading ? 0.6 : 1, // show visually disabled
                       flexDirection: "row",
                       justifyContent: "center",
                     }}
@@ -2256,6 +2115,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
           {platformState === "PINTEREST" && (
             <View style={{ borderRadius: 8 }}>
+              {/* Pinterest Settings Heading */}
               <Text
                 style={{
                   fontWeight: "bold",
@@ -2267,6 +2127,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 Pinterest Settings
               </Text>
 
+              {/* ---------- Select Board + Destination Link Section with Border ---------- */}
               <View
                 style={{
                   borderWidth: 1,
@@ -2276,6 +2137,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   marginBottom: 16,
                 }}
               >
+                {/* Select Board */}
                 <Text
                   style={{
                     fontWeight: "600",
@@ -2285,6 +2147,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                 >
                   Select Board
                 </Text>
+                {/* Select Board Button */}
                 <TouchableOpacity
                   onPress={() => setPinterestModalVisible(true)}
                   style={{
@@ -2302,6 +2165,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   </Text>
                 </TouchableOpacity>
 
+                {/* Pinterest Modal */}
                 <Modal
                   visible={pinterestModalVisible}
                   animationType="slide"
@@ -2324,6 +2188,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                         padding: 16,
                       }}
                     >
+                      {/* + Create New Board */}
                       <TouchableOpacity
                         onPress={() => setIsCreatingPinterestBoard(true)}
                         style={{
@@ -2339,6 +2204,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                         </Text>
                       </TouchableOpacity>
 
+                      {/* Create Board Form */}
                       {isCreatingPinterestBoard && (
                         <View style={{ marginBottom: 16 }}>
                           <TextInput
@@ -2389,6 +2255,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                         </View>
                       )}
 
+                      {/* Existing Boards List */}
                       <View style={{ maxHeight: 250 }}>
                         {loadingBoards ? (
                           <ActivityIndicator
@@ -2445,6 +2312,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   </View>
                 </Modal>
 
+                {/* Destination Link */}
                 <Text
                   style={{
                     fontWeight: "600",
@@ -2775,7 +2643,9 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           )}  */}
         </View>
 
+        {/* ---------- PREVIEW SLOT ---------- */}
         <View style={{ marginBottom: 20 }}>
+          {/* ✅ Facebook Preview */}
           {platformState === "FACEBOOK" && (
             <Preview
               platform="facebook"
@@ -2788,6 +2658,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             />
           )}
 
+          {/* ✅ Instagram Preview */}
           {platformState === "INSTAGRAM" && (
             <Preview
               platform="instagram"
@@ -2800,6 +2671,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             />
           )}
 
+          {/* ✅ LinkedIn Preview */}
           {platformState === "LINKEDIN" && (
             <Preview
               platform="linkedin"
@@ -2811,6 +2683,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             />
           )}
 
+          {/* ✅ WhatsApp Preview */}
           {platformState === "WHATSAPP" && (
             <Preview
               platform="whatsapp"
@@ -2822,6 +2695,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             />
           )}
 
+          {/* ✅ Email Preview */}
           {platformState === "EMAIL" && (
             <Preview
               platform="email"
@@ -2833,6 +2707,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             />
           )}
 
+          {/* ✅ SMS Preview */}
           {platformState === "SMS" && (
             <Preview
               platform="sms"
@@ -2843,6 +2718,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             />
           )}
 
+          {/* ✅ Pinterest Preview */}
           {platformState === "PINTEREST" && (
             <Preview
               platform="pinterest"
@@ -2850,10 +2726,11 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map((a) => a.uri)}
-            // timestamp={previewTimestamp}
+              // timestamp={previewTimestamp}
             />
           )}
 
+          {/* ✅ YouTube Preview */}
           {platformState === "YOUTUBE" && (
             <Preview
               platform="youtube"
@@ -2862,7 +2739,6 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               text={message}
               images={attachments?.map((a) => a.uri)}
               timestamp={previewTimestamp}
-              youTubeContentType={youTubeContentType}
             />
           )}
         </View>

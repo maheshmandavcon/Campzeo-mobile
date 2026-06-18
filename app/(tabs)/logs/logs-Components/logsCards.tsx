@@ -12,12 +12,14 @@ import { useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { refreshPost } from "@/api/logsApi";
 import { useRouter } from "expo-router";
+import { WebView } from "react-native-webview";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { VStack } from "@/components/ui/vstack";
 import { HStack } from "@/components/ui/hstack";
 import { useAuth } from "@/context/AuthContext";
 import Toast from "react-native-toast-message";
+
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width - 40; // accounted for parent container padding
@@ -211,6 +213,64 @@ export default function LogsCard({ record, platformLabel }: LogsCardProps) {
             }}
             renderItem={({ item: url }) => {
               const isVideo = isVideoFormat(url);
+              
+              if (isVideo) {
+                return (
+                  <View
+                    style={{
+                      width: CARD_WIDTH - 32,
+                      height: 180,
+                      borderRadius: 12,
+                      overflow: "hidden",
+                      backgroundColor: "#000000",
+                    }}
+                  >
+                    <WebView
+                      source={{
+                        html: `
+                          <html>
+                            <head>
+                              <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+                              <style>
+                                html, body {
+                                  margin: 0;
+                                  padding: 0;
+                                  width: 100%;
+                                  height: 100%;
+                                  background: #000000;
+                                  display: flex;
+                                  align-items: center;
+                                  justify-content: center;
+                                  overflow: hidden;
+                                }
+                                video {
+                                  width: 100%;
+                                  height: 100%;
+                                  object-fit: contain;
+                                }
+                              </style>
+                            </head>
+                            <body>
+                              <video
+                                src="${url}"
+                                controls
+                                playsinline
+                              />
+                            </body>
+                          </html>
+                        `,
+                      }}
+                      style={{
+                        flex: 1,
+                        backgroundColor: "#000000",
+                      }}
+                      javaScriptEnabled
+                      domStorageEnabled
+                    />
+                  </View>
+                );
+              }
+
               return (
                 <View style={{ width: CARD_WIDTH - 32, height: 180, position: "relative" }}>
                   <Image
@@ -218,34 +278,6 @@ export default function LogsCard({ record, platformLabel }: LogsCardProps) {
                     style={{ width: "100%", height: "100%", borderRadius: 12 }}
                     resizeMode="cover"
                   />
-                  {isVideo && (
-                    <View
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: "rgba(0,0,0,0.3)",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        borderRadius: 12,
-                      }}
-                    >
-                      <View
-                        style={{
-                          width: 44,
-                          height: 44,
-                          borderRadius: 22,
-                          backgroundColor: "rgba(255,255,255,0.85)",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Ionicons name="play" size={20} color="#1e293b" style={{ marginLeft: 3 }} />
-                      </View>
-                    </View>
-                  )}
                 </View>
               );
             }}
@@ -344,7 +376,7 @@ export default function LogsCard({ record, platformLabel }: LogsCardProps) {
       />
 
       {/* ---------- CARD INTERACTIVE ACTIONS ---------- */}
-      <HStack style={{ justifyContent: "space-between", alignItems: "center" }}>
+      <HStack style={{ justifyContent: "flex-end", alignItems: "center" }}>
         {/* Refresh Sync Action */}
         <TouchableOpacity
           activeOpacity={0.7}
@@ -369,7 +401,7 @@ export default function LogsCard({ record, platformLabel }: LogsCardProps) {
         </TouchableOpacity>
 
         {/* View Details Analytics Action */}
-        <TouchableOpacity
+        {/* <TouchableOpacity
           activeOpacity={0.7}
           onPress={() =>
             router.push({
@@ -389,7 +421,7 @@ export default function LogsCard({ record, platformLabel }: LogsCardProps) {
           <Text style={{ fontSize: 12, fontWeight: "700", color: "#3b82f6" }}>
             Analytics
           </Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </HStack>
     </ThemedView>
   );

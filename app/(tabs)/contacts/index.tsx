@@ -8,10 +8,7 @@ import {
   Pressable,
   useColorScheme,
   View,
-  Modal,
-  ScrollView,
 } from "react-native";
-import { Buffer } from "buffer";
 import { Text } from "@gluestack-ui/themed";
 import { Ionicons } from "@expo/vector-icons";
 import ContactCard, { ContactsRecord } from "./contactComponents/contactCard";
@@ -21,7 +18,6 @@ import {
   deleteContactApi,
   exportContactsApi,
 } from "@/api/contactApi";
-import * as DocumentPicker from "expo-document-picker";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { useAuth } from "@/context/AuthContext";
@@ -33,18 +29,16 @@ import { getUser } from "@/api/dashboardApi";
 import Toast from "react-native-toast-message";
 
 export default function Contacts() {
-  const [visibleCount, setVisibleCount] = useState(10);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc" | null>(null);
   const [records, setRecords] = useState<ContactsRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [menuVisible, setMenuVisible] = useState(false);
-
-  const [importModalVisible, setImportModalVisible] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<any>(null);
-  const [previewData, setPreviewData] = useState<string[][]>([]);
-  const [importStatus, setImportStatus] = useState<"idle" | "importing" | "complete">("idle");
-  const [importResult, setImportResult] = useState<any>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const isDark = useColorScheme() === "dark";
 
@@ -54,17 +48,108 @@ export default function Contacts() {
 
   const { getToken } = useAuth();
 
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [search]);
+
   /* ================= FETCH ================= */
-  const fetchContacts = async () => {
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+
+      const load = async () => {
+        setPage(1);
+        try {
+          setLoading(true);
+          const token = await getToken();
+          if (!token) throw new Error("Authentication token not found");
+          const user = await getUser();
+          const orgId = user?.organisation?.id;
+
+          const order = sortOrder === "asc" ? "asc" : "desc";
+          const res = await getContactsApi(orgId, 1, 10, debouncedSearch, "createdDate", order);
+          if (!isActive) return;
+
+          const contactsArray = res?.contacts ?? [];
+          const mapped: ContactsRecord[] = contactsArray.map((item: any) => ({
+            id: item.id,
+            name: item.contactName,
+            email: item.contactEmail,
+            mobile: item.contactMobile,
+            whatsapp: item.contactWhatsApp,
+            show: true,
+            campaigns: item.campaigns ?? [],
+          }));
+
+          setRecords(mapped);
+          setHasMore(contactsArray.length >= 10);
+        } catch (err) {
+          console.log("GET CONTACTS ERROR:", err);
+          if (isActive) setRecords([]);
+        } finally {
+          if (isActive) setLoading(false);
+        }
+      };
+
+      load();
+
+      return () => {
+        isActive = false;
+      };
+    }, [debouncedSearch, sortOrder])
+  );
+
+  const handleRefresh = async () => {
+    if (loading || isRefreshing) return;
+    setIsRefreshing(true);
     try {
-      setLoading(true);
+      setPage(1);
       const token = await getToken();
       if (!token) throw new Error("Authentication token not found");
       const user = await getUser();
       const orgId = user?.organisation?.id;
 
-      const res = await getContactsApi(orgId);
+      const order = sortOrder === "asc" ? "asc" : "desc";
+      const res = await getContactsApi(orgId, 1, 10, debouncedSearch, "createdDate", order);
 
+      const contactsArray = res?.contacts ?? [];
+      const mapped: ContactsRecord[] = contactsArray.map((item: any) => ({
+        id: item.id,
+        name: item.contactName,
+        email: item.contactEmail,
+        mobile: item.contactMobile,
+        whatsapp: item.contactWhatsApp,
+        show: true,
+        campaigns: item.campaigns ?? [],
+      }));
+
+      setRecords(mapped);
+      setHasMore(contactsArray.length >= 10);
+    } catch (err) {
+      console.log("REFRESH CONTACTS ERROR:", err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleLoadMore = async () => {
+    if (loading || loadingMore || isRefreshing || !hasMore) return;
+
+    try {
+      setLoadingMore(true);
+      const nextPage = page + 1;
+      setPage(nextPage);
+
+      const token = await getToken();
+      if (!token) return;
+      const user = await getUser();
+      const orgId = user?.organisation?.id;
+      const order = sortOrder === "asc" ? "asc" : "desc";
+
+      const res = await getContactsApi(orgId, nextPage, 10, debouncedSearch, "createdDate", order);
       const contactsArray = res?.contacts ?? [];
 
       const mapped: ContactsRecord[] = contactsArray.map((item: any) => ({
@@ -77,40 +162,18 @@ export default function Contacts() {
         campaigns: item.campaigns ?? [],
       }));
 
-      setRecords(mapped);
+      setRecords((prev) => {
+        const existingIds = new Set(prev.map((r) => r.id));
+        const newRecords = mapped.filter((r) => !existingIds.has(r.id));
+        return [...prev, ...newRecords];
+      });
+      setHasMore(contactsArray.length >= 10);
     } catch (err) {
-      console.log("GET CONTACTS ERROR:", err);
-      setRecords([]);
+      console.log("LOAD MORE ERROR:", err);
     } finally {
-      setLoading(false);
+      setLoadingMore(false);
     }
   };
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchContacts();
-    }, [search]),
-  );
-
-  const filteredRecords = records
-    .filter((r) => {
-      const q = search.trim().toLowerCase();
-      if (!q) return true;
-      return (
-        (r.name && r.name.toLowerCase().includes(q)) ||
-        (r.email && r.email.toLowerCase().includes(q)) ||
-        (r.mobile && r.mobile.includes(q)) ||
-        (r.whatsapp && r.whatsapp.includes(q))
-      );
-    })
-    .sort((a, b) => {
-      if (sortOrder === "asc") return a.name.localeCompare(b.name);
-      if (sortOrder === "desc") return b.name.localeCompare(a.name);
-      return 0;
-    });
-
-  const visibleRecords = filteredRecords.slice(0, visibleCount);
-  const isAllVisible = visibleCount >= filteredRecords.length;
 
   /* ================= ACTIONS ================= */
   const handleEdit = (record: ContactsRecord) => {
@@ -260,92 +323,13 @@ WhatsApp: ${record.whatsapp || "-"}
     }
   };
 
-  const handleImportContacts = async () => {
+  const handleImport = () => {
     setMenuVisible(false);
-    setSelectedFile(null);
-    setPreviewData([]);
-    setImportStatus("idle");
-    setImportResult(null);
-    setImportModalVisible(true);
-  };
-
-  const handleDownloadTemplate = async () => {
-  try {
-    const csvContent =
-      "Name,Email,Mobile,WhatsApp\nJohn Doe,john@example.com,9876543210,9876543210";
-
-    const fileUri =
-      FileSystem.cacheDirectory + "contacts_template.csv";
-
-    await FileSystem.writeAsStringAsync(fileUri, csvContent, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
-
-    await Sharing.shareAsync(fileUri, {
-      mimeType: "text/csv",
-      dialogTitle: "Download CSV Template",
-    });
-
-  } catch (error) {
-    console.error(error);
-    Alert.alert("Error", "Failed to download template");
-  }
-};
-
-  const handleBrowseFile = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ["text/csv", "text/comma-separated-values"],
-        copyToCacheDirectory: true,
-      });
-
-      if (!result.canceled) {
-        const file = result.assets[0];
-        setSelectedFile(file);
-
-        // Try reading the file for preview
-        try {
-          const fileString = await FileSystem.readAsStringAsync(file.uri);
-          const lines = fileString.split(/\r?\n/).filter((line) => line.trim() !== "");
-          const rows = lines.slice(0, 4).map((line) => line.split(","));
-          setPreviewData(rows);
-        } catch (e) {
-          console.log("Failed to read CSV for preview", e);
-        }
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to pick file");
-    }
-  };
-
-  const handleImportSubmit = async () => {
-    if (!selectedFile) {
-      Alert.alert("Error", "Please select a file first");
-      return;
-    }
-    setImportStatus("importing");
-    
-    // Mocking an API call
-    setTimeout(() => {
-      setImportStatus("complete");
-      setImportResult({
-        successful: 2,
-        failed: 1,
-        duplicates: 0,
-        errors: [
-          { row: 3, field: "ContactMobile", error: "Invalid mobile format" },
-          { row: 3, field: "ContactWhatsApp", error: "Invalid WhatsApp format" }
-        ]
-      });
-    }, 1500);
+    router.push("/contacts/import");
   };
 
   const toggleSortOrder = () => {
     setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-  };
-
-  const handleLoadToggle = () => {
-    isAllVisible ? setVisibleCount(5) : setVisibleCount(filteredRecords.length);
   };
 
   const toggleShow = (record: ContactsRecord) => {
@@ -355,10 +339,22 @@ WhatsApp: ${record.whatsapp || "-"}
 
   type ListItem = ContactsRecord | { id: string; skeleton: true };
 
-  const skeletonData: ListItem[] = Array.from({ length: 6 }, (_, i) => ({
-    id: `skeleton-${i}`,
-    skeleton: true,
+  const loadingMoreSkeletons: ListItem[] = Array.from({ length: 4 }, (_, i) => ({
+    id: `skeleton-more-${i}`,
+    skeleton: true as true,
   }));
+
+  const initialSkeletons: ListItem[] = Array.from({ length: 6 }, (_, i) => ({
+    id: `skeleton-init-${i}`,
+    skeleton: true as true,
+  }));
+
+  const listData: ListItem[] =
+    loading && page === 1
+      ? initialSkeletons
+      : hasMore
+        ? [...records, ...loadingMoreSkeletons]
+        : records;
 
   const ContactSkeletonCard = () => (
     <ThemedView className="bg-gray-50 rounded-xl p-4 mb-3 border border-gray-200">
@@ -400,7 +396,7 @@ WhatsApp: ${record.whatsapp || "-"}
     </ThemedView>
   );
 
-  const listData = loading ? skeletonData : visibleRecords;
+
   const COLORS = {
     screenBg: isDark ? "#121214" : "#f8fafc",
     cardBg: isDark ? "#1e1e24" : "#ffffff",
@@ -499,10 +495,7 @@ WhatsApp: ${record.whatsapp || "-"}
             <Ionicons name="search-outline" size={16} color={COLORS.textSecondary} style={{ marginRight: 8 }} />
             <TextInput
               value={search}
-              onChangeText={(v) => {
-                setSearch(v);
-                setVisibleCount(5);
-              }}
+              onChangeText={(v) => setSearch(v)}
               placeholder="Search contacts..."
               placeholderTextColor={isDark ? "#52525b" : "#94a3b8"}
               style={{
@@ -560,6 +553,7 @@ WhatsApp: ${record.whatsapp || "-"}
               minWidth: 150,
             }}
           >
+            {/* Export */}
             <TouchableOpacity
               onPress={handleExportAll}
               style={{
@@ -576,25 +570,48 @@ WhatsApp: ${record.whatsapp || "-"}
                 size={18}
                 color={COLORS.textPrimary}
               />
-              <Text style={{ marginLeft: 10, fontWeight: "600", color: COLORS.textPrimary, fontSize: 14 }}>
+              <Text
+                style={{
+                  marginLeft: 10,
+                  fontWeight: "600",
+                  color: COLORS.textPrimary,
+                  fontSize: 14,
+                }}
+              >
                 Export All
               </Text>
             </TouchableOpacity>
 
+            {/* Import */}
             <TouchableOpacity
-              onPress={handleImportContacts}
-              className="flex-row items-center px-4 py-3"
+              onPress={handleImport} 
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                borderBottomWidth: 1,
+                borderBottomColor: COLORS.cardBorder,
+              }}
             >
               <Ionicons
-                name="person-add-outline"
+                name="cloud-upload-outline"
                 size={18}
-                color={isDark ? "#ffffff" : "#111827"}
+                color={COLORS.textPrimary}
               />
-              <ThemedText className="ml-3 font-medium text-white">
-                Import Contacts
-              </ThemedText>
+              <Text
+                style={{
+                  marginLeft: 10,
+                  fontWeight: "600",
+                  color: COLORS.textPrimary,
+                  fontSize: 14,
+                }}
+              >
+                Import
+              </Text>
             </TouchableOpacity>
 
+            {/* Sort */}
             <TouchableOpacity
               onPress={toggleSortOrder}
               style={{
@@ -609,7 +626,14 @@ WhatsApp: ${record.whatsapp || "-"}
                 size={18}
                 color={COLORS.textPrimary}
               />
-              <Text style={{ marginLeft: 10, fontWeight: "600", color: COLORS.textPrimary, fontSize: 14 }}>
+              <Text
+                style={{
+                  marginLeft: 10,
+                  fontWeight: "600",
+                  color: COLORS.textPrimary,
+                  fontSize: 14,
+                }}
+              >
                 {sortOrder === "asc"
                   ? "Sort Z → A"
                   : sortOrder === "desc"
@@ -638,6 +662,17 @@ WhatsApp: ${record.whatsapp || "-"}
                 onToggleShow={toggleShow}
               />
             )
+          }
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={3}
+          refreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={{ padding: 16, alignItems: "center" }}>
+                <ActivityIndicator size="small" color={COLORS.textPrimary} />
+              </View>
+            ) : null
           }
           ListEmptyComponent={
             !loading ? (
@@ -691,235 +726,6 @@ WhatsApp: ${record.whatsapp || "-"}
             paddingBottom: 24,
           }}
         />
-        <Modal
-          visible={importModalVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setImportModalVisible(false)}
-        >
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: "rgba(0,0,0,0.5)",
-              justifyContent: "center",
-              padding: 20,
-            }}
-          >
-            <ThemedView
-              style={{
-                borderRadius: 16,
-                padding: 20,
-                backgroundColor: isDark ? "#161618" : "#ffffff",
-                maxHeight: "90%",
-              }}
-            >
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {importStatus === "complete" && importResult ? (
-                  <View>
-                    <ThemedText style={{ fontSize: 20, fontWeight: "700", marginBottom: 8, color: "#10b981" }}>
-                      Import Complete
-                    </ThemedText>
-                    <ThemedText style={{ marginBottom: 20 }}>
-                      Here's a summary of your import
-                    </ThemedText>
-
-                    <View style={{ flexDirection: "row", justifyContent: "space-around", marginBottom: 20 }}>
-                      <View style={{ alignItems: "center" }}>
-                        <ThemedText style={{ fontSize: 24, fontWeight: "bold", color: "#10b981" }}>{importResult.successful}</ThemedText>
-                        <ThemedText>Successful</ThemedText>
-                      </View>
-                      <View style={{ alignItems: "center" }}>
-                        <ThemedText style={{ fontSize: 24, fontWeight: "bold", color: "#ef4444" }}>{importResult.failed}</ThemedText>
-                        <ThemedText>Failed</ThemedText>
-                      </View>
-                      <View style={{ alignItems: "center" }}>
-                        <ThemedText style={{ fontSize: 24, fontWeight: "bold", color: "#f59e0b" }}>{importResult.duplicates}</ThemedText>
-                        <ThemedText>Duplicates</ThemedText>
-                      </View>
-                    </View>
-
-                    {importResult.errors && importResult.errors.length > 0 && (
-                      <View style={{ marginBottom: 20 }}>
-                        <ThemedText style={{ fontWeight: "700", marginBottom: 8, color: "#ef4444" }}>Error Details</ThemedText>
-                        <View style={{ borderWidth: 1, borderColor: isDark ? "#374151" : "#e5e7eb", borderRadius: 8, overflow: "hidden" }}>
-                          <View style={{ flexDirection: "row", backgroundColor: isDark ? "#374151" : "#f9fafb", padding: 8 }}>
-                            <ThemedText style={{ flex: 1, fontWeight: "600" }}>Row</ThemedText>
-                            <ThemedText style={{ flex: 2, fontWeight: "600" }}>Field</ThemedText>
-                            <ThemedText style={{ flex: 3, fontWeight: "600" }}>Error</ThemedText>
-                          </View>
-                          {importResult.errors.map((err: any, idx: number) => (
-                            <View key={idx} style={{ flexDirection: "row", padding: 8, borderTopWidth: 1, borderColor: isDark ? "#374151" : "#e5e7eb" }}>
-                              <ThemedText style={{ flex: 1 }}>{err.row}</ThemedText>
-                              <ThemedText style={{ flex: 2 }}>{err.field}</ThemedText>
-                              <ThemedText style={{ flex: 3, color: "#ef4444" }}>{err.error}</ThemedText>
-                            </View>
-                          ))}
-                        </View>
-                      </View>
-                    )}
-
-                    <TouchableOpacity
-                      onPress={() => {
-                        setSelectedFile(null);
-                        setPreviewData([]);
-                        setImportStatus("idle");
-                        setImportResult(null);
-                      }}
-                      style={{
-                        backgroundColor: "#3b82f6",
-                        padding: 12,
-                        borderRadius: 10,
-                        alignItems: "center",
-                        marginBottom: 10,
-                      }}
-                    >
-                      <Text style={{ color: "#fff", fontWeight: "600" }}>Import Another File</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => {
-                        setImportModalVisible(false);
-                        fetchContacts();
-                      }}
-                      style={{
-                        borderWidth: 1,
-                        borderColor: "#d1d5db",
-                        padding: 12,
-                        borderRadius: 10,
-                        alignItems: "center",
-                      }}
-                    >
-                      <ThemedText style={{ fontWeight: "600" }}>View Contacts</ThemedText>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <View>
-                    <ThemedText style={{ fontSize: 20, fontWeight: "700", marginBottom: 8 }}>
-                      Import Contacts
-                    </ThemedText>
-                    <ThemedText style={{ marginBottom: 20 }}>
-                      Upload a CSV file to bulk import contacts
-                    </ThemedText>
-
-                    <ThemedText style={{ fontWeight: "700", marginBottom: 8 }}>
-                      Step 1: Download Template
-                    </ThemedText>
-                    <TouchableOpacity
-                      onPress={handleDownloadTemplate}
-                      style={{
-                        borderWidth: 1,
-                        borderColor: isDark ? "#374151" : "#e5e7eb",
-                        borderRadius: 10,
-                        padding: 12,
-                        marginBottom: 20,
-                        alignItems: "center",
-                        flexDirection: "row",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Ionicons name="download-outline" size={18} color={isDark ? "#fff" : "#000"} style={{ marginRight: 8 }} />
-                      <ThemedText>Download CSV Template</ThemedText>
-                    </TouchableOpacity>
-
-                    <ThemedText style={{ fontWeight: "700", marginBottom: 8 }}>
-                      Step 2: Upload CSV File
-                    </ThemedText>
-                    {selectedFile ? (
-                      <View style={{ borderWidth: 1, borderColor: isDark ? "#374151" : "#e5e7eb", borderRadius: 12, padding: 16, marginBottom: 20, alignItems: "center" }}>
-                        <Ionicons name="document-text" size={32} color="#3b82f6" />
-                        <ThemedText style={{ marginTop: 8, fontWeight: "600" }}>{selectedFile.name}</ThemedText>
-                        <TouchableOpacity onPress={handleBrowseFile} style={{ marginTop: 12 }}>
-                          <Text style={{ color: "#3b82f6" }}>Choose Different File</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ) : (
-                      <TouchableOpacity
-                        onPress={handleBrowseFile}
-                        style={{
-                          borderWidth: 2,
-                          borderStyle: "dashed",
-                          borderColor: isDark ? "#374151" : "#d1d5db",
-                          borderRadius: 12,
-                          padding: 24,
-                          alignItems: "center",
-                          marginBottom: 20,
-                        }}
-                      >
-                        <Ionicons name="cloud-upload-outline" size={40} color={isDark ? "#9ca3af" : "#6b7280"} />
-                        <ThemedText style={{ marginTop: 10 }}>Browse Files</ThemedText>
-                      </TouchableOpacity>
-                    )}
-
-                    {previewData.length > 0 && (
-                      <View style={{ marginBottom: 20 }}>
-                        <ThemedText style={{ fontWeight: "700", marginBottom: 8 }}>
-                          Step 3: Preview Data
-                        </ThemedText>
-                        <ThemedText style={{ fontSize: 12, marginBottom: 8, color: "#6b7280" }}>
-                          Showing first {previewData.length - 1} rows from your CSV file
-                        </ThemedText>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                          <View style={{ borderWidth: 1, borderColor: isDark ? "#374151" : "#e5e7eb", borderRadius: 8, overflow: "hidden" }}>
-                            {previewData.map((row, rowIndex) => (
-                              <View key={rowIndex} style={{ flexDirection: "row", backgroundColor: rowIndex === 0 ? (isDark ? "#374151" : "#f9fafb") : "transparent", borderBottomWidth: rowIndex === previewData.length - 1 ? 0 : 1, borderColor: isDark ? "#374151" : "#e5e7eb" }}>
-                                {row.map((cell, cellIndex) => (
-                                  <View key={cellIndex} style={{ width: 120, padding: 8, borderRightWidth: cellIndex === row.length - 1 ? 0 : 1, borderColor: isDark ? "#374151" : "#e5e7eb" }}>
-                                    <ThemedText style={{ fontSize: 12, fontWeight: rowIndex === 0 ? "600" : "400" }} numberOfLines={1}>{cell}</ThemedText>
-                                  </View>
-                                ))}
-                              </View>
-                            ))}
-                          </View>
-                        </ScrollView>
-                      </View>
-                    )}
-
-                    {selectedFile && (
-                      <View style={{ marginBottom: 20 }}>
-                        <ThemedText style={{ fontWeight: "700", marginBottom: 8 }}>
-                          Step 4: Import Contacts
-                        </ThemedText>
-                        <TouchableOpacity
-                          onPress={handleImportSubmit}
-                          disabled={importStatus === "importing"}
-                          style={{
-                            backgroundColor: importStatus === "importing" ? "#93c5fd" : "#3b82f6",
-                            padding: 12,
-                            borderRadius: 10,
-                            alignItems: "center",
-                            flexDirection: "row",
-                            justifyContent: "center",
-                          }}
-                        >
-                          {importStatus === "importing" ? (
-                            <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
-                          ) : (
-                            <Ionicons name="cloud-upload" size={18} color="#fff" style={{ marginRight: 8 }} />
-                          )}
-                          <Text style={{ color: "#fff", fontWeight: "600" }}>
-                            {importStatus === "importing" ? "Importing..." : "Import Contacts"}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-
-                    <TouchableOpacity
-                      onPress={() => setImportModalVisible(false)}
-                      style={{
-                        backgroundColor: "#ef4444",
-                        padding: 12,
-                        borderRadius: 10,
-                        alignItems: "center",
-                      }}
-                    >
-                      <Text style={{ color: "#fff", fontWeight: "600" }}>Close</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </ScrollView>
-            </ThemedView>
-          </View>
-        </Modal>
-
       </ThemedView>
     </ThemedView>
   );

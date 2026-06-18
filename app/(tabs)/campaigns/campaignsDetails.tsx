@@ -12,7 +12,7 @@ import { useAuth } from "@/context/AuthContext";
 import Toast from "react-native-toast-message";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -36,29 +36,27 @@ const platformIcons: Record<
   string,
   { Icon: any; color: string; name: string }
 > = {
-  SMS: { Icon: Ionicons, name: "chatbubble-ellipses-outline", color: "#10B981" },
-  EMAIL: { Icon: Ionicons, name: "mail", color: "#F59E0B" },
   WHATSAPP: { Icon: Ionicons, name: "logo-whatsapp", color: "#25D366" },
   INSTAGRAM: { Icon: FontAwesome, name: "instagram", color: "#C13584" },
   FACEBOOK: { Icon: FontAwesome, name: "facebook-square", color: "#1877F2" },
   YOUTUBE: { Icon: FontAwesome, name: "youtube-play", color: "#FF0000" },
   LINKEDIN: { Icon: FontAwesome, name: "linkedin-square", color: "#0A66C2" },
   PINTEREST: { Icon: FontAwesome, name: "pinterest", color: "#E60023" },
+  EMAIL: { Icon: Ionicons, name: "mail", color: "#F59E0B" },
+  SMS: { Icon: Ionicons, name: "chatbubble-ellipses-outline", color: "#10B981" },
 };
-
-const FIXED_PLATFORMS = Object.keys(platformIcons);
 
 export default function CampaignsDetails() {
   const { getToken } = useAuth();
   const params = useLocalSearchParams();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
 
+  /** Safe param parsing */
   const campaignStr =
     typeof params.campaign === "string" ? params.campaign : null;
   const campaignIdParam =
     typeof params.campaignId === "string" ? params.campaignId : null;
 
+  /** Try to parse campaign JSON string */
   const initialCampaign = useMemo<Campaign | null>(() => {
     if (!campaignStr) return null;
     try {
@@ -82,8 +80,8 @@ export default function CampaignsDetails() {
     typeof params.refreshCallback === "string";
 
   const [loadingCampaign, setLoadingCampaign] = useState(false);
-  const [isCampaignCardVisible, setIsCampaignCardVisible] = useState(true);
 
+  /** Determine final campaignId */
   const resolvedCampaignId = useMemo<number | undefined>(() => {
     if (campaign?.id) return campaign.id;
 
@@ -94,6 +92,7 @@ export default function CampaignsDetails() {
     return undefined;
   }, [campaign, campaignIdParam]);
 
+  // ========= ALERT WHEN YOUR CAMAPIGN COMPLETE AND TRY TO CLICK CREATE POST =========
   const getCampaignStatus = (campaign: Campaign | null) => {
     if (!campaign?.startDate || !campaign?.endDate) return "Scheduled";
 
@@ -114,37 +113,7 @@ export default function CampaignsDetails() {
   const campaignStatus = getCampaignStatus(campaign);
   const isCompleted = campaignStatus === "Completed";
 
-  const [shareModalVisible, setShareModalVisible] = useState(false);
-  const [contacts, setContacts] = useState<ContactsRecord[]>([]);
-  const [selectedContacts, setSelectedContacts] = useState<number[]>([]);
-  const [loadingContacts, setLoadingContacts] = useState(false);
-  const [currentSharePostId, setCurrentSharePostId] = useState<number | null>(null);
-
-  const fetchContactsForShare = useCallback(async () => {
-    try {
-      setLoadingContacts(true);
-
-      const res = await getContactsApi(1, 100, "");
-
-      const mapped: ContactsRecord[] = (res.contacts ?? []).map((c: any) => ({
-        id: c.id,
-        name: c.contactName,
-        email: c.contactEmail,
-        mobile: c.contactMobile,
-        whatsapp: c.contactWhatsApp,
-        show: true,
-        campaigns: c.campaigns ?? [],
-      }));
-
-      setContacts(mapped);
-    } catch (e) {
-      console.error("Failed to fetch contacts", e);
-      setContacts([]);
-    } finally {
-      setLoadingContacts(false);
-    }
-  }, []);
-
+  // ========= FETCH CAMPAIGN DETAILS =========
   useEffect(() => {
     const fetchCampaign = async () => {
       if (campaign || !resolvedCampaignId) return;
@@ -210,12 +179,6 @@ export default function CampaignsDetails() {
       });
 
       setPosts(normalizedPosts);
-      // Auto-collapse card if posts exist
-      if (normalizedPosts.length > 0) {
-        setIsCampaignCardVisible(false);
-      } else {
-        setIsCampaignCardVisible(true);
-      }
     } catch (error) {
       console.log("POSTS LOAD ERROR:", error);
       setPosts([]);
@@ -227,8 +190,7 @@ export default function CampaignsDetails() {
   useFocusEffect(
     useCallback(() => {
       fetchPosts();
-      fetchContactsForShare();
-    }, [fetchPosts, fetchContactsForShare])
+    }, [fetchPosts])
   );
 
   useEffect(() => {
@@ -240,50 +202,18 @@ export default function CampaignsDetails() {
   const postLength = posts.length;
 
   const filteredPosts = useMemo(() => {
-    let filtered = posts;
+    if (!searchQuery.trim()) return posts;
 
-    // Search filter
-    if (searchQuery.trim()) {
-      filtered = filtered.filter((post) =>
-        post.message?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        post.subject?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
+    const q = searchQuery.toLowerCase();
+    return posts.filter(
+      (p) =>
+        p.subject?.toLowerCase().includes(q) ||
+        p.message?.toLowerCase().includes(q) ||
+        p.type?.toLowerCase().includes(q)
+    );
+  }, [posts, searchQuery]);
 
-    // Platform filter
-    if (selectedPlatform !== "ALL") {
-      filtered = filtered.filter((post) => post.type === selectedPlatform);
-    }
-
-    return filtered;
-  }, [posts, searchQuery, selectedPlatform]);
-
-  const visiblePosts = useMemo(() => {
-    return filteredPosts.slice(0, visibleCount);
-  }, [filteredPosts, visibleCount]);
-
-  const handlePlatformPress = (plat: string, index: number) => {
-    setSelectedPlatform(plat);
-    if (plat !== "ALL") {
-      setPlatformOrder((prev) => {
-        // index 0 is 'ALL' in the UI, but platformOrder maps to tabs AFTER 'ALL'
-        // Wait, in the UI: ['ALL', ...platformOrder]
-        // So the tab at UI index 'index' is platformOrder[index - 1]
-
-        const otherIndex = index - 1;
-        if (otherIndex < 0) return prev;
-
-        const rotated = [
-          ...prev.slice(otherIndex),
-          ...prev.slice(0, otherIndex)
-        ];
-        return rotated;
-      });
-    }
-    platformScrollRef.current?.scrollTo({ x: 0, animated: true });
-    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-  };
-
+  const visiblePosts = filteredPosts.slice(0, visibleCount);
   const isAllVisible = visibleCount >= filteredPosts.length;
 
   // Post Status
@@ -301,6 +231,7 @@ export default function CampaignsDetails() {
     return "PENDING";
   };
 
+  // ========= POST ACTIONS =========
   const handleDeletePost = async (postId: number) => {
     const user = await getUser();
     const orgId = user?.organisation?.id;
@@ -320,6 +251,7 @@ export default function CampaignsDetails() {
             // ✅ Reload ALL posts after delete
             await fetchPosts();
 
+            // optional: reset visible count
             setVisibleCount(5);
           } catch (error) {
             Toast.show({
@@ -336,6 +268,7 @@ export default function CampaignsDetails() {
   };
 
 
+  // ========= HANDLE CREATE / EDIT POST =========
   const handleCreatePost = (campaignId: number) => {
     // console.log("campaignStartDate:", campaign?.startDate);
     // console.log("campaignEndDate:", campaign?.endDate);
@@ -362,23 +295,6 @@ export default function CampaignsDetails() {
         type: post.type,
       },
     });
-  };
-
-  const handleBoostPostAction = (post: any) => {
-    const status = getPostStatus(post);
-    if (status === "SENT") {
-      // Open external link
-      const adAccountId = post.metadata?.boosting?.adAccountId || "1237825278172670";
-      const pageId = post.metadata?.facebookPageId || "814937711712427";
-      const targetId = post.metadata?.facebookPostId || post.postId || "122129921193143563";
-
-      const url = `https://www.facebook.com/ad_center/create/boostpost/?ad_account_id=${adAccountId}&page_id=${pageId}&target_id=${targetId}&entry_point=partner_campzeo`;
-      Linking.openURL(url).catch(err => Alert.alert("Error", "Could not open Facebook Boost page"));
-    } else {
-      // Open modal
-      setCurrentBoostPostId(post.id);
-      setBoostModalVisible(true);
-    }
   };
 
   const PostSkeletonCard = ({ isDark }: { isDark: boolean }) => {
@@ -481,18 +397,12 @@ export default function CampaignsDetails() {
     );
   };
 
-  // ========= BOOST POST MODAL =========
-  const [boostModalVisible, setBoostModalVisible] = useState(false);
-  const [currentBoostPostId, setCurrentBoostPostId] = useState<number | null>(null);
-
-  const boostPostData = useMemo(() => {
-    if (!currentBoostPostId) return null;
-    return posts.find(p => p.id === currentBoostPostId);
-  }, [posts, currentBoostPostId]);
-
-  // ========= PREVIEW POST MODAL =========
-  const [previewModalVisible, setPreviewModalVisible] = useState(false);
-  const [previewPost, setPreviewPost] = useState<any | null>(null);
+  // ========= SHARE POST MODAL =========
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [contacts, setContacts] = useState<ContactsRecord[]>([]);
+  const [selectedContacts, setSelectedContacts] = useState<number[]>([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [currentSharePostId, setCurrentSharePostId] = useState<number | null>(null);
 
   // 🔧 FIX: sanitize post data for share modal (Pinterest issue)
   const sharePostData = useMemo(() => {
@@ -581,6 +491,7 @@ export default function CampaignsDetails() {
     try {
       setPublishing(true);
 
+      // 🔴 REQUIRED FOR PINTEREST
       if (post.type === "PINTEREST") {
         const boardId =
           post.metadata?.boardId || post.boardId || post.pinterestBoardId;
@@ -636,6 +547,7 @@ export default function CampaignsDetails() {
         );
       }
 
+      // ✅ CONTACT VALIDATION
       let contactsToSend: number[] = [];
       if (["SMS", "EMAIL", "WHATSAPP"].includes(post.type)) {
         if (selectedContacts.length === 0) {
@@ -1012,7 +924,7 @@ export default function CampaignsDetails() {
         Campaign Details
       </ThemedText>
 
-      {isCampaignCardVisible && campaign && (
+      {campaign && (
         <CampaignCard
         postLength={postLength}
           campaign={campaign}
@@ -1025,6 +937,7 @@ export default function CampaignsDetails() {
           onDelete={() => { }}
           onCopy={() => { }}
           onToggleShow={() => { }}
+          // onPressPost={() => campaign?.id && handleCreatePost(campaign.id)}
           onPressPost={() => {
             if (isCompleted) {
               Toast.show({
@@ -1039,184 +952,57 @@ export default function CampaignsDetails() {
         />
       )}
 
-      <View style={{ flex: 1, justifyContent: "flex-start" }}>
-        <View
-          style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}
+      {/* POSTS */}
+      <ThemedView className="flex-1" style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
+        <ThemedView
+          className="flex-row items-center justify-between mb-3"
+          style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
         >
-          {isCampaignCardVisible && (
-            <ThemedText
-              style={{
-                fontSize: 18,
-                fontWeight: "bold",
-                color: isDark ? "#ffffff" : "#000000",
-                marginRight: 12,
-              }}
-            >
-              Created Posts
-            </ThemedText>
-          )}
+          {/* Title */}
+          <ThemedText
+            style={{
+              fontSize: 18,
+              fontWeight: "bold",
+              color: isDark ? "#ffffff" : "#000000",
+            }}
+          >
+            Created Posts
+          </ThemedText>
 
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
-            <ThemedView
+          {/* Search */}
+          <ThemedView
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              borderWidth: 1,
+              borderColor: isDark ? "#3f3f46" : "#e5e7eb",
+              backgroundColor: isDark ? "#161618" : "#ffffff",
+              borderRadius: 50,
+              paddingHorizontal: 10,
+              height: 40,
+              width: 200,
+            }}
+          >
+            <Ionicons
+              name="search-outline"
+              size={16}
+              color={isDark ? "#9ca3af" : "#6b7280"}
+            />
+
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search posts"
+              placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
               style={{
-                flexDirection: "row",
-                alignItems: "center",
-                borderWidth: 1,
-                borderColor: isDark ? "#3f3f46" : "#e5e7eb",
-                backgroundColor: isDark ? "#161618" : "#ffffff",
-                borderRadius: 50,
-                paddingHorizontal: 10,
-                height: 40,
+                marginLeft: 6,
                 flex: 1,
+                fontSize: 13,
+                color: isDark ? "#ffffff" : "#000000",
               }}
-            >
-              <Ionicons
-                name="search-outline"
-                size={16}
-                color={isDark ? "#9ca3af" : "#6b7280"}
-              />
-
-              <TextInput
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder="Search Posts..."
-                placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
-                style={{
-                  marginLeft: 6,
-                  flex: 1,
-                  fontSize: 13,
-                  color: isDark ? "#ffffff" : "#000000",
-                }}
-              />
-            </ThemedView>
-
-            <TouchableOpacity
-              onPress={() => fetchPosts()}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: isDark ? "#161618" : "#f3f4f6",
-                borderWidth: 1,
-                borderColor: isDark ? "#3f3f46" : "#e5e7eb",
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="sync" size={20} color={isDark ? "#ffffff" : "#000000"} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {!isCampaignCardVisible && (
-          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-            <TouchableOpacity
-              onPress={() => handlePlatformPress("ALL", 0)}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 6,
-                paddingHorizontal: 16,
-                height: 38,
-                justifyContent: "center",
-                borderRadius: 20,
-                backgroundColor: selectedPlatform === "ALL"
-                  ? "#2563eb"
-                  : (isDark ? "#161618" : "#ffffff"),
-                borderWidth: 1.5,
-                borderColor: selectedPlatform === "ALL" ? "#2563eb" : (isDark ? "#3f3f46" : "#e5e7eb"),
-                marginRight: 8,
-                marginLeft: 4,
-              }}
-            >
-              <ThemedText style={{ color: selectedPlatform === "ALL" ? "#ffffff" : (isDark ? "#9ca3af" : "#6b7280"), fontWeight: "600", fontSize: 12 }}>
-                All
-              </ThemedText>
-              {getPostCount("ALL") > 0 && (
-                <View style={{
-                  backgroundColor: selectedPlatform === "ALL" ? "rgba(255,255,255,0.2)" : (isDark ? "#374151" : "#f3f4f6"),
-                  paddingHorizontal: 6,
-                  height: 18,
-                  minWidth: 18,
-                  borderRadius: 9,
-                  marginLeft: 4,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}>
-                  <ThemedText style={{ fontSize: 10, fontWeight: "700", color: selectedPlatform === "ALL" ? "#fff" : (isDark ? "#fff" : "#666") }}>
-                    {getPostCount("ALL")}
-                  </ThemedText>
-                </View>
-              )}
-            </TouchableOpacity>
-
-            <ScrollView
-              ref={platformScrollRef}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 8, paddingRight: 16, paddingBottom: 10, paddingTop: 2 }}
-            >
-              {platformOrder.map((plat, index) => {
-                const config = platformIcons[plat];
-                const isSelected = selectedPlatform === plat;
-                const count = getPostCount(plat);
-
-                return (
-                  <TouchableOpacity
-                    key={plat}
-                    onPress={() => handlePlatformPress(plat, index + 1)}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
-                      paddingHorizontal: 14,
-                      height: 38,
-                      borderRadius: 20,
-                      backgroundColor: isSelected
-                        ? "#2563eb"
-                        : (isDark ? "#161618" : "#ffffff"),
-                      borderWidth: 1.5,
-                      borderColor: isSelected ? "#2563eb" : (isDark ? "#3f3f46" : "#e5e7eb"),
-                    }}
-                  >
-                    <config.Icon
-                      name={config.name}
-                      size={16}
-                      color={isSelected ? "#ffffff" : (isDark ? "#9ca3af" : config.color)}
-                    />
-                    <ThemedText style={{
-                      color: isSelected ? "#ffffff" : (isDark ? "#9ca3af" : "#6b7280"),
-                      fontWeight: "600",
-                      fontSize: 12,
-                      textTransform: "capitalize"
-                    }}>
-                      {plat.toLowerCase()}
-                    </ThemedText>
-
-                    {count > 0 && (
-                      <View style={{
-                        backgroundColor: isSelected ? "rgba(255,255,255,0.2)" : (isDark ? "#374151" : "#f3f4f6"),
-                        paddingHorizontal: 6,
-                        height: 18,
-                        minWidth: 18,
-                        borderRadius: 9,
-                        marginLeft: 4,
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}>
-                        <ThemedText style={{ fontSize: 10, fontWeight: "700", color: isSelected ? "#fff" : (isDark ? "#fff" : "#666") }}>
-                          {count}
-                        </ThemedText>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-        )}
+            />
+          </ThemedView>
+        </ThemedView>
 
         {loadingPosts ? (
           <FlatList
@@ -1225,26 +1011,11 @@ export default function CampaignsDetails() {
             renderItem={() => <PostSkeletonCard isDark={isDark} />}
             showsVerticalScrollIndicator={false}
           />
-        ) : visiblePosts.length === 0 ? (
+        ) : posts.length === 0 ? (
           <ThemedView
             className="flex-1 justify-center items-center"
-            style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6", paddingTop: 10 }}
+            style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
           >
-            <View style={{ marginBottom: 16 }}>
-              {selectedPlatform !== "ALL" ? (
-                (() => {
-                  const config = platformIcons[selectedPlatform];
-                  return (
-                    <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: isDark ? "#1e1e20" : "#ffffff", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: isDark ? "#3f3f46" : "#e5e7eb" }}>
-                      <config.Icon name={config.name} size={32} color={isDark ? "#4b5563" : "#9ca3af"} />
-                    </View>
-                  );
-                })()
-              ) : (
-                <Ionicons name="documents-outline" size={64} color={isDark ? "#4b5563" : "#9ca3af"} />
-              )}
-            </View>
-
             <ThemedText
               style={{
                 fontSize: 18,
@@ -1253,9 +1024,7 @@ export default function CampaignsDetails() {
                 color: isDark ? "#ffffff" : "#000000",
               }}
             >
-              {selectedPlatform === "ALL"
-                ? (searchQuery ? "No search results" : "No posts yet")
-                : `No ${selectedPlatform.toLowerCase()} posts`}
+              No posts yet
             </ThemedText>
 
             <ThemedText
@@ -1266,21 +1035,17 @@ export default function CampaignsDetails() {
                 paddingHorizontal: 24,
               }}
             >
-              {selectedPlatform === "ALL"
-                ? (searchQuery ? "Try a different search term." : "Tap create post to create your first post...")
-                : `You haven't created any posts for ${selectedPlatform.toLowerCase()} yet.`}
+              Tap create post to create your first post...
             </ThemedText>
           </ThemedView>
         ) : (
           <FlatList
-            ref={flatListRef}
             data={visiblePosts}
             keyExtractor={(item) => String(item.id)}
             renderItem={({ item }) => renderPostItem({ item })}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 100 }}
             ListFooterComponent={
-              filteredPosts.length > 5 ? (
+              posts.length > 5 ? (
                 <TouchableOpacity
                   onPress={isAllVisible ? () => setVisibleCount(5) : () => setVisibleCount((v) => v + 5)}
                   className={`py-3 my-2 rounded-xl items-center ${isAllVisible ? isDark ? "bg-red-900/30" : "bg-red-100" : isDark ? "bg-blue-900/30" : "bg-blue-100"}`}
@@ -1293,7 +1058,7 @@ export default function CampaignsDetails() {
             }
           />
         )}
-      </View>
+      </ThemedView>
       <ShareCampaignPost
         visible={shareModalVisible}
         isDark={isDark}
@@ -1326,20 +1091,4 @@ export default function CampaignsDetails() {
       />
     </ThemedView>
   );
-
-  function normalizeHelper(url: string) {
-    if (!url) return "";
-    if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("file:")) {
-      // Google Drive check
-      const dMatch = url.match(/\/d\/([^/?=]+)/);
-      const idMatch = url.match(/[?&]id=([^?&]+)/);
-      const id = dMatch ? dMatch[1] : (idMatch ? idMatch[1] : null);
-      if (id) {
-        return `https://storage.campzeo.com/api/upload/google-drive/view?id=${id}&file=media`;
-      }
-      return url;
-    }
-    const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace("/api/", "") || "https://campzeo.com";
-    return `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
-  }
 }

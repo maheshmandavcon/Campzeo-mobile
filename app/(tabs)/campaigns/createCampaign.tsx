@@ -11,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Controller, SubmitHandler, useForm } from "react-hook-form";
+import { FlatList } from "react-native";
 import {
   ActivityIndicator,
   Alert,
@@ -62,7 +63,7 @@ export default function CreateCampaign() {
     cardBg: isDark ? "#1e1e24" : "#ffffff",
     cardBorder: isDark ? "#2a2a32" : "#e2e8f0",
     textPrimary: isDark ? "#ffffff" : "#0f172a",
-    textSecondary: isDark ? "#94a3b8" : "#64748b",
+    textSecondary: isDark ? "#fff" : "#000",
     inputBg: isDark ? "#1e1e24" : "#ffffff",
     inputBorder: isDark ? "#2a2a32" : "#cbd5e1",
     inputText: isDark ? "#ffffff" : "#0f172a",
@@ -76,6 +77,10 @@ export default function CreateCampaign() {
   const [startDateObj, setStartDateObj] = useState<Date | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
+  const [contactsPage, setContactsPage] = useState(1);
+  const [hasMoreContacts, setHasMoreContacts] = useState(true);
+  const [loadingMoreContacts, setLoadingMoreContacts] = useState(false);
+  const [isSelectingAll, setIsSelectingAll] = useState(false);
   const today = new Date();
   const minStartDate =
     startDateObj && startDateObj > today ? startDateObj : today;
@@ -134,9 +139,9 @@ export default function CreateCampaign() {
       const token = await getToken();
       if (!token) throw new Error("Token missing");
       const user = await getUser();
-      const orgId = user?.organisation?.id;      
+      const orgId = user?.organisation?.id;
       const res = await getCampaignByIdApi(campaignId, orgId, token);
-      
+
       const campaign = res;
 
       reset({
@@ -184,14 +189,16 @@ export default function CreateCampaign() {
         if (!token) throw new Error("Token missing");
         const user = await getUser();
         const orgId = user?.organisation?.id;
-        const res = await getContactsApi(orgId);
+        const res = await getContactsApi(orgId, 1, 15);
+        const fetchedContacts = res.contacts ?? [];
         setContacts(
-          (res.contacts ?? []).map((c: any) => ({
+          fetchedContacts.map((c: any) => ({
             id: c.id,
             name: c.contactName ?? "No Name",
             email: c.contactEmail ?? "No Email",
           })),
         );
+        setHasMoreContacts(fetchedContacts.length >= 15);
       } catch {
         Alert.alert("Error", "Failed to load contacts");
       } finally {
@@ -201,6 +208,48 @@ export default function CreateCampaign() {
 
     fetchContacts();
   }, []);
+
+  const handleLoadMoreContacts = async () => {
+    if (loadingContacts || loadingMoreContacts || !hasMoreContacts) return;
+
+    try {
+      setLoadingMoreContacts(true);
+      const nextPage = contactsPage + 1;
+      setContactsPage(nextPage);
+
+      const token = await getToken();
+      if (!token) return;
+      const user = await getUser();
+      const orgId = user?.organisation?.id;
+
+      const res = await getContactsApi(orgId, nextPage, 15);
+      const fetchedContacts = res.contacts ?? [];
+      const newContacts = fetchedContacts.map((c: any) => ({
+        id: c.id,
+        name: c.contactName ?? "No Name",
+        email: c.contactEmail ?? "No Email",
+      }));
+
+      setContacts((prev) => {
+        const existingIds = new Set(prev.map((c) => c.id));
+        const added = newContacts.filter((c: any) => !existingIds.has(c.id));
+        return [...prev, ...added];
+      });
+      setHasMoreContacts(fetchedContacts.length >= 15);
+    } catch (err) {
+      console.error("LOAD MORE CONTACTS ERROR:", err);
+    } finally {
+      setLoadingMoreContacts(false);
+    }
+  };
+
+  const handleScroll = (event: any) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - (layoutMeasurement.height * 2);
+    if (isCloseToBottom) {
+      handleLoadMoreContacts();
+    }
+  };
 
   // const hasInvalidPostDates = (startDate: string, endDate: string) => {
   //   if (!startDate || !endDate) return false;
@@ -284,6 +333,28 @@ export default function CreateCampaign() {
     );
   };
 
+  const handleSelectAllContacts = async () => {
+    try {
+      setIsSelectingAll(true);
+      const user = await getUser();
+      const orgId = user?.organisation?.id;
+
+      const res = await getContactsApi(orgId, 1, 100000);
+      const allContacts = res.contacts ?? [];
+      const allIds = allContacts.map((c: any) => c.id);
+
+      if (selectedContactIds.length === allIds.length && allIds.length > 0) {
+        setValue("contactIds", []);
+      } else {
+        setValue("contactIds", allIds);
+      }
+    } catch (e) {
+      console.log("Select All Error: ", e);
+    } finally {
+      setIsSelectingAll(false);
+    }
+  };
+
   const requiredLabel = (label: string) => (
     <Text
       style={{
@@ -313,7 +384,7 @@ export default function CreateCampaign() {
     );
   }
 
-  
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -321,9 +392,13 @@ export default function CreateCampaign() {
     >
       <ScrollView
         style={{ flex: 1, paddingHorizontal: 20, paddingTop: 20 }}
-        contentContainerStyle={{ paddingBottom: 60 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
         keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+        // showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        nestedScrollEnabled={true}
+        showsVerticalScrollIndicator={true}
       >
         {/* Header Row */}
         <View
@@ -352,6 +427,7 @@ export default function CreateCampaign() {
             >
               <Ionicons name="megaphone" size={24} color="#fff" />
             </View>
+
 
             <View style={{ marginLeft: 14 }}>
               <Text
@@ -407,12 +483,13 @@ export default function CreateCampaign() {
         <View>
           {/* NAME */}
           <View style={{ marginBottom: 16 }}>
-            {requiredLabel("Name")}
+            {requiredLabel("Campaign Name")}
             <Controller
               control={control}
               name="name"
               rules={{ required: "Name is required" }}
               render={({ field }) => (
+
                 <View
                   style={{
                     flexDirection: "row",
@@ -432,7 +509,7 @@ export default function CreateCampaign() {
                     style={{ marginRight: 10 }}
                   />
                   <TextInput
-                    placeholder="Campaign Name"
+                    placeholder="Enter Campaign Name"
                     value={field.value}
                     onChangeText={field.onChange}
                     style={{
@@ -458,6 +535,66 @@ export default function CreateCampaign() {
                 }}
               >
                 {errors.name.message}
+              </Text>
+            )}
+          </View>
+
+          {/* DESCRIPTION */}
+          <View style={{ marginBottom: 16 }}>
+            {requiredLabel("Description")}
+            <Controller
+              control={control}
+              name="description"
+              rules={{ required: "Description is required" }}
+              render={({ field }) => (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    backgroundColor: COLORS.inputBg,
+                    borderWidth: 1,
+                    borderColor: errors.description
+                      ? "#ef4444"
+                      : COLORS.inputBorder,
+                    borderRadius: 14,
+                    paddingHorizontal: 14,
+                    minHeight: 100,
+                  }}
+                >
+                  <Ionicons
+                    name="document-text-outline"
+                    size={18}
+                    color={COLORS.textSecondary}
+                    style={{ marginRight: 10, marginTop: 10 }}
+                  />
+
+                  <TextInput
+                    placeholder="Enter Description..."
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    multiline
+                    textAlignVertical="top"
+                    style={{
+                      color: COLORS.inputText,
+                      fontSize: 15,
+                      fontWeight: "600",
+                      flex: 1,
+                      minHeight: 80,
+                    }}
+                    placeholderTextColor={isDark ? "#52525b" : "#94a3b8"}
+                  />
+                </View>
+              )}
+            />
+            {errors.description && (
+              <Text
+                style={{
+                  color: "#ef4444",
+                  fontSize: 12,
+                  marginTop: 4,
+                  marginLeft: 4,
+                }}
+              >
+                {errors.description.message}
               </Text>
             )}
           </View>
@@ -650,72 +787,48 @@ export default function CreateCampaign() {
             )}
           </View>
 
-          {/* DESCRIPTION */}
-          <View style={{ marginBottom: 16 }}>
-            {requiredLabel("Description")}
-            <Controller
-              control={control}
-              name="description"
-              rules={{ required: "Description is required" }}
-              render={({ field }) => (
-                <View
-                  style={{
-                    backgroundColor: COLORS.inputBg,
-                    borderWidth: 1,
-                    borderColor: errors.description
-                      ? "#ef4444"
-                      : COLORS.inputBorder,
-                    borderRadius: 14,
-                    paddingHorizontal: 14,
-                    paddingVertical: 12,
-                    minHeight: 100,
-                  }}
-                >
-                  <TextInput
-                    placeholder="Enter Description..."
-                    value={field.value}
-                    onChangeText={field.onChange}
-                    multiline
-                    textAlignVertical="top"
-                    style={{
-                      color: COLORS.inputText,
-                      fontSize: 15,
-                      fontWeight: "600",
-                      flex: 1,
-                      minHeight: 80,
-                    }}
-                    placeholderTextColor={isDark ? "#52525b" : "#94a3b8"}
-                  />
-                </View>
-              )}
-            />
-            {errors.description && (
-              <Text
-                style={{
-                  color: "#ef4444",
-                  fontSize: 12,
-                  marginTop: 4,
-                  marginLeft: 4,
-                }}
-              >
-                {errors.description.message}
-              </Text>
-            )}
-          </View>
-
           {/* CONTACTS */}
-          <Text
+          <View
             style={{
-              fontSize: 14,
-              fontWeight: "700",
-              color: COLORS.textSecondary,
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
               marginBottom: 8,
               marginTop: 16,
               marginLeft: 4,
+              marginRight: 4,
             }}
           >
-            SELECT CONTACTS
-          </Text>
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: "700",
+                color: COLORS.textSecondary,
+              }}
+            >
+              Select Contact {selectedContactIds.length > 0 ? `(${selectedContactIds.length})` : ""}
+            </Text>
+
+            {contacts.length > 0 && (
+              <TouchableOpacity onPress={handleSelectAllContacts} disabled={isSelectingAll}>
+                {isSelectingAll ? (
+                  <ActivityIndicator size="small" color="#0284c7" />
+                ) : (
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: "700",
+                      color: "#0284c7",
+                    }}
+                  >
+                    {selectedContactIds.length > 0 && selectedContactIds.length >= contacts.length
+                      ? "Deselect All"
+                      : "Select All"}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
 
           {loadingContacts ? (
             <ActivityIndicator
@@ -791,22 +904,38 @@ export default function CreateCampaign() {
                 borderColor: COLORS.cardBorder,
                 backgroundColor: COLORS.cardBg,
                 padding: 8,
+                maxHeight: 400, // important
               }}
             >
-              {contacts.map((c) => {
+              <FlatList
+                data={contacts}
+              keyExtractor={(item) => item.id.toString()}
+              nestedScrollEnabled
+              showsVerticalScrollIndicator
+              onEndReached={handleLoadMoreContacts}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={
+                loadingMoreContacts ? (
+                  <ActivityIndicator
+                    size="small"
+                    color="#0284c7"
+                    style={{ marginVertical: 12 }}
+                  />
+                ) : null
+              }
+              renderItem={({ item: c }) => {
                 const checked = selectedContactIds.includes(c.id);
                 const initials = c.name
                   ? c.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase()
-                      .slice(0, 2)
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2)
                   : "C";
 
                 return (
                   <TouchableOpacity
-                    key={c.id}
                     onPress={() => toggleContact(c.id)}
                     style={{
                       marginVertical: 4,
@@ -891,7 +1020,17 @@ export default function CreateCampaign() {
                     </View>
                   </TouchableOpacity>
                 );
-              })}
+              }}
+              // ListFooterComponent={
+              //   loadingMoreContacts ? (
+              //     <ActivityIndicator
+              //       size="small"
+              //       color="#0284c7"
+              //       style={{ marginVertical: 12 }}
+              //     />
+              //   ) : null
+              // }
+                />
             </View>
           )}
         </View>
@@ -927,6 +1066,10 @@ export default function CreateCampaign() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
-    </KeyboardAvoidingView>
+
+
+
+    </KeyboardAvoidingView >
+
   );
 }

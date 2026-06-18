@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   StyleSheet,
@@ -42,7 +43,7 @@ export default function LoginScreen() {
       if (!response?.success || !response?.token) {
         throw new Error(response?.message || "Invalid email or password");
       }
-// console.log("tokknn",response.token);
+      // console.log("tokknn",response.token);
 
       await setSession(response.token, response.user);
       router.replace("/(tabs)/dashboard");
@@ -99,7 +100,7 @@ export default function LoginScreen() {
           <View style={styles.form}>
             {/* Email */}
             <View style={styles.inputGroup}>
-              <ThemedText style={styles.label}>Email Address</ThemedText>
+              <ThemedText style={styles.label}>Email</ThemedText>
               <Input variant="outline" size="lg" style={styles.inputWrapper}>
                 <InputSlot style={{ paddingLeft: 12 }}>
                   <Ionicons name="mail-outline" size={20} color="#991b1b" />
@@ -147,7 +148,10 @@ export default function LoginScreen() {
             </View>
 
             {/* Forgot Password */}
-            <Pressable style={styles.forgotPassword}>
+            <Pressable
+              style={styles.forgotPassword}
+              onPress={() => Linking.openURL("https://campzeo.com/forgot-password")}
+            >
               <ThemedText style={styles.forgotPasswordText}>
                 Forgot Password?
               </ThemedText>

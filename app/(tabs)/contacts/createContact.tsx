@@ -47,6 +47,10 @@ export default function CreateContact() {
   const { getToken } = useAuth();
   const [campaignOptions, setCampaignOptions] = useState<CampaignOption[]>([]);
   const [loadingCampaigns, setLoadingCampaigns] = useState(false);
+  const [campaignsPage, setCampaignsPage] = useState(1);
+  const [hasMoreCampaigns, setHasMoreCampaigns] = useState(true);
+  const [loadingMoreCampaigns, setLoadingMoreCampaigns] = useState(false);
+  const [isSelectingAll, setIsSelectingAll] = useState(false);
   const isDark = useColorScheme() === "dark";
 
   const { contactId, record: recordStr } = useLocalSearchParams();
@@ -121,24 +125,89 @@ export default function CreateContact() {
     hasResetRef.current = true;
   }, [editingContact, reset]);
 
-   const fetchCampaigns = async () => {
-      setLoadingCampaigns(true);
-      try {
-        const token = await getToken();
-        if (!token) throw new Error("Token missing");
-        const user = await getUser();
-        const orgId = user?.organisation?.id;
-        const data = await getCampaignsApi(orgId);
-        const options =
-          data?.campaigns?.map((c: any) => ({ id: c.id, name: c.name })) ?? [];
-        setCampaignOptions(options);
-      } catch (err) {
-        console.error("Failed to load campaigns:", err);
-        Alert.alert("Error", "Failed to load campaigns");
-      } finally {
-        setLoadingCampaigns(false);
+  const fetchCampaigns = async () => {
+    setLoadingCampaigns(true);
+    try {
+      const token = await getToken();
+      if (!token) throw new Error("Token missing");
+      const user = await getUser();
+      const orgId = user?.organisation?.id;
+      const data = await getCampaignsApi(orgId, 1, 15);
+      const fetchedCampaigns = data?.campaigns ?? [];
+      const options =
+        fetchedCampaigns.map((c: any) => ({ id: c.id, name: c.name }));
+      setCampaignOptions(options);
+      setHasMoreCampaigns(fetchedCampaigns.length >= 15);
+    } catch (err) {
+      console.error("Failed to load campaigns:", err);
+      Alert.alert("Error", "Failed to load campaigns");
+    } finally {
+      setLoadingCampaigns(false);
+    }
+  };
+
+  const handleLoadMoreCampaigns = async () => {
+    if (loadingCampaigns || loadingMoreCampaigns || !hasMoreCampaigns) return;
+
+    try {
+      setLoadingMoreCampaigns(true);
+      const nextPage = campaignsPage + 1;
+      setCampaignsPage(nextPage);
+
+      const token = await getToken();
+      if (!token) return;
+      const user = await getUser();
+      const orgId = user?.organisation?.id;
+
+      const data = await getCampaignsApi(orgId, nextPage, 15);
+      const fetchedCampaigns = data?.campaigns ?? [];
+      const newOptions = fetchedCampaigns.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+      }));
+
+      setCampaignOptions((prev) => {
+        const existingIds = new Set(prev.map(c => c.id));
+        const added = newOptions.filter((c: any) => !existingIds.has(c.id));
+        return [...prev, ...added];
+      });
+      setHasMoreCampaigns(fetchedCampaigns.length >= 15);
+    } catch (err) {
+      console.error("LOAD MORE CAMPAIGNS ERROR:", err);
+    } finally {
+      setLoadingMoreCampaigns(false);
+    }
+  };
+
+  const handleScroll = (event: any) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - (layoutMeasurement.height * 2);
+    if (isCloseToBottom) {
+      handleLoadMoreCampaigns();
+    }
+  };
+
+  const handleSelectAllCampaigns = async () => {
+    try {
+      setIsSelectingAll(true);
+      const user = await getUser();
+      const orgId = user?.organisation?.id || 0;
+
+      const res = await getCampaignsApi(orgId, 1, 100000);
+      const allCampaigns = res.campaigns ?? [];
+      const allIds = allCampaigns.map((c: any) => c.id);
+
+      if (selectedCampaigns.length === allIds.length && allIds.length > 0) {
+        setValue("campaignIds", []);
+      } else {
+        setValue("campaignIds", allIds);
       }
-    };
+    } catch (e) {
+      console.log("Select All Error: ", e);
+    } finally {
+      setIsSelectingAll(false);
+    }
+  };
 
   /* Fetch campaigns dynamically */
   useEffect(() => {
@@ -216,10 +285,10 @@ export default function CreateContact() {
   const COLORS = {
     screenBg: isDark ? "#121214" : "#f8fafc",
     cardBg: isDark ? "#1e1e24" : "#ffffff",
-    cardBorder: isDark ? "#2e2e38" : "#f1f5f9",
+    cardBorder: isDark ? "#2a2a32" : "#e2e8f0",
     textPrimary: isDark ? "#ffffff" : "#0f172a",
     textSecondary: isDark ? "#94a3b8" : "#475569",
-    inputBg: isDark ? "#16161a" : "#f1f5f9",
+    inputBg: isDark ? "#16161a" : "#fff",
     inputBorder: isDark ? "#2e2e38" : "#cbd5e1",
     inputText: isDark ? "#ffffff" : "#0f172a",
     iconBg: isDark ? "#2a2a32" : "#e2e8f0",
@@ -234,6 +303,8 @@ export default function CreateContact() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
       >
         {/* Navigation & Header row */}
         {/* <View style={styles.topRow}>
@@ -246,41 +317,99 @@ export default function CreateContact() {
         </View> */}
 
         {/* Hero Section */}
-        <View style={[styles.heroCard, { backgroundColor: COLORS.cardBg, borderColor: COLORS.cardBorder }]}>
-          <View style={styles.heroLeft}>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 20,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
             <View style={styles.badgeContainer}>
-              <Ionicons name={isEdit ? "person" : "person-add"} size={26} color="#fff" />
+              <Ionicons
+                name={isEdit ? "person" : "person-add"}
+                size={26}
+                color="#fff"
+              />
             </View>
-            <View>
+
+            <View style={{ marginLeft: 14, flex: 1 }}>
               <Text style={[styles.heroTitle, { color: COLORS.textPrimary }]}>
                 {isEdit ? "Edit Contact" : "Create Contact"}
               </Text>
+
               <Text style={[styles.heroSubtitle, { color: COLORS.textSecondary }]}>
-                {isEdit ? "Modify and update contact details" : "Manage your contact list and campaign associations"}
+                {isEdit
+                  ? "Modify and update contact details"
+                  : "Manage your contact list and campaign associations"}
               </Text>
             </View>
           </View>
+
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{
+              height: 40,
+              width: 40,
+              borderRadius: 20,
+              backgroundColor: COLORS.cardBg,
+              borderWidth: 1,
+              borderColor: COLORS.cardBorder,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Ionicons
+              name="close"
+              size={20}
+              color={COLORS.textPrimary}
+            />
+          </TouchableOpacity>
         </View>
 
+        <View
+          style={{
+            height: 1,
+            backgroundColor: COLORS.cardBorder,
+            marginBottom: 16,
+          }}
+        />
+
         {/* Form Area */}
-        <View style={[styles.formCard, { backgroundColor: COLORS.cardBg, borderColor: COLORS.cardBorder }]}>
-          
+        <View>
           {/* Name Field */}
           <View style={styles.fieldBlock}>
             <View style={styles.labelRow}>
-              <Text style={[styles.fieldLabel, { color: COLORS.textPrimary }]}>Full Name</Text>
+              <Text style={[styles.fieldLabel, { color: COLORS.textPrimary }]}>
+                Full Name
+              </Text>
               <Text style={styles.requiredStar}>*</Text>
             </View>
+
             <Controller
               control={control}
               name="name"
               render={({ field: { onChange, value } }) => (
-                <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBg, borderColor: COLORS.inputBorder }]}>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    {
+                      backgroundColor: COLORS.inputBg,
+                      borderColor: COLORS.inputBorder,
+                    },
+                  ]}
+                >
                   <View style={styles.inputPrefixIcon}>
-                    <Ionicons name="person-outline" size={18} color={COLORS.iconColor} />
+                    <Ionicons
+                      name="person-outline"
+                      size={18}
+                      color={COLORS.iconColor}
+                    />
                   </View>
+
                   <TextInput
-                    placeholder="e.g. Amit Jamwal"
+                    placeholder="Enter Your Name"
                     placeholderTextColor={isDark ? "#52525b" : "#94a3b8"}
                     value={value}
                     onChangeText={onChange}
@@ -289,25 +418,42 @@ export default function CreateContact() {
                 </View>
               )}
             />
+
             {errors.name && (
               <Text style={styles.errorMsg}>{errors.name.message}</Text>
             )}
           </View>
 
           {/* Email Field */}
-          <View style={styles.fieldBlock}>
+          <View style={[styles.fieldBlock, { marginTop: 16 }]}>
             <View style={styles.labelRow}>
-              <Text style={[styles.fieldLabel, { color: COLORS.textPrimary }]}>Email Address</Text>
+              <Text style={[styles.fieldLabel, { color: COLORS.textPrimary }]}>
+                Email Address
+              </Text>
               <Text style={styles.requiredStar}>*</Text>
             </View>
+
             <Controller
               control={control}
               name="email"
               render={({ field: { onChange, value } }) => (
-                <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBg, borderColor: COLORS.inputBorder }]}>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    {
+                      backgroundColor: COLORS.inputBg,
+                      borderColor: COLORS.inputBorder,
+                    },
+                  ]}
+                >
                   <View style={styles.inputPrefixIcon}>
-                    <Ionicons name="mail-outline" size={18} color={COLORS.iconColor} />
+                    <Ionicons
+                      name="mail-outline"
+                      size={18}
+                      color={COLORS.iconColor}
+                    />
                   </View>
+
                   <TextInput
                     placeholder="e.g. name@domain.com"
                     placeholderTextColor={isDark ? "#52525b" : "#94a3b8"}
@@ -320,25 +466,42 @@ export default function CreateContact() {
                 </View>
               )}
             />
+
             {errors.email && (
               <Text style={styles.errorMsg}>{errors.email.message}</Text>
             )}
           </View>
 
           {/* Mobile Field */}
-          <View style={styles.fieldBlock}>
+          <View style={[styles.fieldBlock, { marginTop: 16 }]}>
             <View style={styles.labelRow}>
-              <Text style={[styles.fieldLabel, { color: COLORS.textPrimary }]}>Mobile Phone</Text>
+              <Text style={[styles.fieldLabel, { color: COLORS.textPrimary }]}>
+                Mobile Phone
+              </Text>
               <Text style={styles.requiredStar}>*</Text>
             </View>
+
             <Controller
               control={control}
               name="mobile"
               render={({ field: { onChange, value } }) => (
-                <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBg, borderColor: COLORS.inputBorder }]}>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    {
+                      backgroundColor: COLORS.inputBg,
+                      borderColor: COLORS.inputBorder,
+                    },
+                  ]}
+                >
                   <View style={styles.inputPrefixIcon}>
-                    <Ionicons name="call-outline" size={18} color={COLORS.iconColor} />
+                    <Ionicons
+                      name="call-outline"
+                      size={18}
+                      color={COLORS.iconColor}
+                    />
                   </View>
+
                   <TextInput
                     placeholder="e.g. +91 99999 99999"
                     placeholderTextColor={isDark ? "#52525b" : "#94a3b8"}
@@ -350,25 +513,41 @@ export default function CreateContact() {
                 </View>
               )}
             />
+
             {errors.mobile && (
               <Text style={styles.errorMsg}>{errors.mobile.message}</Text>
             )}
           </View>
 
           {/* WhatsApp Field */}
-          <View style={styles.fieldBlock}>
+          <View style={[styles.fieldBlock, { marginTop: 16 }]}>
             <View style={styles.labelRow}>
-              <Text style={[styles.fieldLabel, { color: COLORS.textPrimary }]}>WhatsApp Number</Text>
-              <Text style={styles.requiredStar}>*</Text>
+              <Text style={[styles.fieldLabel, { color: COLORS.textPrimary }]}>
+                WhatsApp Number (Optional)
+              </Text>
             </View>
+
             <Controller
               control={control}
               name="whatsapp"
               render={({ field: { onChange, value } }) => (
-                <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBg, borderColor: COLORS.inputBorder }]}>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    {
+                      backgroundColor: COLORS.inputBg,
+                      borderColor: COLORS.inputBorder,
+                    },
+                  ]}
+                >
                   <View style={styles.inputPrefixIcon}>
-                    <Ionicons name="logo-whatsapp" size={18} color="#22c55e" />
+                    <Ionicons
+                      name="logo-whatsapp"
+                      size={18}
+                      color={COLORS.iconColor}
+                    />
                   </View>
+
                   <TextInput
                     placeholder="e.g. +91 99999 99999"
                     placeholderTextColor={isDark ? "#52525b" : "#94a3b8"}
@@ -380,80 +559,227 @@ export default function CreateContact() {
                 </View>
               )}
             />
+
             {errors.whatsapp && (
               <Text style={styles.errorMsg}>{errors.whatsapp.message}</Text>
             )}
           </View>
 
-          {/* Associate Campaigns Chips Selection */}
-          <View style={styles.fieldBlock}>
-            <Text style={[styles.fieldLabel, { color: COLORS.textPrimary, marginBottom: 8 }]}>
-              Linked Marketing Campaigns
+        </View>
+
+        {/* LINKED CAMPAIGNS SECTION */}
+
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 8,
+            marginTop: 16,
+            marginLeft: 4,
+            marginRight: 4,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "700",
+              color: COLORS.textSecondary,
+            }}
+          >
+            Select Campaigns {selectedCampaigns.length > 0 ? `(${selectedCampaigns.length})` : ""}
+          </Text>
+
+          {campaignOptions.length > 0 && (
+            <TouchableOpacity onPress={handleSelectAllCampaigns} disabled={isSelectingAll}>
+              {isSelectingAll ? (
+                <ActivityIndicator size="small" color="#dc2626" />
+              ) : (
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "700",
+                    color: "#dc2626",
+                  }}
+                >
+                  {selectedCampaigns.length > 0 && selectedCampaigns.length >= campaignOptions.length
+                    ? "Deselect All"
+                    : "Select All"}
+                </Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {loadingCampaigns ? (
+          <ActivityIndicator
+            size="small"
+            color="#dc2626"
+            style={{ marginTop: 12 }}
+          />
+        ) : campaignOptions.length === 0 ? (
+          <View
+            style={{
+              marginTop: 12,
+              paddingVertical: 28,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: COLORS.cardBorder,
+              backgroundColor: COLORS.cardBg,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Ionicons
+              name="megaphone-outline"
+              size={40}
+              color={COLORS.iconColor}
+            />
+
+            <Text
+              style={{
+                marginTop: 10,
+                fontSize: 16,
+                fontWeight: "600",
+                color: COLORS.textPrimary,
+              }}
+            >
+              No Campaigns Found
             </Text>
 
-            {loadingCampaigns ? (
-              <View style={styles.centeredLoading}>
-                <ActivityIndicator size="small" color="#dc2626" />
-              </View>
-            ) : campaignOptions.length === 0 ? (
-              <View style={[styles.emptyCampaignContainer, { backgroundColor: COLORS.inputBg, borderColor: COLORS.inputBorder }]}>
-                <Ionicons name="megaphone-outline" size={28} color={COLORS.iconColor} style={{ marginBottom: 6 }} />
-                <Text style={[styles.emptyCampaignText, { color: COLORS.textPrimary }]}>No active campaigns found</Text>
-                <Text style={[styles.emptyCampaignSub, { color: COLORS.textSecondary }]}>Create a campaign before connecting contacts.</Text>
-                <TouchableOpacity
-                  onPress={() => router.push("/campaigns/createCampaign")}
-                  style={styles.campaignBtnCTA}
-                >
-                  <Text style={styles.campaignBtnCTAText}>+ Create Campaign</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.chipsContainer}>
-                {campaignOptions.map((campaign) => {
-                  const checked = selectedCampaigns.includes(campaign.id);
-                  return (
-                    <TouchableOpacity
-                      key={campaign.id}
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        const current = [...selectedCampaigns];
-                        setValue(
-                          "campaignIds",
-                          checked
-                            ? current.filter((id) => id !== campaign.id)
-                            : [...current, campaign.id],
-                        );
-                      }}
-                      style={[
-                        styles.chipPill,
+            <Text
+              style={{
+                marginTop: 4,
+                fontSize: 13,
+                color: COLORS.textSecondary,
+                textAlign: "center",
+                paddingHorizontal: 20,
+              }}
+            >
+              Create a campaign first to associate it with this contact.
+            </Text>
+
+            <TouchableOpacity
+              onPress={() =>
+                router.push({
+                  pathname: "/(tabs)/campaigns/createCampaign",
+                  params: {
+                    returnTo: "/contacts/createContacts",
+                  },
+                })
+              }
+              style={{
+                marginTop: 16,
+                backgroundColor: "#dc2626",
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                borderRadius: 10,
+                flexDirection: "row",
+                alignItems: "center",
+              }}
+            >
+              <Ionicons
+                name="add-circle-outline"
+                size={18}
+                color="#fff"
+                style={{ marginRight: 6 }}
+              />
+              <Text
+                style={{
+                  color: "#fff",
+                  fontWeight: "600",
+                }}
+              >
+                Create Campaign
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View
+            style={{
+              marginTop: 12,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: COLORS.cardBorder,
+              backgroundColor: COLORS.cardBg,
+              padding: 8,
+              alignItems: "flex-start",
+              justifyContent: "center",
+            }}
+          >
+            <View style={styles.chipsContainer}>
+              {campaignOptions.map((campaign) => {
+                const checked = selectedCampaigns.includes(campaign.id);
+
+                return (
+                  <TouchableOpacity
+                    key={campaign.id}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      const current = [...selectedCampaigns];
+
+                      setValue(
+                        "campaignIds",
                         checked
-                          ? styles.chipPillSelected
-                          : [styles.chipPillUnselected, { backgroundColor: COLORS.inputBg, borderColor: COLORS.inputBorder }]
+                          ? current.filter((id) => id !== campaign.id)
+                          : [...current, campaign.id]
+                      );
+                    }}
+                    style={[
+                      styles.chipPill,
+                      checked
+                        ? styles.chipPillSelected
+                        : [
+                          styles.chipPillUnselected,
+                          {
+                            backgroundColor: COLORS.inputBg,
+                            borderColor: COLORS.inputBorder,
+                          },
+                        ],
+                    ]}
+                  >
+                    <Ionicons
+                      name={
+                        checked
+                          ? "checkmark-circle"
+                          : "add-circle-outline"
+                      }
+                      size={16}
+                      color={checked ? "#ffffff" : COLORS.iconColor}
+                      style={{ marginRight: 6 }}
+                    />
+
+                    <Text
+                      style={[
+                        styles.chipText,
+                        {
+                          color: checked
+                            ? "#ffffff"
+                            : COLORS.textPrimary,
+                        },
                       ]}
                     >
-                      <Ionicons
-                        name={checked ? "checkmark-circle" : "add-circle-outline"}
-                        size={16}
-                        color={checked ? "#ffffff" : COLORS.iconColor}
-                        style={{ marginRight: 6 }}
-                      />
-                      <Text style={[styles.chipText, { color: checked ? "#ffffff" : COLORS.textPrimary }]}>
-                        {campaign.name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
+                      {campaign.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+              {loadingMoreCampaigns && (
+                <ActivityIndicator
+                  size="small"
+                  color="#dc2626"
+                  style={{ marginVertical: 12, width: "100%" }}
+                />
+              )}
+            </View>
           </View>
-
-        </View>
+        )}
 
         {/* Submit Action Block */}
         <TouchableOpacity
           disabled={isSubmitting}
           onPress={handleSubmit(onSubmit)}
-          style={[styles.submitButton, { opacity: isSubmitting ? 0.6 : 1 }]}
+          style={[styles.submitButton, { marginTop: 24, opacity: isSubmitting ? 0.6 : 1 }]}
         >
           {isSubmitting ? (
             <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 8 }} />
@@ -464,8 +790,8 @@ export default function CreateContact() {
                 ? "Updating Account..."
                 : "Registering Contact..."
               : isEdit
-                ? "Update Contact Details"
-                : "Save New Contact"}
+                ? "Update Contact"
+                : "Create Contact"}
           </Text>
         </TouchableOpacity>
       </ScrollView>

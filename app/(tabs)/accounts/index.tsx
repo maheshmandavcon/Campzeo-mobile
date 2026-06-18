@@ -3,8 +3,8 @@ import {
   Ionicons,
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +14,7 @@ import {
   StyleSheet,
   useColorScheme,
   View,
+  RefreshControl,
 } from "react-native";
 
 import {
@@ -108,6 +109,7 @@ export default function Accounts() {
   const isDark = colorScheme === "dark";
 
   const [pageLoading, setPageLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [platforms, setPlatforms] = useState<SocialItem[]>(initialPlatforms);
   const [loadingPlatform, setLoadingPlatform] = useState<string | null>(null);
   const [loadingAction, setLoadingAction] = useState<
@@ -170,9 +172,17 @@ export default function Accounts() {
     }
   };
 
-  useEffect(() => {
-    fetchConnections();
-  }, []);
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchConnections(false);
+    setIsRefreshing(false);
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchConnections(true);
+    }, [])
+  );
 
   const fetchFacebookPagesForSelection = async () => {
     try {
@@ -252,7 +262,7 @@ export default function Accounts() {
         Alert.alert(
           "Disconnect failed",
           response?.errorMessage ||
-            `Unable to disconnect ${platformToDisconnect.title}.`,
+          `Unable to disconnect ${platformToDisconnect.title}.`,
         );
         return;
       }
@@ -300,13 +310,13 @@ export default function Accounts() {
 
   const renderHeader = (loading: boolean) => (
     <HStack style={styles.header}>
-      <Pressable
+      {/* <Pressable
         disabled={loading}
         onPress={() => router.back()}
         style={styles.iconButton}
       >
         <Ionicons name="arrow-back-outline" size={22} color={colors.text} />
-      </Pressable>
+      </Pressable> */}
 
       <VStack style={styles.headerText}>
         <ThemedText style={[styles.title, { color: colors.text }]}>
@@ -322,7 +332,7 @@ export default function Accounts() {
         onPress={() => fetchConnections()}
         style={styles.iconButton}
       >
-        <Ionicons name="refresh" size={21} color={colors.text} />
+        <Ionicons name="sync-outline" size={22} color={colors.text} />
       </Pressable>
     </HStack>
   );
@@ -337,9 +347,11 @@ export default function Accounts() {
             { backgroundColor: colors.card, borderColor: colors.border },
           ]}
         >
-          <ShimmerSkeleton height={18} width={150} />
-          <ShimmerSkeleton height={34} width={90} borderRadius={16} />
-          <ShimmerSkeleton height={12} width="85%" />
+          <View style={{ gap: 12 }}>
+            <ShimmerSkeleton height={18} width={150} />
+            <ShimmerSkeleton height={34} width={90} borderRadius={16} />
+            <ShimmerSkeleton height={12} width="85%" />
+          </View>
         </View>
 
         {Array.from({ length: 5 }).map((_, index) => (
@@ -373,6 +385,9 @@ export default function Accounts() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor="#dc2626" />
+        }
       >
         <View
           style={[
@@ -675,7 +690,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 64,
+    paddingTop: 10,
   },
   content: {
     paddingBottom: 32,
@@ -694,19 +709,20 @@ const styles = StyleSheet.create({
     width: 40,
   },
   headerText: {
-    alignItems: "center",
     flex: 1,
-    paddingHorizontal: 8,
+    marginLeft: 12,
+    alignItems: "flex-start",
+  },
+
+  subtitle: {
+    fontSize: 13,
+    marginTop: 4,
+    textAlign: "left",
   },
   title: {
     fontSize: 24,
     fontWeight: "800",
     lineHeight: 30,
-  },
-  subtitle: {
-    fontSize: 13,
-    marginTop: 4,
-    textAlign: "center",
   },
   summaryCard: {
     borderRadius: 20,

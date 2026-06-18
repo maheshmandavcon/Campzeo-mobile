@@ -8,7 +8,9 @@ import {
   requestTwilioAccess,
   updateAutoRenew,
   getCreditPackages,
+  getAddOns,
 } from "@/api/billingApi";
+import { getUser } from "@/api/dashboardApi";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
@@ -26,6 +28,7 @@ import {
   Switch,
   Modal,
   View,
+  Dimensions,
 } from "react-native";
 import Toast from "react-native-toast-message";
 import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
@@ -48,6 +51,7 @@ import {
   Circle,
   CircleDot,
   Loader2,
+  Package,
 } from "lucide-react-native";
 import { fetchInvoices } from "@/api/invoicesApi";
 
@@ -72,6 +76,7 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true);
   const [usageData, setUsageData] = useState<any>(null);
   const [subscriptionData, setSubscriptionData] = useState<any>(null);
+  const [userData, setUserData] = useState<any>(null);
   const [balanceData, setBalanceData] = useState<any>(null);
   const [plansData, setPlansData] = useState<any[]>([]);
   const [paymentsData, setPaymentsData] = useState<{ invoices: any[] }>({
@@ -80,10 +85,13 @@ export default function BillingPage() {
   const [comparisonPlanColumns, setComparisonPlanColumns] = useState<any[]>([]);
   const [comparisonFeatures, setComparisonFeatures] = useState<any[]>([]);
   const [creditPackages, setCreditPackages] = useState<any[]>([]);
+  const [addOns, setAddOns] = useState<any[]>([]);
+  const [addOnQuantities, setAddOnQuantities] = useState<Record<number, number>>({});
   // UI State
   const [activeBillingTab, setActiveBillingTab] = useState<"plans" | "credits">(
     "plans",
   );
+  const [plansTab, setPlansTab] = useState<'plans' | 'addons'>('plans');
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showComparePlans, setShowComparePlans] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -104,9 +112,12 @@ export default function BillingPage() {
   // Alert State
   const [premiumAlert, setPremiumAlert] = useState(false);
   const [isOneDay, setIsOneDay] = useState(false);
+
+  // Plan Swiper State
+  const [activePlanIndex, setActivePlanIndex] = useState(0);
   const fetchBillingDetails = async () => {
     try {
-      const [usage, subscription, plan, payment, balance, creditPacks] =
+      const [usage, subscription, plan, payment, balance, creditPacks, user, addOnsData] =
         await Promise.all([
           getUsage(),
           getCurrentSubscription(),
@@ -114,10 +125,13 @@ export default function BillingPage() {
           fetchInvoices(),
           getWalletBalance(),
           getCreditPackages(),
+          getUser(),
+          getAddOns(),
         ]);
 
       setUsageData(usage);
       setSubscriptionData(subscription);
+      setUserData(user);
       setAutoRenew(subscription?.subscription?.autoRenew || false);
 
       const plansArray = Array.isArray(plan)
@@ -136,6 +150,14 @@ export default function BillingPage() {
         ? creditPacks
         : creditPacks?.packages || creditPacks?.data || [];
       setCreditPackages(creditsArray);
+
+      const addOnsArray = Array.isArray(addOnsData)
+        ? addOnsData
+        : addOnsData?.addOns || addOnsData?.data || [];
+      setAddOns(addOnsArray.filter((a: any) => a.isActive !== false));
+      const initialQtys: Record<number, number> = {};
+      addOnsArray.forEach((a: any) => { if (a.pricingType === 'QUANTITY') initialQtys[a.id] = 1; });
+      setAddOnQuantities(initialQtys);
 
       if (balance?.twilioAccess?.twilioAccessStatus === "APPROVED") {
         setActiveBillingTab("credits");
@@ -485,7 +507,7 @@ export default function BillingPage() {
 
   return (
     <ThemedView
-      className="flex-1 px-4 pt-16"
+      className="flex-1 px-4 pt-10"
       style={{ backgroundColor: COLORS.bg }}
     >
       {/* HEADER */}
@@ -503,7 +525,7 @@ export default function BillingPage() {
 
         <View className="flex-row gap-2">
           <TouchableOpacity
-            onPress={() => router.push("/(tabs)/invoices")}
+            onPress={() => router.push("/(invoices)/invoices")}
             className="flex-row items-center gap-1.5 px-3 py-1.5 border rounded-lg"
             style={{ borderColor: COLORS.border, backgroundColor: COLORS.card }}
           >
@@ -534,11 +556,10 @@ export default function BillingPage() {
         {/* EXPIRING ALERT */}
         {currentPlanName !== "FREE_TRIAL" && premiumAlert && (
           <View
-            className={`rounded-xl p-4 gap-3 mb-4 border ${
-              isOneDay
-                ? "bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-900/30"
-                : "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900/30"
-            }`}
+            className={`rounded-xl p-4 gap-3 mb-4 border ${isOneDay
+              ? "bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-900/30"
+              : "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900/30"
+              }`}
           >
             <View className="flex-row items-start gap-2">
               <AlertCircle
@@ -548,20 +569,18 @@ export default function BillingPage() {
               />
               <View className="flex-1">
                 <Text
-                  className={`text-sm font-semibold ${
-                    isOneDay
-                      ? "text-red-900 dark:text-red-400"
-                      : "text-amber-900 dark:text-amber-400"
-                  }`}
+                  className={`text-sm font-semibold ${isOneDay
+                    ? "text-red-900 dark:text-red-400"
+                    : "text-amber-900 dark:text-amber-400"
+                    }`}
                 >
                   Plan Expiring Soon
                 </Text>
                 <Text
-                  className={`text-xs mt-1 leading-5 ${
-                    isOneDay
-                      ? "text-red-700 dark:text-red-300"
-                      : "text-amber-700 dark:text-amber-300"
-                  }`}
+                  className={`text-xs mt-1 leading-5 ${isOneDay
+                    ? "text-red-700 dark:text-red-300"
+                    : "text-amber-700 dark:text-amber-300"
+                    }`}
                 >
                   Your <Text className="font-semibold">{currentPlanName}</Text>
                   plan expires in
@@ -581,9 +600,8 @@ export default function BillingPage() {
 
             <TouchableOpacity
               onPress={() => handlePaymentRedirect("renew your subscription")}
-              className={`py-3 rounded-lg items-center flex-row justify-center gap-2 ${
-                isOneDay ? "bg-red-600" : "bg-amber-600"
-              }`}
+              className={`py-3 rounded-lg items-center flex-row justify-center gap-2 ${isOneDay ? "bg-red-600" : "bg-amber-600"
+                }`}
               activeOpacity={0.8}
             >
               <Ionicons name="card" size={16} color="#fff" />
@@ -719,12 +737,12 @@ export default function BillingPage() {
                   width: `${Math.min(
                     ((usageData?.usage?.contacts?.current || 0) /
                       (usageData?.usage?.contacts?.limit || 1)) *
-                      100,
+                    100,
                     100,
                   )}%`,
                   backgroundColor:
                     (usageData?.usage?.contacts?.current || 0) >=
-                    (usageData?.usage?.contacts?.limit || 0)
+                      (usageData?.usage?.contacts?.limit || 0)
                       ? COLORS.accent
                       : COLORS.success,
                 }}
@@ -761,12 +779,12 @@ export default function BillingPage() {
                   width: `${Math.min(
                     ((usageData?.usage?.campaigns?.current || 0) /
                       (usageData?.usage?.campaigns?.limit || 1)) *
-                      100,
+                    100,
                     100,
                   )}%`,
                   backgroundColor:
                     (usageData?.usage?.campaigns?.current || 0) >=
-                    (usageData?.usage?.campaigns?.limit || 0)
+                      (usageData?.usage?.campaigns?.limit || 0)
                       ? COLORS.accent
                       : COLORS.success,
                 }}
@@ -803,12 +821,12 @@ export default function BillingPage() {
                   width: `${Math.min(
                     ((usageData?.usage?.platforms?.current || 0) /
                       (usageData?.usage?.platforms?.limit || 1)) *
-                      100,
+                    100,
                     100,
                   )}%`,
                   backgroundColor:
                     (usageData?.usage?.platforms?.current || 0) >=
-                    (usageData?.usage?.platforms?.limit || 0)
+                      (usageData?.usage?.platforms?.limit || 0)
                       ? COLORS.accent
                       : COLORS.success,
                 }}
@@ -925,7 +943,458 @@ export default function BillingPage() {
           </View>
         )}
 
-        <View className="mb-6 gap-6">
+        <View
+          className="flex-row rounded-xl p-1 mb-4"
+          style={{ backgroundColor: COLORS.card }}
+        >
+          <TouchableOpacity
+            onPress={() => setPlansTab('plans')}
+            className="flex-1 py-3 rounded-lg items-center"
+            style={{
+              backgroundColor:
+                plansTab === 'plans' ? COLORS.accent : 'transparent',
+            }}
+          >
+            <Text
+              className="font-semibold"
+              style={{
+                color:
+                  plansTab === 'plans'
+                    ? '#fff'
+                    : COLORS.text,
+              }}
+            >
+              Available Plans
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setPlansTab('addons')}
+            className="flex-1 py-3 rounded-lg items-center"
+            style={{
+              backgroundColor:
+                plansTab === 'addons' ? COLORS.accent : 'transparent',
+            }}
+          >
+            <Text
+              className="font-semibold"
+              style={{
+                color:
+                  plansTab === 'addons'
+                    ? '#fff'
+                    : COLORS.text,
+              }}
+            >
+              Purchase Add-ons
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {plansTab === 'plans' ? (
+          <>
+            {/* MULTIPLE PLANS HANDLING */}
+            {(() => {
+              let subscriptionsList = userData?.organisation?.subscriptions || [];
+
+              if (subscriptionsList.length === 0) {
+                subscriptionsList = subscriptionData?.subscriptions?.length > 0
+                  ? subscriptionData.subscriptions
+                  : (subscriptionData?.subscription ? [subscriptionData.subscription] : []);
+              }
+
+              subscriptionsList = subscriptionsList.filter(
+                (sub: any, index: number, self: any[]) =>
+                  index === self.findIndex((s) => s.planId === sub.planId)
+              );
+
+              subscriptionsList.sort((a: any, b: any) => {
+                const aIsCurrent = a.plan?.name === currentPlanName;
+                const bIsCurrent = b.plan?.name === currentPlanName;
+
+                if (aIsCurrent && !bIsCurrent) return -1;
+                if (!aIsCurrent && bIsCurrent) return 1;
+                return 0;
+              });
+
+              if (subscriptionsList.length === 0) return null;
+
+              return (
+                <View className="mb-6">
+                  <ScrollView
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    onMomentumScrollEnd={(e) => {
+                      const newIndex = Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width);
+                      setActivePlanIndex(newIndex);
+                    }}
+                  >
+                    {subscriptionsList.map((sub: any, idx: number) => {
+                      if (!sub?.plan) return null;
+                      const isCurrentPlan = sub.plan?.name === currentPlanName;
+
+                      // Parse features if it's a string
+                      let featuresList = sub.plan.features;
+                      if (typeof featuresList === 'string') {
+                        try {
+                          featuresList = JSON.parse(featuresList);
+                        } catch (e) {
+                          featuresList = [];
+                        }
+                      }
+
+                      // console.log("Organisation Subscriptions:", userData?.organisation?.subscriptions);
+                      // console.log("Subscription Data:", subscriptionData?.subscriptions);
+                      // console.log("Final List:", subscriptionsList);
+
+                      return (
+                        <View
+                          key={idx}
+                          className="p-5 rounded-2xl border"
+                          style={{
+                            width: Dimensions.get('window').width - 32,
+                            backgroundColor: COLORS.card,
+                            borderColor: COLORS.border
+                          }}
+                        >
+                          <View className="mb-4">
+                            <Text
+                              className="font-bold"
+                              style={{
+                                color: COLORS.text,
+                                fontSize: 24,
+                                lineHeight: 30,
+                              }}
+                            >
+                              {sub.plan.name}
+                            </Text>
+
+                            <View className="flex-row items-end mt-2">
+                              <Text
+                                className="font-bold"
+                                style={{
+                                  color: COLORS.accent,
+                                  fontSize: 32,
+                                }}
+                              >
+                                {formatCurrency(sub.plan.price)}
+                              </Text>
+
+                              <Text
+                                className="ml-1"
+                                style={{
+                                  color: COLORS.textMuted,
+                                  fontSize: 14,
+                                  marginBottom: 4,
+                                }}
+                              >
+                                / {sub.plan.billingCycle?.toLowerCase() || "month"}
+                              </Text>
+                            </View>
+                          </View>
+
+                          <Text className="text-sm font-bold mb-3" style={{ color: COLORS.text }}>
+                            Available Features
+                          </Text>
+
+                          <View className="gap-3">
+                            {featuresList?.map((feature: string, index: number) => (
+                              <View key={index} className="flex-row items-center gap-3">
+                                <View
+                                  className="p-1 rounded-full"
+                                  style={{ backgroundColor: isDark ? "#14532d" : "#dcfce7" }}
+                                >
+                                  <CheckCircle2
+                                    size={14}
+                                    color={isDark ? "#4ade80" : "#16a34a"}
+                                  />
+                                </View>
+                                <Text
+                                  className="text-sm font-medium flex-1"
+                                  style={{ color: COLORS.text }}
+                                >
+                                  {feature}
+                                </Text>
+                              </View>
+                            ))}
+
+                            {(!featuresList || featuresList.length === 0) && (
+                              <Text
+                                className="text-sm"
+                                style={{ color: COLORS.textMuted }}
+                              >
+                                No features listed for this plan.
+                              </Text>
+                            )}
+
+                            {/* Current Plan Button */}
+                            <TouchableOpacity
+                              disabled={isCurrentPlan}
+                              onPress={() => {
+                                router.push({
+                                  pathname: "/webview",
+                                  params: {
+                                    url: "https://campzeo.com/user/billing",
+                                  },
+                                });
+                              }}
+                              className="mt-4 py-3 rounded-xl items-center"
+                              style={{
+                                backgroundColor: isCurrentPlan ? COLORS.border : COLORS.accent,
+                                opacity: isCurrentPlan ? 0.8 : 1,
+                              }}
+                            >
+                              <Text
+                                className="font-semibold"
+                                style={{
+                                  color: isCurrentPlan ? COLORS.textMuted : "#fff",
+                                }}
+                              >
+                                {isCurrentPlan ? "Current Plan" : `Switch to ${sub.plan.name}`}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
+
+                  {/* Pagination Dots */}
+                  {subscriptionsList.length > 1 && (
+                    <View className="flex-row justify-center items-center gap-2 mt-4">
+                      {subscriptionsList.map((_: any, idx: number) => (
+                        <View
+                          key={idx}
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: idx === activePlanIndex ? "#dc2626" : COLORS.border
+                          }}
+                        />
+                      ))}
+                    </View>
+                  )}
+                </View>
+              );
+            })()}
+          </>
+        ) : (
+          <View className="mb-5">
+            {addOns.length === 0 ? (
+              <View
+                className="p-8 rounded-2xl items-center"
+                style={{
+                  backgroundColor: COLORS.card,
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                }}
+              >
+                <Package size={48} color={COLORS.accent} />
+                <Text className="text-lg font-bold mt-4" style={{ color: COLORS.text }}>
+                  No Add-ons Available
+                </Text>
+                <Text className="text-center mt-2" style={{ color: COLORS.textMuted, lineHeight: 22 }}>
+                  Check back later for available add-ons.
+                </Text>
+              </View>
+            ) : (
+              <>
+                {/* FIXED add-ons (platform unlocks, feature unlocks) */}
+                {addOns.filter((a: any) => a.pricingType === 'FIXED').length > 0 && (
+                  <View className="mb-4">
+                    <Text
+                      className="text-xs font-bold uppercase tracking-widest mb-3"
+                      style={{ color: COLORS.textMuted }}
+                    >
+                      Feature Unlocks
+                    </Text>
+                    {addOns
+                      .filter((a: any) => a.pricingType === 'FIXED')
+                      .map((addon: any) => (
+                        <View
+                          key={addon.id}
+                          className="rounded-2xl border mb-3 overflow-hidden"
+                          style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}
+                        >
+                          <View className="p-4">
+                            <View className="flex-row items-start justify-between">
+                              <View className="flex-1 mr-3">
+                                <Text
+                                  className="font-bold text-base"
+                                  style={{ color: COLORS.text }}
+                                >
+                                  {addon.addOnName.trim()}
+                                </Text>
+                                <Text
+                                  className="text-xs mt-1"
+                                  style={{ color: COLORS.textMuted, lineHeight: 18 }}
+                                >
+                                  {addon.description}
+                                </Text>
+                              </View>
+                              <View
+                                className="px-3 py-1.5 rounded-xl"
+                                style={{ backgroundColor: isDark ? '#1e3a5f' : '#eff6ff' }}
+                              >
+                                <Text
+                                  className="font-bold text-sm"
+                                  style={{ color: '#3b82f6' }}
+                                >
+                                  {formatCurrency(addon.oneTimePrice)}
+                                </Text>
+                                <Text
+                                  className="text-[10px] text-center"
+                                  style={{ color: isDark ? '#93c5fd' : '#60a5fa' }}
+                                >
+                                  one-time
+                                </Text>
+                              </View>
+                            </View>
+
+                            <TouchableOpacity
+                              onPress={() => router.push({ pathname: '/webview', params: { url: 'https://campzeo.com/user/billing' } })}
+                              className="mt-4 py-2.5 rounded-xl items-center flex-row justify-center gap-2"
+                              style={{ backgroundColor: COLORS.accent }}
+                              activeOpacity={0.8}
+                            >
+                              <Zap size={14} color="#fff" />
+                              <Text className="font-semibold text-sm" style={{ color: '#fff' }}>
+                                Unlock Now
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      ))}
+                  </View>
+                )}
+
+                {/* QUANTITY add-ons (AI credits etc.) */}
+                {addOns.filter((a: any) => a.pricingType === 'QUANTITY').length > 0 && (
+                  <View>
+                    <Text
+                      className="text-xs font-bold uppercase tracking-widest mb-3"
+                      style={{ color: COLORS.textMuted }}
+                    >
+                      Credit Packs
+                    </Text>
+                    {addOns
+                      .filter((a: any) => a.pricingType === 'QUANTITY')
+                      .map((addon: any) => {
+                        const qty = addOnQuantities[addon.id] ?? 1;
+                        const total = addon.oneTimePrice * qty;
+                        return (
+                          <View
+                            key={addon.id}
+                            className="rounded-2xl border mb-3 overflow-hidden"
+                            style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}
+                          >
+                            <View
+                              className="px-4 py-2 flex-row items-center gap-2"
+                              style={{ backgroundColor: isDark ? '#14532d' : '#dcfce7' }}
+                            >
+                              <Zap size={12} color={isDark ? '#4ade80' : '#16a34a'} />
+                              <Text
+                                className="text-xs font-bold uppercase tracking-wider"
+                                style={{ color: isDark ? '#4ade80' : '#15803d' }}
+                              >
+                                AI Credits
+                              </Text>
+                            </View>
+                            <View className="p-4">
+                              <View className="flex-row items-start justify-between mb-4">
+                                <View className="flex-1 mr-3">
+                                  <Text
+                                    className="font-bold text-base"
+                                    style={{ color: COLORS.text }}
+                                  >
+                                    {addon.addOnName.trim()}
+                                  </Text>
+                                  <Text
+                                    className="text-xs mt-1"
+                                    style={{ color: COLORS.textMuted, lineHeight: 18 }}
+                                  >
+                                    {addon.description}
+                                  </Text>
+                                </View>
+                                <View className="items-end">
+                                  <Text
+                                    className="font-bold text-base"
+                                    style={{ color: COLORS.success }}
+                                  >
+                                    {formatCurrency(total)}
+                                  </Text>
+                                  <Text
+                                    className="text-[10px]"
+                                    style={{ color: COLORS.textMuted }}
+                                  >
+                                    {formatCurrency(addon.oneTimePrice)} / pack
+                                  </Text>
+                                </View>
+                              </View>
+
+                              {/* Quantity selector */}
+                              <View className="flex-row items-center justify-between mb-4">
+                                <Text className="text-xs font-semibold" style={{ color: COLORS.textMuted }}>
+                                  Quantity
+                                </Text>
+                                <View
+                                  className="flex-row items-center rounded-xl border overflow-hidden"
+                                  style={{ borderColor: COLORS.border }}
+                                >
+                                  <TouchableOpacity
+                                    onPress={() =>
+                                      setAddOnQuantities(prev => ({
+                                        ...prev,
+                                        [addon.id]: Math.max(1, (prev[addon.id] ?? 1) - 1),
+                                      }))
+                                    }
+                                    className="px-4 py-2"
+                                    style={{ backgroundColor: isDark ? '#334155' : '#f1f5f9' }}
+                                  >
+                                    <Text className="font-bold text-base" style={{ color: COLORS.text }}>−</Text>
+                                  </TouchableOpacity>
+                                  <View className="px-5 py-2">
+                                    <Text className="font-bold text-sm" style={{ color: COLORS.text }}>{qty}</Text>
+                                  </View>
+                                  <TouchableOpacity
+                                    onPress={() =>
+                                      setAddOnQuantities(prev => ({
+                                        ...prev,
+                                        [addon.id]: (prev[addon.id] ?? 1) + 1,
+                                      }))
+                                    }
+                                    className="px-4 py-2"
+                                    style={{ backgroundColor: isDark ? '#334155' : '#f1f5f9' }}
+                                  >
+                                    <Text className="font-bold text-base" style={{ color: COLORS.text }}>+</Text>
+                                  </TouchableOpacity>
+                                </View>
+                              </View>
+
+                              <TouchableOpacity
+                                onPress={() => router.push({ pathname: '/webview', params: { url: 'https://campzeo.com/user/billing' } })}
+                                className="py-2.5 rounded-xl items-center flex-row justify-center gap-2"
+                                style={{ backgroundColor: COLORS.success }}
+                                activeOpacity={0.8}
+                              >
+                                <Zap size={14} color="#fff" />
+                                <Text className="font-semibold text-sm" style={{ color: '#fff' }}>
+                                  Buy {qty} Pack{qty > 1 ? 's' : ''} · {formatCurrency(total)}
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        );
+                      })}
+                  </View>
+                )}
+              </>
+            )}
+          </View>
+        )}
+
+        <View className="gap-6 mb-5">
           {isTrial ? (
             <View className="p-5 rounded-2xl border bg-amber-50/20 border-amber-200 dark:bg-amber-950/10 dark:border-amber-900/30">
               <View className="flex-row items-start gap-2.5 mb-2">
@@ -976,7 +1445,7 @@ export default function BillingPage() {
                 </View>
               )}
 
-              {/* {balanceData?.twilioAccess?.twilioAccessStatus === "PENDING" && (
+              {balanceData?.twilioAccess?.twilioAccessStatus === "PENDING" && (
                 <View className="p-5 rounded-2xl border bg-blue-50/20 border-blue-200 dark:bg-blue-950/10 dark:border-blue-900/30">
                   <View className="flex-row items-center justify-between">
                     <View className="flex-row items-center gap-2">
@@ -1010,110 +1479,110 @@ export default function BillingPage() {
 
               {(balanceData?.twilioAccess?.twilioAccessStatus === "NONE" ||
                 balanceData?.twilioAccess?.twilioAccessStatus ===
-                  "REJECTED") && (
-                <View
-                  className="p-5 rounded-2xl border"
-                  style={{
-                    backgroundColor: COLORS.card,
-                    borderColor:
-                      balanceData?.twilioAccess?.twilioAccessStatus ===
-                      "REJECTED"
-                        ? "#fecaca"
-                        : COLORS.border,
-                  }}
-                >
-                  <View className="flex-row items-center justify-between mb-2">
-                    <View className="flex-row items-center gap-2">
-                      <Send size={18} color={COLORS.accent} />
-                      <Text
-                        className="text-base font-bold"
-                        style={{ color: COLORS.text }}
-                      >
-                        Request Twilio Access
-                      </Text>
+                "REJECTED") && (
+                  <View
+                    className="p-5 rounded-2xl border"
+                    style={{
+                      backgroundColor: COLORS.card,
+                      borderColor:
+                        balanceData?.twilioAccess?.twilioAccessStatus ===
+                          "REJECTED"
+                          ? "#fecaca"
+                          : COLORS.border,
+                    }}
+                  >
+                    <View className="flex-row items-center justify-between mb-2">
+                      <View className="flex-row items-center gap-2">
+                        <Send size={18} color={COLORS.accent} />
+                        <Text
+                          className="text-base font-bold"
+                          style={{ color: COLORS.text }}
+                        >
+                          Request Twilio Access
+                        </Text>
+                      </View>
+                      {balanceData?.twilioAccess?.twilioAccessStatus ===
+                        "REJECTED" && (
+                          <View className="px-2.5 py-0.5 rounded-full bg-red-100 dark:bg-red-950/50 border border-red-200 dark:border-red-900/30">
+                            <Text className="text-red-700 dark:text-red-400 text-[10px] font-bold uppercase">
+                              Rejected
+                            </Text>
+                          </View>
+                        )}
                     </View>
+
+                    <Text
+                      className="text-xs mb-4"
+                      style={{ color: COLORS.textMuted }}
+                    >
+                      Apply for SMS and WhatsApp campaign access. Please describe
+                      your use case briefly.
+                    </Text>
+
                     {balanceData?.twilioAccess?.twilioAccessStatus ===
                       "REJECTED" && (
-                      <View className="px-2.5 py-0.5 rounded-full bg-red-100 dark:bg-red-950/50 border border-red-200 dark:border-red-900/30">
-                        <Text className="text-red-700 dark:text-red-400 text-[10px] font-bold uppercase">
-                          Rejected
-                        </Text>
-                      </View>
-                    )}
-                  </View>
+                        <View className="p-3 bg-red-50 border border-red-100 rounded-xl mb-4 flex-row items-start gap-2 dark:bg-red-950/20 dark:border-red-900/30">
+                          <AlertCircle
+                            size={16}
+                            color="#dc2626"
+                            style={{ marginTop: 1 }}
+                          />
+                          <View className="flex-1">
+                            <Text className="text-xs font-bold text-red-900 dark:text-red-400">
+                              Request Rejected
+                            </Text>
+                            <Text className="text-[11px] text-red-800 dark:text-red-300 mt-0.5">
+                              {balanceData?.twilioAccess?.twilioAccessReason ||
+                                "No reason provided by admin."}
+                            </Text>
+                          </View>
+                        </View>
+                      )}
 
-                  <Text
-                    className="text-xs mb-4"
-                    style={{ color: COLORS.textMuted }}
-                  >
-                    Apply for SMS and WhatsApp campaign access. Please describe
-                    your use case briefly.
-                  </Text>
-
-                  {balanceData?.twilioAccess?.twilioAccessStatus ===
-                    "REJECTED" && (
-                    <View className="p-3 bg-red-50 border border-red-100 rounded-xl mb-4 flex-row items-start gap-2 dark:bg-red-950/20 dark:border-red-900/30">
-                      <AlertCircle
-                        size={16}
-                        color="#dc2626"
-                        style={{ marginTop: 1 }}
-                      />
-                      <View className="flex-1">
-                        <Text className="text-xs font-bold text-red-900 dark:text-red-400">
-                          Request Rejected
-                        </Text>
-                        <Text className="text-[11px] text-red-800 dark:text-red-300 mt-0.5">
-                          {balanceData?.twilioAccess?.twilioAccessReason ||
-                            "No reason provided by admin."}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
-
-                  <Text
-                    className="text-[10px] font-bold uppercase mb-1 block tracking-wider"
-                    style={{ color: COLORS.textMuted }}
-                  >
-                    Reason for request
-                  </Text>
-                  <TextInput
-                    value={requestReason}
-                    onChangeText={setRequestReason}
-                    multiline
-                    numberOfLines={4}
-                    className="w-full border rounded-xl p-3 text-xs focus:outline-none mb-3"
-                    placeholder="e.g. I want to send promotional SMS and WhatsApp updates to my 5000+ customer base."
-                    placeholderTextColor={COLORS.textMuted}
-                    style={{
-                      color: COLORS.text,
-                      backgroundColor: isDark ? "#0f172a" : "#f8fafc",
-                      borderColor: COLORS.border,
-                      minHeight: 80,
-                      textAlignVertical: "top",
-                    }}
-                  />
-                  <TouchableOpacity
-                    disabled={isSubmittingTwilio || !requestReason.trim()}
-                    onPress={onSubmitTwilioRequest}
-                    className="w-full py-3 bg-red-600 rounded-xl items-center flex-row justify-center gap-2"
-                    style={{
-                      opacity:
-                        isSubmittingTwilio || !requestReason.trim() ? 0.5 : 1,
-                    }}
-                  >
-                    {isSubmittingTwilio && (
-                      <Loader2
-                        size={14}
-                        className="animate-spin"
-                        color="#ffffff"
-                      />
-                    )}
-                    <Text className="text-white font-bold text-sm">
-                      {isSubmittingTwilio ? "Submitting..." : "Submit Request"}
+                    <Text
+                      className="text-[10px] font-bold uppercase mb-1 block tracking-wider"
+                      style={{ color: COLORS.textMuted }}
+                    >
+                      Reason for request
                     </Text>
-                  </TouchableOpacity>
-                </View>
-              )} */}
+                    <TextInput
+                      value={requestReason}
+                      onChangeText={setRequestReason}
+                      multiline
+                      numberOfLines={4}
+                      className="w-full border rounded-xl p-3 text-xs focus:outline-none mb-3"
+                      placeholder="e.g. I want to send promotional SMS and WhatsApp updates to my 5000+ customer base."
+                      placeholderTextColor={COLORS.textMuted}
+                      style={{
+                        color: COLORS.text,
+                        backgroundColor: isDark ? "#0f172a" : "#f8fafc",
+                        borderColor: COLORS.border,
+                        minHeight: 80,
+                        textAlignVertical: "top",
+                      }}
+                    />
+                    <TouchableOpacity
+                      disabled={isSubmittingTwilio || !requestReason.trim()}
+                      onPress={onSubmitTwilioRequest}
+                      className="w-full py-3 bg-red-600 rounded-xl items-center flex-row justify-center gap-2"
+                      style={{
+                        opacity:
+                          isSubmittingTwilio || !requestReason.trim() ? 0.5 : 1,
+                      }}
+                    >
+                      {isSubmittingTwilio && (
+                        <Loader2
+                          size={14}
+                          className="animate-spin"
+                          color="#ffffff"
+                        />
+                      )}
+                      <Text className="text-white font-bold text-sm">
+                        {isSubmittingTwilio ? "Submitting..." : "Submit Request"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
             </View>
           )}
 
@@ -1320,165 +1789,6 @@ export default function BillingPage() {
           )}
         </View>
 
-        {/* TABS (PURCHASE CREDITS / AVAILABLE PLANS) */}
-        <View className="mb-6">
-          {/* <View className="flex-row border-b mb-6" style={{ borderColor: COLORS.border }}>
-            {balanceData?.twilioAccess?.twilioAccessStatus === 'APPROVED' && (
-              <TouchableOpacity
-                onPress={() => setActiveBillingTab('credits')}
-                className="pb-3 px-4 border-b-2"
-                style={{
-                  borderColor: activeBillingTab === 'credits' ? COLORS.accent : 'transparent',
-                }}
-              >
-                <Text
-                  className="text-sm font-bold"
-                  style={{ color: activeBillingTab === 'credits' ? COLORS.accent : COLORS.textMuted }}
-                >
-                  Purchase Credits
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              onPress={() => setActiveBillingTab('plans')}
-              className="pb-3 px-4 border-b-2"
-              style={{
-                borderColor: activeBillingTab === 'plans' ? COLORS.accent : 'transparent',
-              }}
-            >
-              <Text
-                className="text-sm font-bold"
-                style={{ color: activeBillingTab === 'plans' ? COLORS.accent : COLORS.textMuted }}
-              >
-                Available Plans
-              </Text>
-            </TouchableOpacity>
-          </View> */}
-
-          {/* PURCHASE CREDITS TAB CONTENT */}
-          {/* {activeBillingTab === 'credits' && balanceData?.twilioAccess?.twilioAccessStatus === 'APPROVED' && (
-            <View>
-              <View className="mb-4">
-                <Text className="text-base font-bold" style={{ color: COLORS.text }}>Purchase SMS & WhatsApp Credits</Text>
-                <Text className="text-xs mt-1" style={{ color: COLORS.textMuted }}>Add credits to your channels using secure dashboard payments</Text>
-              </View>
-
-              <View className="gap-4">
-                {creditPackages.map((pkg: any) => (
-                  <View key={pkg.id} className="p-5 rounded-2xl border" style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}>
-                    <View className="flex-row justify-between items-start mb-3">
-                      <View className="flex-1 mr-2">
-                        <Text className="text-base font-bold uppercase" style={{ color: COLORS.text }}>{pkg.name}</Text>
-                        <Text className="text-2xl font-extrabold mt-1.5" style={{ color: COLORS.text }}>{formatCurrency(pkg.price)}</Text>
-                      </View>
-                      <View
-                        className="px-2 py-0.5 rounded"
-                        style={{
-                          backgroundColor: pkg.type === 'SMS' ? (isDark ? "#450a0a" : "#fee2e2") : (isDark ? "#064e3b" : "#d1fae5"),
-                        }}
-                      >
-                        <Text
-                          className="text-[9px] font-bold uppercase"
-                          style={{ color: pkg.type === 'SMS' ? COLORS.accent : COLORS.success }}
-                        >
-                          {pkg.type} Pack
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View className="mb-4 gap-2">
-                      <View className="flex-row items-center gap-2">
-                        <Check size={12} color={COLORS.accent} />
-                        <Text className="text-xs font-semibold" style={{ color: COLORS.textMuted }}>
-                          {Number(pkg.credits).toLocaleString("en-IN")} Credits
-                        </Text>
-                      </View>
-                      <View className="flex-row items-center gap-2">
-                        <Check size={12} color={COLORS.accent} />
-                        <Text className="text-xs font-semibold" style={{ color: COLORS.textMuted }}>No expiration (valid forever)</Text>
-                      </View>
-                      <View className="flex-row items-center gap-2">
-                        <Check size={12} color={COLORS.accent} />
-                        <Text className="text-xs font-semibold" style={{ color: COLORS.textMuted }}>Instant credit delivery</Text>
-                      </View>
-                    </View>
-
-                    <TouchableOpacity
-                      onPress={() => handlePaymentRedirect(`purchase the ${pkg.name} credit package`)}
-                      className="w-full py-3 bg-red-600 rounded-xl items-center"
-                    >
-                      <Text className="text-white font-bold text-sm">Buy {pkg.name}</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )} */}
-
-          {/* AVAILABLE PLANS TAB CONTENT */}
-          {/* {activeBillingTab === 'plans' && (
-            <View>
-              <View className="mb-4">
-                <Text className="text-base font-bold" style={{ color: COLORS.text }}>Available Subscription Plans</Text>
-                <Text className="text-xs mt-1" style={{ color: COLORS.textMuted }}>Choose the perfect plan for your business growth</Text>
-              </View>
-
-              <View className="gap-6">
-                {plansData && plansData.filter((p: any) => p.name !== 'FREE_TRIAL').map((plan: any) => {
-                  const isCurrent = currentPlanName === plan.name;
-                  const isPopular = plan.name === 'PROFESSIONAL' || plan.name === 'ENTERPRISE';
-
-                  return (
-                    <View
-                      key={plan.id}
-                      className="p-6 rounded-3xl border relative"
-                      style={{
-                        backgroundColor: COLORS.card,
-                        borderColor: isPopular ? COLORS.accent : COLORS.border,
-                        borderWidth: isPopular ? 2 : 1,
-                      }}
-                    >
-                      {isPopular && (
-                        <View className="absolute -top-3 left-1/2 -translate-x-1/2 bg-red-600 px-4 py-1 rounded-full">
-                          <Text className="text-white text-[9px] font-bold uppercase tracking-widest">Most Popular</Text>
-                        </View>
-                      )}
-
-                      <View className="mb-4">
-                        <Text className="text-lg font-bold uppercase" style={{ color: COLORS.text }}>{plan.name}</Text>
-                        <View className="flex-row items-baseline mt-2">
-                          <Text className="text-3xl font-extrabold" style={{ color: COLORS.text }}>{formatCurrency(plan.price)}</Text>
-                          <Text className="text-xs uppercase ml-1" style={{ color: COLORS.textMuted }}>/{plan.billingCycle}</Text>
-                        </View>
-                      </View>
-
-                      <View className="mb-5 gap-2.5">
-                        {plan.features?.map((feature: string, idx: number) => (
-                          <View key={idx} className="flex-row items-start gap-2">
-                            <Check size={14} color={COLORS.accent} style={{ marginTop: 2 }} />
-                            <Text className="text-xs flex-1" style={{ color: COLORS.textMuted }}>{feature}</Text>
-                          </View>
-                        ))}
-                      </View>
-
-                      <TouchableOpacity
-                        disabled={isCurrent}
-                        onPress={() => handlePaymentRedirect(`change your plan to ${plan.name}`)}
-                        className={`w-full py-3 rounded-xl items-center ${isCurrent ? 'bg-slate-100 dark:bg-slate-800' : 'bg-red-600'}`}
-                      >
-                        <Text className={`font-bold text-sm ${isCurrent ? 'text-gray-500' : 'text-white'}`}>
-                          {isCurrent ? 'Current Plan' : `Change to ${plan.name}`}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })}
-              </View>
-            </View>
-          )} */}
-        </View>
-
         {/* PAYMENT HISTORY INVOICES SECTION */}
         <View
           className="p-5 rounded-2xl border"
@@ -1495,8 +1805,8 @@ export default function BillingPage() {
 
           <View>
             {paymentsData &&
-            paymentsData?.invoices &&
-            paymentsData?.invoices?.length > 0 ? (
+              paymentsData?.invoices &&
+              paymentsData?.invoices?.length > 0 ? (
               paymentsData.invoices.map((payment: any, idx: number) => {
                 const isPaid = payment.status === "PAID";
                 return (

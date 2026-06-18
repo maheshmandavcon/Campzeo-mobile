@@ -154,7 +154,7 @@ export default function CampaignPost() {
   );
 
   // ---------- FETCH EXISTING POST IF postId EXISTS ----------
-  useEffect(() => {    
+  useEffect(() => {
     if (!campaignIdStr || !postIdStr) return;
 
     let isMounted = true;
@@ -176,7 +176,7 @@ export default function CampaignPost() {
         // const data = await response.json();
 
         // console.log("Post details API response:", data);
-        
+
         const user = await getUser();
         const orgId = user?.organisation?.id;
         console.log("cid", campaignIdStr);
@@ -230,6 +230,7 @@ export default function CampaignPost() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
+  // Check if any social platform is disconnected (SMS/EMAIL/WHATSAPP are always connected)
   const hasDisconnectedPlatform = ["FACEBOOK", "INSTAGRAM", "LINKEDIN", "YOUTUBE", "PINTEREST"].some(
     (key) => connectedPlatforms[key] === false
   );
@@ -400,7 +401,8 @@ export default function CampaignPost() {
                     }}
                   >
                     {/* Active Checkmark Badge top right */}
-                    {isSelected && !isDisabled && !visuallyRestricted && (
+                    {/* Lock badge for SMS/WhatsApp when not approved/funded */}
+                    {visuallyRestricted ? (
                       <View
                         style={{
                           position: "absolute",
@@ -409,7 +411,7 @@ export default function CampaignPost() {
                           width: 18,
                           height: 18,
                           borderRadius: 9,
-                          backgroundColor: icon.color,
+                          backgroundColor: "#f59e0b",
                           borderWidth: 2,
                           borderColor: isDark ? "#161618" : "#f3f4f6",
                           alignItems: "center",
@@ -417,8 +419,29 @@ export default function CampaignPost() {
                           zIndex: 10,
                         }}
                       >
-                        <Ionicons name="checkmark" size={10} color="#ffffff" />
+                        <Ionicons name="lock-closed" size={9} color="#fff" />
                       </View>
+                    ) : (
+                      isSelected && !isDisabled && (
+                        <View
+                          style={{
+                            position: "absolute",
+                            top: -4,
+                            right: -4,
+                            width: 18,
+                            height: 18,
+                            borderRadius: 9,
+                            backgroundColor: icon.color,
+                            borderWidth: 2,
+                            borderColor: isDark ? "#161618" : "#f3f4f6",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            zIndex: 10,
+                          }}
+                        >
+                          <Ionicons name="checkmark" size={10} color="#ffffff" />
+                        </View>
+                      )
                     )}
 
                     <TouchableOpacity
@@ -450,15 +473,14 @@ export default function CampaignPost() {
                             );
                             return;
                           }
-                        } else {
-                          Alert.alert(
-                            "Admin Approval Required",
-                            "SMS and WhatsApp messaging requires admin approval and credit purchase.",
-                            [
-                              { text: "Cancel", style: "cancel" },
-                              { text: "Purchase Pack", onPress: () => router.push("/(billing)/billingPage") },
-                            ]
-                          );
+                        }
+
+                        if (isDisabled) {
+                          Toast.show({
+                            type: "error",
+                            text1: "Platform Not Connected",
+                            text2: `Please connect your ${icon.label} account from Accounts first.`
+                          });
                           return;
                         }
                         setSelected(icon.label as any);
@@ -472,25 +494,29 @@ export default function CampaignPost() {
                         borderWidth: isSelected ? 2 : 1,
                         borderColor: forceDisabledInEdit
                           ? (isDark ? "#2a2a32" : "#e2e8f0")
-                          : (visuallyRestricted
+                          : isDisabled
                             ? "#94a3b8"
-                            : isDisabled
-                              ? "#94a3b8"
-                              : isSelected
-                                ? icon.color
-                                : (isDark ? "#2a2a32" : "#e2e8f0")),
+                            : isSelected
+                              ? icon.color
+                              : (isDark ? "#2a2a32" : "#e2e8f0"),
                         backgroundColor: forceDisabledInEdit
                           ? (isDark ? "#121214" : "#f1f5f9")
                           : (isSelected
                             ? (isDark ? getRgba(icon.color, 0.16) : getRgba(icon.color, 0.08))
                             : (isDark ? "#1e1e24" : "#ffffff")),
-                        opacity: forceDisabledInEdit ? 0.25 : (visuallyRestricted ? 0.65 : (isDisabled ? 0.45 : 1)),
+                        opacity: forceDisabledInEdit ? 0.25 : (isDisabled ? 0.45 : 1),
                       }}
                     >
                       <IconComponent
                         name={icon.name as any}
                         size={25}
-                        color={isDark ? "#ffffff" : (visuallyRestricted || forceDisabledInEdit ? "#94a3b8" : icon.color)}
+                        color={
+                          forceDisabledInEdit
+                            ? "#94a3b8"
+                            : visuallyRestricted && icon.label === "SMS"
+                              ? "#facc15"
+                              : icon.color
+                        }
                       />
                     </TouchableOpacity>
                   </View>
@@ -504,7 +530,7 @@ export default function CampaignPost() {
                       color: isSelected
                         ? (isDark ? "#ffffff" : "#0f172a")
                         : (isDark ? "#94a3b8" : "#64748b"),
-                      opacity: forceDisabledInEdit ? 0.35 : (visuallyRestricted ? 0.65 : 1),
+                      opacity: forceDisabledInEdit ? 0.35 : 1,
                     }}
                   >
                     {icon.label}
@@ -528,7 +554,7 @@ export default function CampaignPost() {
           }}>
             <Ionicons name="alert-circle-outline" size={20} style={{ color: isDark ? "#facc15" : "#b45309", }} />
             <ThemedText style={{ flex: 1, marginLeft: 8, color: isDark ? "#fde68a" : "#000" }}>{bannerMessage}</ThemedText>
-            <TouchableOpacity onPress={() => router.push("/(accounts)/accounts")}>
+            <TouchableOpacity onPress={() => router.push("/(tabs)/accounts")}>
               <ThemedText style={{ color: isDark ? "#facc15" : "#b45309", fontWeight: "bold" }}>Connect</ThemedText>
             </TouchableOpacity>
           </ThemedView>
@@ -663,7 +689,7 @@ export default function CampaignPost() {
                     backgroundColor: "#10b981",
                   }}
                   onPress={() => {
-                    router.push("/(accounts)/accounts");
+                    router.push("/(tabs)/accounts");
                   }}
                 >
                   <ThemedText

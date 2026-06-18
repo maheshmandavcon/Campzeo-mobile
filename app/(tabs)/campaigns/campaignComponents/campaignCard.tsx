@@ -8,6 +8,7 @@ import { router } from "expo-router";
 import { useEffect } from "react";
 import { Alert, Text, TouchableOpacity, useColorScheme, View } from "react-native";
 
+// Define Campaign type
 export interface Campaign {
   id: number;
   details: string;
@@ -81,7 +82,7 @@ export default function CampaignCard({
 
   // ✅ FIXED POST COUNT LOGIC
   const totalPosts =
-   postLength;
+   postLength ?? campaign.postsCount ?? 0;
 
   const handleEdit = () => {
     // if (onEdit) {

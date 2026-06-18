@@ -1,5 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
-
+import React, { useState, useCallback } from "react";
 import {
   FlatList,
   TextInput,
@@ -9,10 +8,7 @@ import {
   useColorScheme,
   Alert,
   Image,
-  Modal,
 } from "react-native";
-
-
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
@@ -21,7 +17,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { getTemplatesApi, deleteTemplateApi } from "@/api/templetsApi";
 import { useAuth } from "@/context/AuthContext";
 import { getUser } from "@/api/dashboardApi";
-
 
 type PlatformType =
   | "ALL"
@@ -41,91 +36,63 @@ interface Template {
   platform: PlatformType;
   createdDate: string;
   metadata?: string;
+  mediaUrls?: string[];
 }
 
-interface FilterOption {
+const PLATFORM_FILTERS: {
   label: string;
   value: PlatformType;
   icon?: string;
   iconLib?: "ionicons" | "fontawesome";
   color: string;
 }[] = [
-    { label: "All", value: "ALL", color: "#6b7280" },
-    { label: "Email", value: "EMAIL", icon: "mail", iconLib: "ionicons", color: "#f59e0b" },
-    { label: "Instagram", value: "INSTAGRAM", icon: "instagram", iconLib: "fontawesome", color: "#c13584" },
-    { label: "Facebook", value: "FACEBOOK", icon: "facebook-square", iconLib: "fontawesome", color: "#1877F2" },
-    { label: "YouTube", value: "YOUTUBE", icon: "youtube-play", iconLib: "fontawesome", color: "#FF0000" },
-    { label: "LinkedIn", value: "LINKEDIN", icon: "linkedin-square", iconLib: "fontawesome", color: "#0A66C2" },
-    { label: "Pinterest", value: "PINTEREST", icon: "pinterest", iconLib: "fontawesome", color: "#E60023" },
-    { label: "SMS", value: "SMS", icon: "chatbubble-ellipses-outline", iconLib: "ionicons", color: "#10b981" },
-    { label: "WhatsApp", value: "WHATSAPP", icon: "logo-whatsapp", iconLib: "ionicons", color: "#25D366" },
-  ];
-
-const handlePlatformFilter = (platform: PlatformType, setSelectedPlatform: (p: PlatformType) => void) => {
-  if (platform === "SMS" || platform === "WHATSAPP") {
-    Alert.alert(
-      "Admin Approval Required",
-      "You need admin approval and a credits pack to view/manage templates for SMS/WhatsApp.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Purchase Pack", onPress: () => router.push("/(tabs)/accounts" as any) }
-      ]
-    );
-    return;
-  }
-  setSelectedPlatform(platform);
-};
-
-const getPlatformColor = (platform: PlatformType): string => {
-  const PLATFORMS_MAP = [
-    { label: "All", value: "ALL", color: "#6b7280" },
-    { label: "Email", value: "EMAIL", color: "#f59e0b" },
-    { label: "Instagram", value: "INSTAGRAM", color: "#c13584" },
-    { label: "Facebook", value: "FACEBOOK", color: "#1877F2" },
-    { label: "YouTube", value: "YOUTUBE", color: "#FF0000" },
-    { label: "LinkedIn", value: "LINKEDIN", color: "#0A66C2" },
-    { label: "Pinterest", value: "PINTEREST", color: "#E60023" },
-    { label: "SMS", value: "SMS", color: "#10b981" },
-    { label: "WhatsApp", value: "WHATSAPP", color: "#25D366" },
-  ];
-  return PLATFORMS_MAP.find((p) => p.value === platform)?.color ?? "#6b7280";
-};
-
-const getPlatformIcon = (platform: PlatformType) => {
-  const PLATFORMS_MAP = [
-    { value: "ALL", icon: "apps-outline", iconLib: "ionicons", color: "#6b7280" },
-    { value: "EMAIL", icon: "mail", iconLib: "ionicons", color: "#f59e0b" },
-    { value: "INSTAGRAM", icon: "instagram", iconLib: "fontawesome", color: "#c13584" },
-    { value: "FACEBOOK", icon: "facebook-square", iconLib: "fontawesome", color: "#1877F2" },
-    { value: "YOUTUBE", icon: "youtube-play", iconLib: "fontawesome", color: "#FF0000" },
-    { value: "LINKEDIN", icon: "linkedin-square", iconLib: "fontawesome", color: "#0A66C2" },
-    { value: "PINTEREST", icon: "pinterest", iconLib: "fontawesome", color: "#E60023" },
-    { value: "SMS", icon: "chatbubble-ellipses-outline", iconLib: "ionicons", color: "#10b981" },
-    { value: "WHATSAPP", icon: "logo-whatsapp", iconLib: "ionicons", color: "#25D366" },
-  ];
-  return PLATFORMS_MAP.find((f) => f.value === platform);
-};
-
-const MOCK_TEMPLATES: Template[] = [
+  { label: "All", value: "ALL", color: "#6b7280" },
+  { label: "Email", value: "EMAIL", icon: "mail", iconLib: "ionicons", color: "#f59e0b" },
+  { label: "Instagram", value: "INSTAGRAM", icon: "instagram", iconLib: "fontawesome", color: "#c13584" },
+  { label: "Facebook", value: "FACEBOOK", icon: "facebook-square", iconLib: "fontawesome", color: "#1877F2" },
+  { label: "YouTube", value: "YOUTUBE", icon: "youtube-play", iconLib: "fontawesome", color: "#FF0000" },
+  { label: "LinkedIn", value: "LINKEDIN", icon: "linkedin-square", iconLib: "fontawesome", color: "#0A66C2" },
+  { label: "Pinterest", value: "PINTEREST", icon: "pinterest", iconLib: "fontawesome", color: "#E60023" },
+  { label: "SMS", value: "SMS", icon: "chatbubble-ellipses-outline", iconLib: "ionicons", color: "#10b981" },
+  { label: "WhatsApp", value: "WHATSAPP", icon: "logo-whatsapp", iconLib: "ionicons", color: "#25D366" },
 ];
 
-export default function Templates() {
 
+const getPlatformColor = (platform: PlatformType): string =>
+  PLATFORM_FILTERS.find((p) => p.value === platform)?.color ?? "#6b7280";
+
+const getPlatformIcon = (platform: PlatformType) => {
+  const p = PLATFORM_FILTERS.find((f) => f.value === platform);
+  return p;
+};
+
+const MOCK_TEMPLATES: Template[] = [];
+
+const NON_ALL_PLATFORMS = PLATFORM_FILTERS.filter((f) => f.value !== "ALL");
+
+// ─── Main Component ──────────────────────────────────────────────────────────
+
+export default function Templates() {
   const isDark = useColorScheme() === "dark";
 
   const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState<FilterOption[]>([
-    { label: "All", value: "ALL", icon: "apps-outline", iconLib: "ionicons", color: "#6b7280" },
-    { label: "Email", value: "EMAIL", icon: "mail", iconLib: "ionicons", color: "#f59e0b" },
-    { label: "Instagram", value: "INSTAGRAM", icon: "instagram", iconLib: "fontawesome", color: "#c13584" },
-    { label: "Facebook", value: "FACEBOOK", icon: "facebook-square", iconLib: "fontawesome", color: "#1877F2" },
-    { label: "YouTube", value: "YOUTUBE", icon: "youtube-play", iconLib: "fontawesome", color: "#FF0000" },
-    { label: "LinkedIn", value: "LINKEDIN", icon: "linkedin-square", iconLib: "fontawesome", color: "#0A66C2" },
-    { label: "Pinterest", value: "PINTEREST", icon: "pinterest", iconLib: "fontawesome", color: "#E60023" },
-    { label: "SMS", value: "SMS", icon: "chatbubble-ellipses-outline", iconLib: "ionicons", color: "#10b981" },
-    { label: "WhatsApp", value: "WHATSAPP", icon: "logo-whatsapp", iconLib: "ionicons", color: "#25D366" },
-  ]);
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformType>("ALL");
+  const [orderedPlatformFilters, setOrderedPlatformFilters] = useState(
+    NON_ALL_PLATFORMS.map((f) => f.value) as PlatformType[]
+  );
+
+  const handlePlatformSelect = (platform: PlatformType) => {
+    setSelectedPlatform(platform);
+    if (platform === "ALL") return; 
+    setOrderedPlatformFilters((prev) => {
+      if (platform === selectedPlatform) return prev;
+      const filtered = prev.filter(
+        (p) => p !== platform && p !== selectedPlatform
+      );
+      const tail = selectedPlatform !== "ALL" ? [...filtered, selectedPlatform] : filtered;
+      return [platform, ...tail];
+    });
+  };
   const [templates, setTemplates] = useState<Template[]>(MOCK_TEMPLATES);
   const [loading, setLoading] = useState(false);
   const { getToken } = useAuth();
@@ -165,6 +132,7 @@ export default function Templates() {
     }, [fetchTemplates])
   );
 
+  // Filter logic
   const filteredTemplates = templates.filter((t) => {
     const matchesPlatform =
       selectedPlatform === "ALL" || t.platform === selectedPlatform;
@@ -203,125 +171,8 @@ export default function Templates() {
     return <Ionicons name={config.icon as any} size={size} color={config.color} />;
   };
 
-  const MiniPreview = ({ item }: { item: Template }) => {
-    const platform = item.platform as PlatformType;
-    const mediaUrl = item.mediaUrls && item.mediaUrls.length > 0 ? item.mediaUrls[0] : null;
-
-    if (platform === "SMS" || platform === "WHATSAPP") {
-      const isWhatsApp = platform === "WHATSAPP";
-      const hasMedia = isWhatsApp && item.mediaUrls && item.mediaUrls.length > 0;
-
-      return (
-        <View style={{
-          backgroundColor: isDark ? (isWhatsApp ? "#056162" : "#374151") : (isWhatsApp ? "#DCF8C6" : "#007AFF"),
-          borderRadius: 12,
-          borderBottomRightRadius: 2,
-          padding: 10,
-          marginTop: 8,
-          alignSelf: "flex-end",
-          maxWidth: "94%",
-          minWidth: hasMedia ? 200 : undefined,
-        }}>
-          {hasMedia && (
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={() => setPreviewImage(item.mediaUrls![0])}
-              style={{ marginBottom: 6, borderRadius: 6, overflow: "hidden", width: "100%" }}
-            >
-              <Image source={{ uri: item.mediaUrls![0] }} style={{ width: "100%", aspectRatio: 4 / 3 }} resizeMode="cover" />
-            </TouchableOpacity>
-          )}
-          <ThemedText style={{ fontSize: 13, color: (isDark || !isWhatsApp) ? "#fff" : "#000" }}>{item.content}</ThemedText>
-        </View>
-
-      );
-    }
-
-    return (
-      <View style={{
-        marginTop: 10,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: isDark ? "#374151" : "#e5e7eb",
-        overflow: "hidden",
-        backgroundColor: isDark ? "#111827" : "#f9fafb"
-      }}>
-        {(platform === "FACEBOOK" || platform === "INSTAGRAM" || platform === "LINKEDIN") && (
-          <View style={{ padding: 8, flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: "#E4E6EB", alignItems: "center", justifyContent: "center" }}>
-              <Ionicons name="person" size={12} color="#8A8D91" />
-            </View>
-            <ThemedText style={{ fontSize: 11, fontWeight: "700" }}>Your Brand</ThemedText>
-          </View>
-        )}
-
-        {mediaUrl && (
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => setPreviewImage(mediaUrl)}
-            style={{ aspectRatio: 1.91, backgroundColor: "#000" }}
-          >
-            <Image source={{ uri: mediaUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
-          </TouchableOpacity>
-        )}
-
-        <View style={{ padding: 10 }}>
-          {item.subject ? (
-            <ThemedText style={{ fontSize: 13, fontWeight: "700", marginBottom: 4 }} numberOfLines={1}>{item.subject}</ThemedText>
-          ) : null}
-          <ThemedText style={{ fontSize: 12, color: isDark ? "#9ca3af" : "#6b7280" }} numberOfLines={2}>{item.content}</ThemedText>
-        </View>
-      </View>
-    );
-  };
-
-  const SkeletonCard = () => {
-    const opacity = React.useRef(new Animated.Value(0.3)).current;
-
-    React.useEffect(() => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(opacity, {
-            toValue: 0.7,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(opacity, {
-            toValue: 0.3,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    }, []);
-
-    return (
-      <ThemedView
-        style={{
-          backgroundColor: isDark ? "#1f2937" : "#ffffff",
-          borderRadius: 16,
-          padding: 16,
-          marginBottom: 12,
-          borderWidth: 1,
-          borderColor: isDark ? "#374151" : "#e5e7eb",
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
-          <Animated.View style={{ width: 60, height: 20, borderRadius: 10, backgroundColor: isDark ? "#374151" : "#e5e7eb", opacity }} />
-          <Animated.View style={{ flex: 1, height: 20, borderRadius: 4, backgroundColor: isDark ? "#374151" : "#e5e7eb", marginLeft: 10, opacity }} />
-        </View>
-        <Animated.View style={{ height: 60, borderRadius: 8, backgroundColor: isDark ? "#374151" : "#e5e7eb", marginBottom: 12, opacity }} />
-        <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
-          <Animated.View style={{ width: 80, height: 12, borderRadius: 4, backgroundColor: isDark ? "#374151" : "#e5e7eb", opacity }} />
-        </View>
-      </ThemedView>
-    );
-  };
-
   const renderTemplateCard = ({ item }: { item: Template }) => {
-
-    const platformColor = getPlatformColor(item.platform as PlatformType);
-
+    const platformColor = getPlatformColor(item.platform);
     return (
       <ThemedView
         style={{
@@ -351,14 +202,13 @@ export default function Templates() {
               marginRight: 10,
             }}
           >
-
-            {renderPlatformIcon(item.platform as PlatformType)}
-
+            {renderPlatformIcon(item.platform)}
             <ThemedText style={{ fontSize: 11, fontWeight: "600", color: platformColor, marginLeft: 4 }}>
-              {getPlatformLabel(item.platform)}
+              {item.platform}
             </ThemedText>
           </View>
-          <ThemedText
+
+            <ThemedText
             style={{
               flex: 1,
               fontSize: 15,
@@ -384,7 +234,6 @@ export default function Templates() {
               <Ionicons name="pencil-outline" size={16} color={isDark ? "#9ca3af" : "#6b7280"} />
             </TouchableOpacity>
 
-
             <TouchableOpacity
               onPress={() => handleDelete(item.id)}
               style={{
@@ -398,7 +247,54 @@ export default function Templates() {
           </View>
         </View>
 
-        <MiniPreview item={item} />
+        {/* Content preview */}
+        <ThemedText
+          style={{
+            fontSize: 13,
+            color: isDark ? "#9ca3af" : "#6b7280",
+            lineHeight: 20,
+          }}
+          numberOfLines={3}
+        >
+          {item.content}
+        </ThemedText>
+
+        {item.mediaUrls && item.mediaUrls.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }} contentContainerStyle={{ gap: 8 }}>
+            {item.mediaUrls.map((url, idx) => {
+              const urlLower = url.toLowerCase();
+              const isVideo = urlLower.includes('.mp4') || urlLower.includes('.mov');
+              const isPdf = urlLower.includes('.pdf');
+              return (
+                <View 
+                  key={idx} 
+                  style={{ 
+                    width: 60, 
+                    height: 60, 
+                    borderRadius: 8, 
+                    backgroundColor: isDark ? "#374151" : "#f3f4f6",
+                    overflow: 'hidden',
+                    borderWidth: 1,
+                    borderColor: isDark ? "#4b5563" : "#e5e7eb",
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 8
+                  }}
+                >
+                  {!isPdf && !isVideo ? (
+                    <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                  ) : (
+                    <Ionicons 
+                      name={isVideo ? "videocam-outline" : "document-text-outline"} 
+                      size={24} 
+                      color={isDark ? "#9ca3af" : "#6b7280"} 
+                    />
+                  )}
+                </View>
+              );
+            })}
+          </ScrollView>
+        )}
 
         <ThemedText
           style={{
@@ -470,7 +366,7 @@ export default function Templates() {
         {search || selectedPlatform !== "ALL"
           ? "Try clearing your search or selecting a different platform."
           : 'Tap “New Template” to create your first reusable message.'}
-
+          
       </ThemedText>
       {!search && selectedPlatform === "ALL" && (
         <TouchableOpacity
@@ -496,196 +392,229 @@ export default function Templates() {
 
   return (
     <SafeAreaView
-      edges={["top", "bottom"]}
+      edges={["top"]}
       style={{ flex: 1, backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
     >
-      <ThemedView
+    <ThemedView
+      style={{
+        flex: 1,
+        backgroundColor: isDark ? "#161618" : "#f3f4f6",
+      }}
+    >
+      <View
         style={{
-          flex: 1,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingHorizontal: 16,
+          paddingTop: 16,
+          paddingBottom: 12,
           backgroundColor: isDark ? "#161618" : "#f3f4f6",
         }}
       >
-        {/* ── Header ── */}
+        <ThemedText
+          style={{
+            fontSize: 22,
+            fontWeight: "800",
+            color: isDark ? "#f3f4f6" : "#111827",
+          }}
+        >
+          Message Templates
+        </ThemedText>
+
+        <TouchableOpacity
+          onPress={() => router.push("/(templets)/createTemplet")}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            backgroundColor: "#dc2626",
+            paddingHorizontal: 14,
+            paddingVertical: 9,
+            borderRadius: 24,
+          }}
+        >
+          <Ionicons name="add" size={18} color="#fff" />
+          <ThemedText style={{ color: "#fff", fontWeight: "600", fontSize: 13 }}>
+            New Template
+          </ThemedText>
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Search Bar ── */}
+      <View
+        style={{
+          paddingHorizontal: 16,
+          backgroundColor: isDark ? "#161618" : "#f3f4f6",
+        }}
+      >
         <View
           style={{
             flexDirection: "row",
             alignItems: "center",
-            justifyContent: "space-between",
-            paddingHorizontal: 16,
-            paddingTop: 16,
-            paddingBottom: 12,
-            backgroundColor: isDark ? "#161618" : "#f3f4f6",
+            backgroundColor: isDark ? "#1f2937" : "#ffffff",
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: isDark ? "#374151" : "#e5e7eb",
+            paddingHorizontal: 12,
+            paddingVertical: 2,
           }}
         >
-          <ThemedText
+          <Ionicons
+            name="search-outline"
+            size={18}
+            color={isDark ? "#9ca3af" : "#6b7280"}
+            style={{ marginRight: 8 }}
+          />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search templates..."
+            placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
             style={{
-              fontSize: 22,
-              fontWeight: "800",
+              flex: 1,
+              paddingVertical: 10,
+              fontSize: 14,
               color: isDark ? "#f3f4f6" : "#111827",
             }}
-          >
-            Message Templates
-          </ThemedText>
-
-          <TouchableOpacity
-            onPress={() => router.push("/(templets)/createTemplet")}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 6,
-              backgroundColor: "#dc2626",
-              paddingHorizontal: 14,
-              paddingVertical: 9,
-              borderRadius: 24,
-            }}
-          >
-            <Ionicons name="add" size={18} color="#fff" />
-            <ThemedText style={{ color: "#fff", fontWeight: "600", fontSize: 13 }}>
-              New Template
-            </ThemedText>
-          </TouchableOpacity>
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch("")}>
+              <Ionicons
+                name="close-circle"
+                size={18}
+                color={isDark ? "#9ca3af" : "#9ca3af"}
+              />
+            </TouchableOpacity>
+          )}
         </View>
+      </View>
 
-        {/* ── Search Bar ── */}
-        <View
-          style={{
-            paddingHorizontal: 16,
-            backgroundColor: isDark ? "#161618" : "#f3f4f6",
-          }}
-        >
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              backgroundColor: isDark ? "#1f2937" : "#ffffff",
-              borderRadius: 14,
-              borderWidth: 1,
-              borderColor: isDark ? "#374151" : "#e5e7eb",
-              paddingHorizontal: 12,
-              paddingVertical: 2,
-            }}
-          >
-            <Ionicons
-              name="search-outline"
-              size={18}
-              color={isDark ? "#9ca3af" : "#6b7280"}
-              style={{ marginRight: 8 }}
-            />
-            <TextInput
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Search templates..."
-              placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ flexGrow: 0, marginTop: 8 }}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingBottom: 4,
+          gap: 8,
+          flexDirection: "row",
+          alignItems: "center",
+        }}
+      >
+        {(() => {
+          const allFilter = PLATFORM_FILTERS.find((f) => f.value === "ALL")!;
+          const isActive = selectedPlatform === "ALL";
+          return (
+            <TouchableOpacity
+              key="ALL"
+              onPress={() => handlePlatformSelect("ALL")}
               style={{
-                flex: 1,
-                paddingVertical: 10,
-                fontSize: 14,
-                color: isDark ? "#f3f4f6" : "#111827",
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                paddingHorizontal: 14,
+                paddingVertical: 7,
+                borderRadius: 20,
+                borderWidth: 1.5,
+                borderColor: isActive ? allFilter.color : isDark ? "#374151" : "#e5e7eb",
+                backgroundColor: isActive
+                  ? `${allFilter.color}22`
+                  : isDark
+                  ? "#1f2937"
+                  : "#ffffff",
               }}
-            />
-            {search.length > 0 && (
-              <TouchableOpacity onPress={() => setSearch("")}>
-                <Ionicons
-                  name="close-circle"
-                  size={18}
-                  color={isDark ? "#9ca3af" : "#9ca3af"}
-                />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* ── Platform Filter Chips ── */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-            paddingBottom: 12,
-            gap: 8,
-            flexDirection: "row",
-            alignItems: "center",
-          }}
-        >
-          {PLATFORM_FILTERS.map((filter) => {
-            const isActive = selectedPlatform === filter.value;
-            return (
-              <TouchableOpacity
-                key={filter.value}
-                onPress={() => handlePlatformFilter(filter.value, setSelectedPlatform)}
+            >
+              <ThemedText
                 style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 6,
-                  paddingHorizontal: 14,
-                  paddingVertical: 7,
-                  borderRadius: 20,
-                  borderWidth: 1.5,
-                  borderColor: isActive ? filter.color : isDark ? "#374151" : "#e5e7eb",
-                  backgroundColor: isActive
-                    ? `${filter.color}22`
-                    : isDark
-                      ? "#1f2937"
-                      : "#ffffff",
+                  fontSize: 13,
+                  fontWeight: isActive ? "700" : "500",
+                  color: isActive ? allFilter.color : isDark ? "#9ca3af" : "#6b7280",
                 }}
               >
-                {filter.icon &&
-                  (filter.iconLib === "fontawesome" ? (
-                    <FontAwesome
-                      name={filter.icon as any}
-                      size={13}
-                      color={isActive ? filter.color : isDark ? "#9ca3af" : "#6b7280"}
-                    />
-                  ) : (
-                    <Ionicons
-                      name={filter.icon as any}
-                      size={14}
-                      color={isActive ? filter.color : isDark ? "#9ca3af" : "#6b7280"}
-                    />
-                  ))}
-                <ThemedText
-                  style={{
-                    fontSize: 13,
-                    fontWeight: isActive ? "700" : "500",
-                    color: isActive ? filter.color : isDark ? "#9ca3af" : "#6b7280",
-                  }}
-                >
-                  {filter.label}
-                </ThemedText>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+                {allFilter.label}
+              </ThemedText>
+            </TouchableOpacity>
+          );
+        })()}
 
-        {/* ── Template Count ── */}
-        {filteredTemplates.length > 0 && (
-          <ThemedText
-            style={{
-              paddingHorizontal: 16,
-              paddingBottom: 8,
-              fontSize: 12,
-              color: isDark ? "#6b7280" : "#9ca3af",
-            }}
-          >
-            {filteredTemplates.length} template{filteredTemplates.length !== 1 ? "s" : ""} found
-          </ThemedText>
-        )}
+        {orderedPlatformFilters.map((pValue) => {
+          const filter = PLATFORM_FILTERS.find((f) => f.value === pValue)!;
+          const isActive = selectedPlatform === filter.value;
+          return (
+            <TouchableOpacity
+              key={filter.value}
+              onPress={() => handlePlatformSelect(filter.value)}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                paddingHorizontal: 14,
+                paddingVertical: 7,
+                borderRadius: 20,
+                borderWidth: 1.5,
+                borderColor: isActive ? filter.color : isDark ? "#374151" : "#e5e7eb",
+                backgroundColor: isActive
+                  ? `${filter.color}22`
+                  : isDark
+                  ? "#1f2937"
+                  : "#ffffff",
+              }}
+            >
+              {filter.icon &&
+                (filter.iconLib === "fontawesome" ? (
+                  <FontAwesome
+                    name={filter.icon as any}
+                    size={13}
+                    color={isActive ? filter.color : isDark ? "#9ca3af" : "#6b7280"}
+                  />
+                ) : (
+                  <Ionicons
+                    name={filter.icon as any}
+                    size={14}
+                    color={isActive ? filter.color : isDark ? "#9ca3af" : "#6b7280"}
+                  />
+                ))}
+              <ThemedText
+                style={{
+                  fontSize: 13,
+                  fontWeight: isActive ? "700" : "500",
+                  color: isActive ? filter.color : isDark ? "#9ca3af" : "#6b7280",
+                }}
+              >
+                {filter.label}
+              </ThemedText>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
-        {/* ── Template List ── */}
-        <FlatList
-          data={filteredTemplates}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={renderTemplateCard}
-          contentContainerStyle={{
+      {filteredTemplates.length > 0 && (
+        <ThemedText
+          style={{
             paddingHorizontal: 16,
-            paddingBottom: 120,
-            flexGrow: 1,
+            paddingBottom: 8,
+            fontSize: 12,
+            color: isDark ? "#6b7280" : "#9ca3af",
           }}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={<EmptyState />}
-        />
-      </ThemedView>
+        >
+          {filteredTemplates.length} template{filteredTemplates.length !== 1 ? "s" : ""} found
+        </ThemedText>
+      )}
+
+      <FlatList
+        data={filteredTemplates}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={renderTemplateCard}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingBottom: 120,
+          flexGrow: 1,
+        }}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={<EmptyState />}
+      />
+    </ThemedView>
     </SafeAreaView>
   );
 }
-

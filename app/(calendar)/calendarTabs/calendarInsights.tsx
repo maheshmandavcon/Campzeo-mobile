@@ -3,6 +3,7 @@ import { ThemedView } from "@/components/themed-view";
 import { Ionicons } from "@expo/vector-icons";
 import {
   Pressable,
+  ScrollView,
   Text,
   TouchableOpacity,
   useColorScheme,
@@ -34,26 +35,40 @@ export default function CalendarInsights() {
   const barRef = useRef<any>(null);
 
 
+  // const platformColors: any = {
+  //   FACEBOOK: "#3b82f6",
+  //   INSTAGRAM: "#22c55e",
+  //   LINKEDIN: "#f59e0b",
+  //   PINTEREST: "#ef4444",
+  //   YOUTUBE: "#8b5cf6",
+  // };
+
   const platformColors: any = {
-    FACEBOOK: "#3b82f6",
-    INSTAGRAM: "#22c55e",
-    LINKEDIN: "#f59e0b",
-    PINTEREST: "#ef4444",
-    YOUTUBE: "#8b5cf6",
+    FACEBOOK: "#1877F2",
+    INSTAGRAM: "#E4405F",
+    LINKEDIN: "#0A66C2",
+    PINTEREST: "#BD081C",
+    YOUTUBE: "#FF0000",
+    WHATSAPP: "#25D366",
+    EMAIL: "#F59E0B",
+    SMS: "#8B5CF6",
   };
+
   const barData =
     insightsData?.platformMix?.map((item: any) => ({
       value: item.count,
       label: item.platform,
+      frontColor: platformColors[item.platform] || "#999",
     })) || [];
 
-  const total = insightsData?.insights?.totalPosts || 1;
+  const total = insightsData?.totalPosts || 1;
 
   const pieData =
     insightsData?.platformMix?.map((item: any) => ({
       value: item.count,
       color: platformColors[item.platform] || "#999",
       text: `${Math.round((item.count / total) * 100)}%`,
+      // shiftTextX: -10,
     })) || [];
 
   const fetchInsights = async () => {
@@ -62,7 +77,7 @@ export default function CalendarInsights() {
       const to = toDate ? toDate.toISOString() : "";
 
       const response = await getPostsInsights(platform, from, to);
-      // console.log("Insights Data:", response);
+      console.log("Insights Data:", response);
       setInsightsData(response);
     } catch (error) {
       console.error("Error fetching insights:", error);
@@ -91,6 +106,11 @@ export default function CalendarInsights() {
     return `${d}-${m}-${y}`;
   };
 
+  const maxCount = Math.max(
+    ...barData.map((item: any) => item.value),
+    1
+  );
+
   return (
     <ThemedView
       style={{
@@ -109,7 +129,6 @@ export default function CalendarInsights() {
           borderRadius: 16,
         }}
       >
-        {/* Time Header - Two Calendars */}
         <HStack style={{ gap: 10, width: "100%" }}>
           {/* From Date */}
           <VStack style={{ flex: 1, gap: 4 }}>
@@ -265,112 +284,140 @@ export default function CalendarInsights() {
         </HStack>
       </VStack>
 
-      {/* Stats */}
-      <VStack className="gap-4">
-        <HStack className="justify-between">
-          <VStack
-            style={{
-              padding: 15,
-              gap: 9,
-              width: "48%",
-              borderWidth: 1,
-              borderColor: "#e5e7eb",
-              borderRadius: 16,
-              minHeight: 130,
-            }}
-          >
-            <ThemedText style={{ fontWeight: "medium", fontSize: 17 }}>
-              Total Posts
-            </ThemedText>
-            <ThemedText style={{ fontWeight: "bold", fontSize: 20 }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 12, paddingVertical: 6, paddingHorizontal: 2 }}
+        style={{ marginBottom: 8 }}
+      >
+        {/* Total Posts */}
+        <VStack
+          style={{
+            padding: 15,
+            gap: 9,
+            width: 150,
+            borderWidth: 1,
+            borderColor: "#e5e7eb",
+            borderRadius: 16,
+            minHeight: 120,
+            backgroundColor: isDark ? "#0f172a" : "#fff",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <ThemedText style={{ fontWeight: "bold", fontSize: 22 }}>
               {insightsData?.totalPosts ?? "-"}
             </ThemedText>
-            <HStack className="items-center gap-2">
-              <Ionicons name="trending-up" size={14} color={"#6a7282"} />
-              <ThemedText style={{ fontSize: 13, color: "#6a7282" }}>
-                All matched records
-              </ThemedText>
-            </HStack>
-          </VStack>
-
-          <VStack
-            style={{
-              padding: 15,
-              gap: 9,
-              width: "48%",
-              borderWidth: 1,
-              borderColor: "#e5e7eb",
-              borderRadius: 16,
-              minHeight: 130,
-            }}
-          >
-            <ThemedText style={{ fontWeight: "medium", fontSize: 17 }}>
-              Upcoming Posts
+            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#6b728022", alignItems: "center", justifyContent: "center" }}>
+              <Ionicons name="document-text-outline" size={18} color="#6b7280" />
+            </View>
+          </View>
+          <ThemedText style={{ fontWeight: "600", fontSize: 13, color: isDark ? "#cbd5e1" : "#374151" }}>
+            Total Posts
+          </ThemedText>
+          <HStack className="items-center gap-2">
+            <Ionicons name="trending-up" size={12} color={"#6a7282"} />
+            <ThemedText style={{ fontSize: 11, color: "#6a7282" }}>
+              All records
             </ThemedText>
-            <ThemedText style={{ fontWeight: "bold", fontSize: 20 }}>
+          </HStack>
+        </VStack>
+
+        {/* Upcoming Posts */}
+        <VStack
+          style={{
+            padding: 15,
+            gap: 9,
+            width: 150,
+            borderWidth: 1,
+            borderColor: "#e5e7eb",
+            borderRadius: 16,
+            minHeight: 120,
+            backgroundColor: isDark ? "#0f172a" : "#fff",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <ThemedText style={{ fontWeight: "bold", fontSize: 22 }}>
               {insightsData?.stats?.upcoming ?? "-"}
             </ThemedText>
-            <HStack className="items-center gap-2">
-              <Ionicons name="trending-up" size={14} color={"#00a63e"} />
-              <ThemedText style={{ fontSize: 13, color: "#00a63e" }}>
-                Next scheduled{"\n"}post soon
-              </ThemedText>
-            </HStack>
-          </VStack>
-        </HStack>
-
-        <HStack className="justify-between">
-          <VStack
-            style={{
-              padding: 15,
-              gap: 9,
-              width: "48%",
-              borderWidth: 1,
-              borderColor: "#e5e7eb",
-              borderRadius: 16,
-              minHeight: 130,
-            }}
-          >
-            <ThemedText style={{ fontWeight: "medium", fontSize: 17 }}>
-              Past (Published)
+            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#00a63e22", alignItems: "center", justifyContent: "center" }}>
+              <Ionicons name="time-outline" size={18} color="#00a63e" />
+            </View>
+          </View>
+          <ThemedText style={{ fontWeight: "600", fontSize: 13, color: isDark ? "#cbd5e1" : "#374151" }}>
+            Upcoming
+          </ThemedText>
+          <HStack className="items-center gap-2">
+            <Ionicons name="trending-up" size={12} color={"#00a63e"} />
+            <ThemedText style={{ fontSize: 11, color: "#00a63e" }}>
+              Scheduled
             </ThemedText>
-            <ThemedText style={{ fontWeight: "bold", fontSize: 20 }}>
+          </HStack>
+        </VStack>
+
+        {/* Past (Published) */}
+        <VStack
+          style={{
+            padding: 15,
+            gap: 9,
+            width: 150,
+            borderWidth: 1,
+            borderColor: "#e5e7eb",
+            borderRadius: 16,
+            minHeight: 120,
+            backgroundColor: isDark ? "#0f172a" : "#fff",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <ThemedText style={{ fontWeight: "bold", fontSize: 22 }}>
               {insightsData?.stats?.past ?? "-"}
             </ThemedText>
-            <HStack className="items-center gap-2">
-              <Ionicons name="bar-chart" size={14} color={"#155dfcfc"} />
-              <ThemedText style={{ fontSize: 13, color: "#155dfcfc" }}>
-                Engagement synced
-              </ThemedText>
-            </HStack>
-          </VStack>
-
-          <VStack
-            style={{
-              padding: 15,
-              gap: 9,
-              width: "48%",
-              borderWidth: 1,
-              borderColor: "#e5e7eb",
-              borderRadius: 16,
-              minHeight: 130,
-            }}
-          >
-            <ThemedText style={{ fontWeight: "medium", fontSize: 17 }}>
-              Drafts
+            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#155dfc22", alignItems: "center", justifyContent: "center" }}>
+              <Ionicons name="bar-chart-outline" size={18} color="#155dfc" />
+            </View>
+          </View>
+          <ThemedText style={{ fontWeight: "600", fontSize: 13, color: isDark ? "#cbd5e1" : "#374151" }}>
+            Published
+          </ThemedText>
+          <HStack className="items-center gap-2">
+            <Ionicons name="checkmark-circle-outline" size={12} color={"#155dfc"} />
+            <ThemedText style={{ fontSize: 11, color: "#155dfc" }}>
+              Sent
             </ThemedText>
-            <ThemedText style={{ fontWeight: "bold", fontSize: 20 }}>
+          </HStack>
+        </VStack>
+
+        {/* Drafts */}
+        <VStack
+          style={{
+            padding: 15,
+            gap: 9,
+            width: 150,
+            borderWidth: 1,
+            borderColor: "#e5e7eb",
+            borderRadius: 16,
+            minHeight: 120,
+            backgroundColor: isDark ? "#0f172a" : "#fff",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <ThemedText style={{ fontWeight: "bold", fontSize: 22 }}>
               {insightsData?.stats?.drafts ?? "-"}
             </ThemedText>
-            <HStack className="items-center gap-2">
-              <Ionicons name="calendar" size={14} color={"#f54a00"} />
-              <ThemedText style={{ fontSize: 13, color: "#f54a00" }}>
-                Pending scheduling
-              </ThemedText>
-            </HStack>
-          </VStack>
-        </HStack>
-      </VStack>
+            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#f54a0022", alignItems: "center", justifyContent: "center" }}>
+              <Ionicons name="create-outline" size={18} color="#f54a00" />
+            </View>
+          </View>
+          <ThemedText style={{ fontWeight: "600", fontSize: 13, color: isDark ? "#cbd5e1" : "#374151" }}>
+            Drafts
+          </ThemedText>
+          <HStack className="items-center gap-2">
+            <Ionicons name="calendar-outline" size={12} color={"#f54a00"} />
+            <ThemedText style={{ fontSize: 11, color: "#f54a00" }}>
+              Pending
+            </ThemedText>
+          </HStack>
+        </VStack>
+      </ScrollView>
 
       {/* Charts Section */}
       <VStack style={{ marginTop: 20, gap: 15 }}>
@@ -389,7 +436,7 @@ export default function CalendarInsights() {
               <ThemedText style={{ fontSize: 16, fontWeight: "600" }}>
                 Platform Distribution
               </ThemedText>
-            
+
             </HStack>
             <ThemedText
               style={{ fontSize: 12, color: "#6a7282", marginBottom: 10 }}
@@ -397,61 +444,75 @@ export default function CalendarInsights() {
               Distribution of posts across different social platforms.
             </ThemedText>
           </VStack>
-         
-            <View collapsable={false} renderToHardwareTextureAndroid>
-              <HStack
-                style={{
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                {/* Pie Chart */}
-                <PieChart
-                  data={pieData}
-                  donut
-                  showText
-                  textColor="white"
-                  radius={90}
-                  textSize={12}
-                />
 
-                {/* Legend */}
-                <VStack style={{ marginLeft: 10, gap: 8 }}>
-                  {insightsData?.platformMix?.map((item: any) => {
-                    const percentage = Math.round(
-                      (item.count / (insightsData?.totalPosts || 1)) *
-                        100,
-                    );
+          <View collapsable={false} renderToHardwareTextureAndroid>
+            <HStack
+              style={{
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              {/* Pie Chart */}
+              <PieChart
+                data={pieData}
+                donut
+                innerRadius={30}
+                radius={90}
+                showText
+                textColor="white"
+                textSize={12}
+              />
 
-                    return (
-                      <HStack
-                        key={item.platform}
-                        style={{ alignItems: "center", gap: 8 }}
+              {/* Legend */}
+              <VStack style={{ marginLeft: 10, gap: 8 }}>
+                {insightsData?.platformMix?.map((item: any) => {
+                  const percentage = Math.round(
+                    (item.count / (insightsData?.totalPosts || 1)) *
+                    100,
+                  );
+
+                  return (
+                    <HStack
+                      key={item.platform}
+                      style={{
+                        alignItems: "center",
+                        width: 120,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: 5,
+                          backgroundColor: platformColors[item.platform] || "#999",
+                          marginRight: 8,
+                        }}
+                      />
+
+                      <Text
+                        style={{
+                          flex: 1,
+                          fontSize: 12,
+                        }}
                       >
-                        {/* Color Dot */}
-                        <View
-                          style={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: 5,
-                            backgroundColor:
-                              platformColors[item.platform] || "#999",
-                          }}
-                        />
+                        {item.platform}
+                      </Text>
 
-                        {/* Platform Name */}
-                        <Text style={{ fontSize: 12 }}>{item.platform}</Text>
-
-                        {/* Percentage */}
-                        <Text style={{ fontSize: 12, color: "#6b7280" }}>
-                          ({percentage}%)
-                        </Text>
-                      </HStack>
-                    );
-                  })}
-                </VStack>
-              </HStack>
-            </View>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: "#6b7280",
+                          marginLeft: 6,
+                        }}
+                      >
+                        {percentage}%
+                      </Text>
+                    </HStack>
+                  );
+                })}
+              </VStack>
+            </HStack>
+          </View>
         </VStack>
 
         {/* Bar Chart */}
@@ -477,23 +538,23 @@ export default function CalendarInsights() {
               Compare post volumes across different social platforms.
             </ThemedText>
           </VStack>
-        
-            <BarChart
-              data={barData}
-              frontColor="#2563eb"
-              barWidth={30}
-              spacing={25}
-              rulesType="dashed"
-              dashWidth={4}
-              dashGap={4}
-              rulesColor="#d1d5db"
-              xAxisThickness={0}
-              yAxisThickness={0}
-              yAxisTextStyle={{ color: "#888" }}
-              noOfSections={5}
-              maxValue={Math.max(...barData.map((item: any) => item.value), 1)}
-            />
-          
+
+          <BarChart
+            data={barData}
+            barWidth={30}
+            spacing={25}
+            rulesType="dashed"
+            dashWidth={4}
+            dashGap={4}
+            rulesColor="#d1d5db"
+            xAxisThickness={0}
+            yAxisThickness={0}
+            yAxisTextStyle={{ color: "#888" }}
+            noOfSections={maxCount}
+            maxValue={maxCount}
+            stepValue={1}
+          />
+
         </VStack>
       </VStack>
     </ThemedView>

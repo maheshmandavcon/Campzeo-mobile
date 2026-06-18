@@ -12,29 +12,45 @@ import Insights from "./dashboardComponents/insights";
 import { ThemedView } from "@/components/themed-view";
 import CalendarParent from "@/app/(calendar)/calendarTabs/calendarParent";
 import { ScrollView } from "react-native-gesture-handler";
-import { getUser } from "@/api/dashboardApi";
-import { getUsage } from "@/api/billingApi";
+import { getUser, getWalletBalance } from "@/api/dashboardApi";
+import { getUsage, getCurrentSubscription } from "@/api/billingApi";
 import { useFocusEffect } from "expo-router";
 
 const DashboardTabs = () => {
   const [activeTab, setActiveTab] = useState(0);
    const [userData, setUserData] = useState<any>(null);
     const [usageData, setUsageData] = useState<any>(null);
+    const [walletData, setWalletData] = useState<any>(null);
+    const [subscriptionData, setSubscriptionData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
   
     /* ================= API ================= */
       const fetchInsights = async () => {
         try {
-          const user = await getUser();
-          const usage = await getUsage();
+          const [user, usage, wallet, subscription] = await Promise.all([
+            getUser(),
+            getUsage(),
+            getWalletBalance().catch(() => null),
+            getCurrentSubscription().catch(() => null)
+          ]);
           setUserData(user);
           setUsageData(usage);
+          setWalletData(wallet);
+          setSubscriptionData(subscription);
         } catch (error) {
           console.error("Dashboard fetch error:", error);
         } finally {
           setLoading(false);
         }
       };
+
+      const handleRefresh = async () => {
+        setIsRefreshing(true);
+        await fetchInsights();
+        setIsRefreshing(false);
+      };
+
     useEffect(() => {
 
       fetchInsights();
@@ -88,7 +104,7 @@ const DashboardTabs = () => {
         onPageSelected={(e) => setActiveTab(e.nativeEvent.position)}
       >
         <View key="dashboard">
-          <Insights userData={userData} usageData={usageData} loading={loading} />
+          <Insights userData={userData} usageData={usageData} walletData={walletData} subscriptionData={subscriptionData} loading={loading} onRefresh={handleRefresh} refreshing={isRefreshing} />
         </View>
 
         <ScrollView key="calendar">

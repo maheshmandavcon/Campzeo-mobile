@@ -63,11 +63,11 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
-          name="invoices"
+          name="accounts"
           options={{
-            title: "Invoices",
+            title: "Accounts",
             tabBarIcon: ({ color }) => (
-              <IconSymbol size={29} name="receipt" color={color} />
+              <IconSymbol size={29} name="manage-accounts" color={color} />
             ),
           }}
         />
