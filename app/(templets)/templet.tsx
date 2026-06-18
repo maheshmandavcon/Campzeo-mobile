@@ -7,14 +7,16 @@ import {
   ScrollView,
   useColorScheme,
   Alert,
+  Image,
 } from "react-native";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { useFocusEffect, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-// ─── Types ──────────────────────────────────────────────────────────────────
+import { getTemplatesApi, deleteTemplateApi } from "@/api/templetsApi";
+import { useAuth } from "@/context/AuthContext";
+import { getUser } from "@/api/dashboardApi";
 
 type PlatformType =
   | "ALL"
@@ -28,14 +30,14 @@ type PlatformType =
   | "PINTEREST";
 
 interface Template {
-  id: string;
-  title: string;
+  id: string | number;
+  name: string;
   content: string;
   platform: PlatformType;
-  createdAt: string;
+  createdDate: string;
+  metadata?: string;
+  mediaUrls?: string[];
 }
-
-// ─── Platform filter config ──────────────────────────────────────────────────
 
 const PLATFORM_FILTERS: {
   label: string;
@@ -55,20 +57,6 @@ const PLATFORM_FILTERS: {
   { label: "WhatsApp", value: "WHATSAPP", icon: "logo-whatsapp", iconLib: "ionicons", color: "#25D366" },
 ];
 
-const handlePlatformFilter = (platform: PlatformType, setSelectedPlatform: (p: PlatformType) => void) => {
-  if (platform === "SMS" || platform === "WHATSAPP") {
-    Alert.alert(
-      "Admin Approval Required",
-      "You need admin approval and a credits pack to view/manage templates for SMS/WhatsApp.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Purchase Pack", onPress: () => router.push("/(tabs)/accounts" as any) }
-      ]
-    );
-    return;
-  }
-  setSelectedPlatform(platform);
-};
 
 const getPlatformColor = (platform: PlatformType): string =>
   PLATFORM_FILTERS.find((p) => p.value === platform)?.color ?? "#6b7280";
@@ -78,11 +66,9 @@ const getPlatformIcon = (platform: PlatformType) => {
   return p;
 };
 
-// ─── Mock data (replace with API call) ──────────────────────────────────────
+const MOCK_TEMPLATES: Template[] = [];
 
-const MOCK_TEMPLATES: Template[] = [
-  // Uncomment below to see real data; empty array triggers empty state
-];
+const NON_ALL_PLATFORMS = PLATFORM_FILTERS.filter((f) => f.value !== "ALL");
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
@@ -91,16 +77,59 @@ export default function Templates() {
 
   const [search, setSearch] = useState("");
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformType>("ALL");
-  const [templates, setTemplates] = useState<Template[]>(MOCK_TEMPLATES);
-  // const [loading, setLoading] = useState(false); // enable when API is wired up
+  const [orderedPlatformFilters, setOrderedPlatformFilters] = useState(
+    NON_ALL_PLATFORMS.map((f) => f.value) as PlatformType[]
+  );
 
-  // Fetch templates from API (replace MOCK_TEMPLATES with real API call)
+  const handlePlatformSelect = (platform: PlatformType) => {
+    setSelectedPlatform(platform);
+    if (platform === "ALL") return; 
+    setOrderedPlatformFilters((prev) => {
+      if (platform === selectedPlatform) return prev;
+      const filtered = prev.filter(
+        (p) => p !== platform && p !== selectedPlatform
+      );
+      const tail = selectedPlatform !== "ALL" ? [...filtered, selectedPlatform] : filtered;
+      return [platform, ...tail];
+    });
+  };
+  const [templates, setTemplates] = useState<Template[]>(MOCK_TEMPLATES);
+  const [loading, setLoading] = useState(false);
+  const { getToken } = useAuth();
+  const [organisationId, setOrganisationId] = useState<number | undefined>(undefined);
+
+  React.useEffect(() => {
+    const fetchOrgId = async () => {
+      try {
+        const user = await getUser();
+        if (user?.organisation?.id) {
+          setOrganisationId(user.organisation.id);
+        }
+      } catch (err) {
+        console.warn("Could not fetch organisationId:", err);
+      }
+    };
+    fetchOrgId();
+  }, []);
+
+  const fetchTemplates = useCallback(async () => {
+    if (!organisationId) return;
+    setLoading(true);
+    try {
+      const token = await getToken();
+      const res = await getTemplatesApi(organisationId, token || undefined);
+      setTemplates(res || []);
+    } catch (error) {
+      console.error("Failed to fetch templates:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [organisationId, getToken]);
+
   useFocusEffect(
     useCallback(() => {
-      // TODO: Replace with actual API fetch
-      // const fetchTemplates = async () => { ... };
-      // fetchTemplates();
-    }, [])
+      fetchTemplates();
+    }, [fetchTemplates])
   );
 
   // Filter logic
@@ -108,24 +137,30 @@ export default function Templates() {
     const matchesPlatform =
       selectedPlatform === "ALL" || t.platform === selectedPlatform;
     const matchesSearch =
-      t.title.toLowerCase().includes(search.toLowerCase()) ||
-      t.content.toLowerCase().includes(search.toLowerCase());
+      (t.name || "").toLowerCase().includes(search.toLowerCase()) ||
+      (t.content || "").toLowerCase().includes(search.toLowerCase());
     return matchesPlatform && matchesSearch;
   });
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: string | number) => {
     Alert.alert("Delete Template", "Are you sure you want to delete this template?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
-        onPress: () =>
-          setTemplates((prev) => prev.filter((t) => t.id !== id)),
+        onPress: async () => {
+          if (!organisationId) return;
+          try {
+            const token = await getToken();
+            await deleteTemplateApi(organisationId, Number(id), token || undefined);
+            setTemplates((prev) => prev.filter((t) => t.id !== id));
+          } catch (error) {
+            Alert.alert("Error", "Failed to delete template");
+          }
+        },
       },
     ]);
   };
-
-  // ─── Render helpers ────────────────────────────────────────────────────────
 
   const renderPlatformIcon = (platform: PlatformType, size = 14) => {
     const config = getPlatformIcon(platform);
@@ -154,9 +189,7 @@ export default function Templates() {
           elevation: 2,
         }}
       >
-        {/* Header row */}
         <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-          {/* Platform badge */}
           <View
             style={{
               flexDirection: "row",
@@ -175,7 +208,7 @@ export default function Templates() {
             </ThemedText>
           </View>
 
-          <ThemedText
+            <ThemedText
             style={{
               flex: 1,
               fontSize: 15,
@@ -184,14 +217,12 @@ export default function Templates() {
             }}
             numberOfLines={1}
           >
-            {item.title}
+            {item.name}
           </ThemedText>
 
-          {/* Action buttons */}
           <View style={{ flexDirection: "row", gap: 8 }}>
             <TouchableOpacity
               onPress={() => {
-                // TODO: navigate to edit template screen
                 Alert.alert("Edit", "Navigate to edit template");
               }}
               style={{
@@ -228,7 +259,43 @@ export default function Templates() {
           {item.content}
         </ThemedText>
 
-        {/* Date */}
+        {item.mediaUrls && item.mediaUrls.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }} contentContainerStyle={{ gap: 8 }}>
+            {item.mediaUrls.map((url, idx) => {
+              const urlLower = url.toLowerCase();
+              const isVideo = urlLower.includes('.mp4') || urlLower.includes('.mov');
+              const isPdf = urlLower.includes('.pdf');
+              return (
+                <View 
+                  key={idx} 
+                  style={{ 
+                    width: 60, 
+                    height: 60, 
+                    borderRadius: 8, 
+                    backgroundColor: isDark ? "#374151" : "#f3f4f6",
+                    overflow: 'hidden',
+                    borderWidth: 1,
+                    borderColor: isDark ? "#4b5563" : "#e5e7eb",
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 8
+                  }}
+                >
+                  {!isPdf && !isVideo ? (
+                    <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                  ) : (
+                    <Ionicons 
+                      name={isVideo ? "videocam-outline" : "document-text-outline"} 
+                      size={24} 
+                      color={isDark ? "#9ca3af" : "#6b7280"} 
+                    />
+                  )}
+                </View>
+              );
+            })}
+          </ScrollView>
+        )}
+
         <ThemedText
           style={{
             fontSize: 11,
@@ -237,11 +304,11 @@ export default function Templates() {
             textAlign: "right",
           }}
         >
-          {new Date(item.createdAt).toLocaleDateString("en-IN", {
+          {item.createdDate ? new Date(item.createdDate).toLocaleDateString("en-IN", {
             day: "2-digit",
             month: "short",
             year: "numeric",
-          })}
+          }) : ""}
         </ThemedText>
       </ThemedView>
     );
@@ -323,8 +390,6 @@ export default function Templates() {
     </View>
   );
 
-  // ─── Main UI ───────────────────────────────────────────────────────────────
-
   return (
     <SafeAreaView
       edges={["top"]}
@@ -336,7 +401,6 @@ export default function Templates() {
         backgroundColor: isDark ? "#161618" : "#f3f4f6",
       }}
     >
-      {/* ── Header ── */}
       <View
         style={{
           flexDirection: "row",
@@ -426,24 +490,61 @@ export default function Templates() {
         </View>
       </View>
 
-      {/* ── Platform Filter Chips ── */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={{ flexGrow: 0, marginTop: 8 }}
         contentContainerStyle={{
           paddingHorizontal: 16,
-          paddingBottom: 12,
+          paddingBottom: 4,
           gap: 8,
           flexDirection: "row",
           alignItems: "center",
         }}
       >
-        {PLATFORM_FILTERS.map((filter) => {
+        {(() => {
+          const allFilter = PLATFORM_FILTERS.find((f) => f.value === "ALL")!;
+          const isActive = selectedPlatform === "ALL";
+          return (
+            <TouchableOpacity
+              key="ALL"
+              onPress={() => handlePlatformSelect("ALL")}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                paddingHorizontal: 14,
+                paddingVertical: 7,
+                borderRadius: 20,
+                borderWidth: 1.5,
+                borderColor: isActive ? allFilter.color : isDark ? "#374151" : "#e5e7eb",
+                backgroundColor: isActive
+                  ? `${allFilter.color}22`
+                  : isDark
+                  ? "#1f2937"
+                  : "#ffffff",
+              }}
+            >
+              <ThemedText
+                style={{
+                  fontSize: 13,
+                  fontWeight: isActive ? "700" : "500",
+                  color: isActive ? allFilter.color : isDark ? "#9ca3af" : "#6b7280",
+                }}
+              >
+                {allFilter.label}
+              </ThemedText>
+            </TouchableOpacity>
+          );
+        })()}
+
+        {orderedPlatformFilters.map((pValue) => {
+          const filter = PLATFORM_FILTERS.find((f) => f.value === pValue)!;
           const isActive = selectedPlatform === filter.value;
           return (
             <TouchableOpacity
               key={filter.value}
-              onPress={() => handlePlatformFilter(filter.value, setSelectedPlatform)}
+              onPress={() => handlePlatformSelect(filter.value)}
               style={{
                 flexDirection: "row",
                 alignItems: "center",
@@ -488,7 +589,6 @@ export default function Templates() {
         })}
       </ScrollView>
 
-      {/* ── Template Count ── */}
       {filteredTemplates.length > 0 && (
         <ThemedText
           style={{
@@ -502,10 +602,9 @@ export default function Templates() {
         </ThemedText>
       )}
 
-      {/* ── Template List ── */}
       <FlatList
         data={filteredTemplates}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => String(item.id)}
         renderItem={renderTemplateCard}
         contentContainerStyle={{
           paddingHorizontal: 16,

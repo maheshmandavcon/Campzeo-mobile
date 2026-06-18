@@ -14,13 +14,13 @@ import { Progress, ProgressFilledTrack } from "@gluestack-ui/themed";
 
 import { router, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, ScrollView } from "react-native";
+import { StyleSheet, ScrollView, RefreshControl } from "react-native";
 import { Divider } from "@gluestack-ui/themed";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 
 /* ================= COMPONENT ================= */
 
-export default function Insights({userData,usageData,loading}: {userData: any,usageData: any,loading: boolean}) {
+export default function Insights({ userData, usageData, walletData, subscriptionData, loading, onRefresh, refreshing }: { userData: any, usageData: any, walletData: any, subscriptionData?: any, loading: boolean, onRefresh?: () => void, refreshing?: boolean }) {
   const isDark = useColorScheme() === "dark";
 
   const routePage = useRouter();
@@ -175,13 +175,22 @@ export default function Insights({userData,usageData,loading}: {userData: any,us
     </Box>
   );
 
+  /* ================= DERIVED DATA PRE-LOAD ================= */
+  const smsCreditsAvailable = walletData?.wallet?.smsCreditsAvailable ?? 0;
+  const whatsappCreditsAvailable = walletData?.wallet?.whatsappCreditsAvailable ?? 0;
+
   /* ================= LOADING ================= */
   if (loading) {
     return (
       <ThemedView style={styles.container}>
         {renderHeaderSkeleton()}
 
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            onRefresh ? <RefreshControl refreshing={refreshing || false} onRefresh={onRefresh} tintColor="#dc2626" /> : undefined
+          }
+        >
           {/* Plan */}
           {renderPlanCardSkeleton()}
 
@@ -193,11 +202,19 @@ export default function Insights({userData,usageData,loading}: {userData: any,us
               ))}
             </HStack>
 
-            <Box style={[styles.statCard, styles.statCardFull]}>
-              <ShimmerSkeleton height={13} width={120} />
-              <ShimmerSkeleton height={30} width={60} />
-              <ShimmerSkeleton height={12} width="80%" />
-            </Box>
+            <HStack style={styles.statsRow}>
+              <Box style={styles.statCard}>
+                <ShimmerSkeleton height={13} width={100} />
+                <ShimmerSkeleton height={30} width={100} />
+                <ShimmerSkeleton height={12} width={100} />
+              </Box>
+
+              <Box style={styles.statCard}>
+                <ShimmerSkeleton height={13} width={100} />
+                <ShimmerSkeleton height={30} width={100} />
+                <ShimmerSkeleton height={12} width={100} />
+              </Box>
+            </HStack>
           </VStack>
 
           {/* Usage */}
@@ -227,8 +244,29 @@ export default function Insights({userData,usageData,loading}: {userData: any,us
 
   const connectedAccounts = usageData?.usage?.platforms?.current ?? "-";
 
-  const planName =
-    userData?.organisation?.subscriptions?.[0]?.plan?.name ?? "FREE TRIAL";
+  const rawPlanName =
+    subscriptionData?.subscription?.plan?.name ??
+    userData?.organisation?.subscriptions?.[0]?.plan?.name ?? 
+    "FREE_TRIAL";
+
+  const getPlanDisplayLabel = (name: string): string => {
+    if (!name) return "Free Trial";
+    switch (name) {
+      case "FREE_TRIAL":
+      case "FREE TRIAL":
+        return "Free Trial";
+      case "PROFESSIONAL":
+        return "Professional";
+      case "ENTERPRISE":
+        return "Enterprise";
+      default:
+        return name
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+  };
+
+  const planName = getPlanDisplayLabel(rawPlanName);
 
   const isApproved = userData?.organisation?.isApproved ?? null;
 
@@ -242,7 +280,12 @@ export default function Insights({userData,usageData,loading}: {userData: any,us
         <ThemedText style={styles.orgName}>{organisationName}</ThemedText>
       </HStack>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          onRefresh ? <RefreshControl refreshing={refreshing || false} onRefresh={onRefresh} tintColor="#dc2626" /> : undefined
+        }
+      >
         {/* PLAN CARD */}
         <Box style={styles.planCard}>
           <HStack
@@ -267,9 +310,9 @@ export default function Insights({userData,usageData,loading}: {userData: any,us
               {
                 color:
                   isApproved === true
-                    ? "#dcfce7" // light green
+                    ? "#dcfce7"
                     : isApproved === false
-                      ? "#fee2e2" // light red
+                      ? "#fee2e2"
                       : "#ffffff",
               },
             ]}
@@ -318,15 +361,37 @@ export default function Insights({userData,usageData,loading}: {userData: any,us
             </TouchableOpacity>
           </HStack>
 
-          <Box style={[styles.statCard, styles.statCardFull]}>
-            <ThemedText style={styles.statLabel}>Connected Accounts</ThemedText>
-            <ThemedText style={styles.statValue}>
-              {connectedAccounts}
-            </ThemedText>
-            <ThemedText style={styles.statSubtext}>
-              Active social connections
-            </ThemedText>
-          </Box>
+          <HStack style={styles.statsRow}>
+            <Box style={styles.statCard}>
+              <ThemedText style={styles.statLabel}>Connected Accounts</ThemedText>
+              <ThemedText style={styles.statValue}>
+                {connectedAccounts}
+              </ThemedText>
+              <ThemedText style={styles.statSubtext}>
+                Active social connections
+              </ThemedText>
+            </Box>
+
+            <Box style={styles.statCard}>
+              <ThemedText style={styles.statLabel}>Available Credits</ThemedText>
+
+              <View>
+                <Text style={styles.creditRow}>
+                  <Text style={styles.creditHeading}>SMS: </Text>
+                  <Text style={styles.creditValue}>{smsCreditsAvailable}</Text>
+                </Text>
+
+                <Text style={[styles.creditRow, { marginTop: 4 }]}>
+                  <Text style={styles.creditHeading}>WhatsApp: </Text>
+                  <Text style={styles.creditValue}>{whatsappCreditsAvailable}</Text>
+                </Text>
+              </View>
+
+              <ThemedText style={styles.statSubtext}>
+                Available balance
+              </ThemedText>
+            </Box>
+          </HStack>
         </VStack>
 
         {/* ================= USAGE ================= */}
@@ -380,12 +445,12 @@ export default function Insights({userData,usageData,loading}: {userData: any,us
                     width: `${Math.min(
                       ((usageData?.usage?.contacts?.current || 0) /
                         (usageData?.usage?.contacts?.limit || 1)) *
-                        100,
+                      100,
                       100,
                     )}%`,
                     backgroundColor:
                       (usageData?.usage?.contacts?.current || 0) >=
-                      (usageData?.usage?.contacts?.limit || 0)
+                        (usageData?.usage?.contacts?.limit || 0)
                         ? COLORS.accent
                         : COLORS.success,
                   }}
@@ -413,12 +478,12 @@ export default function Insights({userData,usageData,loading}: {userData: any,us
                     width: `${Math.min(
                       ((usageData?.usage?.campaigns?.current || 0) /
                         (usageData?.usage?.campaigns?.limit || 1)) *
-                        100,
+                      100,
                       100,
                     )}%`,
                     backgroundColor:
                       (usageData?.usage?.campaigns?.current || 0) >=
-                      (usageData?.usage?.campaigns?.limit || 0)
+                        (usageData?.usage?.campaigns?.limit || 0)
                         ? COLORS.accent
                         : COLORS.success,
                   }}
@@ -446,12 +511,12 @@ export default function Insights({userData,usageData,loading}: {userData: any,us
                     width: `${Math.min(
                       ((usageData?.usage?.platforms?.current || 0) /
                         (usageData?.usage?.platforms?.limit || 1)) *
-                        100,
+                      100,
                       100,
                     )}%`,
                     backgroundColor:
                       (usageData?.usage?.platforms?.current || 0) >=
-                      (usageData?.usage?.platforms?.limit || 0)
+                        (usageData?.usage?.platforms?.limit || 0)
                         ? COLORS.accent
                         : COLORS.success,
                   }}
@@ -582,6 +647,20 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     color: "#dc2626",
+  },
+  creditRow: {
+    marginTop: 4,
+    fontSize: 15,
+  },
+  creditHeading: {
+    color: "#000",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  creditValue: {
+    color: "#16a34a",
+    fontSize: 12,
+    fontWeight: "800",
   },
 
   /* PLAN */

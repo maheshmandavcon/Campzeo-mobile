@@ -7,7 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -28,96 +28,125 @@ import { getUser } from "@/api/dashboardApi";
 
 export default function Campaigns() {
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "show" | "hide">("all");
-  const [visibleCount, setVisibleCount] = useState(10);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isFastScrolling, setIsFastScrolling] = useState(false);
+  const lastScrollY = useRef(0);
+  const lastScrollTime = useRef(Date.now());
+  const fastScrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { getToken } = useAuth();
-
-  // Fetch campaigns
-  const fetchCampaigns = async () => {
-    try {
-      setLoading(true);
-      const token = await getToken();
-      if (!token) throw new Error("Authentication token not found");
-      const user = await getUser();
-      const orgId = user?.organisation?.id;
-      // console.log("uuu",orgId);
-
-      const res = await getCampaignsApi(orgId,1, 50);
-      const campaignsArray = res?.campaigns ?? [];
-      if (!campaignsArray.length) {
-        setCampaigns([]);
-        return;
-      }
-
-      const mapped: Campaign[] = campaignsArray.map((item: any) => {        
-        const formatDate = (dateString?: string) => {
-          if (!dateString) return "";
-          const date = new Date(dateString);
-          const day = String(date.getDate()).padStart(2, "0");
-          const month = String(date.getMonth() + 1).padStart(2, "0");
-          const year = date.getFullYear();
-          return `${day}/${month}/${year}`;
-        };
-
-        return {
-          id: item.id,
-          details: item.name ?? "Untitled Campaign",
-          description: item.description ?? "No description available",
-          startDate: item.startDate,
-          endDate: item.endDate,
-          dates: `${formatDate(item.startDate)} - ${formatDate(item.endDate)}`,
-          posts: [],
-          postsCount: item.postsCount ?? 0,
-          contactCount: item.contactCount ?? 0,
-          show: true,
-        };
-      });
-
-      // Fetch dynamic posts count for each campaign in parallel
-      const campaignsWithCounts = await Promise.all(
-        mapped.map(async (c) => {
-          try {
-            const postsRes = await getPostsByCampaignIdApi(c.id, orgId);
-            const postsArray = postsRes?.data || (Array.isArray(postsRes) ? postsRes : []);
-            return {
-              ...c,
-              postsCount: postsArray.length,
-            };
-          } catch (e) {
-            console.log(`Error getting posts count for campaign ${c.id}:`, e);
-            return c;
-          }
-        })
-      );
-
-      setCampaigns(campaignsWithCounts);
-    } catch (err) {
-      console.log("GET CAMPAIGNS ERROR:", err);
-      setCampaigns([]);
-    } finally {
-      setLoading(false);
+  const handleScroll = (event: any) => {
+    const currentY = event.nativeEvent.contentOffset.y;
+    const currentTime = Date.now();
+    const distance = Math.abs(currentY - lastScrollY.current);
+    const elapsed = currentTime - lastScrollTime.current || 1;
+    const velocity = distance / elapsed;
+    lastScrollY.current = currentY;
+    lastScrollTime.current = currentTime;
+    if (velocity > 1.5) {
+      setIsFastScrolling(true);
+      if (fastScrollTimeout.current) clearTimeout(fastScrollTimeout.current);
+      fastScrollTimeout.current = setTimeout(() => setIsFastScrolling(false), 200);
     }
   };
 
+  const { getToken } = useAuth();
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [search]);
+
+  // Fetch campaigns
   useFocusEffect(
     useCallback(() => {
-      fetchCampaigns();
-    }, [search])
+      let isActive = true;
+
+      const load = async () => {
+        setPage(1);
+        try {
+          setLoading(true);
+          const token = await getToken();
+          if (!token) throw new Error("Authentication token not found");
+          const user = await getUser();
+          const orgId = user?.organisation?.id;
+
+          const res = await getCampaignsApi(orgId, 1, 10, debouncedSearch);
+          if (!isActive) return;
+
+          const campaignsArray = res?.campaigns ?? [];
+
+          const mapped: Campaign[] = campaignsArray.map((item: any) => {
+            const formatDate = (dateString?: string) => {
+              if (!dateString) return "";
+              const date = new Date(dateString);
+              const day = String(date.getDate()).padStart(2, "0");
+              const month = String(date.getMonth() + 1).padStart(2, "0");
+              const year = date.getFullYear();
+              return `${day}/${month}/${year}`;
+            };
+
+            return {
+              id: item.id,
+              details: item.name ?? "Untitled Campaign",
+              description: item.description ?? "No description available",
+              startDate: item.startDate,
+              endDate: item.endDate,
+              dates: `${formatDate(item.startDate)} - ${formatDate(item.endDate)}`,
+              posts: [],
+              postsCount: item.postsCount ?? 0,
+              contactCount: item.contactCount ?? 0,
+              show: true,
+            };
+          });
+
+          // Fetch dynamic posts count for each campaign in parallel
+          const campaignsWithCounts = await Promise.all(
+            mapped.map(async (c) => {
+              try {
+                const postsRes = await getPostsByCampaignIdApi(c.id, orgId);
+                const postsArray = postsRes?.data || (Array.isArray(postsRes) ? postsRes : []);
+                return {
+                  ...c,
+                  postsCount: postsArray.length,
+                };
+              } catch (e) {
+                console.log(`Error getting posts count for campaign ${c.id}:`, e);
+                return c;
+              }
+            })
+          );
+          if (!isActive) return;
+
+          setCampaigns(campaignsWithCounts);
+          setHasMore(campaignsArray.length >= 10);
+        } catch (err) {
+          console.log("GET CAMPAIGNS ERROR:", err);
+          if (isActive) setCampaigns([]);
+        } finally {
+          if (isActive) setLoading(false);
+        }
+      };
+
+      load();
+      return () => {
+        isActive = false;
+      };
+    }, [debouncedSearch])
   );
 
-  // Filter + Search
-  let filtered = campaigns.filter((c) =>
-    c.details.toLowerCase().includes(search.toLowerCase())
-  );
-  if (filter === "show") filtered = filtered.filter((c) => c.show);
-  else if (filter === "hide") filtered = filtered.filter((c) => !c.show);
-
-  const visibleCampaigns = filtered.slice(0, visibleCount);
-  const isAllVisible = visibleCount >= filtered.length;
+  let visibleCampaigns = campaigns;
+  if (filter === "show") visibleCampaigns = campaigns.filter((c) => c.show);
+  else if (filter === "hide") visibleCampaigns = campaigns.filter((c) => !c.show);
 
   // Delete
   const handleDelete = async (c: Campaign) => {
@@ -132,9 +161,8 @@ export default function Campaigns() {
             if (!token) throw new Error("Authentication token missing");
             const user = await getUser();
             const orgId = user?.organisation?.id;
-            await deleteCampaignApi(c.id, orgId,token);
+            await deleteCampaignApi(c.id, orgId, token);
             setCampaigns((prev) => prev.filter((x) => x.id !== c.id));
-            fetchCampaigns();
           } catch (error: any) {
             console.error("Error deleting campaign:", error);
             Alert.alert(
@@ -185,14 +213,138 @@ Contacts Count: ${c.contactCount ?? 0}
     const next =
       filter === "all" ? "show" : filter === "show" ? "hide" : "all";
     setFilter(next);
-    setVisibleCount(5);
   };
 
-  const handleLoadMore = () => setVisibleCount((prev) => prev + 5);
-  const handleShowLess = () => setVisibleCount(5);
+  const handleRefresh = async () => {
+    if (loading || isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      setPage(1);
+      const token = await getToken();
+      if (!token) throw new Error("Authentication token not found");
+      const user = await getUser();
+      const orgId = user?.organisation?.id;
+
+      const res = await getCampaignsApi(orgId, 1, 10, debouncedSearch);
+
+      const campaignsArray = res?.campaigns ?? [];
+
+      const mapped: Campaign[] = campaignsArray.map((item: any) => {
+        const formatDate = (dateString?: string) => {
+          if (!dateString) return "";
+          const date = new Date(dateString);
+          const day = String(date.getDate()).padStart(2, "0");
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const year = date.getFullYear();
+          return `${day}/${month}/${year}`;
+        };
+
+        return {
+          id: item.id,
+          details: item.name ?? "Untitled Campaign",
+          description: item.description ?? "No description available",
+          startDate: item.startDate,
+          endDate: item.endDate,
+          dates: `${formatDate(item.startDate)} - ${formatDate(item.endDate)}`,
+          posts: [],
+          postsCount: item.postsCount ?? 0,
+          contactCount: item.contactCount ?? 0,
+          show: true,
+        };
+      });
+
+      const campaignsWithCounts = await Promise.all(
+        mapped.map(async (c) => {
+          try {
+            const postsRes = await getPostsByCampaignIdApi(c.id, orgId);
+            const postsArray = postsRes?.data || (Array.isArray(postsRes) ? postsRes : []);
+            return {
+              ...c,
+              postsCount: postsArray.length,
+            };
+          } catch (e) {
+            console.log(`Error getting posts count for campaign ${c.id}:`, e);
+            return c;
+          }
+        })
+      );
+
+      setCampaigns(campaignsWithCounts);
+      setHasMore(campaignsArray.length >= 10);
+    } catch (err) {
+      console.log("REFRESH CAMPAIGNS ERROR:", err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleLoadMore = async () => {
+    if (loading || loadingMore || isRefreshing || !hasMore) return;
+
+    try {
+      setLoadingMore(true);
+      const nextPage = page + 1;
+      setPage(nextPage);
+
+      const token = await getToken();
+      if (!token) return;
+      const user = await getUser();
+      const orgId = user?.organisation?.id;
+
+      const res = await getCampaignsApi(orgId, nextPage, 10, debouncedSearch);
+      const campaignsArray = res?.campaigns ?? [];
+
+      const formatDate = (dateString?: string) => {
+        if (!dateString) return "";
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+      };
+
+      // Map directly — no blocking N+1 posts-count calls, show data instantly
+      const mapped: Campaign[] = campaignsArray.map((item: any) => ({
+        id: item.id,
+        details: item.name ?? "Untitled Campaign",
+        description: item.description ?? "No description available",
+        startDate: item.startDate,
+        endDate: item.endDate,
+        dates: `${formatDate(item.startDate)} - ${formatDate(item.endDate)}`,
+        posts: [],
+        postsCount: item.postsCount ?? 0,
+        contactCount: item.contactCount ?? 0,
+        show: true,
+      }));
+
+      setCampaigns((prev) => {
+        const existingIds = new Set(prev.map((c) => c.id));
+        const newRecords = mapped.filter((c) => !existingIds.has(c.id));
+        return [...prev, ...newRecords];
+      });
+      setHasMore(campaignsArray.length >= 10);
+    } catch (err) {
+      console.log("LOAD MORE CAMPAIGNS ERROR:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+
+  const COLORS = {
+    screenBg: isDark ? "#121214" : "#f8fafc",
+    cardBg: isDark ? "#1e1e24" : "#ffffff",
+    cardBorder: isDark ? "#2a2a32" : "#f1f5f9",
+    textPrimary: isDark ? "#ffffff" : "#0f172a",
+    textSecondary: isDark ? "#94a3b8" : "#64748b",
+    inputBg: isDark ? "#1e1e24" : "#f8fafc",
+    inputBorder: isDark ? "#2a2a32" : "#e2e8f0",
+    inputText: isDark ? "#ffffff" : "#0f172a",
+    newButtonBg: "#0284c7",
+    newButtonText: "#ffffff",
+  };
 
   const CampaignSkeletonCard = ({ isDark }: { isDark: boolean }) => (
     <ThemedView
@@ -266,68 +418,32 @@ Contacts Count: ${c.contactCount ?? 0}
     </ThemedView>
   );
 
-  const INITIAL_COUNT = 5;
-
   const renderLoadMoreFooter = () => {
-    if (loading || campaigns.length <= INITIAL_COUNT) return null;
-
-    return (
-      <TouchableOpacity
-        onPress={() =>
-          isAllVisible
-            ? setVisibleCount(INITIAL_COUNT)
-            : setVisibleCount((v) => v + INITIAL_COUNT)
-        }
-        style={{
-          marginTop: 12,
-          marginHorizontal: 12,
-          paddingVertical: 14,
-          borderRadius: 12,
-          alignItems: "center",
-          backgroundColor: isAllVisible
-            ? isDark
-              ? "rgba(239,68,68,0.15)"
-              : "#fee2e2"
-            : isDark
-              ? "rgba(59,130,246,0.15)"
-              : "#dbeafe",
-        }}
-      >
-        <ThemedText
-          style={{
-            fontWeight: "600",
-            color: isAllVisible
-              ? isDark
-                ? "#fca5a5"
-                : "#b91c1c"
-              : isDark
-                ? "#93c5fd"
-                : "#1d4ed8",
-          }}
-        >
-          {isAllVisible ? "Load Less" : "Load More"}
-        </ThemedText>
-      </TouchableOpacity>
-    );
+    if (loadingMore) {
+      return (
+        <View style={{ padding: 16, alignItems: "center" }}>
+          <ActivityIndicator size="small" color={COLORS.textPrimary} />
+        </View>
+      );
+    }
+    return null;
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      setVisibleCount(INITIAL_COUNT);
-    }, [])
-  );
-  const COLORS = {
-    screenBg: isDark ? "#121214" : "#f8fafc",
-    cardBg: isDark ? "#1e1e24" : "#ffffff",
-    cardBorder: isDark ? "#2a2a32" : "#f1f5f9",
-    textPrimary: isDark ? "#ffffff" : "#0f172a",
-    textSecondary: isDark ? "#94a3b8" : "#64748b",
-    inputBg: isDark ? "#1e1e24" : "#f8fafc",
-    inputBorder: isDark ? "#2a2a32" : "#e2e8f0",
-    inputText: isDark ? "#ffffff" : "#0f172a",
-    newButtonBg: "#0284c7",
-    newButtonText: "#ffffff",
-  };
+  const isInitialLoading = loading && page === 1;
+
+  // Always show 4 skeleton slots at bottom when more data exists
+  // so the user scrolls INTO skeletons rather than blank/stall
+  type CampaignListItem = Campaign | { __skeleton: true; id: string };
+  const skeletonSlots: CampaignListItem[] = Array.from({ length: 4 }, (_, i) => ({
+    __skeleton: true as true,
+    id: `skeleton-more-${i}`,
+  }));
+
+  const listData: CampaignListItem[] = isInitialLoading
+    ? Array.from({ length: 6 }, (_, i) => ({ __skeleton: true as true, id: `skeleton-init-${i}` }))
+    : hasMore
+      ? [...visibleCampaigns, ...skeletonSlots]
+      : visibleCampaigns;
 
   return (
     <View
@@ -415,10 +531,7 @@ Contacts Count: ${c.contactCount ?? 0}
           <Ionicons name="search-outline" size={16} color={COLORS.textSecondary} style={{ marginRight: 8 }} />
           <TextInput
             value={search}
-            onChangeText={(value) => {
-              setSearch(value);
-              setVisibleCount(5);
-            }}
+            onChangeText={(value) => setSearch(value)}
             placeholder="Search campaigns..."
             placeholderTextColor={isDark ? "#52525b" : "#94a3b8"}
             style={{
@@ -515,18 +628,38 @@ Contacts Count: ${c.contactCount ?? 0}
         </ThemedView>
       )}
 
+      {/* Fast-scroll skeleton overlay */}
+      {isFastScrolling && (
+        <View
+          style={{
+            position: "absolute",
+            top: 130,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: COLORS.screenBg,
+            zIndex: 20,
+            paddingHorizontal: 16,
+            paddingTop: 8,
+          }}
+          pointerEvents="none"
+        >
+          {Array.from({ length: 5 }).map((_, i) => (
+            <CampaignSkeletonCard key={i} isDark={isDark} />
+          ))}
+        </View>
+      )}
+
       {/* Campaign List */}
-      <FlatList<Campaign | null>
-        data={loading ? Array(6).fill(null) : visibleCampaigns}
-        keyExtractor={(item, index) =>
-          loading || !item ? `skeleton-${index}` : item.id.toString()
-        }
+      <FlatList<CampaignListItem>
+        data={listData}
+        keyExtractor={(item) => item.id?.toString() ?? "skeleton"}
         renderItem={({ item }) =>
-          loading || !item ? (
+          "__skeleton" in item ? (
             <CampaignSkeletonCard isDark={isDark} />
           ) : (
             <CampaignCard
-              campaign={item}
+              campaign={item as Campaign}
               onDelete={handleDelete}
               onCopy={handleCopy}
               onToggleShow={handleToggleShow}
@@ -542,9 +675,19 @@ Contacts Count: ${c.contactCount ?? 0}
         }
         contentContainerStyle={{
           paddingBottom: 20,
-          flexGrow: loading || visibleCampaigns.length > 0 ? 0 : 1,
+          flexGrow: listData.length === 0 ? 1 : 0,
         }}
-        ListFooterComponent={renderLoadMoreFooter}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={3}
+        refreshing={isRefreshing}
+        onRefresh={handleRefresh}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        ListFooterComponent={null}
+        windowSize={10}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={30}
+        removeClippedSubviews={false}
         ListEmptyComponent={
           !loading ? (
             <ThemedView
@@ -560,7 +703,15 @@ Contacts Count: ${c.contactCount ?? 0}
                 No campaigns yet
               </ThemedText>
 
-              <ThemedText style={{ marginTop: 6, opacity: 0.7, color: COLORS.textSecondary }}>
+              <ThemedText
+                style={{
+                  marginTop: 6,
+                  opacity: 0.7,
+                  color: COLORS.textSecondary,
+                  textAlign: "center",
+                  // width: "100%",`
+                }}
+              >
                 Tap New Campaign to create your first campaign...
               </ThemedText>
             </ThemedView>

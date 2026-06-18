@@ -35,8 +35,8 @@ export default function TopBar() {
       if (!token) return;
 
       const res = await getNotificationsApi(token, 1, 99);
-      const notifications = Array.isArray(res?.data?.notifications)
-        ? res.data.notifications
+      const notifications = Array.isArray(res?.notifications)
+        ? res.notifications
         : [];
 
       const unread = notifications.filter((n: any) => !n.isRead).length;

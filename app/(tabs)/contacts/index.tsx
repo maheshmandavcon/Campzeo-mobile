@@ -29,12 +29,16 @@ import { getUser } from "@/api/dashboardApi";
 import Toast from "react-native-toast-message";
 
 export default function Contacts() {
-  const [visibleCount, setVisibleCount] = useState(10);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc" | null>(null);
   const [records, setRecords] = useState<ContactsRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const isDark = useColorScheme() === "dark";
 
@@ -44,17 +48,108 @@ export default function Contacts() {
 
   const { getToken } = useAuth();
 
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [search]);
+
   /* ================= FETCH ================= */
-  const fetchContacts = async () => {
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+
+      const load = async () => {
+        setPage(1);
+        try {
+          setLoading(true);
+          const token = await getToken();
+          if (!token) throw new Error("Authentication token not found");
+          const user = await getUser();
+          const orgId = user?.organisation?.id;
+
+          const order = sortOrder === "asc" ? "asc" : "desc";
+          const res = await getContactsApi(orgId, 1, 10, debouncedSearch, "createdDate", order);
+          if (!isActive) return;
+
+          const contactsArray = res?.contacts ?? [];
+          const mapped: ContactsRecord[] = contactsArray.map((item: any) => ({
+            id: item.id,
+            name: item.contactName,
+            email: item.contactEmail,
+            mobile: item.contactMobile,
+            whatsapp: item.contactWhatsApp,
+            show: true,
+            campaigns: item.campaigns ?? [],
+          }));
+
+          setRecords(mapped);
+          setHasMore(contactsArray.length >= 10);
+        } catch (err) {
+          console.log("GET CONTACTS ERROR:", err);
+          if (isActive) setRecords([]);
+        } finally {
+          if (isActive) setLoading(false);
+        }
+      };
+
+      load();
+
+      return () => {
+        isActive = false;
+      };
+    }, [debouncedSearch, sortOrder])
+  );
+
+  const handleRefresh = async () => {
+    if (loading || isRefreshing) return;
+    setIsRefreshing(true);
     try {
-      setLoading(true);
+      setPage(1);
       const token = await getToken();
       if (!token) throw new Error("Authentication token not found");
       const user = await getUser();
       const orgId = user?.organisation?.id;
 
-      const res = await getContactsApi(orgId);
+      const order = sortOrder === "asc" ? "asc" : "desc";
+      const res = await getContactsApi(orgId, 1, 10, debouncedSearch, "createdDate", order);
 
+      const contactsArray = res?.contacts ?? [];
+      const mapped: ContactsRecord[] = contactsArray.map((item: any) => ({
+        id: item.id,
+        name: item.contactName,
+        email: item.contactEmail,
+        mobile: item.contactMobile,
+        whatsapp: item.contactWhatsApp,
+        show: true,
+        campaigns: item.campaigns ?? [],
+      }));
+
+      setRecords(mapped);
+      setHasMore(contactsArray.length >= 10);
+    } catch (err) {
+      console.log("REFRESH CONTACTS ERROR:", err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleLoadMore = async () => {
+    if (loading || loadingMore || isRefreshing || !hasMore) return;
+
+    try {
+      setLoadingMore(true);
+      const nextPage = page + 1;
+      setPage(nextPage);
+
+      const token = await getToken();
+      if (!token) return;
+      const user = await getUser();
+      const orgId = user?.organisation?.id;
+      const order = sortOrder === "asc" ? "asc" : "desc";
+
+      const res = await getContactsApi(orgId, nextPage, 10, debouncedSearch, "createdDate", order);
       const contactsArray = res?.contacts ?? [];
 
       const mapped: ContactsRecord[] = contactsArray.map((item: any) => ({
@@ -67,40 +162,18 @@ export default function Contacts() {
         campaigns: item.campaigns ?? [],
       }));
 
-      setRecords(mapped);
+      setRecords((prev) => {
+        const existingIds = new Set(prev.map((r) => r.id));
+        const newRecords = mapped.filter((r) => !existingIds.has(r.id));
+        return [...prev, ...newRecords];
+      });
+      setHasMore(contactsArray.length >= 10);
     } catch (err) {
-      console.log("GET CONTACTS ERROR:", err);
-      setRecords([]);
+      console.log("LOAD MORE ERROR:", err);
     } finally {
-      setLoading(false);
+      setLoadingMore(false);
     }
   };
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchContacts();
-    }, [search]),
-  );
-
-  const filteredRecords = records
-    .filter((r) => {
-      const q = search.trim().toLowerCase();
-      if (!q) return true;
-      return (
-        (r.name && r.name.toLowerCase().includes(q)) ||
-        (r.email && r.email.toLowerCase().includes(q)) ||
-        (r.mobile && r.mobile.includes(q)) ||
-        (r.whatsapp && r.whatsapp.includes(q))
-      );
-    })
-    .sort((a, b) => {
-      if (sortOrder === "asc") return a.name.localeCompare(b.name);
-      if (sortOrder === "desc") return b.name.localeCompare(a.name);
-      return 0;
-    });
-
-  const visibleRecords = filteredRecords.slice(0, visibleCount);
-  const isAllVisible = visibleCount >= filteredRecords.length;
 
   /* ================= ACTIONS ================= */
   const handleEdit = (record: ContactsRecord) => {
@@ -171,7 +244,7 @@ WhatsApp: ${record.whatsapp || "-"}
             const user = await getUser();
             const orgId = user?.organisation?.id;
 
-            await deleteContactApi(orgId, record.id,token);
+            await deleteContactApi(orgId, record.id, token);
 
             setRecords((prev) => prev.filter((r) => r.id !== record.id));
             Toast.show({
@@ -250,12 +323,13 @@ WhatsApp: ${record.whatsapp || "-"}
     }
   };
 
-  const toggleSortOrder = () => {
-    setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+  const handleImport = () => {
+    setMenuVisible(false);
+    router.push("/contacts/import");
   };
 
-  const handleLoadToggle = () => {
-    isAllVisible ? setVisibleCount(5) : setVisibleCount(filteredRecords.length);
+  const toggleSortOrder = () => {
+    setSortOrder(sortOrder === "asc" ? "desc" : "asc");
   };
 
   const toggleShow = (record: ContactsRecord) => {
@@ -265,10 +339,22 @@ WhatsApp: ${record.whatsapp || "-"}
 
   type ListItem = ContactsRecord | { id: string; skeleton: true };
 
-  const skeletonData: ListItem[] = Array.from({ length: 6 }, (_, i) => ({
-    id: `skeleton-${i}`,
-    skeleton: true,
+  const loadingMoreSkeletons: ListItem[] = Array.from({ length: 4 }, (_, i) => ({
+    id: `skeleton-more-${i}`,
+    skeleton: true as true,
   }));
+
+  const initialSkeletons: ListItem[] = Array.from({ length: 6 }, (_, i) => ({
+    id: `skeleton-init-${i}`,
+    skeleton: true as true,
+  }));
+
+  const listData: ListItem[] =
+    loading && page === 1
+      ? initialSkeletons
+      : hasMore
+        ? [...records, ...loadingMoreSkeletons]
+        : records;
 
   const ContactSkeletonCard = () => (
     <ThemedView className="bg-gray-50 rounded-xl p-4 mb-3 border border-gray-200">
@@ -310,7 +396,7 @@ WhatsApp: ${record.whatsapp || "-"}
     </ThemedView>
   );
 
-  const listData = loading ? skeletonData : visibleRecords;
+
   const COLORS = {
     screenBg: isDark ? "#121214" : "#f8fafc",
     cardBg: isDark ? "#1e1e24" : "#ffffff",
@@ -409,10 +495,7 @@ WhatsApp: ${record.whatsapp || "-"}
             <Ionicons name="search-outline" size={16} color={COLORS.textSecondary} style={{ marginRight: 8 }} />
             <TextInput
               value={search}
-              onChangeText={(v) => {
-                setSearch(v);
-                setVisibleCount(5);
-              }}
+              onChangeText={(v) => setSearch(v)}
               placeholder="Search contacts..."
               placeholderTextColor={isDark ? "#52525b" : "#94a3b8"}
               style={{
@@ -470,6 +553,7 @@ WhatsApp: ${record.whatsapp || "-"}
               minWidth: 150,
             }}
           >
+            {/* Export */}
             <TouchableOpacity
               onPress={handleExportAll}
               style={{
@@ -486,11 +570,48 @@ WhatsApp: ${record.whatsapp || "-"}
                 size={18}
                 color={COLORS.textPrimary}
               />
-              <Text style={{ marginLeft: 10, fontWeight: "600", color: COLORS.textPrimary, fontSize: 14 }}>
+              <Text
+                style={{
+                  marginLeft: 10,
+                  fontWeight: "600",
+                  color: COLORS.textPrimary,
+                  fontSize: 14,
+                }}
+              >
                 Export All
               </Text>
             </TouchableOpacity>
 
+            {/* Import */}
+            <TouchableOpacity
+              onPress={handleImport} 
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                borderBottomWidth: 1,
+                borderBottomColor: COLORS.cardBorder,
+              }}
+            >
+              <Ionicons
+                name="cloud-upload-outline"
+                size={18}
+                color={COLORS.textPrimary}
+              />
+              <Text
+                style={{
+                  marginLeft: 10,
+                  fontWeight: "600",
+                  color: COLORS.textPrimary,
+                  fontSize: 14,
+                }}
+              >
+                Import
+              </Text>
+            </TouchableOpacity>
+
+            {/* Sort */}
             <TouchableOpacity
               onPress={toggleSortOrder}
               style={{
@@ -505,7 +626,14 @@ WhatsApp: ${record.whatsapp || "-"}
                 size={18}
                 color={COLORS.textPrimary}
               />
-              <Text style={{ marginLeft: 10, fontWeight: "600", color: COLORS.textPrimary, fontSize: 14 }}>
+              <Text
+                style={{
+                  marginLeft: 10,
+                  fontWeight: "600",
+                  color: COLORS.textPrimary,
+                  fontSize: 14,
+                }}
+              >
                 {sortOrder === "asc"
                   ? "Sort Z → A"
                   : sortOrder === "desc"
@@ -534,6 +662,17 @@ WhatsApp: ${record.whatsapp || "-"}
                 onToggleShow={toggleShow}
               />
             )
+          }
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={3}
+          refreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={{ padding: 16, alignItems: "center" }}>
+                <ActivityIndicator size="small" color={COLORS.textPrimary} />
+              </View>
+            ) : null
           }
           ListEmptyComponent={
             !loading ? (

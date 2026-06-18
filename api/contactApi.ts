@@ -44,11 +44,19 @@ export const createContactApi = async (orgId: number, data: ContactData) => {
 // GET CONTACTS
 export const getContactsApi = async (
   orgId: number,
+  page: number = 1,
+  limit: number = 10,
+  search: string = "",
+  sortBy: string = "createdDate",
+  sortOrder: string = "desc"
 ) => {
   try {
+    let url = `Contacts?organisationId=${orgId}&page=${page}&limit=${limit}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
+    if (search && search.trim() !== "") {
+      url += `&search=${encodeURIComponent(search.trim())}`;
+    }
 
-
-    const res = await https.get(`Contacts?organisationId=${orgId}&page=${1}&limit=${10}&sortBy=createdDate&sortOrder=desc`);
+    const res = await https.get(url);
     return res.data;
   } catch (error: any) {
     console.error("Get contacts error:", error.response || error.message);
@@ -137,6 +145,72 @@ export const deleteContactApi = async (
   console.log("Data:", error.response?.data);
   console.log("Headers:", error.response?.headers);
   console.log("Request:", error.config?.data);
+  }
+};
+
+// BULK DELETE CONTACTS
+export const bulkDeleteContactsApi = async (
+  organisationId: number,
+  contactIds: number[]
+) => {
+  try {
+    const payload = {
+      contactIds,
+      organisationId,
+    };
+
+    console.log("Bulk Delete Payload:", payload);
+
+    const res = await https.post(
+      "Contacts/BulkDelete",
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    return res.data;
+  } catch (error: any) {
+    console.error("Bulk delete error:", error.response || error.message);
+
+    throw new Error(
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      "Failed to delete contacts"
+    );
+  }
+};
+
+// IMPORT CONTACTS (CSV bulk upload)
+export const importContactsApi = async (orgId: number, fileUri: string, fileName: string) => {
+  try {
+    const formData = new FormData();
+    formData.append("file", {
+      uri: fileUri,
+      name: fileName,
+      type: "text/csv",
+    } as any);
+
+    const res = await https.post(
+      `Contacts/Import?organisationId=${orgId}`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+    return res.data;
+  } catch (error: any) {
+    console.error("Import contacts error:", error.response || error.message);
+    throw new Error(
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      error?.response?.data ||
+      "Failed to import contacts"
+    );
   }
 };
 

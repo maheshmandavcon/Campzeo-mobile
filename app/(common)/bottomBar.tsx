@@ -26,8 +26,8 @@ const TAB_CONFIG = [
     icon: "envelope",
   },
   {
-    name: "invoices",
-    title: "Invoices",
+    name: "accounts",
+    title: "Accounts",
     icon: "receipt",
   },
 ] as const;

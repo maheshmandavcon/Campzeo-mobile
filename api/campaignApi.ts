@@ -71,12 +71,14 @@ export const getSocialStatus = async (token?: string) => {
 
 // Create a new campaign
 
-export const createCampaignApi = async (data: CampaignData,token?:string) => {
+export const createCampaignApi = async (data: CampaignData, token?: string) => {
   try {
     const response = await https.post("Campaigns/AddCampaign", data, {
-      headers: { "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }), },
-    });    
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
     return response.data;
   } catch (error: any) {
     console.error(
@@ -89,14 +91,20 @@ export const createCampaignApi = async (data: CampaignData,token?:string) => {
 
 // Get campaigns
 
-export const getCampaignsApi = async (orgId: number,
+export const getCampaignsApi = async (
+  orgId: number,
   page: number = 1,
   limit: number = 10,
+  search: string = "",
+  sortBy: string = "createdAt",
+  sortOrder: string = "desc"
 ) => {
   try {
-    // console.log("orgId", orgId);
-    // const params: any = { page, limit };
-    const response = await https.get(`Campaigns?organisationId=${orgId}&page=${page}&limit=${limit}&sortBy=createdAt&sortOrder=desc`);
+    let url = `Campaigns?organisationId=${orgId}&page=${page}&limit=${limit}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
+    if (search && search.trim() !== "") {
+      url += `&search=${encodeURIComponent(search.trim())}`;
+    }
+    const response = await https.get(url);
     return response.data;
   } catch (error: any) {
     console.error("Get Campaigns API Error:", error.response || error.message);
@@ -113,7 +121,7 @@ export const getCampaignByIdApi = async (id: number, orgId: number, token: strin
         "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
       }
-    });    
+    });
     return response.data;
   } catch (error: any) {
     console.error(
@@ -151,7 +159,7 @@ export const updateCampaignApi = async (data: CampaignData, token: string) => {
         "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
       },
-    });    
+    });
     return response;
   } catch (error: any) {
     console.error(
