@@ -34,23 +34,31 @@ export default function CalendarInsights() {
   const pieRef = useRef<any>(null);
   const barRef = useRef<any>(null);
 
- const platformColors: any = {
-  FACEBOOK: "#3B82F6",   // Blue
-  INSTAGRAM: "#EC4899",  // Pink
-  LINKEDIN: "#0EA5E9",   // Sky Blue
-  PINTEREST: "#EF4444",  // Red
-  YOUTUBE: "#DC2626",    // Dark Red
-  SMS: "#10B981",        // Emerald
-  EMAIL: "#F59E0B",      // Amber
-  WHATSAPP: "#22C55E",   // Green
-};
+
+  // const platformColors: any = {
+  //   FACEBOOK: "#3b82f6",
+  //   INSTAGRAM: "#22c55e",
+  //   LINKEDIN: "#f59e0b",
+  //   PINTEREST: "#ef4444",
+  //   YOUTUBE: "#8b5cf6",
+  // };
+
+  const platformColors: any = {
+    FACEBOOK: "#1877F2",
+    INSTAGRAM: "#E4405F",
+    LINKEDIN: "#0A66C2",
+    PINTEREST: "#BD081C",
+    YOUTUBE: "#FF0000",
+    WHATSAPP: "#25D366",
+    EMAIL: "#F59E0B",
+    SMS: "#8B5CF6",
+  };
+
   const barData =
     insightsData?.platformMix?.map((item: any) => ({
       value: item.count,
-      label: item.platform
-        ? item.platform.charAt(0) + item.platform.slice(1).toLowerCase()
-        : "",
-      frontColor: platformColors[item.platform] || "#2563eb",
+      label: item.platform,
+      frontColor: platformColors[item.platform] || "#999",
     })) || [];
 
   const total = insightsData?.totalPosts || 1;
@@ -59,10 +67,9 @@ export default function CalendarInsights() {
     insightsData?.platformMix?.map((item: any) => ({
       value: item.count,
       color: platformColors[item.platform] || "#999",
-      text: ``,
+      text: `${Math.round((item.count / total) * 100)}%`,
+      // shiftTextX: -10,
     })) || [];
-//  ${Math.round((item.count / total) * 100)}%
-// ${item.platform}
 
   const fetchInsights = async () => {
     try {
@@ -277,25 +284,27 @@ export default function CalendarInsights() {
         </HStack>
       </VStack>
 
-      {/* Stats */}
-      <VStack className="gap-4">
-        <HStack className="justify-between">
-          <VStack
-            style={{
-              padding: 15,
-              gap: 9,
-              width: "48%",
-              borderWidth: 1,
-              borderColor: isDark ? "#333" : "#e5e7eb",
-              borderRadius: 16,
-              minHeight: 130,
-              backgroundColor: isDark ? "#121212" : "#fff",
-            }}
-          >
-            <ThemedText style={{ fontWeight: "medium", fontSize: 17 }}>
-              Total Posts
-            </ThemedText>
-            <ThemedText style={{ fontWeight: "bold", fontSize: 20 }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 12, paddingVertical: 6, paddingHorizontal: 2 }}
+        style={{ marginBottom: 8 }}
+      >
+        {/* Total Posts */}
+        <VStack
+          style={{
+            padding: 15,
+            gap: 9,
+            width: 150,
+            borderWidth: 1,
+            borderColor: "#e5e7eb",
+            borderRadius: 16,
+            minHeight: 120,
+            backgroundColor: isDark ? "#0f172a" : "#fff",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <ThemedText style={{ fontWeight: "bold", fontSize: 22 }}>
               {insightsData?.totalPosts ?? "-"}
             </ThemedText>
             <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#6b728022", alignItems: "center", justifyContent: "center" }}>
@@ -309,24 +318,6 @@ export default function CalendarInsights() {
             <Ionicons name="trending-up" size={12} color={"#6a7282"} />
             <ThemedText style={{ fontSize: 11, color: "#6a7282" }}>
               All records
-            </ThemedText>
-          </HStack>
-        </VStack>
-
-          <VStack
-            style={{
-              padding: 15,
-              gap: 9,
-              width: "48%",
-              borderWidth: 1,
-              borderColor: isDark ? "#333" : "#e5e7eb",
-              borderRadius: 16,
-              minHeight: 130,
-              backgroundColor: isDark ? "#121212" : "#fff",
-            }}
-          >
-            <ThemedText style={{ fontWeight: "medium", fontSize: 17 }}>
-              Upcoming Posts
             </ThemedText>
           </HStack>
         </VStack>
@@ -363,25 +354,6 @@ export default function CalendarInsights() {
           </HStack>
         </VStack>
 
-        <HStack className="justify-between">
-          <VStack
-            style={{
-              padding: 15,
-              gap: 9,
-              width: "48%",
-              borderWidth: 1,
-              borderColor: isDark ? "#333" : "#e5e7eb",
-              borderRadius: 16,
-              minHeight: 130,
-              backgroundColor: isDark ? "#121212" : "#fff",
-            }}
-          >
-            <ThemedText style={{ fontWeight: "medium", fontSize: 17 }}>
-              Past (Published)
-            </ThemedText>
-          </HStack>
-        </VStack>
-
         {/* Past (Published) */}
         <VStack
           style={{
@@ -410,24 +382,6 @@ export default function CalendarInsights() {
             <Ionicons name="checkmark-circle-outline" size={12} color={"#155dfc"} />
             <ThemedText style={{ fontSize: 11, color: "#155dfc" }}>
               Sent
-            </ThemedText>
-          </HStack>
-        </VStack>
-
-          <VStack
-            style={{
-              padding: 15,
-              gap: 9,
-              width: "48%",
-              borderWidth: 1,
-              borderColor: isDark ? "#333" : "#e5e7eb",
-              borderRadius: 16,
-              minHeight: 130,
-              backgroundColor: isDark ? "#121212" : "#fff",
-            }}
-          >
-            <ThemedText style={{ fontWeight: "medium", fontSize: 17 }}>
-              Drafts
             </ThemedText>
           </HStack>
         </VStack>
@@ -473,9 +427,8 @@ export default function CalendarInsights() {
           style={{
             padding: 15,
             borderWidth: 1,
-            borderColor: isDark ? "#333" : "#e5e7eb",
+            borderColor: "#e5e7eb",
             borderRadius: 16,
-            backgroundColor: isDark ? "#121212" : "#fff",
           }}
         >
           <VStack>
@@ -510,44 +463,56 @@ export default function CalendarInsights() {
                 textSize={12}
               />
 
-                {/* Legend */}
-                <VStack style={{ marginLeft: 10, gap: 8 }}>
-                  {insightsData?.platformMix?.map((item: any) => {
-                    // const percentage = Math.round(
-                    //   (item.count / (insightsData?.totalPosts || 1)) *
-                    //     100,
-                    // );
+              {/* Legend */}
+              <VStack style={{ marginLeft: 10, gap: 8 }}>
+                {insightsData?.platformMix?.map((item: any) => {
+                  const percentage = Math.round(
+                    (item.count / (insightsData?.totalPosts || 1)) *
+                    100,
+                  );
 
-                    return (
-                      <HStack
-                        key={item.platform}
-                        style={{ alignItems: "center", gap: 8 }}
+                  return (
+                    <HStack
+                      key={item.platform}
+                      style={{
+                        alignItems: "center",
+                        width: 120,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: 5,
+                          backgroundColor: platformColors[item.platform] || "#999",
+                          marginRight: 8,
+                        }}
+                      />
+
+                      <Text
+                        style={{
+                          flex: 1,
+                          fontSize: 12,
+                        }}
                       >
-                        {/* Color Dot */}
-                        <View
-                          style={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: 5,
-                            backgroundColor:
-                              platformColors[item.platform] || "#999",
-                          }}
-                        />
+                        {item.platform}
+                      </Text>
 
-                        {/* Platform Name */}
-                        <ThemedText style={{ fontSize: 12 }}>{item.platform}</ThemedText>
-
-                        {/* Percentage */}
-                        <Text style={{ fontSize: 12, color: "#6b7280" }}>
-                          {item.count} Posts
-                          {/* ({percentage}%) */}
-                        </Text>
-                      </HStack>
-                    );
-                  })}
-                </VStack>
-              </HStack>
-            </View>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: "#6b7280",
+                          marginLeft: 6,
+                        }}
+                      >
+                        {percentage}%
+                      </Text>
+                    </HStack>
+                  );
+                })}
+              </VStack>
+            </HStack>
+          </View>
         </VStack>
 
         {/* Bar Chart */}
@@ -556,10 +521,9 @@ export default function CalendarInsights() {
           style={{
             padding: 15,
             borderWidth: 1,
-            borderColor: isDark ? "#333" : "#e5e7eb",
+            borderColor: "#e5e7eb",
             borderRadius: 16,
             overflow: "hidden",
-            backgroundColor: isDark ? "#121212" : "#fff",
           }}
         >
           <VStack>
@@ -574,27 +538,23 @@ export default function CalendarInsights() {
               Compare post volumes across different social platforms.
             </ThemedText>
           </VStack>
-        
-            <BarChart
-              data={barData}
-              barWidth={24}
-              spacing={20}
-              rulesType="dashed"
-              dashWidth={4}
-              dashGap={4}
-              rulesColor={isDark ? "#333" : "#e5e7eb"}
-              xAxisThickness={0}
-              yAxisThickness={0}
-              yAxisTextStyle={{ color: isDark ? "#9ca3af" : "#6b7280", fontSize: 10 }}
-              xAxisLabelTextStyle={{ color: isDark ? "#9ca3af" : "#6b7280", fontSize: 10 }}
-              noOfSections={5}
-              maxValue={Math.max(...barData.map((item: any) => item.value), 1)}
-              topBorderRadius={6}
-              showValuesAsTopLabel
-              topLabelTextStyle={{ color: isDark ? "#f3f4f6" : "#1f2937", fontSize: 9 }}
-              yAxisLabelWidth={30}
-            />
-          
+
+          <BarChart
+            data={barData}
+            barWidth={30}
+            spacing={25}
+            rulesType="dashed"
+            dashWidth={4}
+            dashGap={4}
+            rulesColor="#d1d5db"
+            xAxisThickness={0}
+            yAxisThickness={0}
+            yAxisTextStyle={{ color: "#888" }}
+            noOfSections={maxCount}
+            maxValue={maxCount}
+            stepValue={1}
+          />
+
         </VStack>
       </VStack>
     </ThemedView>
