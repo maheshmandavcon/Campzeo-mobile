@@ -22,6 +22,7 @@ const MAPPING: IconMapping = {
   'envelope': 'mail',
   'doc.text': 'description',
   'book': 'book',
+  'manage-accounts': 'manage-accounts',
 } as IconMapping;
 
 /**

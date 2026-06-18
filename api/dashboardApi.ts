@@ -130,7 +130,13 @@ export const exportPostsCSV = async (platform: string, startDate: string, endDat
   }
 };
 
-
-
-
-
+export const getWalletBalance = async () => {
+  try {
+    const response = await https.get(`wallet/balance`);    
+    return response.data;
+  } 
+  catch (error) {
+    console.error("Fetching wallet balance Error:", error);
+    throw error;
+  }
+};

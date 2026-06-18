@@ -149,3 +149,13 @@ export const getCreditPackages = async () => {
     throw error;
   }
 };
+
+export const getAddOns = async () => {
+  try {
+    const response = await https.get(`AddOns`);
+    return response.data;
+  } catch (error) {
+    console.error("Fetching add-ons Error:", error);
+    throw error;
+  }
+};

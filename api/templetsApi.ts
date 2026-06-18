@@ -12,7 +12,6 @@ export interface TemplateData {
   mediaUrls?: string[];
 }
 
-// Get all templates for an organisation
 export const getTemplatesApi = async (orgId: number, token?: string) => {
   try {
     const response = await https.get(`Templates?organisationId=${orgId}`, {
