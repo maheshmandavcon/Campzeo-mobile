@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import {
   ActivityIndicator,
   Alert,
+  RefreshControl,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -12,7 +13,7 @@ import {
 } from "react-native";
 import { Dropdown } from "react-native-element-dropdown";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
 import {
@@ -53,13 +54,16 @@ export default function CalendarExports() {
   });
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
-  
+  const [refreshing, setRefreshing] = useState(false);
+
   const formatDate = (date: Date) => {
     const d = date.getDate().toString().padStart(2, "0");
     const m = (date.getMonth() + 1).toString().padStart(2, "0");
     const y = date.getFullYear();
     return `${d}-${m}-${y}`;
   };
+
+  const [showFilters, setShowFilters] = useState(false);
 
   const onDateChange = (event: any, selectedDate?: Date) => {
     setShowPicker(false);
@@ -98,6 +102,12 @@ export default function CalendarExports() {
     fetchPreview();
   }, [platform, startDate, endDate]);
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchPreview();
+    setRefreshing(false);
+  }, [platform, startDate, endDate]);
+
   const handleExport = async (type: "xlsx" | "csv") => {
     try {
       setExporting(true);
@@ -109,11 +119,11 @@ export default function CalendarExports() {
 
       if (type === "xlsx") {
         response = await exportPostsExcel(platform, from, to);
-        console.log("rrrssspp1",response);
-        
+        console.log("rrrssspp1", response);
+
       } else {
         response = await exportPostsCSV(platform, from, to);
-        console.log("rrrssspp2",response);
+        console.log("rrrssspp2", response);
       }
 
       const blob = response;
@@ -166,8 +176,19 @@ export default function CalendarExports() {
         justifyContent: "flex-start",
       }}
     >
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#dc2626"
+            colors={["#dc2626"]}
+          />
+        }
+      >
       {/* Header */}
-      <VStack
+      {/* <VStack
         style={{
           gap: 5,
           marginBottom: 12,
@@ -201,250 +222,301 @@ export default function CalendarExports() {
         <ThemedText style={{ fontSize: 12, color: "#6a7282", marginLeft: 40 }}>
           Filter and download your post data for reporting and analysis.
         </ThemedText>
-      </VStack>
+      </VStack> */}
 
       {/* Filters Section */}
-      <VStack
-        style={{
-          gap: 10,
-          marginBottom: 12,
-          width: "100%",
-          padding: 15,
-          borderWidth: 1,
-          borderColor: isDark ? "#333" : "#e5e7eb",
-          borderRadius: 16,
-          backgroundColor: isDark ? "#1a1a1a" : "#fff",
-        }}
-      >
-        {/* Platform Dropdown */}
-        <VStack style={{ gap: 4 }}>
-          <ThemedText style={{ fontSize: 12, opacity: 0.6, fontWeight: "600" }}>
-            Platform
-          </ThemedText>
-          <Dropdown
-            style={{
-              borderWidth: 1,
-              borderColor: isDark ? "#333" : "#ddd",
-              borderRadius: 12,
-              paddingHorizontal: 12,
-              height: 45,
-              backgroundColor: isDark ? "#1a1a1a" : "#fff",
-            }}
-            placeholderStyle={{
-              color: isDark ? "#777" : "#999",
-              fontSize: 14,
-            }}
-            selectedTextStyle={{
-              color: isDark ? "white" : "black",
-              fontSize: 14,
-            }}
-            containerStyle={{
-              backgroundColor: isDark ? "#1a1a1a" : "#fff",
-              borderColor: isDark ? "#333" : "#ddd",
-              borderRadius: 12,
-            }}
-            itemTextStyle={{ color: isDark ? "white" : "black" }}
-            activeColor={isDark ? "#333" : "#f0f0f0"}
-            data={[
-              { label: "All Platforms", value: "all" },
-              { label: "Email", value: "EMAIL" },
-              { label: "SMS", value: "SMS" },
-              { label: "Facebook", value: "FACEBOOK" },
-              { label: "WhatsApp", value: "WHATSAPP" },
-              { label: "Instagram", value: "INSTAGRAM" },
-              { label: "LinkedIn", value: "LINKEDIN" },
-              { label: "YouTube", value: "YOUTUBE" },
-              { label: "Pinterest", value: "PINTEREST" },
-            ]}
-            labelField="label"
-            valueField="value"
-            placeholder="All Platforms"
-            value={platform}
-            onChange={(item) => {
-              setPlatform(item.value);
-            }}
-          />
-        </VStack>
-
-        {/* Date Pickers */}
-        <HStack style={{ gap: 10, width: "100%" }}>
-          {/* Start Date */}
-          <VStack style={{ flex: 1, gap: 4 }}>
-            <ThemedText
-              style={{ fontSize: 12, opacity: 0.6, fontWeight: "600" }}
-            >
-              Start Date
-            </ThemedText>
-            <TouchableOpacity
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                borderWidth: 1,
-                borderColor: isDark ? "#333" : "rgba(0,0,0,0.1)",
-                borderRadius: 12,
-                backgroundColor: isDark ? "#1a1a1a" : "rgba(255,255,255,0.9)",
-                height: 45,
-                paddingHorizontal: 12,
-              }}
-              onPress={() => {
-                setPickingMode("start");
-                setShowPicker(true);
-              }}
-            >
-              <Ionicons
-                name="calendar-outline"
-                size={18}
-                color={isDark ? "#aaa" : "rgba(0,0,0,0.4)"}
-                style={{ marginRight: 8 }}
-              />
-              <Text
-                style={{
-                  color: startDate
-                    ? isDark
-                      ? "#fff"
-                      : "#000"
-                    : isDark
-                      ? "#555"
-                      : "#999",
-                  fontSize: 13,
-                }}
-              >
-                {startDate ? formatDate(startDate) : "dd-mm-yyyy"}
-              </Text>
-            </TouchableOpacity>
-          </VStack>
-
-          {/* End Date */}
-          <VStack style={{ flex: 1, gap: 4 }}>
-            <ThemedText
-              style={{ fontSize: 12, opacity: 0.6, fontWeight: "600" }}
-            >
-              End Date
-            </ThemedText>
-            <TouchableOpacity
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                borderWidth: 1,
-                borderColor: isDark ? "#333" : "rgba(0,0,0,0.1)",
-                borderRadius: 12,
-                backgroundColor: isDark ? "#1a1a1a" : "rgba(255,255,255,0.9)",
-                height: 45,
-                paddingHorizontal: 12,
-              }}
-              onPress={() => {
-                setPickingMode("end");
-                setShowPicker(true);
-              }}
-            >
-              <Ionicons
-                name="calendar-outline"
-                size={18}
-                color={isDark ? "#aaa" : "rgba(0,0,0,0.4)"}
-                style={{ marginRight: 8 }}
-              />
-              <Text
-                style={{
-                  color: endDate
-                    ? isDark
-                      ? "#fff"
-                      : "#000"
-                    : isDark
-                      ? "#555"
-                      : "#999",
-                  fontSize: 13,
-                }}
-              >
-                {endDate ? formatDate(endDate) : "dd-mm-yyyy"}
-              </Text>
-            </TouchableOpacity>
-          </VStack>
-
-          {showPicker && (
-            <DateTimePicker
-              value={
-                pickingMode === "start"
-                  ? startDate || new Date()
-                  : endDate || new Date()
-              }
-              mode="date"
-              display="default"
-              maximumDate={new Date()}
-              onChange={onDateChange}
+      <VStack style={{ marginBottom: 12 }}>
+        <TouchableOpacity
+          onPress={() => setShowFilters(!showFilters)}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 12,
+            padding: 15,
+            borderWidth: 1,
+            borderColor: isDark ? "#333" : "#e5e7eb",
+            borderRadius: 16,
+            backgroundColor: isDark ? "#1a1a1a" : "#fff",
+          }}
+        >
+          <HStack style={{ alignItems: "center", gap: 8 }}>
+            <Ionicons
+              name="options-outline"
+              size={20}
+              color={isDark ? "#fff" : "#000"}
             />
-          )}
-        </HStack>
+            <ThemedText style={{ fontSize: 16, fontWeight: "600" }}>
+              Filters & Export
+            </ThemedText>
+          </HStack>
 
-        {/* Download Buttons */}
-        <VStack style={{ gap: 10, marginTop: 5 }}>
-          <TouchableOpacity
-            onPress={() => handleExport("xlsx")}
-            disabled={exporting}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              height: 42,
-              paddingHorizontal: 16,
-              borderRadius: 10,
-              backgroundColor: "#dc2626",
-            }}
-            activeOpacity={0.8}
-          >
-            {exporting ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="document-outline" size={16} color="#fff" />
-                <Text
-                  style={{ color: "#fff", fontWeight: "600", fontSize: 13 }}
-                >
-                  Download Excel (.xlsx)
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
+          <Ionicons
+            name={showFilters ? "chevron-up" : "chevron-down"}
+            size={20}
+            color={isDark ? "#fff" : "#000"}
+          />
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() => handleExport("csv")}
-            disabled={exporting}
+        {showFilters && (
+          <VStack
             style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              height: 42,
-              paddingHorizontal: 16,
-              borderRadius: 10,
+              gap: 10,
+              marginBottom: 12,
+              width: "100%",
+              padding: 15,
               borderWidth: 1,
-              borderColor: isDark ? "#444" : "#ddd",
+              borderColor: isDark ? "#333" : "#e5e7eb",
+              borderRadius: 16,
               backgroundColor: isDark ? "#1a1a1a" : "#fff",
             }}
-            activeOpacity={0.8}
           >
-            {exporting ? (
-              <ActivityIndicator size="small" color="#dc2626" />
-            ) : (
-              <>
-                <Ionicons
-                  name="funnel-outline"
-                  size={16}
-                  color={isDark ? "#ccc" : "#333"}
-                />
-                <Text
+            <HStack style={{ alignItems: "center", gap: 8, marginBottom: 2 }}>
+              <View
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  backgroundColor: isDark
+                    ? "rgba(220, 38, 38, 0.15)"
+                    : "rgba(220, 38, 38, 0.08)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons name="download-outline" size={18} color="#dc2626" />
+              </View>
+              <ThemedText style={{ fontSize: 17, fontWeight: "700" }}>
+                Export Posts
+              </ThemedText>
+            </HStack>
+            <VStack style={{ gap: 4 }}>
+              <Dropdown
+                style={{
+                  borderWidth: 1,
+                  borderColor: isDark ? "#333" : "#ddd",
+                  borderRadius: 12,
+                  paddingHorizontal: 12,
+                  height: 45,
+                  backgroundColor: isDark ? "#1a1a1a" : "#fff",
+                }}
+                placeholderStyle={{
+                  color: isDark ? "#777" : "#999",
+                  fontSize: 14,
+                }}
+                selectedTextStyle={{
+                  color: isDark ? "white" : "black",
+                  fontSize: 14,
+                }}
+                containerStyle={{
+                  backgroundColor: isDark ? "#1a1a1a" : "#fff",
+                  borderColor: isDark ? "#333" : "#ddd",
+                  borderRadius: 12,
+                }}
+                itemTextStyle={{ color: isDark ? "white" : "black" }}
+                activeColor={isDark ? "#333" : "#f0f0f0"}
+                data={[
+                  { label: "All Platforms", value: "all" },
+                  { label: "Email", value: "EMAIL" },
+                  { label: "SMS", value: "SMS" },
+                  { label: "Facebook", value: "FACEBOOK" },
+                  { label: "WhatsApp", value: "WHATSAPP" },
+                  { label: "Instagram", value: "INSTAGRAM" },
+                  { label: "LinkedIn", value: "LINKEDIN" },
+                  { label: "YouTube", value: "YOUTUBE" },
+                  { label: "Pinterest", value: "PINTEREST" },
+                ]}
+                labelField="label"
+                valueField="value"
+                placeholder="All Platforms"
+                value={platform}
+                onChange={(item) => {
+                  setPlatform(item.value);
+                }}
+              />
+            </VStack>
+
+            {/* Date Pickers */}
+            <HStack style={{ gap: 10, width: "100%" }}>
+              {/* Start Date */}
+              <VStack style={{ flex: 1, gap: 4 }}>
+                <ThemedText
+                  style={{ fontSize: 12, opacity: 0.6, fontWeight: "600" }}
+                >
+                  Start Date
+                </ThemedText>
+                <TouchableOpacity
                   style={{
-                    color: isDark ? "#ccc" : "#333",
-                    fontWeight: "500",
-                    fontSize: 13,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: isDark ? "#333" : "rgba(0,0,0,0.1)",
+                    borderRadius: 12,
+                    backgroundColor: isDark ? "#1a1a1a" : "rgba(255,255,255,0.9)",
+                    height: 45,
+                    paddingHorizontal: 12,
+                  }}
+                  onPress={() => {
+                    setPickingMode("start");
+                    setShowPicker(true);
                   }}
                 >
-                  Download CSV (.csv)
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </VStack>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={18}
+                    color={isDark ? "#aaa" : "rgba(0,0,0,0.4)"}
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text
+                    style={{
+                      color: startDate
+                        ? isDark
+                          ? "#fff"
+                          : "#000"
+                        : isDark
+                          ? "#555"
+                          : "#999",
+                      fontSize: 13,
+                    }}
+                  >
+                    {startDate ? formatDate(startDate) : "dd-mm-yyyy"}
+                  </Text>
+                </TouchableOpacity>
+              </VStack>
+
+              {/* End Date */}
+              <VStack style={{ flex: 1, gap: 4 }}>
+                <ThemedText
+                  style={{ fontSize: 12, opacity: 0.6, fontWeight: "600" }}
+                >
+                  End Date
+                </ThemedText>
+                <TouchableOpacity
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: isDark ? "#333" : "rgba(0,0,0,0.1)",
+                    borderRadius: 12,
+                    backgroundColor: isDark ? "#1a1a1a" : "rgba(255,255,255,0.9)",
+                    height: 45,
+                    paddingHorizontal: 12,
+                  }}
+                  onPress={() => {
+                    setPickingMode("end");
+                    setShowPicker(true);
+                  }}
+                >
+                  <Ionicons
+                    name="calendar-outline"
+                    size={18}
+                    color={isDark ? "#aaa" : "rgba(0,0,0,0.4)"}
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text
+                    style={{
+                      color: endDate
+                        ? isDark
+                          ? "#fff"
+                          : "#000"
+                        : isDark
+                          ? "#555"
+                          : "#999",
+                      fontSize: 13,
+                    }}
+                  >
+                    {endDate ? formatDate(endDate) : "dd-mm-yyyy"}
+                  </Text>
+                </TouchableOpacity>
+              </VStack>
+
+              {showPicker && (
+                <DateTimePicker
+                  value={
+                    pickingMode === "start"
+                      ? startDate || new Date()
+                      : endDate || new Date()
+                  }
+                  mode="date"
+                  display="default"
+                  maximumDate={new Date()}
+                  onChange={onDateChange}
+                />
+              )}
+            </HStack>
+
+            {/* Download Buttons */}
+            <VStack style={{ gap: 10, marginTop: 5 }}>
+              <TouchableOpacity
+                onPress={() => handleExport("xlsx")}
+                disabled={exporting}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  height: 42,
+                  paddingHorizontal: 16,
+                  borderRadius: 10,
+                  backgroundColor: "#dc2626",
+                }}
+                activeOpacity={0.8}
+              >
+                {exporting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="document-outline" size={16} color="#fff" />
+                    <Text
+                      style={{ color: "#fff", fontWeight: "600", fontSize: 13 }}
+                    >
+                      Download Excel (.xlsx)
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => handleExport("csv")}
+                disabled={exporting}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  height: 42,
+                  paddingHorizontal: 16,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: isDark ? "#444" : "#ddd",
+                  backgroundColor: isDark ? "#1a1a1a" : "#fff",
+                }}
+                activeOpacity={0.8}
+              >
+                {exporting ? (
+                  <ActivityIndicator size="small" color="#dc2626" />
+                ) : (
+                  <>
+                    <Ionicons
+                      name="funnel-outline"
+                      size={16}
+                      color={isDark ? "#ccc" : "#333"}
+                    />
+                    <Text
+                      style={{
+                        color: isDark ? "#ccc" : "#333",
+                        fontWeight: "500",
+                        fontSize: 13,
+                      }}
+                    >
+                      Download CSV (.csv)
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </VStack>
+          </VStack>
+        )}
       </VStack>
 
       {/* Data Preview Section */}
@@ -640,6 +712,7 @@ export default function CalendarExports() {
           </VStack>
         </ScrollView>
       </VStack>
+      </ScrollView>
     </ThemedView>
   );
 }

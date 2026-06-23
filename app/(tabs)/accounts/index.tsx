@@ -326,14 +326,6 @@ export default function Accounts() {
           Manage social connections for publishing.
         </ThemedText>
       </VStack>
-
-      <Pressable
-        disabled={loading}
-        onPress={() => fetchConnections()}
-        style={styles.iconButton}
-      >
-        <Ionicons name="sync-outline" size={22} color={colors.text} />
-      </Pressable>
     </HStack>
   );
 

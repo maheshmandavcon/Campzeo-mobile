@@ -3,6 +3,7 @@ import { ThemedView } from "@/components/themed-view";
 import { Ionicons } from "@expo/vector-icons";
 import {
   Pressable,
+  RefreshControl,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -11,7 +12,7 @@ import {
 } from "react-native";
 import { Dropdown } from "react-native-element-dropdown";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
 import { BarChart, PieChart } from "react-native-gifted-charts";
@@ -30,10 +31,12 @@ export default function CalendarInsights() {
   const [platform, setPlatform] = useState("all");
   const [showPicker, setShowPicker] = useState(false);
   const [pickingMode, setPickingMode] = useState<"from" | "to">("from");
+  const [refreshing, setRefreshing] = useState(false);
 
   const pieRef = useRef<any>(null);
   const barRef = useRef<any>(null);
 
+  const [showFilters, setShowFilters] = useState(false);
 
   // const platformColors: any = {
   //   FACEBOOK: "#3b82f6",
@@ -84,6 +87,12 @@ export default function CalendarInsights() {
     }
   };
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchInsights();
+    setRefreshing(false);
+  }, [platform, fromDate, toDate]);
+
   useEffect(() => {
     fetchInsights();
   }, [platform, fromDate, toDate]);
@@ -117,185 +126,232 @@ export default function CalendarInsights() {
         justifyContent: "flex-start",
       }}
     >
-      {/* Date Filter */}
-      <VStack
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          tintColor="#dc2626"
+          colors={["#dc2626"]}
+        />
+      }
+    >
+      <TouchableOpacity
+        onPress={() => setShowFilters(!showFilters)}
         style={{
-          gap: 5,
-          marginBottom: 10,
-          width: "100%",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
           padding: 15,
           borderWidth: 1,
           borderColor: "#e5e7eb",
           borderRadius: 16,
+          marginBottom: 10,
         }}
       >
-        <HStack style={{ gap: 10, width: "100%" }}>
-          {/* From Date */}
-          <VStack style={{ flex: 1, gap: 4 }}>
-            <ThemedText style={{ fontSize: 12, opacity: 0.6 }}>From</ThemedText>
-            <TouchableOpacity
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                borderWidth: 1,
-                borderColor: isDark ? "#333" : "rgba(0,0,0,0.1)",
-                borderRadius: 14,
-                backgroundColor: isDark ? "#1a1a1a" : "rgba(255,255,255,0.9)",
-                height: 45,
-                paddingHorizontal: 12,
-              }}
-              onPress={() => {
-                setPickingMode("from");
-                setShowPicker(true);
-              }}
-            >
-              <Ionicons
-                name="calendar-outline"
-                size={18}
-                color={isDark ? "#aaa" : "rgba(0,0,0,0.4)"}
-                style={{ marginRight: 8 }}
-              />
-              <Text style={{ color: isDark ? "#fff" : "#000", fontSize: 13 }}>
-                {fromDate ? formatDate(fromDate) : "Select Date"}
-              </Text>
-            </TouchableOpacity>
-          </VStack>
-
-          {/* To Date */}
-          <VStack style={{ flex: 1, gap: 4 }}>
-            <ThemedText style={{ fontSize: 12, opacity: 0.6 }}>To</ThemedText>
-            <TouchableOpacity
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                borderWidth: 1,
-                borderColor: isDark ? "#333" : "rgba(0,0,0,0.1)",
-                borderRadius: 14,
-                backgroundColor: isDark ? "#1a1a1a" : "rgba(255,255,255,0.9)",
-                height: 45,
-                paddingHorizontal: 12,
-              }}
-              onPress={() => {
-                setPickingMode("to");
-                setShowPicker(true);
-              }}
-            >
-              <Ionicons
-                name="calendar-outline"
-                size={18}
-                color={isDark ? "#aaa" : "rgba(0,0,0,0.4)"}
-                style={{ marginRight: 8 }}
-              />
-              <Text style={{ color: isDark ? "#fff" : "#000", fontSize: 13 }}>
-                {toDate ? formatDate(toDate) : "Select Date"}
-              </Text>
-            </TouchableOpacity>
-          </VStack>
-
-          {showPicker && (
-            <DateTimePicker
-              value={
-                pickingMode === "from"
-                  ? fromDate || new Date()
-                  : toDate || new Date()
-              }
-              mode="date"
-              display="default"
-              maximumDate={new Date()}
-              onChange={onDateChange}
-            />
-          )}
+        <HStack style={{ alignItems: "center", gap: 8 }}>
+          <Ionicons
+            name="options-outline"
+            size={20}
+            color={isDark ? "#fff" : "#000"}
+          />
+          <ThemedText style={{ fontSize: 16, fontWeight: "600" }}>
+            Filters
+          </ThemedText>
         </HStack>
-        {/* Platform Dropdown and Refresh */}
-        <HStack
+
+        <Ionicons
+          name={showFilters ? "chevron-up" : "chevron-down"}
+          size={20}
+          color={isDark ? "#fff" : "#000"}
+        />
+      </TouchableOpacity>
+
+      {/* Date Filter */}
+      {showFilters && (
+        <VStack
           style={{
-            alignItems: "flex-end",
-            gap: 10,
+            gap: 5,
+            marginBottom: 10,
+            width: "100%",
+            padding: 15,
+            borderWidth: 1,
+            borderColor: "#e5e7eb",
+            borderRadius: 16,
           }}
         >
-          <VStack style={{ flex: 1, gap: 4 }}>
-            <ThemedText style={{ fontSize: 12, opacity: 0.6 }}>
-              Platform
-            </ThemedText>
-            <Dropdown
-              style={{
-                borderWidth: 1,
-                borderColor: isDark ? "#333" : "#ddd",
-                borderRadius: 12,
-                paddingHorizontal: 12,
-                height: 45,
-                backgroundColor: isDark ? "#1a1a1a" : "#fff",
-              }}
-              placeholderStyle={{
-                color: isDark ? "#777" : "#999",
-                fontSize: 14,
-              }}
-              selectedTextStyle={{
-                color: isDark ? "white" : "black",
-                fontSize: 14,
-              }}
-              containerStyle={{
-                backgroundColor: isDark ? "#1a1a1a" : "#fff",
-                borderColor: isDark ? "#333" : "#ddd",
-                borderRadius: 12,
-              }}
-              itemTextStyle={{ color: isDark ? "white" : "black" }}
-              activeColor={isDark ? "#333" : "#f0f0f0"}
-              data={[
-                { label: "All Platforms", value: "all" },
-                { label: "Email", value: "EMAIL" },
-                { label: "SMS", value: "SMS" },
-                { label: "Facebook", value: "FACEBOOK" },
-                { label: "WhatsApp", value: "WHATSAPP" },
-                { label: "Instagram", value: "INSTAGRAM" },
-                { label: "LinkedIn", value: "LINKEDIN" },
-                { label: "YouTube", value: "YOUTUBE" },
-                { label: "Pinterest", value: "PINTEREST" },
-              ]}
-              labelField="label"
-              valueField="value"
-              placeholder="Select Platform"
-              value={platform}
-              onChange={(item) => {
-                setPlatform(item.value);
-              }}
-            />
-          </VStack>
+          <HStack style={{ gap: 10, width: "100%" }}>
+            {/* From Date */}
+            <VStack style={{ flex: 1, gap: 4 }}>
+              <ThemedText style={{ fontSize: 12, opacity: 0.6 }}>From</ThemedText>
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  borderWidth: 1,
+                  borderColor: isDark ? "#333" : "rgba(0,0,0,0.1)",
+                  borderRadius: 14,
+                  backgroundColor: isDark ? "#1a1a1a" : "rgba(255,255,255,0.9)",
+                  height: 45,
+                  paddingHorizontal: 12,
+                }}
+                onPress={() => {
+                  setPickingMode("from");
+                  setShowPicker(true);
+                }}
+              >
+                <Ionicons
+                  name="calendar-outline"
+                  size={18}
+                  color={isDark ? "#aaa" : "rgba(0,0,0,0.4)"}
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={{ color: isDark ? "#fff" : "#000", fontSize: 13 }}>
+                  {fromDate ? formatDate(fromDate) : "Select Date"}
+                </Text>
+              </TouchableOpacity>
+            </VStack>
 
-          <TouchableOpacity
-            onPress={fetchInsights}
+            {/* To Date */}
+            <VStack style={{ flex: 1, gap: 4 }}>
+              <ThemedText style={{ fontSize: 12, opacity: 0.6 }}>To</ThemedText>
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  borderWidth: 1,
+                  borderColor: isDark ? "#333" : "rgba(0,0,0,0.1)",
+                  borderRadius: 14,
+                  backgroundColor: isDark ? "#1a1a1a" : "rgba(255,255,255,0.9)",
+                  height: 45,
+                  paddingHorizontal: 12,
+                }}
+                onPress={() => {
+                  setPickingMode("to");
+                  setShowPicker(true);
+                }}
+              >
+                <Ionicons
+                  name="calendar-outline"
+                  size={18}
+                  color={isDark ? "#aaa" : "rgba(0,0,0,0.4)"}
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={{ color: isDark ? "#fff" : "#000", fontSize: 13 }}>
+                  {toDate ? formatDate(toDate) : "Select Date"}
+                </Text>
+              </TouchableOpacity>
+            </VStack>
+
+            {showPicker && (
+              <DateTimePicker
+                value={
+                  pickingMode === "from"
+                    ? fromDate || new Date()
+                    : toDate || new Date()
+                }
+                mode="date"
+                display="default"
+                maximumDate={new Date()}
+                onChange={onDateChange}
+              />
+            )}
+          </HStack>
+          {/* Platform Dropdown and Refresh */}
+          <HStack
             style={{
-              height: 45,
-              paddingHorizontal: 20,
-              borderRadius: 12,
-              backgroundColor: "#dc2626",
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
+              alignItems: "flex-end",
+              gap: 10,
             }}
-            activeOpacity={0.8}
           >
-            <Ionicons name="refresh" size={18} color="#fff" />
-            <Text style={{ color: "#fff", fontWeight: "600", fontSize: 14 }}>
-              Refresh
-            </Text>
-          </TouchableOpacity>
-        </HStack>
-      </VStack>
+            <VStack style={{ flex: 1, gap: 4 }}>
+              <ThemedText style={{ fontSize: 12, opacity: 0.6 }}>
+                Platform
+              </ThemedText>
+              <Dropdown
+                style={{
+                  borderWidth: 1,
+                  borderColor: isDark ? "#333" : "#ddd",
+                  borderRadius: 12,
+                  paddingHorizontal: 12,
+                  height: 45,
+                  backgroundColor: isDark ? "#1a1a1a" : "#fff",
+                }}
+                placeholderStyle={{
+                  color: isDark ? "#777" : "#999",
+                  fontSize: 14,
+                }}
+                selectedTextStyle={{
+                  color: isDark ? "white" : "black",
+                  fontSize: 14,
+                }}
+                containerStyle={{
+                  backgroundColor: isDark ? "#1a1a1a" : "#fff",
+                  borderColor: isDark ? "#333" : "#ddd",
+                  borderRadius: 12,
+                }}
+                itemTextStyle={{ color: isDark ? "white" : "black" }}
+                activeColor={isDark ? "#333" : "#f0f0f0"}
+                data={[
+                  { label: "All Platforms", value: "all" },
+                  { label: "Email", value: "EMAIL" },
+                  { label: "SMS", value: "SMS" },
+                  { label: "Facebook", value: "FACEBOOK" },
+                  { label: "WhatsApp", value: "WHATSAPP" },
+                  { label: "Instagram", value: "INSTAGRAM" },
+                  { label: "LinkedIn", value: "LINKEDIN" },
+                  { label: "YouTube", value: "YOUTUBE" },
+                  { label: "Pinterest", value: "PINTEREST" },
+                ]}
+                labelField="label"
+                valueField="value"
+                placeholder="Select Platform"
+                value={platform}
+                onChange={(item) => {
+                  setPlatform(item.value);
+                }}
+              />
+            </VStack>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: 12, paddingVertical: 6, paddingHorizontal: 2 }}
-        style={{ marginBottom: 8 }}
+            <TouchableOpacity
+              onPress={fetchInsights}
+              style={{
+                height: 45,
+                paddingHorizontal: 20,
+                borderRadius: 12,
+                backgroundColor: "#dc2626",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+              }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="refresh" size={18} color="#fff" />
+              <Text style={{ color: "#fff", fontWeight: "600", fontSize: 14 }}>
+                Refresh
+              </Text>
+            </TouchableOpacity>
+          </HStack>
+        </VStack>
+      )}
+
+      <View
+        style={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          justifyContent: "space-between",
+          marginBottom: 8,
+          rowGap: 12,
+        }}
       >
         {/* Total Posts */}
         <VStack
           style={{
             padding: 15,
             gap: 9,
-            width: 150,
+            width: "48%",
             borderWidth: 1,
             borderColor: "#e5e7eb",
             borderRadius: 16,
@@ -327,7 +383,7 @@ export default function CalendarInsights() {
           style={{
             padding: 15,
             gap: 9,
-            width: 150,
+            width: "48%",
             borderWidth: 1,
             borderColor: "#e5e7eb",
             borderRadius: 16,
@@ -359,7 +415,7 @@ export default function CalendarInsights() {
           style={{
             padding: 15,
             gap: 9,
-            width: 150,
+            width: "48%",
             borderWidth: 1,
             borderColor: "#e5e7eb",
             borderRadius: 16,
@@ -391,7 +447,7 @@ export default function CalendarInsights() {
           style={{
             padding: 15,
             gap: 9,
-            width: 150,
+            width: "48%",
             borderWidth: 1,
             borderColor: "#e5e7eb",
             borderRadius: 16,
@@ -417,7 +473,7 @@ export default function CalendarInsights() {
             </ThemedText>
           </HStack>
         </VStack>
-      </ScrollView>
+      </View>
 
       {/* Charts Section */}
       <VStack style={{ marginTop: 20, gap: 15 }}>
@@ -557,6 +613,7 @@ export default function CalendarInsights() {
 
         </VStack>
       </VStack>
+    </ScrollView>
     </ThemedView>
   );
 }

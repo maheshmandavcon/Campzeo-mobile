@@ -604,11 +604,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts }) => {
             </View>
           </View>
 
-          {/* DEDICATED SELECTED DAY POSTS PANEL */}
-          {renderSelectedDayPanel()}
-
           {/* UPCOMING POSTS LIST UNDERNEATH */}
-          <UpcomingPostsList groupedEvents={groupedEvents} selectedMonth={currentDate} />
+          <UpcomingPostsList groupedEvents={groupedEvents} />
         </ScrollView>
       ) : (
         <ScrollView
@@ -638,11 +635,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts }) => {
             renderEvent={renderEvent}
           />
 
-          {/* DEDICATED SELECTED DAY POSTS PANEL (WITH SENT POSTS HISTORY) */}
-          {renderSelectedDayPanel(16)}
-
           {/* UPCOMING POSTS LIST UNDERNEATH */}
-          <UpcomingPostsList groupedEvents={groupedEvents} selectedMonth={currentDate} />
+          <UpcomingPostsList groupedEvents={groupedEvents} />
         </ScrollView>
       )}
 

@@ -80,7 +80,7 @@ export default function Contacts() {
             email: item.contactEmail,
             mobile: item.contactMobile,
             whatsapp: item.contactWhatsApp,
-            show: true,
+            show: false,
             campaigns: item.campaigns ?? [],
           }));
 
@@ -122,7 +122,7 @@ export default function Contacts() {
         email: item.contactEmail,
         mobile: item.contactMobile,
         whatsapp: item.contactWhatsApp,
-        show: true,
+        show: false,
         campaigns: item.campaigns ?? [],
       }));
 
@@ -158,7 +158,7 @@ export default function Contacts() {
         email: item.contactEmail,
         mobile: item.contactMobile,
         whatsapp: item.contactWhatsApp,
-        show: true,
+        show: false,
         campaigns: item.campaigns ?? [],
       }));
 
@@ -358,40 +358,25 @@ WhatsApp: ${record.whatsapp || "-"}
 
   const ContactSkeletonCard = () => (
     <ThemedView className="bg-gray-50 rounded-xl p-4 mb-3 border border-gray-200">
-      {/* NAME + ACTIONS */}
-      <View className="flex-row items-center justify-between mb-3">
-        <ShimmerSkeleton height={16} width="45%" />
-
-        <View className="flex-row gap-2" style={{ marginLeft: 8 }}>
-          <ShimmerSkeleton height={24} width={24} borderRadius={12} />
-          <ShimmerSkeleton height={24} width={24} borderRadius={12} />
-          <ShimmerSkeleton height={24} width={24} borderRadius={12} />
-          <ShimmerSkeleton height={24} width={24} borderRadius={12} />
+      <View className="flex-row items-center justify-between">
+        {/* Left Side: Avatar + Details */}
+        <View className="flex-row items-center flex-1 mr-2">
+          <ShimmerSkeleton height={46} width={46} borderRadius={23} />
+          <View className="flex-1 ml-3">
+            <ShimmerSkeleton height={16} width="70%" />
+            <View style={{ marginTop: 4 }}>
+              <ShimmerSkeleton height={12} width="50%" />
+            </View>
+          </View>
         </View>
-      </View>
 
-      {/* EMAIL ROW */}
-      <View className="flex-row justify-between items-center mb-2">
-        <ShimmerSkeleton height={12} width="20%" />
-        <ShimmerSkeleton height={12} width="55%" />
-      </View>
-
-      {/* MOBILE ROW */}
-      <View className="flex-row justify-between items-center mb-2">
-        <ShimmerSkeleton height={12} width="20%" />
-        <ShimmerSkeleton height={12} width="45%" />
-      </View>
-
-      {/* WHATSAPP ROW */}
-      <View className="flex-row justify-between items-center mb-2">
-        <ShimmerSkeleton height={12} width="25%" />
-        <ShimmerSkeleton height={12} width="45%" />
-      </View>
-
-      {/* CAMPAIGNS COUNT ROW */}
-      <View className="flex-row justify-between items-center mt-2">
-        <ShimmerSkeleton height={12} width="30%" />
-        <ShimmerSkeleton height={14} width={40} borderRadius={6} />
+        {/* Right Side: Action Badges */}
+        <View className="flex-row gap-2">
+          <ShimmerSkeleton height={32} width={32} borderRadius={16} />
+          <ShimmerSkeleton height={32} width={32} borderRadius={16} />
+          <ShimmerSkeleton height={32} width={32} borderRadius={16} />
+          <ShimmerSkeleton height={32} width={32} borderRadius={16} />
+        </View>
       </View>
     </ThemedView>
   );

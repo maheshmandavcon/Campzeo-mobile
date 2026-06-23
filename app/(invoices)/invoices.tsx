@@ -10,6 +10,7 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -52,7 +53,7 @@ function InvoiceCard({
   COLORS: Record<string, string>;
   currentPlanDueDate: string | null;
 }) {
-const [expanded, setExpanded] = useState(true);
+const [expanded, setExpanded] = useState(false);
 
 useEffect(() => {
   const loadDetail = async () => {
@@ -117,8 +118,8 @@ useEffect(() => {
         day: "2-digit", month: "short", year: "numeric",
       });
       const amount = Number(detail.amount).toLocaleString("en-IN");
-      const orgName = detail.subscription?.organization?.name || "—";
-      const orgEmail = detail.subscription?.organization?.email || "—";
+      const orgName = detail.organization?.name || detail.subscription?.organization?.name || "—";
+      const orgEmail = detail.organization?.email || detail.subscription?.organization?.email || "—";
       const description = detail.description || "Subscription Package";
       const paymentMethod = detail.paymentMethod || "Razorpay";
       const statusColor = isPaid ? "#166534" : "#854d0e";
@@ -226,23 +227,32 @@ useEffect(() => {
             <div class="divider"></div>
             <div class="section">
               <div class="table-head"><span>Description</span><span>Amount</span></div>
-              ${isAddOnInvoice ? "" : `
+              ${!detail.subscription ? `
               <div class="table-row">
-                <span class="table-desc">${planName}</span>
-                <span class="table-amt">&#8377;${Number(planPrice).toLocaleString("en-IN")}</span>
+                <span class="table-desc">${description}</span>
+                <span class="table-amt">&#8377;${Number(detail.amount || 0).toLocaleString("en-IN")}</span>
               </div>
+              ` : `
+                ${isAddOnInvoice ? "" : `
+                <div class="table-row">
+                  <span class="table-desc">${planName}</span>
+                  <span class="table-amt">&#8377;${Number(planPrice).toLocaleString("en-IN")}</span>
+                </div>
+                `}
+                ${addOnsHtml}
               `}
-              ${addOnsHtml}
             </div>
 
-            ${isAddOnInvoice ? "" : `<div class="divider"></div>`}
+            ${(!detail.subscription || isAddOnInvoice) ? "" : `<div class="divider"></div>`}
             <div class="section">
-              ${isAddOnInvoice ? "" : `
+              ${(!detail.subscription || isAddOnInvoice) ? "" : `
               <div class="row"><span class="row-key">Plan Subtotal</span><span class="row-val">&#8377;${Number(planPrice).toLocaleString("en-IN")}</span></div>
               ${addOnTotal > 0 ? `<div class="row"><span class="row-key">Add-ons Total</span><span class="row-val">&#8377;${addOnTotal.toLocaleString("en-IN")}</span></div>` : ""}
+              `}
+              ${(!detail.subscription || !isAddOnInvoice) ? `
               <div class="row"><span class="row-key">Tax</span><span class="row-val">&#8377;${Number(detail.taxAmount || 0).toLocaleString("en-IN")}</span></div>
               <div class="row"><span class="row-key">Discount</span><span class="row-val">&#8377;${Number(detail.discountAmount || 0).toLocaleString("en-IN")}</span></div>
-              `}
+              ` : ""}
               <div class="total-row" style="margin-top:6px;">
                 <span class="total-label">Grand Total</span>
                 <span class="total-val">&#8377;${amount}</span>
@@ -381,10 +391,10 @@ useEffect(() => {
               <View style={styles.detailSection}>
                 <Text style={[styles.sectionLabel, { color: COLORS.muted }]}>BILL TO</Text>
                 <Text style={[styles.clientName, { color: COLORS.text }]}>
-                  {detail.subscription?.organization?.name || "—"}
+                  {detail.organization?.name || detail.subscription?.organization?.name || "—"}
                 </Text>
                 <Text style={[styles.clientEmail, { color: COLORS.accent }]}>
-                  {detail.subscription?.organization?.email || "—"}
+                  {detail.organization?.email || detail.subscription?.organization?.email || "—"}
                 </Text>
               </View>
 
@@ -430,37 +440,51 @@ useEffect(() => {
                   </Text>
                   <Text style={[styles.tableHeaderText, { color: COLORS.muted }]}>AMOUNT</Text>
                 </View>
-                {Number(detail.subscription?.billingPlan?.price || 0) !== 0 && (
+
+                {!detail.subscription ? (
                   <View style={styles.tableRow}>
                     <Text style={[styles.tableDesc, { color: COLORS.text }]}>
-                      {detail.subscription?.billingPlan?.name || "Subscription Plan"}
+                      {detail.description || "Invoice Item"}
                     </Text>
                     <Text style={[styles.tableAmount, { color: COLORS.text }]}>
-                      ₹{Number(detail.subscription?.billingPlan?.price || 0).toLocaleString("en-IN")}
+                      ₹{Number(detail.amount || 0).toLocaleString("en-IN")}
                     </Text>
                   </View>
-                )}
-                {/* AddOns */}
-                {(() => {
-                  try {
-                    const addOnsList = detail.subscription?.addOns ? JSON.parse(detail.subscription.addOns) : [];
-                    return addOnsList.map((addon: any, idx: number) => (
-                      <View style={[styles.tableRow, { marginTop: 8 }]} key={idx}>
-                        <Text style={[styles.tableDesc, { color: COLORS.text, fontSize: 13 }]}>
-                          + {addon.name} (x{addon.quantity})
+                ) : (
+                  <>
+                    {Number(detail.subscription?.billingPlan?.price || 0) !== 0 && (
+                      <View style={styles.tableRow}>
+                        <Text style={[styles.tableDesc, { color: COLORS.text }]}>
+                          {detail.subscription?.billingPlan?.name || "Subscription Plan"}
                         </Text>
-                        <Text style={[styles.tableAmount, { color: COLORS.text, fontSize: 13 }]}>
-                          ₹{(Number(addon.quantity || 1) * Number(addon.amount || 0)).toLocaleString("en-IN")}
+                        <Text style={[styles.tableAmount, { color: COLORS.text }]}>
+                          ₹{Number(detail.subscription?.billingPlan?.price || 0).toLocaleString("en-IN")}
                         </Text>
                       </View>
-                    ));
-                  } catch (e) {
-                    return null;
-                  }
-                })()}
+                    )}
+                    {/* AddOns */}
+                    {(() => {
+                      try {
+                        const addOnsList = detail.subscription?.addOns ? JSON.parse(detail.subscription.addOns) : [];
+                        return addOnsList.map((addon: any, idx: number) => (
+                          <View style={[styles.tableRow, { marginTop: 8 }]} key={idx}>
+                            <Text style={[styles.tableDesc, { color: COLORS.text, fontSize: 13 }]}>
+                              + {addon.name} (x{addon.quantity})
+                            </Text>
+                            <Text style={[styles.tableAmount, { color: COLORS.text, fontSize: 13 }]}>
+                              ₹{(Number(addon.quantity || 1) * Number(addon.amount || 0)).toLocaleString("en-IN")}
+                            </Text>
+                          </View>
+                        ));
+                      } catch (e) {
+                        return null;
+                      }
+                    })()}
+                  </>
+                )}
               </View>
 
-              {Number(detail.subscription?.billingPlan?.price || 0) !== 0 && (
+              {(Number(detail.subscription?.billingPlan?.price || 0) !== 0 || !detail.subscription) && (
                 <View style={[styles.sectionDivider, { backgroundColor: COLORS.border }]} />
               )}
 
@@ -499,7 +523,7 @@ useEffect(() => {
                   );
                 })()}
                 
-                {Number(detail.subscription?.billingPlan?.price || 0) !== 0 && (
+                {(Number(detail.subscription?.billingPlan?.price || 0) !== 0 || !detail.subscription) && (
                   <>
                     <View style={[styles.detailRow, { marginTop: 4 }]}>
                       <Text style={[styles.detailKey, { color: COLORS.muted }]}>Tax</Text>
@@ -538,28 +562,6 @@ useEffect(() => {
                   {downloading ? "Generating PDF…" : "Download Receipt"}
                 </Text>
               </TouchableOpacity>
-
-              {/* Payment status footer */}
-              <View
-                style={[
-                  styles.statusFooter,
-                  { backgroundColor: isPaid ? COLORS.successBg : COLORS.pendingBg },
-                ]}
-              >
-                {isPaid ? (
-                  <CheckCircle size={16} color={COLORS.successText} />
-                ) : (
-                  <Clock size={16} color={COLORS.pendingText} />
-                )}
-                <Text
-                  style={[
-                    styles.statusFooterText,
-                    { color: isPaid ? COLORS.successText : COLORS.pendingText },
-                  ]}
-                >
-                  {isPaid ? "Paid Successfully" : "Payment Pending"}
-                </Text>
-              </View>
             </View>
           ) : null}
         </View>
@@ -575,6 +577,26 @@ export default function Invoices() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [currentPlanDueDate, setCurrentPlanDueDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    if (loading || isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      const [data, subData] = await Promise.all([
+        fetchInvoices(),
+        getCurrentSubscription()
+      ]);
+      setInvoices(data.invoices || []);
+      if (subData?.subscription?.endDate) {
+        setCurrentPlanDueDate(subData.subscription.endDate);
+      }
+    } catch (error) {
+      console.log("Error refreshing invoices:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const isDark = useColorScheme() === "dark";
   const { width: screenWidth } = useWindowDimensions();
@@ -648,126 +670,6 @@ export default function Invoices() {
       </View>
     </View>
 
-    <View
-      style={[
-        styles.expandDivider,
-        { backgroundColor: COLORS.border },
-      ]}
-    />
-
-    {/* Logo Row */}
-    <View style={styles.detailBrandRow}>
-      <ShimmerSkeleton height={32} width={120} borderRadius={8} />
-      <ShimmerSkeleton height={14} width={100} />
-    </View>
-
-    <View
-      style={[
-        styles.sectionDivider,
-        { backgroundColor: COLORS.border },
-      ]}
-    />
-
-    {/* Bill To */}
-    <View style={styles.detailSection}>
-      <ShimmerSkeleton height={10} width={60} />
-      <ShimmerSkeleton height={18} width={180} />
-      <ShimmerSkeleton height={14} width={220} />
-    </View>
-
-    <View
-      style={[
-        styles.sectionDivider,
-        { backgroundColor: COLORS.border },
-      ]}
-    />
-
-    {/* Invoice Details */}
-    <View style={styles.detailSection}>
-      {[1, 2, 3].map((i) => (
-        <View
-          key={i}
-          style={[
-            styles.detailRow,
-            { marginBottom: 10 },
-          ]}
-        >
-          <ShimmerSkeleton height={14} width={90} />
-          <ShimmerSkeleton height={14} width={100} />
-        </View>
-      ))}
-    </View>
-
-    <View
-      style={[
-        styles.sectionDivider,
-        { backgroundColor: COLORS.border },
-      ]}
-    />
-
-    {/* Description Table */}
-    <View style={styles.detailSection}>
-      <View style={styles.tableHeader}>
-        <ShimmerSkeleton height={10} width={90} />
-        <ShimmerSkeleton height={10} width={60} />
-      </View>
-
-      <View style={styles.tableRow}>
-        <ShimmerSkeleton height={14} width={180} />
-        <ShimmerSkeleton height={14} width={80} />
-      </View>
-
-      <View style={[styles.tableRow, { marginTop: 10 }]}>
-        <ShimmerSkeleton height={12} width={140} />
-        <ShimmerSkeleton height={12} width={70} />
-      </View>
-    </View>
-
-    <View
-      style={[
-        styles.sectionDivider,
-        { backgroundColor: COLORS.border },
-      ]}
-    />
-
-    {/* Totals */}
-    <View style={styles.detailSection}>
-      {[1, 2, 3].map((i) => (
-        <View
-          key={i}
-          style={[
-            styles.detailRow,
-            { marginBottom: 10 },
-          ]}
-        >
-          <ShimmerSkeleton height={14} width={100} />
-          <ShimmerSkeleton height={14} width={80} />
-        </View>
-      ))}
-
-      <View style={[styles.detailRow, { marginTop: 8 }]}>
-        <ShimmerSkeleton height={18} width={120} />
-        <ShimmerSkeleton height={22} width={100} />
-      </View>
-    </View>
-
-    {/* Download Button */}
-    <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
-      <ShimmerSkeleton
-        height={50}
-        width={"100%"}
-        borderRadius={14}
-      />
-    </View>
-
-    {/* Status Footer */}
-    <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
-      <ShimmerSkeleton
-        height={42}
-        width={"100%"}
-        borderRadius={12}
-      />
-    </View>
   </View>
 );
 
@@ -790,17 +692,6 @@ export default function Invoices() {
       >
         Invoices
       </Text>
-
-      {/* Refresh button — fixed width mirrors back button for balance */}
-      <TouchableOpacity
-        onPress={() => {
-          setLoading(true);
-          loadInvoices();
-        }}
-        style={styles.iconButton}
-      >
-        <Ionicons name="sync-outline" size={22} color={COLORS.text} />
-      </TouchableOpacity>
     </View>
   );
 
@@ -827,6 +718,7 @@ export default function Invoices() {
           justifyContent: invoices.length === 0 ? "center" : "flex-start",
         }}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor="#dc2626" />}
       >
         {invoices.length === 0 ? (
           <View style={styles.emptyContainer}>

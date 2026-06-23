@@ -439,7 +439,7 @@ const handleDelete = async (cId: number) => {
                 }}
               >
                 <Ionicons
-                  name={campaign.show ? "eye-off-outline" : "eye-outline"}
+                  name={campaign.show ? "chevron-up" : "chevron-down"}
                   size={16}
                   color={COLORS.actionShowIcon}
                 />
