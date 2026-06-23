@@ -944,50 +944,48 @@ export default function BillingPage() {
         )}
 
         <View
-          className="flex-row rounded-xl p-1 mb-4"
-          style={{ backgroundColor: COLORS.card }}
+          style={{
+            flexDirection: "row",
+            alignSelf: "flex-start",
+            marginBottom: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: isDark ? "#374151" : "#e5e7eb",
+          }}
         >
-          <TouchableOpacity
-            onPress={() => setPlansTab('plans')}
-            className="flex-1 py-3 rounded-lg items-center"
-            style={{
-              backgroundColor:
-                plansTab === 'plans' ? COLORS.accent : 'transparent',
-            }}
-          >
-            <Text
-              className="font-semibold"
-              style={{
-                color:
-                  plansTab === 'plans'
-                    ? '#fff'
-                    : COLORS.text,
-              }}
-            >
-              Available Plans
-            </Text>
-          </TouchableOpacity>
+          {[
+            { key: "plans", label: "Available Plans" },
+            { key: "addons", label: "Purchase Add-ons" },
+          ].map((tab) => {
+            const isActive = plansTab === tab.key;
 
-          <TouchableOpacity
-            onPress={() => setPlansTab('addons')}
-            className="flex-1 py-3 rounded-lg items-center"
-            style={{
-              backgroundColor:
-                plansTab === 'addons' ? COLORS.accent : 'transparent',
-            }}
-          >
-            <Text
-              className="font-semibold"
-              style={{
-                color:
-                  plansTab === 'addons'
-                    ? '#fff'
-                    : COLORS.text,
-              }}
-            >
-              Purchase Add-ons
-            </Text>
-          </TouchableOpacity>
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                onPress={() => setPlansTab(tab.key as "plans" | "addons")}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  marginRight: 20,
+                  borderBottomWidth: 2,
+                  borderBottomColor: isActive
+                    ? COLORS.accent
+                    : "transparent",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontWeight: "600",
+                    color: isActive
+                      ? COLORS.accent
+                      : COLORS.text,
+                  }}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {plansTab === 'plans' ? (

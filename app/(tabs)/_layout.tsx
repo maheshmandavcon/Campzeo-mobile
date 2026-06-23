@@ -18,11 +18,20 @@ export default function TabsLayout() {
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: "#dc2626",
-          tabBarInactiveTintColor: "#777777ff",
-          tabBarButton: HapticTab,
+          tabBarInactiveTintColor: "#94a3b8",
           tabBarStyle: {
-            paddingTop: 5,
             height: 75,
+            paddingTop: 5,
+            backgroundColor: "#fff",
+            borderTopWidth: 0,
+            elevation: 10,
+            shadowColor: "#000",
+            shadowOffset: {
+              width: 0,
+              height: -2,
+            },
+            shadowOpacity: 0.08,
+            shadowRadius: 8,
           },
         }}
       >

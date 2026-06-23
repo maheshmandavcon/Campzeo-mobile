@@ -140,3 +140,20 @@ export const getWalletBalance = async () => {
     throw error;
   }
 };
+
+
+export const getActivityLogs = async (
+  page = 1,
+  limit = 5
+) => {
+  try {
+    const response = await https.get(
+      `ActivityLogs?page=${page}&limit=${limit}`
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Fetching Activity Logs Error:", error);
+    throw error;
+  }
+};

@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { setMemoryToken } from "@/api/https";
 import * as SecureStore from "expo-secure-store";
 import React, {
   createContext,
@@ -260,6 +261,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await setStorageItem(AUTH_USER_KEY, JSON.stringify(storedUser));
       }
 
+      // Keep the in-memory token cache in sync with the new session token
+      setMemoryToken(nextToken);
+
       setTokenState(nextToken);
       setUserState(
         storedUser ? withUserActions(storedUser, updateStoredUser) : null,
@@ -272,10 +276,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     await removeToken();
+    // Clear the in-memory token cache so the old token is not reused on next login
+    setMemoryToken(null);
     setTokenState(null);
     setUserState(null);
     setIsLoaded(true);
-    
   }, [token]);
 
   const value = useMemo<AuthContextValue>(

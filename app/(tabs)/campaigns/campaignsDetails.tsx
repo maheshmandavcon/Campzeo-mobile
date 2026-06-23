@@ -17,12 +17,14 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  SectionList,
   TextInput,
   TouchableOpacity,
   useColorScheme,
   View,
   Image,
   Text,
+  RefreshControl,
 } from "react-native";
 import { ContactsRecord } from "../contacts/contactComponents/contactCard";
 import CampaignCard, { Campaign } from "./campaignComponents/campaignCard";
@@ -186,6 +188,35 @@ export default function CampaignsDetails() {
       setLoadingPosts(false);
     }
   }, [resolvedCampaignId]);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const token = await getToken();
+      if (resolvedCampaignId && token) {
+        const user = await getUser();
+        const orgId = user?.organisation?.id;
+        await Promise.all([
+          fetchPosts(),
+          getCampaignByIdApi(resolvedCampaignId, orgId, token).then(data => {
+            if (data) {
+              setCampaign({
+                id: Number(data.id ?? data._id ?? resolvedCampaignId),
+                details: data.name ?? "Untitled Campaign",
+                dates: `${(data.startDate || "").split("T")[0]} - ${(data.endDate || "").split("T")[0]}`,
+                description: data.description ?? "",
+                posts: data.posts ?? [],
+                show: true,
+              });
+            }
+          }).catch(() => {})
+        ]);
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }, [resolvedCampaignId, fetchPosts, getToken]);
 
   useFocusEffect(
     useCallback(() => {
@@ -404,7 +435,6 @@ export default function CampaignsDetails() {
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [currentSharePostId, setCurrentSharePostId] = useState<number | null>(null);
 
-  // 🔧 FIX: sanitize post data for share modal (Pinterest issue)
   const sharePostData = useMemo(() => {
     if (!currentSharePostId) return null;
 
@@ -914,151 +944,145 @@ export default function CampaignsDetails() {
 
   return (
     <ThemedView className="flex-1 p-4" style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
-      <ThemedText
-        style={{
-          fontSize: 18,
-          fontWeight: "bold",
-        }}
-        className="mb-3"
-      >
-        Campaign Details
-      </ThemedText>
-
-      {campaign && (
-        <CampaignCard
-        postLength={postLength}
-          campaign={campaign}
-          showActions={false}
-          alwaysExpanded={true}
-          createPostButton={true}
-          hidePostsHeading={true}
-          statusPosition={"top"}
-          highlightBorder
-          onDelete={() => { }}
-          onCopy={() => { }}
-          onToggleShow={() => { }}
-          // onPressPost={() => campaign?.id && handleCreatePost(campaign.id)}
-          onPressPost={() => {
-            if (isCompleted) {
-              Toast.show({
-                type: "info",
-                text1: "Campaign Completed",
-                text2: "You cannot create posts for a completed campaign."
-              });
-              return;
-            }
-            campaign?.id && handleCreatePost(campaign.id);
-          }}
-        />
-      )}
-
-      {/* POSTS */}
-      <ThemedView className="flex-1" style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
-        <ThemedView
-          className="flex-row items-center justify-between mb-3"
-          style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
-        >
-          {/* Title */}
-          <ThemedText
-            style={{
-              fontSize: 18,
-              fontWeight: "bold",
-              color: isDark ? "#ffffff" : "#000000",
-            }}
-          >
-            Created Posts
-          </ThemedText>
-
-          {/* Search */}
-          <ThemedView
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              borderWidth: 1,
-              borderColor: isDark ? "#3f3f46" : "#e5e7eb",
-              backgroundColor: isDark ? "#161618" : "#ffffff",
-              borderRadius: 50,
-              paddingHorizontal: 10,
-              height: 40,
-              width: 200,
-            }}
-          >
-            <Ionicons
-              name="search-outline"
-              size={16}
-              color={isDark ? "#9ca3af" : "#6b7280"}
-            />
-
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search posts"
-              placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+      <SectionList
+        sections={[
+          { title: "Posts", data: loadingPosts ? Array(5).fill(null) : posts.length === 0 ? [] : visiblePosts }
+        ]}
+        keyExtractor={loadingPosts ? (_: any, i: number) => `skeleton-${i}` : (item: any, index: number) => item?.id ? String(item.id) : `idx-${index}`}
+        showsVerticalScrollIndicator={false}
+        stickySectionHeadersEnabled={true}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={isDark ? "#ffffff" : "#dc2626"} />
+        }
+        ListHeaderComponent={
+          <>
+            <ThemedText
               style={{
-                marginLeft: 6,
-                flex: 1,
-                fontSize: 13,
-                color: isDark ? "#ffffff" : "#000000",
+                fontSize: 18,
+                fontWeight: "bold",
               }}
-            />
-          </ThemedView>
-        </ThemedView>
-
-        {loadingPosts ? (
-          <FlatList
-            data={Array(5).fill(null)}
-            keyExtractor={(_, i) => `skeleton-${i}`}
-            renderItem={() => <PostSkeletonCard isDark={isDark} />}
-            showsVerticalScrollIndicator={false}
-          />
-        ) : posts.length === 0 ? (
+              className="mb-3"
+            >
+              Campaign Details
+            </ThemedText>
+            {campaign && (
+              <View style={{ marginBottom: 16 }}>
+                <CampaignCard
+                  postLength={postLength}
+                  campaign={campaign}
+                  showActions={false}
+                  alwaysExpanded={true}
+                  createPostButton={true}
+                  hidePostsHeading={true}
+                  statusPosition={"top"}
+                  highlightBorder
+                  onDelete={() => { }}
+                  onCopy={() => { }}
+                  onToggleShow={() => { }}
+                  onPressPost={() => {
+                    if (isCompleted) {
+                      Toast.show({
+                        type: "info",
+                        text1: "Campaign Completed",
+                        text2: "You cannot create posts for a completed campaign."
+                      });
+                      return;
+                    }
+                    campaign?.id && handleCreatePost(campaign.id);
+                  }}
+                />
+              </View>
+            )}
+          </>
+        }
+        renderSectionHeader={() => (
           <ThemedView
-            className="flex-1 justify-center items-center"
-            style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
+            className="flex-row items-center justify-between mb-3"
+            style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6", paddingTop: 8, paddingBottom: 8 }}
           >
             <ThemedText
               style={{
                 fontSize: 18,
                 fontWeight: "bold",
-                marginBottom: 6,
                 color: isDark ? "#ffffff" : "#000000",
               }}
             >
-              No posts yet
+              Created Posts
             </ThemedText>
 
-            <ThemedText
+            <ThemedView
               style={{
-                fontSize: 14,
-                textAlign: "center",
-                color: isDark ? "#9ca3af" : "#6b7280",
-                paddingHorizontal: 24,
+                flexDirection: "row",
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: isDark ? "#3f3f46" : "#e5e7eb",
+                backgroundColor: isDark ? "#161618" : "#ffffff",
+                borderRadius: 50,
+                paddingHorizontal: 10,
+                height: 40,
+                width: "65%",
               }}
             >
-              Tap create post to create your first post...
-            </ThemedText>
+              <Ionicons name="search-outline" size={16} color={isDark ? "#9ca3af" : "#6b7280"} />
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search posts"
+                placeholderTextColor={isDark ? "#9ca3af" : "#6b7280"}
+                style={{
+                  marginLeft: 6,
+                  flex: 1,
+                  fontSize: 13,
+                  color: isDark ? "#ffffff" : "#000000",
+                }}
+              />
+            </ThemedView>
           </ThemedView>
-        ) : (
-          <FlatList
-            data={visiblePosts}
-            keyExtractor={(item) => String(item.id)}
-            renderItem={({ item }) => renderPostItem({ item })}
-            showsVerticalScrollIndicator={false}
-            ListFooterComponent={
-              posts.length > 5 ? (
-                <TouchableOpacity
-                  onPress={isAllVisible ? () => setVisibleCount(5) : () => setVisibleCount((v) => v + 5)}
-                  className={`py-3 my-2 rounded-xl items-center ${isAllVisible ? isDark ? "bg-red-900/30" : "bg-red-100" : isDark ? "bg-blue-900/30" : "bg-blue-100"}`}
-                >
-                  <ThemedText className={`font-semibold ${isAllVisible ? isDark ? "text-red-300" : "text-red-700" : isDark ? "text-blue-300" : "text-blue-700"}`}>
-                    {isAllVisible ? "Show Less" : "Load More"}
-                  </ThemedText>
-                </TouchableOpacity>
-              ) : null
-            }
-          />
         )}
-      </ThemedView>
+        renderItem={loadingPosts ? () => <PostSkeletonCard isDark={isDark} /> : ({ item }: { item: any }) => renderPostItem({ item })}
+        ListFooterComponent={
+          <>
+            {!loadingPosts && posts.length === 0 && (
+              <ThemedView
+                className="justify-center items-center py-10"
+                style={{ backgroundColor: "transparent" }}
+              >
+                <ThemedText
+                  style={{
+                    fontSize: 18,
+                    fontWeight: "bold",
+                    marginBottom: 6,
+                    color: isDark ? "#ffffff" : "#000000",
+                  }}
+                >
+                  No posts yet
+                </ThemedText>
+
+                <ThemedText
+                  style={{
+                    fontSize: 14,
+                    textAlign: "center",
+                    color: isDark ? "#9ca3af" : "#6b7280",
+                    paddingHorizontal: 24,
+                  }}
+                >
+                  Tap create post to create your first post...
+                </ThemedText>
+              </ThemedView>
+            )}
+            {!loadingPosts && posts.length > 5 && (
+              <TouchableOpacity
+                onPress={isAllVisible ? () => setVisibleCount(5) : () => setVisibleCount((v) => v + 5)}
+                className={`py-3 my-2 rounded-xl items-center ${isAllVisible ? isDark ? "bg-red-900/30" : "bg-red-100" : isDark ? "bg-blue-900/30" : "bg-blue-100"}`}
+              >
+                <ThemedText className={`font-semibold ${isAllVisible ? isDark ? "text-red-300" : "text-red-700" : isDark ? "text-blue-300" : "text-blue-700"}`}>
+                  {isAllVisible ? "Show Less" : "Load More"}
+                </ThemedText>
+              </TouchableOpacity>
+            )}
+          </>
+        }
+      />
       <ShareCampaignPost
         visible={shareModalVisible}
         isDark={isDark}

@@ -11,7 +11,6 @@ import PagerView from "react-native-pager-view";
 import Insights from "./dashboardComponents/insights";
 import { ThemedView } from "@/components/themed-view";
 import CalendarParent from "@/app/(calendar)/calendarTabs/calendarParent";
-import { ScrollView } from "react-native-gesture-handler";
 import { getUser, getWalletBalance } from "@/api/dashboardApi";
 import { getUsage, getCurrentSubscription } from "@/api/billingApi";
 import { useFocusEffect } from "expo-router";
@@ -107,10 +106,9 @@ const DashboardTabs = () => {
           <Insights userData={userData} usageData={usageData} walletData={walletData} subscriptionData={subscriptionData} loading={loading} onRefresh={handleRefresh} refreshing={isRefreshing} />
         </View>
 
-        <ScrollView key="calendar">
+        <View key="calendar" style={{ flex: 1 }}>
           <CalendarParent />
-          {/* <CalendarWrapper /> */}
-        </ScrollView>
+        </View>
       </PagerView>
     </SafeAreaView>
   );

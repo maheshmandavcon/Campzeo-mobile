@@ -1,5 +1,5 @@
 import { getUsage } from "@/api/billingApi";
-import { getUser } from "@/api/dashboardApi";
+import { getUser, getActivityLogs } from "@/api/dashboardApi";
 import { Text, TouchableOpacity, useColorScheme, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
@@ -24,6 +24,28 @@ export default function Insights({ userData, usageData, walletData, subscription
   const isDark = useColorScheme() === "dark";
 
   const routePage = useRouter();
+
+  const [activeTab, setActiveTab] = useState<"usage" | "activity">("usage");
+  const [activityLogs, setActivityLogs] = useState<any[]>([]);
+  const [isLoadingActivity, setIsLoadingActivity] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === "activity" && activityLogs.length === 0) {
+      const fetchLogs = async () => {
+        setIsLoadingActivity(true);
+        try {
+          const res = await getActivityLogs(1, 20);
+          const logs = Array.isArray(res) ? res : (res?.data || res?.activityLogs || res?.logs || []);
+          setActivityLogs(logs);
+        } catch (error) {
+          console.error("Failed to fetch activity logs", error);
+        } finally {
+          setIsLoadingActivity(false);
+        }
+      };
+      fetchLogs();
+    }
+  }, [activeTab]);
 
   // const [userData, setUserData] = useState<any>(null);
   // const [usageData, setUsageData] = useState<any>(null);
@@ -185,7 +207,7 @@ export default function Insights({ userData, usageData, walletData, subscription
       <ThemedView style={styles.container}>
         {renderHeaderSkeleton()}
 
-        <ScrollView 
+        <ScrollView
           showsVerticalScrollIndicator={false}
           refreshControl={
             onRefresh ? <RefreshControl refreshing={refreshing || false} onRefresh={onRefresh} tintColor="#dc2626" /> : undefined
@@ -246,7 +268,7 @@ export default function Insights({ userData, usageData, walletData, subscription
 
   const rawPlanName =
     subscriptionData?.subscription?.plan?.name ??
-    userData?.organisation?.subscriptions?.[0]?.plan?.name ?? 
+    userData?.organisation?.subscriptions?.[0]?.plan?.name ??
     "FREE_TRIAL";
 
   const getPlanDisplayLabel = (name: string): string => {
@@ -280,7 +302,7 @@ export default function Insights({ userData, usageData, walletData, subscription
         <ThemedText style={styles.orgName}>{organisationName}</ThemedText>
       </HStack>
 
-      <ScrollView 
+      <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
           onRefresh ? <RefreshControl refreshing={refreshing || false} onRefresh={onRefresh} tintColor="#dc2626" /> : undefined
@@ -375,183 +397,333 @@ export default function Insights({ userData, usageData, walletData, subscription
             <Box style={styles.statCard}>
               <ThemedText style={styles.statLabel}>Available Credits</ThemedText>
 
-              <View>
-                <Text style={styles.creditRow}>
-                  <Text style={styles.creditHeading}>SMS: </Text>
-                  <Text style={styles.creditValue}>{smsCreditsAvailable}</Text>
-                </Text>
+              <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "center", marginTop: 5, flex: 1 }}>
+                <View style={{ alignItems: "center" }}>
+                  <View style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: isDark ? "rgba(234, 179, 8, 0.15)" : "#fef9c3",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    marginBottom: 10,
+                    // shadowColor: "#eab308",
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 8,
+                    elevation: 5,
+                  }}>
+                    <Ionicons name="chatbubble-ellipses" size={18} color="#eab308" />
+                  </View>
+                  <Text style={[styles.creditValue, { fontSize: 16, color: "#eab308" }]}>{smsCreditsAvailable}</Text>
+                </View>
 
-                <Text style={[styles.creditRow, { marginTop: 4 }]}>
-                  <Text style={styles.creditHeading}>WhatsApp: </Text>
-                  <Text style={styles.creditValue}>{whatsappCreditsAvailable}</Text>
-                </Text>
+                <View style={{ alignItems: "center" }}>
+                  <View style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: isDark ? "rgba(37, 211, 102, 0.15)" : "#dcfce7",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    marginBottom: 10,
+                    // shadowColor: "#25D366",
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 8,
+                    elevation: 5,
+                  }}>
+                    <Ionicons name="logo-whatsapp" size={18} color="#25D366" style={{ marginLeft: 2 }} />
+                  </View>
+                  <Text style={[styles.creditValue, { fontSize: 16 }]}>{whatsappCreditsAvailable}</Text>
+                </View>
               </View>
-
-              <ThemedText style={styles.statSubtext}>
-                Available balance
-              </ThemedText>
             </Box>
           </HStack>
         </VStack>
 
         {/* ================= USAGE ================= */}
+        <HStack
+          style={{
+            borderBottomWidth: 1,
+            borderBottomColor: isDark ? "#374151" : "#e5e7eb",
+            marginBottom: 20,
+          }}
+        >
+          {[
+            { key: "usage", label: "Usage Details" },
+            { key: "activity", label: "Recent Activity" },
+          ].map((tab) => {
+            const isActive = activeTab === tab.key;
+
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                onPress={() => setActiveTab(tab.key as any)}
+                style={{
+                  flex: 1,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingVertical: 14,
+                  borderBottomWidth: 2,
+                  borderBottomColor: isActive
+                    ? "#dc2626"
+                    : "transparent",
+                }}
+              >
+                <ThemedText
+                  style={{
+                    fontSize: 15,
+                    fontWeight: isActive ? "700" : "500",
+                    color: isActive
+                      ? (isDark ? "#fff" : "#000")
+                      : "#9ca3af",
+                  }}
+                >
+                  {tab.label}
+                </ThemedText>
+              </TouchableOpacity>
+            );
+          })}
+        </HStack>
+
         <Box style={styles.usageCard}>
-          <ThemedText style={styles.usageName}>Usage Details</ThemedText>
-          <ThemedText style={styles.usageLabel}>
-            Detailed breakdown of your usage and limits
-          </ThemedText>
-          <VStack style={{ marginBottom: 16 }}>
-            <HStack style={{ justifyContent: "space-between" }}>
-              <VStack className="gap-3">
-                <ThemedText>Monthly Posts</ThemedText>
-                <HStack className="gap-3 items-center">
-                  <ThemedText style={{ fontSize: 27, fontWeight: "700" }}>
-                    {usageData?.usage?.postsThisMonth?.current}
+          {/* Usage Details Tab */}
+          {activeTab === "usage" && (
+            <>
+              <ThemedText style={styles.usageName}>
+                Usage Details
+              </ThemedText>
+
+              <ThemedText style={styles.usageLabel}>
+                Detailed breakdown of your usage and limits
+              </ThemedText>
+              <VStack style={{ marginBottom: 16 }}>
+                <HStack style={{ justifyContent: "space-between" }}>
+                  <VStack className="gap-3">
+                    <ThemedText>Monthly Posts</ThemedText>
+                    <HStack className="gap-3 items-center">
+                      <ThemedText style={{ fontSize: 27, fontWeight: "700" }}>
+                        {usageData?.usage?.postsThisMonth?.current}
+                      </ThemedText>
+                      <HStack className="items-center gap-1">
+                        <Ionicons name="arrow-up" size={17} color={"#00c950"} />
+                        <ThemedText style={{ color: "#00c950" }}>
+                          {usageData?.usage?.postsThisMonth?.growth}%
+                        </ThemedText>
+                      </HStack>
+                    </HStack>
+                  </VStack>
+
+                  <ThemedText>
+                    {usageData?.usage?.postsThisMonth?.current} (vs{" "}
+                    {usageData?.usage?.postsThisMonth?.lastMonth} last month)
                   </ThemedText>
-                  <HStack className="items-center gap-1">
-                    <Ionicons name="arrow-up" size={17} color={"#00c950"} />
-                    <ThemedText style={{ color: "#00c950" }}>
-                      {usageData?.usage?.postsThisMonth?.growth}%
-                    </ThemedText>
-                  </HStack>
                 </HStack>
+
+                <Center style={{ marginTop: 6 }}></Center>
+              </VStack>
+              <VStack style={{ marginBottom: 16 }}>
+                <HStack style={{ justifyContent: "space-between" }}>
+                  <ThemedText>Total Contacts</ThemedText>
+
+                  <ThemedText>
+                    {usageData?.usage?.contacts?.current}/
+                    {usageData?.usage?.contacts?.limit}
+                  </ThemedText>
+                </HStack>
+
+                <Center style={{ marginTop: 6 }}>
+                  <Progress
+                    value={usageData?.usage?.contacts?.percentage}
+                    size="sm"
+                  >
+                    <ProgressFilledTrack
+                      style={{
+                        width: `${Math.min(
+                          ((usageData?.usage?.contacts?.current || 0) /
+                            (usageData?.usage?.contacts?.limit || 1)) *
+                          100,
+                          100,
+                        )}%`,
+                        backgroundColor:
+                          (usageData?.usage?.contacts?.current || 0) >=
+                            (usageData?.usage?.contacts?.limit || 0)
+                            ? COLORS.accent
+                            : COLORS.success,
+                      }}
+                    />
+                  </Progress>
+                </Center>
+              </VStack>
+              <VStack style={{ marginBottom: 16 }}>
+                <HStack style={{ justifyContent: "space-between" }}>
+                  <ThemedText>Campaigns</ThemedText>
+
+                  <ThemedText>
+                    {usageData?.usage?.campaigns?.current}/
+                    {usageData?.usage?.campaigns?.limit}
+                  </ThemedText>
+                </HStack>
+
+                <Center style={{ marginTop: 6 }}>
+                  <Progress
+                    value={usageData?.usage?.campaigns?.percentage}
+                    size="sm"
+                  >
+                    <ProgressFilledTrack
+                      style={{
+                        width: `${Math.min(
+                          ((usageData?.usage?.campaigns?.current || 0) /
+                            (usageData?.usage?.campaigns?.limit || 1)) *
+                          100,
+                          100,
+                        )}%`,
+                        backgroundColor:
+                          (usageData?.usage?.campaigns?.current || 0) >=
+                            (usageData?.usage?.campaigns?.limit || 0)
+                            ? COLORS.accent
+                            : COLORS.success,
+                      }}
+                    />
+                  </Progress>
+                </Center>
+              </VStack>
+              <VStack style={{ marginBottom: 16 }}>
+                <HStack style={{ justifyContent: "space-between" }}>
+                  <ThemedText>Connected Platform</ThemedText>
+
+                  <ThemedText>
+                    {usageData?.usage?.platforms?.current}/
+                    {usageData?.usage?.platforms.limit}
+                  </ThemedText>
+                </HStack>
+
+                <Center style={{ marginTop: 6 }}>
+                  <Progress
+                    value={usageData?.usage?.platforms?.percentage}
+                    size="sm"
+                  >
+                    <ProgressFilledTrack
+                      style={{
+                        width: `${Math.min(
+                          ((usageData?.usage?.platforms?.current || 0) /
+                            (usageData?.usage?.platforms?.limit || 1)) *
+                          100,
+                          100,
+                        )}%`,
+                        backgroundColor:
+                          (usageData?.usage?.platforms?.current || 0) >=
+                            (usageData?.usage?.platforms?.limit || 0)
+                            ? COLORS.accent
+                            : COLORS.success,
+                      }}
+                    />
+                  </Progress>
+                </Center>
               </VStack>
 
-              <ThemedText>
-                {usageData?.usage?.postsThisMonth?.current} (vs{" "}
-                {usageData?.usage?.postsThisMonth?.lastMonth} last month)
-              </ThemedText>
-            </HStack>
-
-            <Center style={{ marginTop: 6 }}></Center>
-          </VStack>
-          <VStack style={{ marginBottom: 16 }}>
-            <HStack style={{ justifyContent: "space-between" }}>
-              <ThemedText>Total Contacts</ThemedText>
-
-              <ThemedText>
-                {usageData?.usage?.contacts?.current}/
-                {usageData?.usage?.contacts?.limit}
-              </ThemedText>
-            </HStack>
-
-            <Center style={{ marginTop: 6 }}>
-              <Progress
-                value={usageData?.usage?.contacts?.percentage}
-                size="sm"
-              >
-                <ProgressFilledTrack
-                  style={{
-                    width: `${Math.min(
-                      ((usageData?.usage?.contacts?.current || 0) /
-                        (usageData?.usage?.contacts?.limit || 1)) *
-                      100,
-                      100,
-                    )}%`,
-                    backgroundColor:
-                      (usageData?.usage?.contacts?.current || 0) >=
-                        (usageData?.usage?.contacts?.limit || 0)
-                        ? COLORS.accent
-                        : COLORS.success,
-                  }}
-                />
-              </Progress>
-            </Center>
-          </VStack>
-          <VStack style={{ marginBottom: 16 }}>
-            <HStack style={{ justifyContent: "space-between" }}>
-              <ThemedText>Campaigns</ThemedText>
-
-              <ThemedText>
-                {usageData?.usage?.campaigns?.current}/
-                {usageData?.usage?.campaigns?.limit}
-              </ThemedText>
-            </HStack>
-
-            <Center style={{ marginTop: 6 }}>
-              <Progress
-                value={usageData?.usage?.campaigns?.percentage}
-                size="sm"
-              >
-                <ProgressFilledTrack
-                  style={{
-                    width: `${Math.min(
-                      ((usageData?.usage?.campaigns?.current || 0) /
-                        (usageData?.usage?.campaigns?.limit || 1)) *
-                      100,
-                      100,
-                    )}%`,
-                    backgroundColor:
-                      (usageData?.usage?.campaigns?.current || 0) >=
-                        (usageData?.usage?.campaigns?.limit || 0)
-                        ? COLORS.accent
-                        : COLORS.success,
-                  }}
-                />
-              </Progress>
-            </Center>
-          </VStack>
-          <VStack style={{ marginBottom: 16 }}>
-            <HStack style={{ justifyContent: "space-between" }}>
-              <ThemedText>Connected Platform</ThemedText>
-
-              <ThemedText>
-                {usageData?.usage?.platforms?.current}/
-                {usageData?.usage?.platforms.limit}
-              </ThemedText>
-            </HStack>
-
-            <Center style={{ marginTop: 6 }}>
-              <Progress
-                value={usageData?.usage?.platforms?.percentage}
-                size="sm"
-              >
-                <ProgressFilledTrack
-                  style={{
-                    width: `${Math.min(
-                      ((usageData?.usage?.platforms?.current || 0) /
-                        (usageData?.usage?.platforms?.limit || 1)) *
-                      100,
-                      100,
-                    )}%`,
-                    backgroundColor:
-                      (usageData?.usage?.platforms?.current || 0) >=
-                        (usageData?.usage?.platforms?.limit || 0)
-                        ? COLORS.accent
-                        : COLORS.success,
-                  }}
-                />
-              </Progress>
-            </Center>
-          </VStack>
-
-          {usageData?.usage?.platforms?.connectedNames?.length > 0 && (
-            <View className="flex-row flex-wrap gap-2 mt-2">
-              {usageData.usage.platforms.connectedNames.map(
-                (platform: string, index: number) => (
-                  <View
-                    key={index}
-                    className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full border shadow-sm"
-                    style={{
-                      borderColor: COLORS.border,
-                      backgroundColor: getPlatformBg(platform),
-                    }}
-                  >
-                    <FontAwesome
-                      name={getPlatformIcon(platform)}
-                      size={12}
-                      color={getPlatformColor(platform)}
-                    />
-                    <Text
-                      className="text-[10px] font-bold uppercase tracking-wider"
-                      style={{ color: COLORS.text }}
-                    >
-                      {platform}
-                    </Text>
-                  </View>
-                ),
+              {usageData?.usage?.platforms?.connectedNames?.length > 0 && (
+                <View className="flex-row flex-wrap gap-2 mt-2">
+                  {usageData.usage.platforms.connectedNames.map(
+                    (platform: string, index: number) => (
+                      <View
+                        key={index}
+                        className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full border shadow-sm"
+                        style={{
+                          borderColor: COLORS.border,
+                          backgroundColor: getPlatformBg(platform),
+                        }}
+                      >
+                        <FontAwesome
+                          name={getPlatformIcon(platform)}
+                          size={12}
+                          color={getPlatformColor(platform)}
+                        />
+                        <Text
+                          className="text-[10px] font-bold uppercase tracking-wider"
+                          style={{ color: COLORS.text }}
+                        >
+                          {platform}
+                        </Text>
+                      </View>
+                    ),
+                  )}
+                </View>
               )}
-            </View>
+            </>
+          )}
+
+          {/* Recent Activity Tab */}
+          {activeTab === "activity" && (
+            <>
+              <ThemedText style={styles.usageName}>
+                Recent Activity
+              </ThemedText>
+
+              {isLoadingActivity ? (
+                <ThemedText style={{ marginTop: 10 }}>Loading recent activity...</ThemedText>
+              ) : activityLogs?.length === 0 ? (
+                <ThemedText style={{ marginTop: 10 }}>No recent activity found.</ThemedText>
+              ) : (
+                <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 350 }} showsVerticalScrollIndicator={true}>
+                  {activityLogs.map((item: any) => (
+                    <View
+                      key={item.id}
+                      style={{
+                        paddingVertical: 12,
+                        borderBottomWidth: 1,
+                        borderBottomColor: "#e5e7eb",
+                      }}
+                    >
+                      <ThemedText
+                        style={{
+                          fontSize: 14,
+                          marginBottom: 6,
+                        }}
+                      >
+                        {item.message}
+                      </ThemedText>
+
+                      <HStack
+                        style={{
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <ThemedText
+                          style={{
+                            fontSize: 12,
+                            color: COLORS.textMuted,
+                          }}
+                        >
+                          {new Date(item.createdAt).toLocaleString()}
+                        </ThemedText>
+
+                        <View
+                          style={{
+                            backgroundColor: "#fee2e2",
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: 12,
+                          }}
+                        >
+                          <ThemedText
+                            style={{
+                              color: "#dc2626",
+                              fontSize: 11,
+                              fontWeight: "600",
+                            }}
+                          >
+                            {item.module}
+                          </ThemedText>
+                        </View>
+                      </HStack>
+                    </View>
+                  ))}
+                </ScrollView>
+              )}
+            </>
           )}
         </Box>
 

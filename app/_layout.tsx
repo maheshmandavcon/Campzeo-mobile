@@ -28,6 +28,7 @@ import { NetworkGate } from "../network/networkGate";
 import { OverlayProvider } from "@gluestack-ui/core/overlay/creator";
 import Toast from "react-native-toast-message";
 import { useSubscriptionCheck } from "@/hooks/useSubscriptionCheck";
+import { useApprovalStore } from "@/store/useApprovalStore";
 
 
 /* ---------------- AUTH GUARD ---------------- */
@@ -67,7 +68,46 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [isLoaded, isSignedIn, router, pathname]);
 
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      queryClient.clear();
+      useApprovalStore.getState().reset();
+    }
+  }, [isLoaded, isSignedIn]);
+
   if (!isLoaded) {
+    return (
+      <ThemedView
+        className="flex-1 items-center justify-center"
+        style={{ backgroundColor: "#ffffff" }}
+      >
+        <Image
+          source={require("../assets/app-images/camp-logo.png")}
+          style={{
+            width: 200,
+            height: 80,
+            resizeMode: "contain",
+            marginBottom: 20,
+          }}
+        />
+        <ActivityIndicator size="large" color="#dc2626" />
+      </ThemedView>
+    );
+  }
+
+  const publicRoutes = [
+    "/",
+    "/login",
+    "/auth-callback",
+    "/expiredPlan",
+    "/(auth)/login",
+    "/(auth)/expiredPlan",
+    "/changePassword",
+    "/(auth)/changePassword",
+  ];
+  const isPublicRoute = publicRoutes.includes(pathname || "");
+
+  if (!isSignedIn && !isPublicRoute && pathname !== "/") {
     return (
       <ThemedView
         className="flex-1 items-center justify-center"
@@ -117,9 +157,10 @@ function GlobalLinkingHandler() {
 
 /* ---------------- ROOT LAYOUT ---------------- */
 
+const queryClient = new QueryClient();
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const queryClient = new QueryClient();
 
   return (
     <NetworkGate>

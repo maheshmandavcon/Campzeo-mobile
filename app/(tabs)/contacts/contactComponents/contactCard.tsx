@@ -91,15 +91,18 @@ export default function ContactCard({
   };
 
   return (
-    <View
-      style={[
-        styles.card,
-        {
-          backgroundColor: COLORS.cardBg,
-          borderColor: COLORS.cardBorder,
-        },
-      ]}
-    >
+    <>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => onToggleShow(record)}
+        style={[
+          styles.card,
+          {
+            backgroundColor: COLORS.cardBg,
+            borderColor: COLORS.cardBorder,
+          },
+        ]}
+      >
       {/* Top Main Section */}
       <View style={styles.cardHeader}>
         {/* Left Side: Avatar + Details */}
@@ -149,7 +152,7 @@ export default function ContactCard({
             style={[styles.circularBtn, { backgroundColor: COLORS.eyeBg }]}
           >
             <Ionicons
-              name={record.show ? "eye-off-outline" : "eye-outline"}
+              name={record.show ? "chevron-up" : "chevron-down"}
               size={18}
               color={COLORS.eyeIcon}
             />
@@ -208,7 +211,8 @@ export default function ContactCard({
             </TouchableOpacity>
           </View>
         </View>
-      )}
+        )}
+      </TouchableOpacity>
 
       {/* Campaigns Bottom Sheet Modal */}
       <Modal
@@ -284,7 +288,7 @@ export default function ContactCard({
           </View>
         </View>
       </Modal>
-    </View>
+    </>
   );
 }
 

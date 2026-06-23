@@ -32,16 +32,36 @@ export default function AllNotifications() {
   const [loading, setLoading] = useState(false);
   const [visibleCount, setVisibleCount] = useState(5);
   const [searchText, setSearchText] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    if (loading || refreshing) return;
+    try {
+      setRefreshing(true);
+      const res = await getAllNotificationsApi(1, 20);
+      const notificationsArray = Array.isArray(res?.notifications)
+        ? res.notifications
+        : [];
+      const formatted = notificationsArray.map((item: any) =>
+        formatNotification(item)
+      );
+      setNotifications(formatted);
+    } catch (error) {
+      console.log("REFRESH NOTIFICATIONS ERROR:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // ---------------- FORMAT API DATA ----------------
   const formatNotification = (item: any) => {
     const dateObj = new Date(item.createdAt);
     return {
       id: item.id,
-title:
-  item.platform ||
-  item.type?.replaceAll("_", " ") ||
-  "Notification",      desc: item.message,
+      title:
+        item.platform ||
+        item.type?.replaceAll("_", " ") ||
+        "Notification", desc: item.message,
       read: item.isRead, // ✅ ALWAYS TRUST SERVER
       time: dateObj.toLocaleTimeString([], {
         hour: "2-digit",
@@ -53,24 +73,24 @@ title:
 
   // ---------------- FETCH NOTIFICATIONS ----------------
   const fetchNotifications = async () => {
-  try {
-    setLoading(true);
-    const res = await getAllNotificationsApi(1, 20);
-    const notificationsArray = Array.isArray(res?.notifications)
-      ? res.notifications
-      : [];
+    try {
+      setLoading(true);
+      const res = await getAllNotificationsApi(1, 20);
+      const notificationsArray = Array.isArray(res?.notifications)
+        ? res.notifications
+        : [];
 
-    const formatted = notificationsArray.map((item: any) =>
-      formatNotification(item)
-    );
+      const formatted = notificationsArray.map((item: any) =>
+        formatNotification(item)
+      );
 
-    setNotifications(formatted);
-  } catch (error) {
-    console.log("Notification API error:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+      setNotifications(formatted);
+    } catch (error) {
+      console.log("Notification API error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchNotifications();
@@ -308,7 +328,7 @@ title:
               placeholder="Search..."
               className="flex-1 px-2"
               style={{ color: isDark ? "#e5e7eb" : "#374151" }}
-              placeholderTextColor={isDark ? "#94a3b8" : "#9ca3af"} // placeholder color
+              placeholderTextColor={isDark ? "#94a3b8" : "#9ca3af"}
               value={searchText}
               onChangeText={(text) => {
                 setSearchText(text);
@@ -316,10 +336,6 @@ title:
               }}
             />
           </ThemedView>
-
-          <TouchableOpacity className="ml-3" onPress={fetchNotifications}>
-            <Ionicons name="sync-outline" size={22} color={isDark ? "#fff" : "#444"} />
-          </TouchableOpacity>
         </ThemedView>
 
         {/* TABS */}
@@ -455,6 +471,8 @@ title:
             sections={sectionData}
             keyExtractor={(item) => item.id.toString()}
             showsVerticalScrollIndicator={false}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             renderSectionHeader={({ section }) => (
               <ThemedText
                 style={{
@@ -463,17 +481,15 @@ title:
                   backgroundColor: isDark ? "#161618" : "#f3f4f6",
                   marginTop: 16,
                   marginBottom: 4,
-                }}
-              // style={{ backgroundColor: isDark ? "#161618" : "#f3f4f6" }}
-              >
+                }}              >
                 {section.title}
               </ThemedText>
             )}
             renderItem={({ item }) => (
               <ThemedView style={{ marginBottom: 12, backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
                 <TouchableOpacity
-                  onPress={() => markAsRead(item.id)} // tap marks as read
-                  onLongPress={() => deleteNotification(item.id)} // long press deletes
+                  onPress={() => markAsRead(item.id)}
+                  onLongPress={() => deleteNotification(item.id)}
                   style={{
                     flexDirection: "row",
                     backgroundColor: isDark ? "#161618" : "#ffffff",

@@ -25,7 +25,6 @@ import { View } from "react-native";
 
 interface UpcomingPostsListProps {
   groupedEvents: Record<string, any>;
-  selectedMonth: Date;
 }
 
 const PLATFORM_CONFIGS: Record<string, { name: string; color: string; icon: string }> = {
@@ -41,7 +40,6 @@ const PLATFORM_CONFIGS: Record<string, { name: string; color: string; icon: stri
 
 const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
   groupedEvents,
-  selectedMonth,
 }) => {
   const [showActionsheet, setShowActionsheet] = React.useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
@@ -61,27 +59,15 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
     );
   };
 
-  const isCurrentMonth =
-    selectedMonth.getMonth() === now.getMonth() &&
-    selectedMonth.getFullYear() === now.getFullYear();
-
   const filteredGroupedEvents: Record<string, any[]> = {};
 
   Object.entries(groupedEvents).forEach(([dateKey, events]) => {
-    const eventDate = new Date(dateKey);
+    const futureEvents = (events as any[]).filter(
+      (event: any) => new Date(event.start) > now
+    );
 
-    const isSameMonth =
-      eventDate.getMonth() === selectedMonth.getMonth() &&
-      eventDate.getFullYear() === selectedMonth.getFullYear();
-
-    if (!isSameMonth) return;
-
-    const filteredEvents = isCurrentMonth
-      ? events.filter((event: any) => new Date(event.start) > now) // future only
-      : events; // show all if not current month
-
-    if (filteredEvents.length > 0) {
-      filteredGroupedEvents[dateKey] = filteredEvents;
+    if (futureEvents.length > 0) {
+      filteredGroupedEvents[dateKey] = futureEvents;
     }
   });
 
@@ -107,12 +93,7 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
             color: isDark ? "#f1f5f9" : "#020617",
           }}
         >
-          {isCurrentMonth
-            ? "Upcoming Posts"
-            : `Posts for ${selectedMonth.toLocaleString("default", {
-                month: "long",
-                year: "numeric",
-              })}`}
+          Upcoming Posts
         </ThemedText>
 
         <ThemedView
@@ -142,9 +123,7 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
               lineHeight: 20,
             }}
           >
-            {isCurrentMonth
-              ? "You don’t have any upcoming posts scheduled."
-              : "There are no posts scheduled for this month."}
+            You don't have any upcoming posts scheduled.
           </ThemedText>
         </ThemedView>
       </ThemedView>
@@ -164,12 +143,7 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
               color: isDark ? "#f1f5f9" : "#020617",
             }}
           >
-            {isCurrentMonth
-              ? "Upcoming Posts"
-              : `Posts for ${selectedMonth.toLocaleString("default", {
-                  month: "long",
-                  year: "numeric",
-                })}`}
+            Upcoming Posts
           </ThemedText>
 
           {filteredDateKeys.map((dateKey) => {
