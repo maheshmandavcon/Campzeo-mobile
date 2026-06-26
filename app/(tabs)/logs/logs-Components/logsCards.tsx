@@ -197,7 +197,7 @@ export default function LogsCard({ record, platformLabel }: LogsCardProps) {
           </View>
         )}
       </HStack>
-
+<ThemedText style={{ fontSize: 12, fontWeight: "600", marginBottom: 16 }}>Subject : {record?.subject}</ThemedText>
       {/* ---------- MULTI-MEDIA CAROUSEL SLIDER ---------- */}
       {mediaList.length > 0 && (
         <View style={{ marginBottom: 12, borderRadius: 14, overflow: "hidden", position: "relative" }}>

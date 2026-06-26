@@ -13,9 +13,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "@/context/AuthContext";
 import { clearSubscriptionCache } from "@/hooks/useSubscriptionCheck";
 import * as Linking from 'expo-linking';
+import { useRouter } from "expo-router";
 
 export default function ExpiredPlan() {
   const { signOut } = useAuth();
+
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
@@ -144,6 +147,12 @@ export default function ExpiredPlan() {
             </Pressable>
           </LinearGradient>
         </View>
+        {/* Already have an account? */}
+       <View style={{
+        marginTop: 10,
+       }}>
+        <Text style={[styles.instructionText, { color: COLORS.textSecondary }]}>Already Purchased? <Pressable onPress={()=>{router.replace("/(auth)/login")}}><Text style={styles.linkText}>Sign In</Text></Pressable></Text>
+       </View>
 
         {/* Redirection / Web Instruction text under the button */}
         <Text style={[styles.instructionText, { color: COLORS.textSecondary }]}>
