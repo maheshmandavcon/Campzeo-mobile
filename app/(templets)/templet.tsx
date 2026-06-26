@@ -6,8 +6,8 @@ import {
   View,
   ScrollView,
   useColorScheme,
-  Alert,
   Image,
+  RefreshControl,
 } from "react-native";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import { ThemedView } from "@/components/themed-view";
@@ -95,6 +95,7 @@ export default function Templates() {
   };
   const [templates, setTemplates] = useState<Template[]>(MOCK_TEMPLATES);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const { getToken } = useAuth();
   const [organisationId, setOrganisationId] = useState<number | undefined>(undefined);
 
@@ -112,9 +113,10 @@ export default function Templates() {
     fetchOrgId();
   }, []);
 
-  const fetchTemplates = useCallback(async () => {
+  const fetchTemplates = useCallback(async (isRefresh = false) => {
     if (!organisationId) return;
-    setLoading(true);
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
     try {
       const token = await getToken();
       const res = await getTemplatesApi(organisationId, token || undefined);
@@ -123,6 +125,7 @@ export default function Templates() {
       console.error("Failed to fetch templates:", error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [organisationId, getToken]);
 
@@ -142,24 +145,15 @@ export default function Templates() {
     return matchesPlatform && matchesSearch;
   });
 
-  const handleDelete = (id: string | number) => {
-    Alert.alert("Delete Template", "Are you sure you want to delete this template?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          if (!organisationId) return;
-          try {
-            const token = await getToken();
-            await deleteTemplateApi(organisationId, Number(id), token || undefined);
-            setTemplates((prev) => prev.filter((t) => t.id !== id));
-          } catch (error) {
-            Alert.alert("Error", "Failed to delete template");
-          }
-        },
-      },
-    ]);
+  const handleDelete = async (id: string | number) => {
+    if (!organisationId) return;
+    try {
+      const token = await getToken();
+      await deleteTemplateApi(organisationId, Number(id), token || undefined);
+      setTemplates((prev) => prev.filter((t) => t.id !== id));
+    } catch (error) {
+      console.error("Failed to delete template:", error);
+    }
   };
 
   const renderPlatformIcon = (platform: PlatformType, size = 14) => {
@@ -223,7 +217,18 @@ export default function Templates() {
           <View style={{ flexDirection: "row", gap: 8 }}>
             <TouchableOpacity
               onPress={() => {
-                Alert.alert("Edit", "Navigate to edit template");
+                router.push({
+                  pathname: "/(templets)/createTemplet",
+                  params: {
+                    editId: String(item.id),
+                    editName: item.name,
+                    editPlatform: item.platform,
+                    editContent: item.content,
+                    editSubject: item.metadata ? (() => { try { return JSON.parse(item.metadata!).subject || ""; } catch { return ""; } })() : "",
+                    editMetadata: item.metadata || "",
+                    editMediaUrls: item.mediaUrls ? JSON.stringify(item.mediaUrls) : "",
+                  },
+                });
               }}
               style={{
                 padding: 6,
@@ -613,6 +618,14 @@ export default function Templates() {
         }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={<EmptyState />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => fetchTemplates(true)}
+            tintColor="#dc2626"
+            colors={["#dc2626"]}
+          />
+        }
       />
     </ThemedView>
     </SafeAreaView>

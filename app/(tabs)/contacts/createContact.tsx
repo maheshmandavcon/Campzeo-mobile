@@ -51,6 +51,7 @@ export default function CreateContact() {
   const [hasMoreCampaigns, setHasMoreCampaigns] = useState(true);
   const [loadingMoreCampaigns, setLoadingMoreCampaigns] = useState(false);
   const [isSelectingAll, setIsSelectingAll] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const isDark = useColorScheme() === "dark";
 
   const { contactId, record: recordStr } = useLocalSearchParams();
@@ -140,7 +141,7 @@ export default function CreateContact() {
       setHasMoreCampaigns(fetchedCampaigns.length >= 15);
     } catch (err) {
       console.error("Failed to load campaigns:", err);
-      Alert.alert("Error", "Failed to load campaigns");
+      Toast.show({ type: 'error', text1: "Error", text2: "Failed to load campaigns" });
     } finally {
       setLoadingCampaigns(false);
     }
@@ -217,7 +218,8 @@ export default function CreateContact() {
   const { fromCampaign } = useLocalSearchParams<{ fromCampaign?: string }>();
 
   const onSubmit = async (data: z.infer<typeof contactSchema>) => {
-    if (isSubmitting) return;
+    if (isSubmitting || isCreating) return;
+    setIsCreating(true);
     try {
       const newEmail = data.email.trim().toLowerCase();
       const newMobile = data.mobile.trim();
@@ -232,12 +234,12 @@ export default function CreateContact() {
 
       // Check duplicates
       if (otherEmails.includes(newEmail)) {
-        Alert.alert("Error", "Email already exists");
+        Toast.show({ type: 'error', text1: "Error", text2: "Email already exists" });
         return;
       }
 
       if (otherNumbers.includes(newMobile)) {
-        Alert.alert("Error", "Mobile number already exists");
+        Toast.show({ type: 'error', text1: "Error", text2: "Mobile number already exists" });
         return;
       }
 
@@ -265,12 +267,12 @@ export default function CreateContact() {
 
       // create contact from the shareCampaignPost
       if (fromCampaign === "true") {
-        router.replace("/(tabs)/contacts");
+        router.navigate({ pathname: "/(tabs)/contacts", params: { refresh: Date.now() } });
         setTimeout(() => {
           router.replace("/(tabs)/campaigns/campaignsDetails");
         }, 1);
       } else {
-        router.replace("/(tabs)/contacts");
+        router.navigate({ pathname: "/(tabs)/contacts", params: { refresh: Date.now() } });
       }
     } catch (error: any) {
       console.error("Contact Error:", error.response || error);
@@ -278,6 +280,8 @@ export default function CreateContact() {
         type: "error",
         text1: error.response?.data?.message || "Something went wrong",
       });
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -523,7 +527,7 @@ export default function CreateContact() {
           <View style={[styles.fieldBlock, { marginTop: 16 }]}>
             <View style={styles.labelRow}>
               <Text style={[styles.fieldLabel, { color: COLORS.textPrimary }]}>
-                WhatsApp Number (Optional)
+                WhatsApp Number
               </Text>
             </View>
 
@@ -777,15 +781,15 @@ export default function CreateContact() {
 
         {/* Submit Action Block */}
         <TouchableOpacity
-          disabled={isSubmitting}
+          disabled={isSubmitting || isCreating}
           onPress={handleSubmit(onSubmit)}
-          style={[styles.submitButton, { marginTop: 24, opacity: isSubmitting ? 0.6 : 1 }]}
+          style={[styles.submitButton, { marginTop: 24, opacity: (isSubmitting || isCreating) ? 0.6 : 1 }]}
         >
-          {isSubmitting ? (
+          {isSubmitting || isCreating ? (
             <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 8 }} />
           ) : null}
           <Text style={styles.submitButtonText}>
-            {isSubmitting
+            {(isSubmitting || isCreating)
               ? isEdit
                 ? "Updating Account..."
                 : "Registering Contact..."

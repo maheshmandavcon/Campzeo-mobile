@@ -67,7 +67,7 @@ export default function CreateCampaign() {
     inputBg: isDark ? "#1e1e24" : "#ffffff",
     inputBorder: isDark ? "#2a2a32" : "#cbd5e1",
     inputText: isDark ? "#ffffff" : "#0f172a",
-    newButtonBg: "#0284c7",
+    newButtonBg: "#DC2626",
     newButtonText: "#ffffff",
   };
 
@@ -166,7 +166,7 @@ export default function CreateCampaign() {
 
       // setPosts(postsArray);
     } catch (err) {
-      Alert.alert("Error", "Failed to load campaign");
+      Toast.show({ type: 'error', text1: "Error", text2: "Failed to load campaign" });
       router.back();
     } finally {
       setLoadingCampaign(false);
@@ -200,7 +200,7 @@ export default function CreateCampaign() {
         );
         setHasMoreContacts(fetchedContacts.length >= 15);
       } catch {
-        Alert.alert("Error", "Failed to load contacts");
+        Toast.show({ type: 'error', text1: "Error", text2: "Failed to load contacts" });
       } finally {
         setLoadingContacts(false);
       }
@@ -379,7 +379,7 @@ export default function CreateCampaign() {
           backgroundColor: COLORS.screenBg,
         }}
       >
-        <ActivityIndicator size="large" color="#0284c7" />
+        <ActivityIndicator size="large" color="#DC2626" />
       </View>
     );
   }
@@ -415,10 +415,10 @@ export default function CreateCampaign() {
                 height: 52,
                 width: 52,
                 borderRadius: 16,
-                backgroundColor: "#0284c7",
+                backgroundColor: "#DC2626",
                 alignItems: "center",
                 justifyContent: "center",
-                shadowColor: "#0284c7",
+                shadowColor: "#DC2626",
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.2,
                 shadowRadius: 8,
@@ -812,13 +812,13 @@ export default function CreateCampaign() {
             {contacts.length > 0 && (
               <TouchableOpacity onPress={handleSelectAllContacts} disabled={isSelectingAll}>
                 {isSelectingAll ? (
-                  <ActivityIndicator size="small" color="#0284c7" />
+                  <ActivityIndicator size="small" color="#DC2626" />
                 ) : (
                   <Text
                     style={{
                       fontSize: 13,
                       fontWeight: "700",
-                      color: "#0284c7",
+                      color: "#DC2626",
                     }}
                   >
                     {selectedContactIds.length > 0 && selectedContactIds.length >= contacts.length
@@ -833,7 +833,7 @@ export default function CreateCampaign() {
           {loadingContacts ? (
             <ActivityIndicator
               size="small"
-              color="#0284c7"
+              color="#DC2626"
               style={{ marginTop: 12 }}
             />
           ) : contacts.length === 0 ? (
@@ -885,7 +885,7 @@ export default function CreateCampaign() {
                   paddingHorizontal: 16,
                   paddingVertical: 8,
                   borderRadius: 99,
-                  backgroundColor: "#0284c7",
+                  backgroundColor: "#DC2626",
                 }}
               >
                 <Text
@@ -918,7 +918,7 @@ export default function CreateCampaign() {
                 loadingMoreContacts ? (
                   <ActivityIndicator
                     size="small"
-                    color="#0284c7"
+                    color="#DC2626"
                     style={{ marginVertical: 12 }}
                   />
                 ) : null
@@ -958,7 +958,7 @@ export default function CreateCampaign() {
                         width: 38,
                         borderRadius: 19,
                         backgroundColor: checked
-                          ? "#0284c7"
+                          ? "#DC2626"
                           : isDark
                             ? "#2a2a32"
                             : "#f1f5f9",
@@ -1008,8 +1008,8 @@ export default function CreateCampaign() {
                         width: 22,
                         borderRadius: 11,
                         borderWidth: 2,
-                        borderColor: checked ? "#0284c7" : COLORS.cardBorder,
-                        backgroundColor: checked ? "#0284c7" : "transparent",
+                        borderColor: checked ? "#DC2626" : COLORS.cardBorder,
+                        backgroundColor: checked ? "#DC2626" : "transparent",
                         alignItems: "center",
                         justifyContent: "center",
                       }}
@@ -1025,7 +1025,7 @@ export default function CreateCampaign() {
               //   loadingMoreContacts ? (
               //     <ActivityIndicator
               //       size="small"
-              //       color="#0284c7"
+              //       color="#DC2626"
               //       style={{ marginVertical: 12 }}
               //     />
               //   ) : null
@@ -1046,8 +1046,8 @@ export default function CreateCampaign() {
             alignItems: "center",
             justifyContent: "center",
             paddingVertical: 14,
-            backgroundColor: "#0284c7",
-            shadowColor: "#0284c7",
+            backgroundColor: "#DC2626",
+            shadowColor: "#DC2626",
             shadowOpacity: 0.2,
             shadowOffset: { width: 0, height: 6 },
             shadowRadius: 12,

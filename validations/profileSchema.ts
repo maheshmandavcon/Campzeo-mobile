@@ -4,27 +4,25 @@ import { z } from "zod";
 export const editProfileSchema = z.object({
   firstName: z
     .string()
+    .trim()
+    .min(1, "First name is required")
     .min(2, "First name must be at least 2 characters")
-    .regex(/^[A-Za-z ]+$/, "First name can only contain letters and spaces")
-    .optional()
-    .or(z.literal("")), // allow empty if user doesn’t want to update it
+    .regex(
+      /^[A-Za-z ]+$/,
+      "First name can only contain letters and spaces"
+    ),
 
   lastName: z
     .string()
-    .min(2, "Last name must be at least 2 characters")
-    .regex(/^[A-Za-z ]+$/, "Last name can only contain letters and spaces")
+    .trim()
     .optional()
     .or(z.literal("")),
 
-  
   mobile: z
     .string()
-    // .min(10, "Mobile number must be at least 10 digits")
-    // .max(10, "Mobile number cannot exceed 10 digits")
-    // .regex(/^[0-9]+$/, "Mobile number can only contain numbers")
     .optional()
     .or(z.literal("")),
-  
+
   email: z
     .string()
     .min(1, "Email is required")
@@ -45,7 +43,7 @@ export const changePasswordSchema = z
 
     newPassword: z
       .string()
-      .min(8, "Password must be at least 8 characters"), // optional UX rule
+      .min(8, "Password must be at least 8 characters"), 
 
     reEnterNewPassword: z.string(),
   })

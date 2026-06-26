@@ -14,8 +14,8 @@ import { getUser } from "@/api/dashboardApi";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -29,6 +29,7 @@ import {
   Modal,
   View,
   Dimensions,
+  RefreshControl,
 } from "react-native";
 import Toast from "react-native-toast-message";
 import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
@@ -57,6 +58,7 @@ import { fetchInvoices } from "@/api/invoicesApi";
 
 export default function BillingPage() {
   const router = useRouter();
+  const { tab, channel } = useLocalSearchParams<{ tab: string, channel: string }>();
   const isDark = useColorScheme() === "dark";
 
   // Sleek Tailwind dynamic palette
@@ -91,7 +93,9 @@ export default function BillingPage() {
   const [activeBillingTab, setActiveBillingTab] = useState<"plans" | "credits">(
     "plans",
   );
-  const [plansTab, setPlansTab] = useState<'plans' | 'addons'>('plans');
+  const [plansTab, setPlansTab] = useState<'plans' | 'addons' | 'credits'>('plans');
+  const [creditChannel, setCreditChannel] = useState<'SMS' | 'WHATSAPP'>('SMS');
+  const [creditQuantity, setCreditQuantity] = useState<string>('100');
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showComparePlans, setShowComparePlans] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -115,6 +119,20 @@ export default function BillingPage() {
 
   // Plan Swiper State
   const [activePlanIndex, setActivePlanIndex] = useState(0);
+
+  // Tab bar scroll ref & layout tracking
+  const mainScrollRef = useRef<any>(null);
+  const tabsYOffset = useRef<number>(0);
+  const tabScrollRef = useRef<any>(null);
+  const tabLayouts = useRef<Record<string, { x: number; width: number }>>({});
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchBillingDetails();
+    setRefreshing(false);
+  };
+
   const fetchBillingDetails = async () => {
     try {
       const [usage, subscription, plan, payment, balance, creditPacks, user, addOnsData] =
@@ -188,6 +206,32 @@ export default function BillingPage() {
       setPremiumAlert(diffDays >= 0 && diffDays <= 3);
     }
   }, [subscriptionData]);
+
+  useEffect(() => {
+    if (tab) {
+      if (tab === "credits" || tab === "addons") {
+        setActiveBillingTab("plans");
+        setPlansTab(tab as any);
+      }
+    }
+    if (channel === "SMS" || channel === "WHATSAPP") {
+      setCreditChannel(channel as any);
+    }
+  }, [tab, channel]);
+
+  useEffect(() => {
+    if (!loading && tab && (tab === "credits" || tab === "addons")) {
+      setTimeout(() => {
+        if (mainScrollRef.current && tabsYOffset.current > 0) {
+          mainScrollRef.current.scrollTo({ y: tabsYOffset.current, animated: true });
+        }
+        const layout = tabLayouts.current[tab];
+        if (layout && tabScrollRef.current) {
+          tabScrollRef.current.scrollTo({ x: layout.x - 16, animated: true });
+        }
+      }, 500);
+    }
+  }, [loading, tab]);
 
   const handlePaymentRedirect = (actionName: string) => {
     Alert.alert(
@@ -322,6 +366,21 @@ export default function BillingPage() {
           .replace(/_/g, " ")
           .replace(/\b\w/g, (c) => c.toUpperCase());
     }
+  };
+
+  // Fixed per-credit rates as per business pricing
+  // (API packages are bulk deals, not individual credit rates)
+  const CREDIT_PRICES: Record<'SMS' | 'WHATSAPP', number> = {
+    SMS: 2,
+    WHATSAPP: 2.5,
+  };
+
+  const getPricePerCredit = (type: 'SMS' | 'WHATSAPP') => {
+    return CREDIT_PRICES[type];
+  };
+
+  const formatCreditPrice = (amount: number): string => {
+    return `₹${amount.toFixed(2)}`;
   };
 
   const formatCurrency = (amount: any): string => {
@@ -550,8 +609,12 @@ export default function BillingPage() {
       </View>
 
       <ScrollView
+        ref={mainScrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {/* EXPIRING ALERT */}
         {currentPlanName !== "FREE_TRIAL" && premiumAlert && (
@@ -944,95 +1007,154 @@ export default function BillingPage() {
         )}
 
         <View
+          onLayout={(e) => {
+            tabsYOffset.current = e.nativeEvent.layout.y;
+          }}
           style={{
-            flexDirection: "row",
-            alignSelf: "flex-start",
-            marginBottom: 16,
             borderBottomWidth: 1,
             borderBottomColor: isDark ? "#374151" : "#e5e7eb",
+            marginBottom: 16,
           }}
         >
-          {[
-            { key: "plans", label: "Available Plans" },
-            { key: "addons", label: "Purchase Add-ons" },
-          ].map((tab) => {
-            const isActive = plansTab === tab.key;
-
-            return (
-              <TouchableOpacity
-                key={tab.key}
-                onPress={() => setPlansTab(tab.key as "plans" | "addons")}
-                style={{
-                  paddingHorizontal: 16,
-                  paddingVertical: 12,
-                  marginRight: 20,
-                  borderBottomWidth: 2,
-                  borderBottomColor: isActive
-                    ? COLORS.accent
-                    : "transparent",
-                }}
-              >
-                <Text
+          <ScrollView
+            ref={tabScrollRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ alignItems: 'stretch' }}
+          >
+            {[
+              { key: "plans", label: "Available Plans" },
+              { key: "addons", label: "Purchase Add-ons" },
+              { key: "credits", label: "Purchase Credits" },
+            ].map((tab) => {
+              const isActive = plansTab === tab.key;
+              return (
+                <TouchableOpacity
+                  key={tab.key}
+                  activeOpacity={1}
+                  onLayout={(e) => {
+                    tabLayouts.current[tab.key] = {
+                      x: e.nativeEvent.layout.x,
+                      width: e.nativeEvent.layout.width,
+                    };
+                  }}
+                  onPress={() => {
+                    setPlansTab(tab.key as "plans" | "addons" | "credits");
+                    const layout = tabLayouts.current[tab.key];
+                    if (layout && tabScrollRef.current) {
+                      tabScrollRef.current.scrollTo({
+                        x: layout.x - 16,
+                        animated: true,
+                      });
+                    }
+                  }}
                   style={{
-                    fontSize: 15,
-                    fontWeight: "600",
-                    color: isActive
-                      ? COLORS.accent
-                      : COLORS.text,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    marginRight: 4,
+                    borderBottomWidth: 2,
+                    borderBottomColor: isActive ? COLORS.accent : "transparent",
                   }}
                 >
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "600",
+                      color: isActive ? COLORS.accent : COLORS.text,
+                    }}
+                  >
+                    {tab.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
 
-        {plansTab === 'plans' ? (
+        {plansTab === 'plans' && (
           <>
             {/* MULTIPLE PLANS HANDLING */}
             {(() => {
-              let subscriptionsList = userData?.organisation?.subscriptions || [];
+              const planOrder = ["FREE_TRIAL", "PROFESSIONAL", "ENTERPRISE"];
+              const mergedNames = new Set<string>();
+              const allPlans: any[] = [];
 
-              if (subscriptionsList.length === 0) {
-                subscriptionsList = subscriptionData?.subscriptions?.length > 0
-                  ? subscriptionData.subscriptions
-                  : (subscriptionData?.subscription ? [subscriptionData.subscription] : []);
+              // Helper to add a plan object (flat shape) if not already present
+              const addPlan = (planObj: any) => {
+                if (!planObj?.name) return;
+                if (!mergedNames.has(planObj.name)) {
+                  mergedNames.add(planObj.name);
+                  allPlans.push(planObj);
+                }
+              };
+
+              // Source 1: current subscription plan (always guaranteed)
+              if (subscriptionData?.subscription?.plan) {
+                addPlan(subscriptionData.subscription.plan);
               }
 
-              subscriptionsList = subscriptionsList.filter(
-                (sub: any, index: number, self: any[]) =>
-                  index === self.findIndex((s) => s.planId === sub.planId)
+              // Source 2: org subscriptions list (contains other plans user may have)
+              const orgSubs = userData?.organisation?.subscriptions || [];
+              for (const sub of orgSubs) {
+                if (sub?.plan) addPlan(sub.plan);
+              }
+
+              // Source 3: all plans from getPlans() API
+              for (const p of (plansData || [])) {
+                if (p?.isActive !== false) addPlan(p);
+              }
+
+              // Filter out Free Trial if user has bought a plan (current or past)
+              const hasPaidSub = (userData?.organisation?.subscriptions || []).some(
+                (sub: any) => sub?.plan?.name && !sub.plan.name.toUpperCase().includes("FREE") && !sub.plan.name.toUpperCase().includes("TRIAL")
               );
+              const hasInvoices = paymentsData?.invoices && paymentsData.invoices.length > 0;
 
-              subscriptionsList.sort((a: any, b: any) => {
-                const aIsCurrent = a.plan?.name === currentPlanName;
-                const bIsCurrent = b.plan?.name === currentPlanName;
+              const isCurrentPaid = currentPlanName && !currentPlanName.toUpperCase().includes("FREE") && !currentPlanName.toUpperCase().includes("TRIAL");
 
+              const hasBoughtPlan = isCurrentPaid || hasPaidSub || hasInvoices;
+
+              if (hasBoughtPlan) {
+                // Remove all free/trial plans from the list using case-insensitive check
+                for (let i = allPlans.length - 1; i >= 0; i--) {
+                  const n = allPlans[i].name?.toUpperCase() || "";
+                  if (n.includes("FREE") || n.includes("TRIAL")) {
+                    allPlans.splice(i, 1);
+                  }
+                }
+              }
+
+              // Sort: current plan first, then by planOrder
+              allPlans.sort((a: any, b: any) => {
+                const aIsCurrent = a.name === currentPlanName;
+                const bIsCurrent = b.name === currentPlanName;
                 if (aIsCurrent && !bIsCurrent) return -1;
                 if (!aIsCurrent && bIsCurrent) return 1;
-                return 0;
+                const ai = planOrder.indexOf(a.name);
+                const bi = planOrder.indexOf(b.name);
+                return (ai === -1 ? planOrder.length : ai) - (bi === -1 ? planOrder.length : bi);
               });
 
-              if (subscriptionsList.length === 0) return null;
+              if (allPlans.length === 0) return null;
 
               return (
                 <View className="mb-6">
                   <ScrollView
                     horizontal
-                    pagingEnabled
+                    snapToInterval={Dimensions.get('window').width - 40 + 16}
+                    decelerationRate="fast"
                     showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ alignItems: 'stretch' }}
                     onMomentumScrollEnd={(e) => {
-                      const newIndex = Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width);
+                      const newIndex = Math.round(e.nativeEvent.contentOffset.x / (Dimensions.get('window').width - 40 + 16));
                       setActivePlanIndex(newIndex);
                     }}
                   >
-                    {subscriptionsList.map((sub: any, idx: number) => {
-                      if (!sub?.plan) return null;
-                      const isCurrentPlan = sub.plan?.name === currentPlanName;
+                    {allPlans.map((plan: any, idx: number) => {
+                      const isCurrentPlan = plan.name === currentPlanName;
 
                       // Parse features if it's a string
-                      let featuresList = sub.plan.features;
+                      let featuresList = plan.features;
                       if (typeof featuresList === 'string') {
                         try {
                           featuresList = JSON.parse(featuresList);
@@ -1041,89 +1163,99 @@ export default function BillingPage() {
                         }
                       }
 
-                      // console.log("Organisation Subscriptions:", userData?.organisation?.subscriptions);
-                      // console.log("Subscription Data:", subscriptionData?.subscriptions);
-                      // console.log("Final List:", subscriptionsList);
-
                       return (
-                        <View
-                          key={idx}
-                          className="p-5 rounded-2xl border"
-                          style={{
-                            width: Dimensions.get('window').width - 32,
-                            backgroundColor: COLORS.card,
-                            borderColor: COLORS.border
-                          }}
-                        >
-                          <View className="mb-4">
-                            <Text
-                              className="font-bold"
-                              style={{
-                                color: COLORS.text,
-                                fontSize: 24,
-                                lineHeight: 30,
-                              }}
-                            >
-                              {sub.plan.name}
-                            </Text>
+                        <View style={{ width: Dimensions.get('window').width - 40, marginRight: 16 }}>
+                          <View
+                            key={plan.id || idx}
+                            className="p-5 rounded-2xl border flex-col justify-between"
+                            style={{
+                              flex: 1,
+                              backgroundColor: COLORS.card,
+                              borderColor: isCurrentPlan ? COLORS.accent : COLORS.border,
+                              borderWidth: isCurrentPlan ? 2 : 1,
+                            }}
+                          >
+                            <View className="flex-1">
+                              <View className="flex-row justify-between items-start mb-3">
+                                <View className="flex-1">
+                                  <Text
+                                    className="font-bold"
+                                    style={{
+                                      color: COLORS.text,
+                                      fontSize: 22,
+                                      lineHeight: 28,
+                                    }}
+                                  >
+                                    {getPlanDisplayLabel(plan.name)}
+                                  </Text>
 
-                            <View className="flex-row items-end mt-2">
-                              <Text
-                                className="font-bold"
-                                style={{
-                                  color: COLORS.accent,
-                                  fontSize: 32,
-                                }}
-                              >
-                                {formatCurrency(sub.plan.price)}
-                              </Text>
-
-                              <Text
-                                className="ml-1"
-                                style={{
-                                  color: COLORS.textMuted,
-                                  fontSize: 14,
-                                  marginBottom: 4,
-                                }}
-                              >
-                                / {sub.plan.billingCycle?.toLowerCase() || "month"}
-                              </Text>
-                            </View>
-                          </View>
-
-                          <Text className="text-sm font-bold mb-3" style={{ color: COLORS.text }}>
-                            Available Features
-                          </Text>
-
-                          <View className="gap-3">
-                            {featuresList?.map((feature: string, index: number) => (
-                              <View key={index} className="flex-row items-center gap-3">
-                                <View
-                                  className="p-1 rounded-full"
-                                  style={{ backgroundColor: isDark ? "#14532d" : "#dcfce7" }}
-                                >
-                                  <CheckCircle2
-                                    size={14}
-                                    color={isDark ? "#4ade80" : "#16a34a"}
-                                  />
+                                  <View className="flex-row items-end mt-2">
+                                    <Text
+                                      className="font-bold"
+                                      style={{
+                                        color: COLORS.accent,
+                                        fontSize: 30,
+                                      }}
+                                    >
+                                      {formatCurrency(plan.price)}
+                                    </Text>
+                                    <Text
+                                      className="ml-1"
+                                      style={{
+                                        color: COLORS.textMuted,
+                                        fontSize: 13,
+                                        marginBottom: 4,
+                                      }}
+                                    >
+                                      / {plan.billingCycle?.toLowerCase() || "month"}
+                                    </Text>
+                                  </View>
                                 </View>
-                                <Text
-                                  className="text-sm font-medium flex-1"
-                                  style={{ color: COLORS.text }}
-                                >
-                                  {feature}
-                                </Text>
-                              </View>
-                            ))}
 
-                            {(!featuresList || featuresList.length === 0) && (
-                              <Text
-                                className="text-sm"
-                                style={{ color: COLORS.textMuted }}
-                              >
-                                No features listed for this plan.
+                                {isCurrentPlan && (
+                                  <View className="px-2.5 py-1 rounded-full bg-red-600 ml-2">
+                                    <Text className="text-white text-[10px] font-bold uppercase tracking-wider">
+                                      Current
+                                    </Text>
+                                  </View>
+                                )}
+                              </View>
+
+                              <Text className="text-sm font-bold mb-3" style={{ color: COLORS.text }}>
+                                Available Features
                               </Text>
-                            )}
+
+                              <View className="gap-3 mb-6">
+                                {featuresList?.map((feature: string, index: number) => (
+                                  <View key={index} className="flex-row items-center gap-3">
+                                    <View
+                                      className="p-1 rounded-full"
+                                      style={{ backgroundColor: isDark ? "#14532d" : "#dcfce7" }}
+                                    >
+                                      <CheckCircle2
+                                        size={14}
+                                        color={isDark ? "#4ade80" : "#16a34a"}
+                                      />
+                                    </View>
+                                    <Text
+                                      className="text-sm font-medium flex-1"
+                                      style={{ color: COLORS.text }}
+                                    >
+                                      {feature}
+                                    </Text>
+                                  </View>
+                                ))}
+
+                                {(!featuresList || featuresList.length === 0) && (
+                                  <Text
+                                    className="text-sm"
+                                    style={{ color: COLORS.textMuted }}
+                                  >
+                                    No features listed for this plan.
+                                  </Text>
+                                )}
+                              </View>
+                            </View>
 
                             {/* Current Plan Button */}
                             <TouchableOpacity
@@ -1136,7 +1268,7 @@ export default function BillingPage() {
                                   },
                                 });
                               }}
-                              className="mt-4 py-3 rounded-xl items-center"
+                              className="mt-auto py-3 rounded-xl items-center"
                               style={{
                                 backgroundColor: isCurrentPlan ? COLORS.border : COLORS.accent,
                                 opacity: isCurrentPlan ? 0.8 : 1,
@@ -1148,7 +1280,7 @@ export default function BillingPage() {
                                   color: isCurrentPlan ? COLORS.textMuted : "#fff",
                                 }}
                               >
-                                {isCurrentPlan ? "Current Plan" : `Switch to ${sub.plan.name}`}
+                                {isCurrentPlan ? "Current Plan" : `Switch to ${getPlanDisplayLabel(plan.name)}`}
                               </Text>
                             </TouchableOpacity>
                           </View>
@@ -1158,16 +1290,16 @@ export default function BillingPage() {
                   </ScrollView>
 
                   {/* Pagination Dots */}
-                  {subscriptionsList.length > 1 && (
+                  {allPlans.length > 1 && (
                     <View className="flex-row justify-center items-center gap-2 mt-4">
-                      {subscriptionsList.map((_: any, idx: number) => (
+                      {allPlans.map((_: any, idx: number) => (
                         <View
                           key={idx}
                           style={{
-                            width: 8,
+                            width: idx === activePlanIndex ? 20 : 8,
                             height: 8,
                             borderRadius: 4,
-                            backgroundColor: idx === activePlanIndex ? "#dc2626" : COLORS.border
+                            backgroundColor: idx === activePlanIndex ? COLORS.accent : COLORS.border,
                           }}
                         />
                       ))}
@@ -1177,7 +1309,9 @@ export default function BillingPage() {
               );
             })()}
           </>
-        ) : (
+        )}
+
+        {plansTab === 'addons' && (
           <View className="mb-5">
             {addOns.length === 0 ? (
               <View
@@ -1198,7 +1332,6 @@ export default function BillingPage() {
               </View>
             ) : (
               <>
-                {/* FIXED add-ons (platform unlocks, feature unlocks) */}
                 {addOns.filter((a: any) => a.pricingType === 'FIXED').length > 0 && (
                   <View className="mb-4">
                     <Text
@@ -1267,7 +1400,6 @@ export default function BillingPage() {
                   </View>
                 )}
 
-                {/* QUANTITY add-ons (AI credits etc.) */}
                 {addOns.filter((a: any) => a.pricingType === 'QUANTITY').length > 0 && (
                   <View>
                     <Text
@@ -1331,7 +1463,6 @@ export default function BillingPage() {
                                 </View>
                               </View>
 
-                              {/* Quantity selector */}
                               <View className="flex-row items-center justify-between mb-4">
                                 <Text className="text-xs font-semibold" style={{ color: COLORS.textMuted }}>
                                   Quantity
@@ -1389,6 +1520,90 @@ export default function BillingPage() {
                 )}
               </>
             )}
+          </View>
+        )}
+
+        {plansTab === 'credits' && (
+          <View className="mb-5">
+            <View className="p-5 rounded-2xl border" style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}>
+              <Text className="text-xl font-bold mb-1" style={{ color: COLORS.text }}>Purchase Credits</Text>
+              <Text className="text-sm mb-6" style={{ color: COLORS.textMuted }}>
+                Enter the amount of credits you want to purchase. The cost will be calculated automatically.
+              </Text>
+
+              <Text className="text-sm font-bold mb-3" style={{ color: COLORS.text }}>Select Channel</Text>
+
+              <View className="flex-row gap-4 mb-6">
+                <TouchableOpacity
+                  onPress={() => setCreditChannel('SMS')}
+                  className={`flex-1 p-4 rounded-xl border ${creditChannel === 'SMS' ? 'border-red-600 bg-red-50 dark:bg-red-900/20' : ''}`}
+                  style={{ borderColor: creditChannel === 'SMS' ? COLORS.accent : COLORS.border }}
+                >
+                  <View className="flex-row justify-between items-center mb-2">
+                    <Text className="font-bold" style={{ color: creditChannel === 'SMS' ? COLORS.accent : COLORS.text }}>SMS Credits</Text>
+                    {creditChannel === 'SMS' && <CheckCircle2 size={16} color={COLORS.accent} />}
+                  </View>
+                  <Text className="text-xs" style={{ color: COLORS.textMuted }}>
+                    {formatCreditPrice(getPricePerCredit('SMS'))} / credit
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setCreditChannel('WHATSAPP')}
+                  className={`flex-1 p-4 rounded-xl border ${creditChannel === 'WHATSAPP' ? 'border-red-600 bg-red-50 dark:bg-red-900/20' : ''}`}
+                  style={{ borderColor: creditChannel === 'WHATSAPP' ? COLORS.accent : COLORS.border }}
+                >
+                  <View className="flex-row justify-between items-center mb-2">
+                    <Text className="font-bold" style={{ color: creditChannel === 'WHATSAPP' ? COLORS.accent : COLORS.text }}>WhatsApp Credits</Text>
+                    {creditChannel === 'WHATSAPP' && <CheckCircle2 size={16} color={COLORS.accent} />}
+                  </View>
+                  <Text className="text-xs" style={{ color: COLORS.textMuted }}>
+                    {formatCreditPrice(getPricePerCredit('WHATSAPP'))} / credit
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text className="text-sm font-bold mb-2" style={{ color: COLORS.text }}>Quantity (Min 100)</Text>
+              <TextInput
+                value={creditQuantity}
+                onChangeText={(val) => setCreditQuantity(val.replace(/[^0-9]/g, ''))}
+                keyboardType="numeric"
+                className="w-full border rounded-xl p-4 text-base mb-6"
+                style={{
+                  color: COLORS.text,
+                  backgroundColor: isDark ? "#0f172a" : "#f8fafc",
+                  borderColor: COLORS.border,
+                }}
+              />
+
+              <View className="p-4 rounded-xl mb-6" style={{ backgroundColor: isDark ? "#33415550" : "#f8fafc" }}>
+                <View className="flex-row justify-between items-center mb-3">
+                  <Text className="text-sm" style={{ color: COLORS.textMuted }}>Price per credit</Text>
+                  <Text className="font-bold" style={{ color: COLORS.text }}>
+                    {formatCreditPrice(getPricePerCredit(creditChannel))}
+                  </Text>
+                </View>
+                <View className="flex-row justify-between items-center mb-4">
+                  <Text className="text-sm" style={{ color: COLORS.textMuted }}>Quantity</Text>
+                  <Text className="font-bold" style={{ color: COLORS.text }}>{creditQuantity || '0'}</Text>
+                </View>
+                <View className="h-[1px] w-full mb-4" style={{ backgroundColor: COLORS.border }} />
+                <View className="flex-row justify-between items-center">
+                  <Text className="text-base font-bold" style={{ color: COLORS.text }}>Total Price</Text>
+                  <Text className="text-xl font-bold" style={{ color: COLORS.accent }}>
+                    {formatCurrency((parseInt(creditQuantity || '0') * getPricePerCredit(creditChannel)))}
+                  </Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => router.push({ pathname: '/webview', params: { url: 'https://campzeo.com/user/billing' } })}
+                className="w-full py-4 rounded-xl items-center"
+                style={{ backgroundColor: COLORS.accent }}
+              >
+                <Text className="text-white font-bold text-base">Buy Credits</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -1593,25 +1808,54 @@ export default function BillingPage() {
               }}
             >
               <View
-                className="border-b pb-4 mb-4 flex-row justify-between items-center"
+                className="border-b pb-4 mb-4 flex-row items-center"
                 style={{ borderColor: COLORS.border }}
               >
-                <View>
+                {/* Left Content */}
+                <View style={{ flex: 1, paddingRight: 10 }}>
                   <Text
-                    className="text-lg font-bold"
-                    style={{ color: COLORS.text }}
+                    style={{
+                      color: COLORS.text,
+                      fontSize: 18,
+                      fontWeight: "700",
+                    }}
+                    numberOfLines={2}
                   >
                     Wallet & Messaging Credits
                   </Text>
+
                   <Text
-                    className="text-xs mt-1"
-                    style={{ color: COLORS.textMuted }}
+                    style={{
+                      color: COLORS.textMuted,
+                      fontSize: 12,
+                      marginTop: 4,
+                    }}
+                    numberOfLines={1}
                   >
                     Track credits for campaigns
                   </Text>
                 </View>
-                <View className="px-2.5 py-0.5 bg-green-100 rounded-full dark:bg-green-950/50">
-                  <Text className="text-green-700 text-[10px] font-bold uppercase tracking-wider dark:text-green-400">
+
+                {/* Badge */}
+                <View
+                  style={{
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: 999,
+                    backgroundColor: isDark
+                      ? "rgba(34,197,94,0.15)"
+                      : "#dcfce7",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: "#16a34a",
+                      fontSize: 10,
+                      fontWeight: "700",
+                    }}
+                    numberOfLines={1}
+                  >
                     Active Wallet
                   </Text>
                 </View>
@@ -1787,7 +2031,6 @@ export default function BillingPage() {
           )}
         </View>
 
-        {/* PAYMENT HISTORY INVOICES SECTION */}
         <View
           className="p-5 rounded-2xl border"
           style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}
@@ -1810,15 +2053,31 @@ export default function BillingPage() {
                 return (
                   <View key={payment.id || idx}>
                     <View className="flex-row justify-between items-center py-4">
-                      <View>
-                        <Text
-                          className="text-sm font-bold"
-                          style={{ color: COLORS.text }}
-                        >
-                          {payment?.subscription?.billingPlan?.name ??
-                            "Free Trial"}
-                          Plan
-                        </Text>
+                      <View className="flex-1 mr-4">
+                        {(() => {
+                          const desc = payment?.description ||
+                            (payment?.subscription?.billingPlan?.name
+                              ? `Subscription for ${getPlanDisplayLabel(payment.subscription.billingPlan.name)} Plan`
+                              : "Free Trial Plan");
+                          if (desc.includes(":")) {
+                            const parts = desc.split(":");
+                            return (
+                              <>
+                                <Text className="text-sm font-bold" style={{ color: COLORS.text }}>
+                                  {parts[0]}:
+                                </Text>
+                                <Text className="text-xs font-semibold mt-0.5 mb-1" style={{ color: COLORS.textMuted }}>
+                                  {parts.slice(1).join(":").trim()}
+                                </Text>
+                              </>
+                            );
+                          }
+                          return (
+                            <Text className="text-sm font-bold" style={{ color: COLORS.text }}>
+                              {desc}
+                            </Text>
+                          );
+                        })()}
                         <Text
                           className="text-[10px] mt-1"
                           style={{ color: COLORS.textMuted }}
@@ -2061,122 +2320,6 @@ export default function BillingPage() {
           </View>
         </View>
       </Modal>
-
-      {/* COMPARE PLANS MODAL */}
-      {/* <Modal
-        visible={showComparePlans}
-        animationType="slide"
-        onRequestClose={() => setShowComparePlans(false)}
-      >
-        <ThemedView className="flex-1 pt-12" style={{ backgroundColor: COLORS.bg }}>
-          <View className="flex-row justify-between items-center px-6 py-4 border-b" style={{ borderColor: COLORS.border }}>
-            <View className="flex-1 items-center">
-              <View className="bg-red-100 dark:bg-red-950/50 px-3 py-1 rounded-full border border-red-200 dark:border-red-900/30 mb-2">
-                <Text className="text-red-600 dark:text-red-400 text-[10px] font-bold uppercase tracking-widest">
-                  Upgrade Your Workflow
-                </Text>
-              </View>
-              <Text className="text-2xl font-bold" style={{ color: COLORS.text }}>Choose the perfect plan</Text>
-              <Text className="text-xs text-center mt-1" style={{ color: COLORS.textMuted }}>
-                Select a plan that scales with your growth. Cancel anytime.
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => setShowComparePlans(false)}
-              className="absolute top-4 right-4 p-2 rounded-full border"
-              style={{ borderColor: COLORS.border, backgroundColor: COLORS.card }}
-            >
-              <X size={20} color={COLORS.text} />
-            </TouchableOpacity>
-          </View>
-          <ScrollView className="p-6" contentContainerStyle={{ paddingBottom: 60 }}>
-            <View className="gap-6 mb-8">
-              {plansData && plansData.filter((p: any) => p.name !== 'FREE_TRIAL' && p.isActive !== false).map((plan: any) => {
-                const isCurrent = currentPlanName === plan.name;
-                const isPopular = plan.name === 'PROFESSIONAL' || plan.name === 'ENTERPRISE';
-                return (
-                  <View
-                    key={plan.id}
-                    className="p-6 rounded-3xl border relative"
-                    style={{
-                      backgroundColor: COLORS.card,
-                      borderColor: isPopular ? COLORS.accent : COLORS.border,
-                      borderWidth: isPopular ? 2 : 1,
-                    }}
-                  >
-                    {isPopular && (
-                      <View className="absolute -top-3 left-1/2 -translate-x-1/2 bg-red-600 px-4 py-1 rounded-full">
-                        <Text className="text-white text-[9px] font-bold uppercase tracking-widest">Most Popular</Text>
-                      </View>
-                    )}
-                    <Text className="text-lg font-bold uppercase" style={{ color: COLORS.text }}>{plan.name}</Text>
-                    <View className="flex-row items-baseline mt-2 mb-4">
-                      <Text className="text-3xl font-extrabold" style={{ color: COLORS.text }}>{formatCurrency(plan.price)}</Text>
-                      <Text className="text-xs uppercase ml-1" style={{ color: COLORS.textMuted }}>/{plan.billingCycle}</Text>
-                    </View>
-
-                    <TouchableOpacity
-                      onPress={() => {
-                        setShowComparePlans(false);
-                        handlePaymentRedirect(`change your plan to ${plan.name}`);
-                      }}
-                      disabled={isCurrent}
-                      className={`w-full py-3 rounded-xl items-center ${isCurrent ? 'bg-slate-100 dark:bg-slate-800' : 'bg-red-600'}`}
-                    >
-                      <Text className={`font-bold text-sm ${isCurrent ? 'text-gray-500' : 'text-white'}`}>
-                        {isCurrent ? 'Current Plan' : `Change to ${plan.name}`}
-                      </Text>
-                    </TouchableOpacity>
-
-                    <View className="mt-4 gap-2.5">
-                      {plan.features?.map((feat: string, idx: number) => (
-                        <View key={idx} className="flex-row items-start gap-2">
-                          <Check size={14} color={COLORS.accent} style={{ marginTop: 2 }} />
-                          <Text className="text-xs flex-1" style={{ color: COLORS.textMuted }}>{feat}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-
-            <View className="border rounded-2xl overflow-hidden mb-12" style={{ borderColor: COLORS.border, backgroundColor: COLORS.card }}>
-              <View className="p-4 border-b flex-row items-center gap-2" style={{ borderColor: COLORS.border }}>
-                <Star size={18} color={COLORS.accent} />
-                <Text className="font-bold text-sm" style={{ color: COLORS.text }}>Feature Comparison</Text>
-              </View>
-
-              <View className="flex-row border-b py-2.5 px-4" style={{ borderColor: COLORS.border, backgroundColor: isDark ? "#33415550" : "#f1f5f9" }}>
-                <Text className="flex-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: COLORS.textMuted }}>Features</Text>
-                {comparisonPlanColumns.map((col) => (
-                  <Text key={col.key} className="w-16 text-center text-[10px] font-bold uppercase tracking-wider" style={{ color: COLORS.textMuted }}>
-                    {col.label}
-                  </Text>
-                ))}
-              </View>
-
-              {comparisonFeatures.map((feat, idx) => (
-                <View key={idx} className="flex-row py-3.5 px-4 border-b items-center animate-pulse" style={{ borderColor: COLORS.border }}>
-                  <Text className="flex-1 text-xs font-semibold" style={{ color: COLORS.text }}>{feat.name}</Text>
-                  {comparisonPlanColumns.map((col) => {
-                    const included = !!feat.included[col.key];
-                    return (
-                      <View key={col.key} className="w-16 items-center">
-                        {included ? (
-                          <CheckCircle2 size={16} color={COLORS.success} />
-                        ) : (
-                          <X size={14} color={COLORS.textMuted} />
-                        )}
-                      </View>
-                    );
-                  })}
-                </View>
-              ))}
-            </View>
-          </ScrollView>
-        </ThemedView>
-      </Modal> */}
     </ThemedView>
   );
 }

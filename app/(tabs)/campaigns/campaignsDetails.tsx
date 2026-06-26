@@ -71,6 +71,7 @@ export default function CampaignsDetails() {
 
   const [campaign, setCampaign] = useState<Campaign | null>(initialCampaign);
   const [posts, setPosts] = useState<any[]>([]);
+  const [sendingPosts, setSendingPosts] = useState<number[]>([]);
   const [visibleCount, setVisibleCount] = useState(5);
   const [publishing, setPublishing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -134,6 +135,8 @@ export default function CampaignsDetails() {
           details: data.name ?? "Untitled Campaign",
           dates: `${(data.startDate || "").split("T")[0]} - ${(data.endDate || "").split("T")[0]
             }`,
+          startDate: data.startDate,
+          endDate: data.endDate,
           description: data.description ?? "",
           posts: data.posts ?? [],
           show: true,
@@ -153,10 +156,10 @@ export default function CampaignsDetails() {
   // ========= FETCH POSTS =========
   const [loadingPosts, setLoadingPosts] = useState(false);
 
-  const fetchPosts = useCallback(async () => {
+  const fetchPosts = useCallback(async (silent = false) => {
     if (!resolvedCampaignId) return;
 
-    setLoadingPosts(true);
+    if (!silent) setLoadingPosts(true);
     try {
       const user = await getUser();
       const orgId = user?.organisation?.id;
@@ -185,7 +188,7 @@ export default function CampaignsDetails() {
       console.log("POSTS LOAD ERROR:", error);
       setPosts([]);
     } finally {
-      setLoadingPosts(false);
+      if (!silent) setLoadingPosts(false);
     }
   }, [resolvedCampaignId]);
 
@@ -205,6 +208,8 @@ export default function CampaignsDetails() {
                 id: Number(data.id ?? data._id ?? resolvedCampaignId),
                 details: data.name ?? "Untitled Campaign",
                 dates: `${(data.startDate || "").split("T")[0]} - ${(data.endDate || "").split("T")[0]}`,
+                startDate: data.startDate,
+                endDate: data.endDate,
                 description: data.description ?? "",
                 posts: data.posts ?? [],
                 show: true,
@@ -230,6 +235,38 @@ export default function CampaignsDetails() {
     }
   }, [refreshCallback]);
 
+  // Polling for posts in SENDING state
+  useEffect(() => {
+  let interval: ReturnType<typeof setInterval> | undefined;
+
+  if (sendingPosts.length > 0) {
+    interval = setInterval(async () => {
+      await fetchPosts(true);
+    }, 5000);
+  }
+
+  return () => {
+    if (interval) {
+      clearInterval(interval);
+    }
+  };
+}, [sendingPosts, fetchPosts]);
+
+  // Resolve SENDING posts when data changes
+  useEffect(() => {
+    if (sendingPosts.length > 0 && posts.length > 0) {
+      const resolvedIds = sendingPosts.filter(id => {
+        const p = posts.find(post => post.id === id);
+        if (!p) return false;
+        return p.isPostSent === true || p.publishedDate || p.failureReason;
+      });
+
+      if (resolvedIds.length > 0) {
+        setSendingPosts(prev => prev.filter(id => !resolvedIds.includes(id)));
+      }
+    }
+  }, [posts, sendingPosts]);
+
   const postLength = posts.length;
 
   const filteredPosts = useMemo(() => {
@@ -248,11 +285,14 @@ export default function CampaignsDetails() {
   const isAllVisible = visibleCount >= filteredPosts.length;
 
   // Post Status
-  const getPostStatus = (item: any): "SENT" | "SCHEDULED" | "PENDING" | "FAILED" => {
-    if (item.failureReason) return "FAILED";
+  const getPostStatus = (item: any): "SENT" | "SCHEDULED" | "SENDING" | "PENDING" | "FAILED" => {
     if (item.isPostSent === true) return "SENT";
-
     if (item.publishedDate) return "SENT";
+    if (item.failureReason) return "FAILED";
+
+    if (sendingPosts.includes(item.id)) {
+      return "SENDING";
+    }
 
     if (item.scheduledPostTime && !item.isPostSent) {
       const scheduled = new Date(item.scheduledPostTime);
@@ -607,6 +647,15 @@ export default function CampaignsDetails() {
         text2: "Post sending has been queued in the background"
       });
 
+      if (currentSharePostId) {
+        setSendingPosts((prev) => {
+          if (!prev.includes(currentSharePostId!)) {
+            return [...prev, currentSharePostId!];
+          }
+          return prev;
+        });
+      }
+
       setShareModalVisible(false);
       setSelectedContacts([]);
       await fetchPosts();
@@ -626,9 +675,9 @@ export default function CampaignsDetails() {
   const renderPostItem = ({ item }: { item: any }) => {
     const platform = platformIcons[item.type];
     const status = getPostStatus(item);
-    const canDelete = status !== "SENT";
-    const canEdit = status !== "SENT";
-    const canShare = status !== "SENT";
+    const canDelete = status !== "SENT" && status !== "SENDING";
+    const canEdit = status !== "SENT" && status !== "SENDING";
+    const canShare = status !== "SENT" && status !== "SENDING";
 
     // Gather all media
     const allMedia: string[] = [];
@@ -652,8 +701,10 @@ export default function CampaignsDetails() {
           setSelectedDetailPost(item);
           setDetailModalVisible(true);
         }}
+        disabled={status === "SENDING"}
         activeOpacity={0.8}
         style={{
+          opacity: status === "SENDING" ? 0.7 : 1,
           padding: 16,
           borderRadius: 16,
           marginBottom: 12,
@@ -876,12 +927,16 @@ export default function CampaignsDetails() {
             <Ionicons name="calendar-outline" size={14} color="#9ca3af" />
             <Text style={{ fontSize: 11, color: "#9ca3af" }}>
               {item.scheduledPostTime || item.publishedDate || item.createdAt
-                ? new Date(item.scheduledPostTime || item.publishedDate || item.createdAt).toLocaleDateString(undefined, {
-                    month: "short",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
+                ? (() => {
+                    let dStr = item.scheduledPostTime || item.publishedDate || item.createdAt;
+                    if (dStr && dStr.endsWith('Z')) dStr = dStr.slice(0, -1);
+                    return new Date(dStr).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    });
+                  })()
                 : "No schedule available"}
             </Text>
           </View>
@@ -951,6 +1006,12 @@ export default function CampaignsDetails() {
         keyExtractor={loadingPosts ? (_: any, i: number) => `skeleton-${i}` : (item: any, index: number) => item?.id ? String(item.id) : `idx-${index}`}
         showsVerticalScrollIndicator={false}
         stickySectionHeadersEnabled={true}
+        onEndReached={() => {
+          if (!isAllVisible) {
+            setVisibleCount((prev) => prev + 5);
+          }
+        }}
+        onEndReachedThreshold={0.5}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={isDark ? "#ffffff" : "#dc2626"} />
         }
@@ -1070,15 +1131,10 @@ export default function CampaignsDetails() {
                 </ThemedText>
               </ThemedView>
             )}
-            {!loadingPosts && posts.length > 5 && (
-              <TouchableOpacity
-                onPress={isAllVisible ? () => setVisibleCount(5) : () => setVisibleCount((v) => v + 5)}
-                className={`py-3 my-2 rounded-xl items-center ${isAllVisible ? isDark ? "bg-red-900/30" : "bg-red-100" : isDark ? "bg-blue-900/30" : "bg-blue-100"}`}
-              >
-                <ThemedText className={`font-semibold ${isAllVisible ? isDark ? "text-red-300" : "text-red-700" : isDark ? "text-blue-300" : "text-blue-700"}`}>
-                  {isAllVisible ? "Show Less" : "Load More"}
-                </ThemedText>
-              </TouchableOpacity>
+            {!loadingPosts && !isAllVisible && posts.length > 5 && (
+              <View style={{ padding: 16, alignItems: "center" }}>
+                <ActivityIndicator size="small" color={isDark ? "#ffffff" : "#000000"} />
+              </View>
             )}
           </>
         }

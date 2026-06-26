@@ -33,6 +33,7 @@ import { editProfileSchema, EditProfileSchemaType } from "@/validations/profileS
 import { updateProfile } from "@/api/dashboardApi";
 import Toast from "react-native-toast-message";
 import { ActivityIndicator } from "react-native";
+import { KeyboardAvoidingView, Platform } from "react-native";
 import { Input, InputField } from "@/components/ui/input";
 
 export default function UserProfile() {
@@ -88,10 +89,10 @@ export default function UserProfile() {
         mobile: data.mobile || null,
       };
       await updateProfile(payload);
-      
+
       // Refresh the page
       await refetch();
-      
+
       setEditProfile(false);
       Toast.show({
         type: "success",
@@ -181,8 +182,18 @@ export default function UserProfile() {
 
   return (
     <>
-      <ThemedView style={[styles.container, { backgroundColor: COLORS.bg }]}>
-        <ScrollView showsVerticalScrollIndicator={false}>
+      <ThemedView
+  style={[styles.container, { backgroundColor: COLORS.bg }]}
+>
+  <KeyboardAvoidingView
+    style={{ flex: 1 }}
+    behavior={Platform.OS === "ios" ? "padding" : "height"}
+  >
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={{ paddingBottom: 40 }}
+    >
           <HStack style={styles.header}>
             <Pressable onPress={() => routePage.back()} style={styles.backButton}>
               <Ionicons
@@ -206,176 +217,234 @@ export default function UserProfile() {
             </ThemedText>
           </VStack>
 
-          <Box style={[styles.detailsCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
-            <VStack style={{ gap: 18 }}>
-              <DetailRow
-                icon={<User size={21} color="#dc2626" />}
-                label="Username"
-                value={displayName}
-              />
+          <Box
+            style={[
+              styles.detailsCard,
+              {
+                backgroundColor: COLORS.card,
+                borderColor: COLORS.border,
+              },
+            ]}
+          >
+            {showEditProfile ? (
+              <VStack style={{ gap: 8 }}>
+                {/* First Name */}
+                <Controller
+                  control={control}
+                  name="firstName"
+                  render={({ field: { value, onChange } }) => (
+                    <>
+                      <ThemedText style={[styles.inputLabel, { color: COLORS.muted }]}>
+                        First Name
+                      </ThemedText>
 
-              <Divider />
+                      <TextInput
+                        value={value}
+                        onChangeText={onChange}
+                        placeholder="Enter first name"
+                        style={[
+                          styles.editInput,
+                          {
+                            backgroundColor: isDark ? "#20242c" : "#f8fafc",
+                            color: COLORS.text,
+                            borderColor: COLORS.border,
+                          },
+                        ]}
+                      />
+                    </>
+                  )}
+                />
 
-              <DetailRow
-                icon={<Mail size={20} color="#dc2626" />}
-                label="Email"
-                value={email}
-              />
+                {/* Last Name */}
+                <Controller
+                  control={control}
+                  name="lastName"
+                  render={({ field: { value, onChange } }) => (
+                    <>
+                      <ThemedText style={[styles.inputLabel, { color: COLORS.muted }]}>
+                        Last Name
+                      </ThemedText>
 
-              <Divider />
+                      <TextInput
+                        value={value}
+                        onChangeText={onChange}
+                        placeholder="Enter last name"
+                        style={[
+                          styles.editInput,
+                          {
+                            backgroundColor: isDark ? "#20242c" : "#f8fafc",
+                            color: COLORS.text,
+                            borderColor: COLORS.border,
+                          },
+                        ]}
+                      />
+                    </>
+                  )}
+                />
 
-              <DetailRow
-                icon={<Briefcase size={20} color="#dc2626" />}
-                label="Organisation"
-                value={organisation}
-              />
+                {/* Organisation */}
+                <Controller
+                  control={control}
+                  name="mobile"
+                  render={({ field: { value, onChange } }) => (
+                    <>
+                      <ThemedText style={[styles.inputLabel, { color: COLORS.muted }]}>
+                        Organisation
+                      </ThemedText>
 
-              <Divider />
+                      <TextInput
+                        value={value}
+                        onChangeText={onChange}
+                        placeholder="Enter organisation"
+                        style={[
+                          styles.editInput,
+                          {
+                            backgroundColor: isDark ? "#20242c" : "#f8fafc",
+                            color: COLORS.text,
+                            borderColor: COLORS.border,
+                          },
+                        ]}
+                      />
+                    </>
+                  )}
+                />
 
-              <DetailRow
-                icon={<Ionicons name="call-outline" size={20} color="#dc2626" />}
-                label="Mobile Number"
-                value={profileUser?.mobile ?? "-"}
-              />
-            </VStack>
+                {/* Email */}
+                {/* <Controller
+                  control={control}
+                  name="email"
+                  render={({ field: { value } }) => (
+                    <>
+                      <ThemedText style={[styles.inputLabel, { color: COLORS.muted }]}>
+                        Email (Read Only)
+                      </ThemedText>
+
+                      <TextInput
+                        value={value}
+                        editable={false}
+                        style={[
+                          styles.editInput,
+                          {
+                            backgroundColor: isDark ? "#2a2f3a" : "#f1f5f9",
+                            color: COLORS.text,
+                            borderColor: COLORS.border,
+                            opacity: 0.7,
+                          },
+                        ]}
+                      />
+                    </>
+                  )}
+                /> */}
+              </VStack>
+            ) : (
+              <VStack style={{ gap: 18 }}>
+                <DetailRow
+                  icon={<User size={21} color="#dc2626" />}
+                  label="Username"
+                  value={displayName}
+                />
+
+                <Divider />
+
+                <DetailRow
+                  icon={<Mail size={20} color="#dc2626" />}
+                  label="Email"
+                  value={email}
+                />
+
+                <Divider />
+
+                <DetailRow
+                  icon={<Briefcase size={20} color="#dc2626" />}
+                  label="Organisation"
+                  value={organisation}
+                />
+
+                <Divider />
+
+                <DetailRow
+                  icon={<Ionicons name="call-outline" size={20} color="#dc2626" />}
+                  label="Mobile Number"
+                  value={profileUser?.mobile ?? "-"}
+                />
+              </VStack>
+            )}
           </Box>
 
           <VStack style={styles.actions}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={styles.primaryAction}
-              onPress={() => setEditProfile(true)}
-            >
-              <UserPen size={20} color="white" />
-              <ThemedText style={{ color: "white", fontWeight: "600" }}>
-                Edit Profile
-              </ThemedText>
-            </TouchableOpacity>
+            {showEditProfile ? (
+              <HStack style={{ gap: 12 }}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => {
+                    reset({
+                      firstName: userData?.firstName || "",
+                      lastName: userData?.lastName || "",
+                      mobile: userData?.mobile || "",
+                      email:
+                        userData?.organisation?.email ||
+                        userData?.email ||
+                        "",
+                    });
+
+                    setEditProfile(false);
+                  }}
+                >
+                  <ThemedText
+                    style={{ color: COLORS.text, fontWeight: "600" }}
+                  >
+                    Cancel
+                  </ThemedText>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.primaryAction}
+                  onPress={handleSubmit(
+                    onSubmit,
+                    (errors) => {
+                      if (errors.firstName) {
+                        Toast.show({
+                          type: "error",
+                          text1: errors.firstName.message || "First name is required",
+                        });
+                      }
+                    }
+                  )}                >
+                  {isSaving ? (       
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <>
+                      <UserPen size={20} color="white" />
+                      <ThemedText
+                        style={{ color: "white", fontWeight: "600" }}
+                      >
+                        Save Changes
+                      </ThemedText>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </HStack>
+            ) : (
+              <TouchableOpacity
+                style={styles.primaryAction}
+                onPress={() => setEditProfile(true)}
+              >
+                <UserPen size={20} color="white" />
+                <ThemedText
+                  style={{ color: "white", fontWeight: "600" }}
+                >
+                  Edit Profile
+                </ThemedText>
+              </TouchableOpacity>
+            )}
           </VStack>
         </ScrollView>
+  </KeyboardAvoidingView>
 
       </ThemedView>
 
-      {/* Improved Edit Profile Modal */}
-      <Modal
-        visible={showEditProfile}
-        animationType="slide"
-        transparent
-        onRequestClose={() => !isSaving && setEditProfile(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: isDark ? "#171a20" : "#ffffff" }]}>
-            {/* Modal Header */}
-            <HStack style={styles.modalHeaderRow}>
-              <VStack style={{ flex: 1 }}>
-                <ThemedText style={[styles.modalTitle, { color: COLORS.text }]}>Edit Profile</ThemedText>
-                <ThemedText style={[styles.modalSubtitle, { color: COLORS.muted }]}>
-                  Keep your details up to date
-                </ThemedText>
-              </VStack>
-              <TouchableOpacity 
-                disabled={isSaving}
-                onPress={() => setEditProfile(false)} 
-                style={[styles.closeModalButton, { backgroundColor: isDark ? "#2a2f3a" : "#f1f5f9" }]}
-              >
-                <Ionicons name="close" size={22} color={COLORS.text} />
-              </TouchableOpacity>
-            </HStack>
-
-            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
-              <VStack style={{ gap: 16, paddingVertical: 8 }}>
-                {/* Fields */}
-                {[
-                  { name: "firstName", label: "First Name", placeholder: "Enter first name" },
-                  { name: "lastName", label: "Last Name", placeholder: "Enter last name" },
-                  { name: "mobile", label: "Mobile Number", placeholder: "Enter mobile number" },
-                  { name: "email", label: "Email (Read Only)", placeholder: "Email address" },
-                ].map((field, idx) => (
-                  <VStack space="xs" key={idx}>
-                    <ThemedText style={[styles.inputLabel, { color: COLORS.muted }]}>
-                      {field.label}
-                    </ThemedText>
-                    <Controller
-                      control={control}
-                      name={field.name as any}
-                      render={({ field: { value, onChange } }) => (
-                        <View style={[
-                          styles.customInputWrapper, 
-                          { 
-                            borderColor: errors[field.name as keyof EditProfileSchemaType] ? "#dc2626" : COLORS.border, 
-                            backgroundColor: isDark ? "#20242c" : "#f8fafc" 
-                          }
-                        ]}>
-                          <View style={styles.inputIconWrapper}>
-                            {field.name === "firstName" || field.name === "lastName" ? (
-                              <Ionicons name="person-outline" size={18} color="#dc2626" />
-                            ) : field.name === "mobile" ? (
-                              <Ionicons name="call-outline" size={18} color="#dc2626" />
-                            ) : (
-                              <Ionicons name="mail-outline" size={18} color="#dc2626" />
-                            )}
-                          </View>
-                          <TextInput
-                            placeholder={field.placeholder}
-                            placeholderTextColor={isDark ? "#64748b" : "#9ca3af"}
-                            value={value}
-                            onChangeText={onChange}
-                            keyboardType={
-                              field.name === "mobile"
-                                ? "phone-pad"
-                                : field.name === "email"
-                                  ? "email-address"
-                                  : "default"
-                            }
-                            editable={field.name !== "email"}
-                            style={{
-                              flex: 1,
-                              color: COLORS.text,
-                              fontSize: 15,
-                              paddingVertical: 10,
-                              opacity: field.name === "email" ? 0.6 : 1,
-                            }}
-                          />
-                        </View>
-                      )}
-                    />
-                    {errors[field.name as keyof EditProfileSchemaType] && (
-                      <ThemedText style={styles.errorText}>
-                        * {errors[field.name as keyof EditProfileSchemaType]?.message}
-                      </ThemedText>
-                    )}
-                  </VStack>
-                ))}
-              </VStack>
-            </ScrollView>
-
-            {/* Modal Actions */}
-            <HStack style={styles.modalActions}>
-              <TouchableOpacity
-                disabled={isSaving}
-                onPress={() => setEditProfile(false)}
-                style={[styles.modalCancelBtn, { backgroundColor: isDark ? "#2a2f3a" : "#f1f5f9" }]}
-              >
-                <ThemedText style={{ color: COLORS.text, fontWeight: "600" }}>Cancel</ThemedText>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                disabled={isSaving}
-                onPress={handleSubmit(onSubmit)}
-                style={styles.modalSaveBtn}
-              >
-                {isSaving ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <ThemedText style={{ color: "white", fontWeight: "600" }}>Save Changes</ThemedText>
-                )}
-              </TouchableOpacity>
-            </HStack>
-          </View>
-        </View>
-      </Modal>
-
     </>
+
   );
 }
 
@@ -383,7 +452,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 64,
+    paddingTop: 20,
   },
   header: {
     marginBottom: 18,
@@ -455,6 +524,7 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   primaryAction: {
+    flex: 1,
     alignItems: "center",
     backgroundColor: "#dc2626",
     borderRadius: 14,
@@ -505,7 +575,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     textTransform: "uppercase",
-    marginBottom: 6,
+    // marginBottom: 6,
   },
   customInputWrapper: {
     flexDirection: "row",
@@ -542,6 +612,22 @@ const styles = StyleSheet.create({
     backgroundColor: "#dc2626",
     height: 48,
     borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editInput: {
+    height: 48,
+    borderWidth: 1,
+    borderRadius: 12,
+    // paddingHorizontal: 14,
+    // marginTop: 6,
+  },
+  cancelButton: {
+    flex: 1,
+    height: 50,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
     alignItems: "center",
     justifyContent: "center",
   },

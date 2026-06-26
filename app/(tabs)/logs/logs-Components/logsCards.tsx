@@ -22,7 +22,7 @@ import Toast from "react-native-toast-message";
 
 
 const { width } = Dimensions.get("window");
-const CARD_WIDTH = width - 40; // accounted for parent container padding
+const CONTENT_WIDTH = width - 56; // 12 padding horizontal on parent (24) + 16 padding on card (32)
 
 type LogsCardProps = {
   record: any;
@@ -39,6 +39,8 @@ export default function LogsCard({ record, platformLabel }: LogsCardProps) {
   const [insight, setInsight] = useState(record?.insight);
   const [syncing, setSyncing] = useState(false);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
+
+  const [failedMedia, setFailedMedia] = useState<Record<string, boolean>>({});
 
   // Sync state if record updates from parent
   useEffect(() => {
@@ -206,28 +208,55 @@ export default function LogsCard({ record, platformLabel }: LogsCardProps) {
             data={mediaList}
             keyExtractor={(url) => url}
             onScroll={(e) => {
-              const slide = Math.round(e.nativeEvent.contentOffset.x / CARD_WIDTH);
+              const slide = Math.round(e.nativeEvent.contentOffset.x / CONTENT_WIDTH);
               if (slide !== activeMediaIndex) {
                 setActiveMediaIndex(slide);
               }
             }}
             renderItem={({ item: url }) => {
               const isVideo = isVideoFormat(url);
-              
+
               if (isVideo) {
                 return (
                   <View
                     style={{
-                      width: CARD_WIDTH - 32,
+                      width: CONTENT_WIDTH,
                       height: 180,
                       borderRadius: 12,
                       overflow: "hidden",
-                      backgroundColor: "#000000",
+                      backgroundColor: "#000",
                     }}
                   >
-                    <WebView
-                      source={{
-                        html: `
+                    {failedMedia[url] ? (
+                      <View
+                        style={{
+                          flex: 1,
+                          backgroundColor: isDark ? "#1e293b" : "#f8fafc",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          padding: 20,
+                        }}
+                      >
+                        <Ionicons
+                          name="videocam-off-outline"
+                          size={40}
+                          color={isDark ? "#64748b" : "#94a3b8"}
+                        />
+                        <Text
+                          style={{
+                            marginTop: 10,
+                            fontSize: 13,
+                            color: isDark ? "#94a3b8" : "#64748b",
+                            textAlign: "center",
+                          }}
+                        >
+                          Video is unavailable
+                        </Text>
+                      </View>
+                    ) : (
+                      <WebView
+                        source={{
+                          html: `
                           <html>
                             <head>
                               <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -259,25 +288,62 @@ export default function LogsCard({ record, platformLabel }: LogsCardProps) {
                             </body>
                           </html>
                         `,
-                      }}
-                      style={{
-                        flex: 1,
-                        backgroundColor: "#000000",
-                      }}
-                      javaScriptEnabled
-                      domStorageEnabled
-                    />
+                        }}
+                        style={{
+                          flex: 1,
+                          backgroundColor: "#000000",
+                        }}
+                        javaScriptEnabled
+                        domStorageEnabled
+                      />
+                    )}
                   </View>
                 );
               }
 
               return (
-                <View style={{ width: CARD_WIDTH - 32, height: 180, position: "relative" }}>
-                  <Image
-                    source={{ uri: url }}
-                    style={{ width: "100%", height: "100%", borderRadius: 12 }}
-                    resizeMode="cover"
-                  />
+                <View style={{ width: CONTENT_WIDTH, height: 180, position: "relative" }}>
+                  {failedMedia[url] ? (
+                    <View
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        borderRadius: 12,
+                        backgroundColor: isDark ? "#1e293b" : "#f8fafc",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        padding: 20,
+                      }}
+                    >
+                      <Ionicons
+                        name="image-outline"
+                        size={40}
+                        color={isDark ? "#64748b" : "#94a3b8"}
+                      />
+                      <Text
+                        style={{
+                          marginTop: 10,
+                          fontSize: 13,
+                          color: isDark ? "#94a3b8" : "#64748b",
+                          textAlign: "center",
+                        }}
+                      >
+                        Image is unavailable
+                      </Text>
+                    </View>
+                  ) : (
+                    <Image
+                      source={{ uri: url }}
+                      style={{ width: "100%", height: "100%", borderRadius: 12 }}
+                      resizeMode="cover"
+                      onError={() =>
+                        setFailedMedia((prev) => ({
+                          ...prev,
+                          [url]: true,
+                        }))
+                      }
+                    />
+                  )}
                 </View>
               );
             }}
@@ -350,7 +416,7 @@ export default function LogsCard({ record, platformLabel }: LogsCardProps) {
         ].map((item) => (
           <VStack key={item.label} style={{ alignItems: "center", width: "22%" }}>
             <ThemedText style={{ fontSize: 13, fontWeight: "800" }}>
-              {isDeleted ? "-" : item.value ?? 0}
+              {item.value ?? 0}
             </ThemedText>
             <ThemedText
               style={{

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   TouchableOpacity,
   ScrollView,
@@ -6,9 +6,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   useColorScheme,
-  ActivityIndicator,
-  Alert,
   Text,
+  Modal
 } from "react-native";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import CampaignPostForm from "./campaignPostForm";
@@ -19,6 +18,7 @@ import Toast from "react-native-toast-message";
 import { router, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { getUser } from "@/api/dashboardApi";
 import { getPostDetails, getPostsByCampaignIdApi, getSocialStatus } from "@/api/campaignApi";
+import { getWalletBalance } from "@/api/billingApi";
 import { View } from "react-native";
 
 export default function CampaignPost() {
@@ -116,20 +116,29 @@ export default function CampaignPost() {
     ? "No social accounts are connected yet. Connect them to continue."
     : `Almost there! ${totalCount - connectedCount} account(s) still need connection.`;
 
+  const [creditModalVisible, setCreditModalVisible] = useState(false);
+  const [modalData, setModalData] = useState({
+    title: "",
+    message: "",
+  });
+
   // ---------- FETCH CONNECTED PLATFORMS ----------
   useFocusEffect(
     useCallback(() => {
       const fetchConnections = async () => {
         try {
           setLoadingConnections(true);
-          const data = await getSocialStatus();
+          const [data, walletData] = await Promise.all([
+            getSocialStatus(),
+            getWalletBalance()
+          ]);
 
-          if (data?.twilioAccess) {
-            setTwilioAccessStatus(data.twilioAccess.twilioAccessStatus);
+          if (walletData?.twilioAccess) {
+            setTwilioAccessStatus(walletData.twilioAccess.twilioAccessStatus);
           }
-          if (data?.wallet) {
-            setSmsCredits(data.wallet.smsCreditsAvailable || 0);
-            setWhatsappCredits(data.wallet.whatsappCreditsAvailable || 0);
+          if (walletData?.wallet) {
+            setSmsCredits(walletData.wallet.smsCreditsAvailable || 0);
+            setWhatsappCredits(walletData.wallet.whatsappCreditsAvailable || 0);
           }
 
           setConnectedPlatforms({
@@ -374,7 +383,13 @@ export default function CampaignPost() {
 
               const isRestrictedPlatform = restrictedPlatforms.includes(icon.label as any);
               const credits = icon.label === "SMS" ? smsCredits : whatsappCredits;
-              const isFullyApprovedAndFunded = isRestrictedPlatform && twilioAccessStatus === "APPROVED" && credits > 0;
+
+              let requiredCredits = 0;
+              if (icon.label === "SMS") requiredCredits = 2.00;
+              if (icon.label === "WHATSAPP") requiredCredits = 2.50;
+              const hasEnoughCredits = credits >= requiredCredits;
+
+              const isFullyApprovedAndFunded = isRestrictedPlatform && hasEnoughCredits;
               const visuallyRestricted = isRestrictedPlatform && !isFullyApprovedAndFunded;
 
               return (
@@ -450,27 +465,15 @@ export default function CampaignPost() {
                         if (forceDisabledInEdit) return;
 
                         if (isRestrictedPlatform) {
-                          if (twilioAccessStatus === "APPROVED") {
-                            if (credits <= 0) {
-                              Alert.alert(
-                                "No Credits Available",
-                                `You have 0 ${icon.label} credits. Please purchase a pack to use this channel.`,
-                                [
-                                  { text: "Cancel", style: "cancel" },
-                                  { text: "Add Credits", onPress: () => router.push("/(billing)/billingPage") },
-                                ]
-                              );
-                              return;
-                            }
-                          } else {
-                            Alert.alert(
-                              "Admin Approval Required",
-                              "SMS and WhatsApp messaging requires admin approval and credit purchase.",
-                              [
-                                { text: "Cancel", style: "cancel" },
-                                { text: "Purchase Pack", onPress: () => router.push("/(billing)/billingPage") },
-                              ]
-                            );
+                          if (!hasEnoughCredits) {
+                            setModalData({
+                              title: "Insufficient Credits",
+                              message: `You need at least ₹${requiredCredits.toFixed(
+                                2
+                              )} ${icon.label} credits to use this channel. Please purchase a pack.`,
+                            });
+                            setCreditModalVisible(true);
+                            return;
                             return;
                           }
                         }
@@ -521,6 +524,8 @@ export default function CampaignPost() {
                     </TouchableOpacity>
                   </View>
 
+                  
+
                   <Text
                     style={{
                       marginTop: 6,
@@ -539,6 +544,7 @@ export default function CampaignPost() {
               );
             })}
         </ThemedView>
+        
 
         {/* ---------- ACCOUNTS BUTTON ---------- */}
         {hasDisconnectedPlatform && (
@@ -724,7 +730,119 @@ export default function CampaignPost() {
             />
           </ThemedView>
         ) : null}
+
+        
       </ScrollView>
+
+      <Modal
+  visible={creditModalVisible}
+  transparent
+  animationType="fade"
+  onRequestClose={() => setCreditModalVisible(false)}
+>
+  <View
+    style={{
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 20,
+    }}
+  >
+    <View
+      style={{
+        width: "100%",
+        maxWidth: 350,
+        borderRadius: 20,
+        padding: 24,
+        backgroundColor: isDark ? "#1f1f23" : "#ffffff",
+      }}
+    >
+      <Ionicons
+        name="wallet-outline"
+        size={40}
+        color="#f59e0b"
+        style={{ alignSelf: "center", marginBottom: 15 }}
+      />
+
+      <Text
+        style={{
+          fontSize: 18,
+          fontWeight: "700",
+          textAlign: "center",
+          color: isDark ? "#fff" : "#111827",
+          marginBottom: 10,
+        }}
+      >
+        {modalData.title}
+      </Text>
+
+      <Text
+        style={{
+          textAlign: "center",
+          color: isDark ? "#d1d5db" : "#6b7280",
+          marginBottom: 25,
+          lineHeight: 22,
+        }}
+      >
+        {modalData.message}
+      </Text>
+
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => setCreditModalVisible(false)}
+          style={{
+            flex: 1,
+            marginRight: 8,
+            paddingVertical: 12,
+            borderRadius: 12,
+            backgroundColor: isDark ? "#374151" : "#e5e7eb",
+          }}
+        >
+          <Text
+            style={{
+              textAlign: "center",
+              color: isDark ? "#fff" : "#111827",
+              fontWeight: "600",
+            }}
+          >
+            Cancel
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => {
+            setCreditModalVisible(false);
+            router.push("/(billing)/billingPage");
+          }}
+          style={{
+            flex: 1,
+            marginLeft: 8,
+            paddingVertical: 12,
+            borderRadius: 12,
+            backgroundColor: "#10b981",
+          }}
+        >
+          <Text
+            style={{
+              textAlign: "center",
+              color: "#fff",
+              fontWeight: "600",
+            }}
+          >
+            Add Credits
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+</Modal>
+
     </KeyboardAvoidingView>
   );
 }

@@ -130,11 +130,6 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-/* ---------------- AUTH BRIDGE ---------------- */
-
-
-/* ---------------- LINKING DEBUG ---------------- */
-
 function GlobalLinkingHandler() {
   useEffect(() => {
     const handleDeepLink = (event: { url: string }) => {

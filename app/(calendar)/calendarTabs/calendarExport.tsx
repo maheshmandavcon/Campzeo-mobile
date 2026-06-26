@@ -67,12 +67,18 @@ export default function CalendarExports() {
 
   const onDateChange = (event: any, selectedDate?: Date) => {
     setShowPicker(false);
-    if (selectedDate) {
-      if (pickingMode === "start") {
-        setStartDate(selectedDate);
-      } else {
-        setEndDate(selectedDate);
+
+    if (!selectedDate) return;
+
+    if (pickingMode === "start") {
+      setStartDate(selectedDate);
+
+      // Clear invalid end date
+      if (endDate && selectedDate > endDate) {
+        setEndDate(null);
       }
+    } else {
+      setEndDate(selectedDate);
     }
   };
 
@@ -187,8 +193,8 @@ export default function CalendarExports() {
           />
         }
       >
-      {/* Header */}
-      {/* <VStack
+        {/* Header */}
+        {/* <VStack
         style={{
           gap: 5,
           marginBottom: 12,
@@ -224,46 +230,15 @@ export default function CalendarExports() {
         </ThemedText>
       </VStack> */}
 
-      {/* Filters Section */}
-      <VStack style={{ marginBottom: 12 }}>
-        <TouchableOpacity
-          onPress={() => setShowFilters(!showFilters)}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 12,
-            padding: 15,
-            borderWidth: 1,
-            borderColor: isDark ? "#333" : "#e5e7eb",
-            borderRadius: 16,
-            backgroundColor: isDark ? "#1a1a1a" : "#fff",
-          }}
-        >
-          <HStack style={{ alignItems: "center", gap: 8 }}>
-            <Ionicons
-              name="options-outline"
-              size={20}
-              color={isDark ? "#fff" : "#000"}
-            />
-            <ThemedText style={{ fontSize: 16, fontWeight: "600" }}>
-              Filters & Export
-            </ThemedText>
-          </HStack>
-
-          <Ionicons
-            name={showFilters ? "chevron-up" : "chevron-down"}
-            size={20}
-            color={isDark ? "#fff" : "#000"}
-          />
-        </TouchableOpacity>
-
-        {showFilters && (
-          <VStack
+        {/* Filters Section */}
+        <VStack style={{ marginBottom: 12 }}>
+          <TouchableOpacity
+            onPress={() => setShowFilters(!showFilters)}
             style={{
-              gap: 10,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
               marginBottom: 12,
-              width: "100%",
               padding: 15,
               borderWidth: 1,
               borderColor: isDark ? "#333" : "#e5e7eb",
@@ -271,447 +246,487 @@ export default function CalendarExports() {
               backgroundColor: isDark ? "#1a1a1a" : "#fff",
             }}
           >
-            <HStack style={{ alignItems: "center", gap: 8, marginBottom: 2 }}>
-              <View
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  backgroundColor: isDark
-                    ? "rgba(220, 38, 38, 0.15)"
-                    : "rgba(220, 38, 38, 0.08)",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Ionicons name="download-outline" size={18} color="#dc2626" />
-              </View>
-              <ThemedText style={{ fontSize: 17, fontWeight: "700" }}>
-                Export Posts
+            <HStack style={{ alignItems: "center", gap: 8 }}>
+              <Ionicons
+                name="options-outline"
+                size={20}
+                color={isDark ? "#fff" : "#000"}
+              />
+              <ThemedText style={{ fontSize: 16, fontWeight: "600" }}>
+                Filters & Export
               </ThemedText>
             </HStack>
-            <VStack style={{ gap: 4 }}>
-              <Dropdown
-                style={{
-                  borderWidth: 1,
-                  borderColor: isDark ? "#333" : "#ddd",
-                  borderRadius: 12,
-                  paddingHorizontal: 12,
-                  height: 45,
-                  backgroundColor: isDark ? "#1a1a1a" : "#fff",
-                }}
-                placeholderStyle={{
-                  color: isDark ? "#777" : "#999",
-                  fontSize: 14,
-                }}
-                selectedTextStyle={{
-                  color: isDark ? "white" : "black",
-                  fontSize: 14,
-                }}
-                containerStyle={{
-                  backgroundColor: isDark ? "#1a1a1a" : "#fff",
-                  borderColor: isDark ? "#333" : "#ddd",
-                  borderRadius: 12,
-                }}
-                itemTextStyle={{ color: isDark ? "white" : "black" }}
-                activeColor={isDark ? "#333" : "#f0f0f0"}
-                data={[
-                  { label: "All Platforms", value: "all" },
-                  { label: "Email", value: "EMAIL" },
-                  { label: "SMS", value: "SMS" },
-                  { label: "Facebook", value: "FACEBOOK" },
-                  { label: "WhatsApp", value: "WHATSAPP" },
-                  { label: "Instagram", value: "INSTAGRAM" },
-                  { label: "LinkedIn", value: "LINKEDIN" },
-                  { label: "YouTube", value: "YOUTUBE" },
-                  { label: "Pinterest", value: "PINTEREST" },
-                ]}
-                labelField="label"
-                valueField="value"
-                placeholder="All Platforms"
-                value={platform}
-                onChange={(item) => {
-                  setPlatform(item.value);
-                }}
-              />
-            </VStack>
 
-            {/* Date Pickers */}
-            <HStack style={{ gap: 10, width: "100%" }}>
-              {/* Start Date */}
-              <VStack style={{ flex: 1, gap: 4 }}>
-                <ThemedText
-                  style={{ fontSize: 12, opacity: 0.6, fontWeight: "600" }}
-                >
-                  Start Date
-                </ThemedText>
-                <TouchableOpacity
+            <Ionicons
+              name={showFilters ? "chevron-up" : "chevron-down"}
+              size={20}
+              color={isDark ? "#fff" : "#000"}
+            />
+          </TouchableOpacity>
+
+          {showFilters && (
+            <VStack
+              style={{
+                gap: 10,
+                marginBottom: 12,
+                width: "100%",
+                padding: 15,
+                borderWidth: 1,
+                borderColor: isDark ? "#333" : "#e5e7eb",
+                borderRadius: 16,
+                backgroundColor: isDark ? "#1a1a1a" : "#fff",
+              }}
+            >
+              <HStack style={{ alignItems: "center", gap: 8, marginBottom: 2 }}>
+                <View
                   style={{
-                    flexDirection: "row",
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
+                    backgroundColor: isDark
+                      ? "rgba(220, 38, 38, 0.15)"
+                      : "rgba(220, 38, 38, 0.08)",
                     alignItems: "center",
-                    borderWidth: 1,
-                    borderColor: isDark ? "#333" : "rgba(0,0,0,0.1)",
-                    borderRadius: 12,
-                    backgroundColor: isDark ? "#1a1a1a" : "rgba(255,255,255,0.9)",
-                    height: 45,
-                    paddingHorizontal: 12,
-                  }}
-                  onPress={() => {
-                    setPickingMode("start");
-                    setShowPicker(true);
+                    justifyContent: "center",
                   }}
                 >
-                  <Ionicons
-                    name="calendar-outline"
-                    size={18}
-                    color={isDark ? "#aaa" : "rgba(0,0,0,0.4)"}
-                    style={{ marginRight: 8 }}
-                  />
-                  <Text
-                    style={{
-                      color: startDate
-                        ? isDark
-                          ? "#fff"
-                          : "#000"
-                        : isDark
-                          ? "#555"
-                          : "#999",
-                      fontSize: 13,
-                    }}
-                  >
-                    {startDate ? formatDate(startDate) : "dd-mm-yyyy"}
-                  </Text>
-                </TouchableOpacity>
-              </VStack>
-
-              {/* End Date */}
-              <VStack style={{ flex: 1, gap: 4 }}>
-                <ThemedText
-                  style={{ fontSize: 12, opacity: 0.6, fontWeight: "600" }}
-                >
-                  End Date
+                  <Ionicons name="download-outline" size={18} color="#dc2626" />
+                </View>
+                <ThemedText style={{ fontSize: 17, fontWeight: "700" }}>
+                  Export Posts
                 </ThemedText>
-                <TouchableOpacity
+              </HStack>
+              <VStack style={{ gap: 4 }}>
+                <Dropdown
                   style={{
-                    flexDirection: "row",
-                    alignItems: "center",
                     borderWidth: 1,
-                    borderColor: isDark ? "#333" : "rgba(0,0,0,0.1)",
+                    borderColor: isDark ? "#333" : "#ddd",
                     borderRadius: 12,
-                    backgroundColor: isDark ? "#1a1a1a" : "rgba(255,255,255,0.9)",
-                    height: 45,
                     paddingHorizontal: 12,
+                    height: 45,
+                    backgroundColor: isDark ? "#1a1a1a" : "#fff",
                   }}
-                  onPress={() => {
-                    setPickingMode("end");
-                    setShowPicker(true);
+                  placeholderStyle={{
+                    color: isDark ? "#777" : "#999",
+                    fontSize: 14,
                   }}
-                >
-                  <Ionicons
-                    name="calendar-outline"
-                    size={18}
-                    color={isDark ? "#aaa" : "rgba(0,0,0,0.4)"}
-                    style={{ marginRight: 8 }}
-                  />
-                  <Text
-                    style={{
-                      color: endDate
-                        ? isDark
-                          ? "#fff"
-                          : "#000"
-                        : isDark
-                          ? "#555"
-                          : "#999",
-                      fontSize: 13,
-                    }}
-                  >
-                    {endDate ? formatDate(endDate) : "dd-mm-yyyy"}
-                  </Text>
-                </TouchableOpacity>
-              </VStack>
-
-              {showPicker && (
-                <DateTimePicker
-                  value={
-                    pickingMode === "start"
-                      ? startDate || new Date()
-                      : endDate || new Date()
-                  }
-                  mode="date"
-                  display="default"
-                  maximumDate={new Date()}
-                  onChange={onDateChange}
+                  selectedTextStyle={{
+                    color: isDark ? "white" : "black",
+                    fontSize: 14,
+                  }}
+                  containerStyle={{
+                    backgroundColor: isDark ? "#1a1a1a" : "#fff",
+                    borderColor: isDark ? "#333" : "#ddd",
+                    borderRadius: 12,
+                  }}
+                  itemTextStyle={{ color: isDark ? "white" : "black" }}
+                  activeColor={isDark ? "#333" : "#f0f0f0"}
+                  data={[
+                    { label: "All Platforms", value: "all" },
+                    { label: "Email", value: "EMAIL" },
+                    { label: "SMS", value: "SMS" },
+                    { label: "Facebook", value: "FACEBOOK" },
+                    { label: "WhatsApp", value: "WHATSAPP" },
+                    { label: "Instagram", value: "INSTAGRAM" },
+                    { label: "LinkedIn", value: "LINKEDIN" },
+                    { label: "YouTube", value: "YOUTUBE" },
+                    { label: "Pinterest", value: "PINTEREST" },
+                  ]}
+                  labelField="label"
+                  valueField="value"
+                  placeholder="All Platforms"
+                  value={platform}
+                  onChange={(item) => {
+                    setPlatform(item.value);
+                  }}
                 />
-              )}
-            </HStack>
+              </VStack>
 
-            {/* Download Buttons */}
-            <VStack style={{ gap: 10, marginTop: 5 }}>
-              <TouchableOpacity
-                onPress={() => handleExport("xlsx")}
-                disabled={exporting}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  height: 42,
-                  paddingHorizontal: 16,
-                  borderRadius: 10,
-                  backgroundColor: "#dc2626",
-                }}
-                activeOpacity={0.8}
-              >
-                {exporting ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="document-outline" size={16} color="#fff" />
-                    <Text
-                      style={{ color: "#fff", fontWeight: "600", fontSize: 13 }}
-                    >
-                      Download Excel (.xlsx)
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => handleExport("csv")}
-                disabled={exporting}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  height: 42,
-                  paddingHorizontal: 16,
-                  borderRadius: 10,
-                  borderWidth: 1,
-                  borderColor: isDark ? "#444" : "#ddd",
-                  backgroundColor: isDark ? "#1a1a1a" : "#fff",
-                }}
-                activeOpacity={0.8}
-              >
-                {exporting ? (
-                  <ActivityIndicator size="small" color="#dc2626" />
-                ) : (
-                  <>
+              {/* Date Pickers */}
+              <HStack style={{ gap: 10, width: "100%" }}>
+                {/* Start Date */}
+                <VStack style={{ flex: 1, gap: 4 }}>
+                  <ThemedText
+                    style={{ fontSize: 12, opacity: 0.6, fontWeight: "600" }}
+                  >
+                    Start Date
+                  </ThemedText>
+                  <TouchableOpacity
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      borderWidth: 1,
+                      borderColor: isDark ? "#333" : "rgba(0,0,0,0.1)",
+                      borderRadius: 12,
+                      backgroundColor: isDark ? "#1a1a1a" : "rgba(255,255,255,0.9)",
+                      height: 45,
+                      paddingHorizontal: 12,
+                    }}
+                    onPress={() => {
+                      setPickingMode("start");
+                      setShowPicker(true);
+                    }}
+                  >
                     <Ionicons
-                      name="funnel-outline"
-                      size={16}
-                      color={isDark ? "#ccc" : "#333"}
+                      name="calendar-outline"
+                      size={18}
+                      color={isDark ? "#aaa" : "rgba(0,0,0,0.4)"}
+                      style={{ marginRight: 8 }}
                     />
                     <Text
                       style={{
-                        color: isDark ? "#ccc" : "#333",
-                        fontWeight: "500",
+                        color: startDate
+                          ? isDark
+                            ? "#fff"
+                            : "#000"
+                          : isDark
+                            ? "#555"
+                            : "#999",
                         fontSize: 13,
                       }}
                     >
-                      Download CSV (.csv)
+                      {startDate ? formatDate(startDate) : "dd-mm-yyyy"}
                     </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </VStack>
-          </VStack>
-        )}
-      </VStack>
+                  </TouchableOpacity>
+                </VStack>
 
-      {/* Data Preview Section */}
-      <VStack
-        style={{
-          gap: 8,
-          width: "100%",
-          padding: 15,
-          borderWidth: 1,
-          borderColor: isDark ? "#333" : "#e5e7eb",
-          borderRadius: 16,
-          backgroundColor: isDark ? "#1a1a1a" : "#fff",
-        }}
-      >
-        {/* Preview Header */}
-        <VStack style={{ gap: 2, marginBottom: 8 }}>
-          <ThemedText style={{ fontSize: 15, fontWeight: "700" }}>
-            Data Preview
-          </ThemedText>
-          <ThemedText style={{ fontSize: 12, color: "#6a7282" }}>
-            Preview of the "Posts Data" sheet based on current filters.
-          </ThemedText>
-        </VStack>
-
-        {/* Table */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={true}>
-          <VStack style={{ minWidth: 600 }}>
-            {/* Table Header */}
-            <HStack
-              style={{
-                borderBottomWidth: 1,
-                borderBottomColor: isDark ? "#333" : "#e5e7eb",
-                paddingBottom: 10,
-                paddingHorizontal: 4,
-              }}
-            >
-              <Text
-                style={{
-                  width: 120,
-                  fontSize: 12,
-                  fontWeight: "700",
-                  color: isDark ? "#ccc" : "#374151",
-                }}
-              >
-                Campaign
-              </Text>
-              <Text
-                style={{
-                  width: 100,
-                  fontSize: 12,
-                  fontWeight: "700",
-                  color: isDark ? "#ccc" : "#374151",
-                }}
-              >
-                Platform
-              </Text>
-              <Text
-                style={{
-                  width: 150,
-                  fontSize: 12,
-                  fontWeight: "700",
-                  color: isDark ? "#ccc" : "#374151",
-                }}
-              >
-                Subject
-              </Text>
-              <Text
-                style={{
-                  width: 100,
-                  fontSize: 12,
-                  fontWeight: "700",
-                  color: isDark ? "#ccc" : "#374151",
-                }}
-              >
-                Status
-              </Text>
-              <Text
-                style={{
-                  width: 120,
-                  fontSize: 12,
-                  fontWeight: "700",
-                  color: isDark ? "#ccc" : "#374151",
-                }}
-              >
-                Scheduled
-              </Text>
-            </HStack>
-
-            {/* Table Body */}
-            {loading ? (
-              <View
-                style={{
-                  padding: 30,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <ActivityIndicator size="small" color="#dc2626" />
-              </View>
-            ) : previewData?.posts?.length > 0 ? (
-              previewData?.posts?.map((post: any, index: number) => (
-                <HStack
-                  key={index}
-                  style={{
-                    borderBottomWidth: 1,
-                    borderBottomColor: isDark ? "#222" : "#f3f4f6",
-                    paddingVertical: 10,
-                    paddingHorizontal: 4,
-                  }}
-                >
-                  <Text
-                    style={{
-                      width: 120,
-                      fontSize: 12,
-                      color: isDark ? "#ddd" : "#374151",
-                    }}
-                    numberOfLines={1}
+                {/* End Date */}
+                <VStack style={{ flex: 1, gap: 4 }}>
+                  <ThemedText
+                    style={{ fontSize: 12, opacity: 0.6, fontWeight: "600" }}
                   >
-                    {post.campaign}
-                  </Text>
-                  <Text
+                    End Date
+                  </ThemedText>
+                  <TouchableOpacity
                     style={{
-                      width: 100,
-                      fontSize: 12,
-                      color: isDark ? "#ddd" : "#374151",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      borderWidth: 1,
+                      borderColor: isDark ? "#333" : "rgba(0,0,0,0.1)",
+                      borderRadius: 12,
+                      backgroundColor: isDark ? "#1a1a1a" : "rgba(255,255,255,0.9)",
+                      height: 45,
+                      paddingHorizontal: 12,
                     }}
-                    numberOfLines={1}
-                  >
-                    {post.platform}
-                  </Text>
-                  <Text
-                    style={{
-                      width: 150,
-                      fontSize: 12,
-                      color: isDark ? "#ddd" : "#374151",
+                    onPress={() => {
+                      setPickingMode("end");
+                      setShowPicker(true);
                     }}
-                    numberOfLines={1}
                   >
-                    {post.subject}
-                  </Text>
-                  <View style={{ width: 100 }}>
-                    <View
+                    <Ionicons
+                      name="calendar-outline"
+                      size={18}
+                      color={isDark ? "#aaa" : "rgba(0,0,0,0.4)"}
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text
                       style={{
-                        backgroundColor: `${getStatusColor(post.status)}18`,
-                        paddingHorizontal: 8,
-                        paddingVertical: 3,
-                        borderRadius: 8,
-                        alignSelf: "flex-start",
+                        color: endDate
+                          ? isDark
+                            ? "#fff"
+                            : "#000"
+                          : isDark
+                            ? "#555"
+                            : "#999",
+                        fontSize: 13,
                       }}
                     >
+                      {endDate ? formatDate(endDate) : "dd-mm-yyyy"}
+                    </Text>
+                  </TouchableOpacity>
+                </VStack>
+
+                {showPicker && (
+                  <DateTimePicker
+                    value={
+                      pickingMode === "start"
+                        ? startDate || new Date()
+                        : endDate || startDate || new Date()
+                    }
+                    mode="date"
+                    display="default"
+                    maximumDate={
+                      pickingMode === "start"
+                        ? endDate || undefined
+                        : undefined
+                    }
+                    minimumDate={
+                      pickingMode === "end"
+                        ? startDate || undefined
+                        : undefined
+                    }
+                    onChange={onDateChange}
+                  />
+                )}
+              </HStack>
+
+              {/* Download Buttons */}
+              <VStack style={{ gap: 10, marginTop: 5 }}>
+                <TouchableOpacity
+                  onPress={() => handleExport("xlsx")}
+                  disabled={exporting}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    height: 42,
+                    paddingHorizontal: 16,
+                    borderRadius: 10,
+                    backgroundColor: "#dc2626",
+                  }}
+                  activeOpacity={0.8}
+                >
+                  {exporting ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="document-outline" size={16} color="#fff" />
+                      <Text
+                        style={{ color: "#fff", fontWeight: "600", fontSize: 13 }}
+                      >
+                        Download Excel (.xlsx)
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => handleExport("csv")}
+                  disabled={exporting}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    height: 42,
+                    paddingHorizontal: 16,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: isDark ? "#444" : "#ddd",
+                    backgroundColor: isDark ? "#1a1a1a" : "#fff",
+                  }}
+                  activeOpacity={0.8}
+                >
+                  {exporting ? (
+                    <ActivityIndicator size="small" color="#dc2626" />
+                  ) : (
+                    <>
+                      <Ionicons
+                        name="funnel-outline"
+                        size={16}
+                        color={isDark ? "#ccc" : "#333"}
+                      />
                       <Text
                         style={{
-                          fontSize: 11,
-                          fontWeight: "600",
-                          color: getStatusColor(post.status),
+                          color: isDark ? "#ccc" : "#333",
+                          fontWeight: "500",
+                          fontSize: 13,
                         }}
                       >
-                        {post.status}
+                        Download CSV (.csv)
                       </Text>
-                    </View>
-                  </View>
-                  <Text
-                    style={{
-                      width: 120,
-                      fontSize: 12,
-                      color: isDark ? "#ddd" : "#374151",
-                    }}
-                    numberOfLines={1}
-                  >
-                    {post.scheduledDate}
-                  </Text>
-                </HStack>
-              ))
-            ) : (
-              <View
+                    </>
+                  )}
+                </TouchableOpacity>
+              </VStack>
+            </VStack>
+          )}
+        </VStack>
+
+        {/* Data Preview Section */}
+        <VStack
+          style={{
+            gap: 8,
+            width: "100%",
+            padding: 15,
+            borderWidth: 1,
+            borderColor: isDark ? "#333" : "#e5e7eb",
+            borderRadius: 16,
+            backgroundColor: isDark ? "#1a1a1a" : "#fff",
+          }}
+        >
+          {/* Preview Header */}
+          <VStack style={{ gap: 2, marginBottom: 8 }}>
+            <ThemedText style={{ fontSize: 15, fontWeight: "700" }}>
+              Data Preview
+            </ThemedText>
+            <ThemedText style={{ fontSize: 12, color: "#6a7282" }}>
+              Preview of the "Posts Data" sheet based on current filters.
+            </ThemedText>
+          </VStack>
+
+          {/* Table */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+            <VStack style={{ minWidth: 600 }}>
+              {/* Table Header */}
+              <HStack
                 style={{
-                  padding: 30,
-                  alignItems: "center",
-                  justifyContent: "center",
+                  borderBottomWidth: 1,
+                  borderBottomColor: isDark ? "#333" : "#e5e7eb",
+                  paddingBottom: 10,
+                  paddingHorizontal: 4,
                 }}
               >
                 <Text
                   style={{
-                    fontSize: 13,
-                    color: "#dc2626",
-                    fontStyle: "italic",
+                    width: 120,
+                    fontSize: 12,
+                    fontWeight: "700",
+                    color: isDark ? "#ccc" : "#374151",
                   }}
                 >
-                  No posts found for the selected filters.
+                  Campaign
                 </Text>
-              </View>
-            )}
-          </VStack>
-        </ScrollView>
-      </VStack>
+                <Text
+                  style={{
+                    width: 100,
+                    fontSize: 12,
+                    fontWeight: "700",
+                    color: isDark ? "#ccc" : "#374151",
+                  }}
+                >
+                  Platform
+                </Text>
+                <Text
+                  style={{
+                    width: 150,
+                    fontSize: 12,
+                    fontWeight: "700",
+                    color: isDark ? "#ccc" : "#374151",
+                  }}
+                >
+                  Subject
+                </Text>
+                <Text
+                  style={{
+                    width: 100,
+                    fontSize: 12,
+                    fontWeight: "700",
+                    color: isDark ? "#ccc" : "#374151",
+                  }}
+                >
+                  Status
+                </Text>
+                <Text
+                  style={{
+                    width: 120,
+                    fontSize: 12,
+                    fontWeight: "700",
+                    color: isDark ? "#ccc" : "#374151",
+                  }}
+                >
+                  Scheduled
+                </Text>
+              </HStack>
+
+              {/* Table Body */}
+              {loading ? (
+                <View
+                  style={{
+                    padding: 30,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <ActivityIndicator size="small" color="#dc2626" />
+                </View>
+              ) : previewData?.posts?.length > 0 ? (
+                previewData?.posts?.map((post: any, index: number) => (
+                  <HStack
+                    key={index}
+                    style={{
+                      borderBottomWidth: 1,
+                      borderBottomColor: isDark ? "#222" : "#f3f4f6",
+                      paddingVertical: 10,
+                      paddingHorizontal: 4,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        width: 120,
+                        fontSize: 12,
+                        color: isDark ? "#ddd" : "#374151",
+                      }}
+                      numberOfLines={1}
+                    >
+                      {post.campaign}
+                    </Text>
+                    <Text
+                      style={{
+                        width: 100,
+                        fontSize: 12,
+                        color: isDark ? "#ddd" : "#374151",
+                      }}
+                      numberOfLines={1}
+                    >
+                      {post.platform}
+                    </Text>
+                    <Text
+                      style={{
+                        width: 150,
+                        fontSize: 12,
+                        color: isDark ? "#ddd" : "#374151",
+                      }}
+                      numberOfLines={1}
+                    >
+                      {post.subject}
+                    </Text>
+                    <View style={{ width: 100 }}>
+                      <View
+                        style={{
+                          backgroundColor: `${getStatusColor(post.status)}18`,
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                          borderRadius: 8,
+                          alignSelf: "flex-start",
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: "600",
+                            color: getStatusColor(post.status),
+                          }}
+                        >
+                          {post.status}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text
+                      style={{
+                        width: 120,
+                        fontSize: 12,
+                        color: isDark ? "#ddd" : "#374151",
+                      }}
+                      numberOfLines={1}
+                    >
+                      {post.scheduledDate}
+                    </Text>
+                  </HStack>
+                ))
+              ) : (
+                <View
+                  style={{
+                    padding: 30,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: "#dc2626",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    No posts found for the selected filters.
+                  </Text>
+                </View>
+              )}
+            </VStack>
+          </ScrollView>
+        </VStack>
       </ScrollView>
     </ThemedView>
   );

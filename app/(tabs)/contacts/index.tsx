@@ -12,7 +12,7 @@ import {
 import { Text } from "@gluestack-ui/themed";
 import { Ionicons } from "@expo/vector-icons";
 import ContactCard, { ContactsRecord } from "./contactComponents/contactCard";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   getContactsApi,
   deleteContactApi,
@@ -42,6 +42,8 @@ export default function Contacts() {
 
   const isDark = useColorScheme() === "dark";
 
+  const { refresh } = useLocalSearchParams<{ refresh?: string }>();
+
   const DARK_TOPBAR_BG = "#1f2937";
   const DARK_TEXT = "#ffffff";
   const DARK_BORDER = "#ffffff";
@@ -54,6 +56,12 @@ export default function Contacts() {
     }, 500);
     return () => clearTimeout(handler);
   }, [search]);
+
+  useEffect(() => {
+    if (refresh) {
+      handleRefresh();
+    }
+  }, [refresh]);
 
   /* ================= FETCH ================= */
   useFocusEffect(

@@ -15,6 +15,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { TrendingUp } from "lucide-react-native";
 import { ScrollView } from "react-native";
+import Toast from "react-native-toast-message";
 import { LineChart } from "react-native-gifted-charts";
 import { HStack } from "@/components/ui/hstack";
 import { Pressable } from "@/components/ui/pressable";
@@ -180,7 +181,7 @@ export default function PostAnalytics() {
 
   const handleRefreshClick = async () => {
     if (!id) {
-      Alert.alert("Error", "Platform not available for refresh");
+      Toast.show({ type: 'error', text1: "Error", text2: "Platform not available for refresh" });
       return;
     }
 
@@ -194,10 +195,10 @@ export default function PostAnalytics() {
 
     try {
       await getAnalytics(id);
-      Alert.alert("Success", "Post refreshed successfully");
+      Toast.show({ type: 'info', text1: "Success", text2: "Post refreshed successfully" });
     } catch (error) {
       console.log("Error refreshing Post:", error);
-      Alert.alert("Error", "Failed to refresh Post");
+      Toast.show({ type: 'error', text1: "Error", text2: "Failed to refresh Post" });
     }
   };
 

@@ -21,6 +21,7 @@ import CampaignCard, { Campaign } from "./campaignComponents/campaignCard";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { useColorScheme } from "react-native";
+import Toast from "react-native-toast-message";
 import * as Clipboard from "expo-clipboard";
 import { View, Text } from "@gluestack-ui/themed";
 import { ShimmerSkeleton } from "@/components/ui/ShimmerSkeletons";
@@ -165,10 +166,7 @@ export default function Campaigns() {
             setCampaigns((prev) => prev.filter((x) => x.id !== c.id));
           } catch (error: any) {
             console.error("Error deleting campaign:", error);
-            Alert.alert(
-              "Failed to delete campaign",
-              error?.message || "Unknown error"
-            );
+            Toast.show({ type: 'error', text1: "Failed to delete campaign", text2: error?.message || "Unknown error" });
           }
         },
       },
@@ -184,7 +182,7 @@ Posts Count: ${c.postsCount ?? c.posts?.length ?? 0}
 Contacts Count: ${c.contactCount ?? 0}
   `;
     await Clipboard.setStringAsync(campaignData);
-    Alert.alert("Copied!", "Campaign details copied to clipboard.");
+    Toast.show({ type: 'info', text1: "Copied!", text2: "Campaign details copied to clipboard." });
   };
 
   const handleToggleShow = (c: Campaign) =>
@@ -342,7 +340,7 @@ Contacts Count: ${c.contactCount ?? 0}
     inputBg: isDark ? "#1e1e24" : "#f8fafc",
     inputBorder: isDark ? "#2a2a32" : "#e2e8f0",
     inputText: isDark ? "#ffffff" : "#0f172a",
-    newButtonBg: "#0284c7",
+    newButtonBg: "#DC2626",
     newButtonText: "#ffffff",
   };
 
@@ -480,7 +478,7 @@ Contacts Count: ${c.contactCount ?? 0}
             paddingVertical: 10,
             borderRadius: 99,
             backgroundColor: COLORS.newButtonBg,
-            shadowColor: "#0284c7",
+            shadowColor: "#DC2626",
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.15,
             shadowRadius: 8,
