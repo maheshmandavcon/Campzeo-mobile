@@ -123,12 +123,18 @@ export default function Accounts() {
 
   const colors = useMemo(
     () => ({
-      bg: isDark ? "#0f1115" : "#f8fafc",
-      card: isDark ? "#171a20" : "#ffffff",
-      text: isDark ? "#f8fafc" : "#0f172a",
-      muted: isDark ? "#9ca3af" : "#64748b",
-      border: isDark ? "#2a2f3a" : "#e5e7eb",
-      subtle: isDark ? "#20242c" : "#f1f5f9",
+      bg: isDark ? "#161618" : "#f3f4f6",
+      card: isDark ? "#1f2937" : "#ffffff",
+      text: isDark ? "#f3f4f6" : "#111827",
+      muted: isDark ? "#9ca3af" : "#6b7280",
+      border: isDark ? "#374151" : "#e5e7eb",
+      subtle: isDark ? "#374151" : "#f3f4f6",
+      primary: "#dc2626",
+      primarySoft: isDark ? "rgba(220, 38, 38, 0.15)" : "#fee2e2",
+      success: "#16a34a",
+      successSoft: isDark ? "rgba(22, 163, 74, 0.15)" : "#dcfce7",
+      disconnectBg: isDark ? "rgba(220, 38, 38, 0.1)" : "#fff1f2",
+      disconnectBorder: isDark ? "rgba(220, 38, 38, 0.3)" : "#fecdd3",
     }),
     [isDark],
   );
@@ -308,62 +314,123 @@ export default function Accounts() {
     }
   };
 
-  const renderHeader = (loading: boolean) => (
-    <HStack style={styles.header}>
-      {/* <Pressable
-        disabled={loading}
-        onPress={() => router.back()}
-        style={styles.iconButton}
-      >
-        <Ionicons name="arrow-back-outline" size={22} color={colors.text} />
-      </Pressable> */}
-
-      <VStack style={styles.headerText}>
-        <ThemedText style={[styles.title, { color: colors.text }]}>
-          Accounts
-        </ThemedText>
-        <ThemedText style={[styles.subtitle, { color: colors.muted }]}>
-          Manage social connections for publishing.
-        </ThemedText>
-      </VStack>
-    </HStack>
-  );
-
   const renderSkeleton = () => (
     <ThemedView style={[styles.container, { backgroundColor: colors.bg }]}>
-      {renderHeader(true)}
+      {/* Header Card Skeleton */}
+      <View
+        style={[
+          styles.headerCard,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <HStack
+          style={{
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <VStack style={{ flex: 1 }}>
+            <ThemedText
+              style={[
+                styles.title,
+                {
+                  color: colors.text,
+                  fontSize: 26,
+                  marginBottom: 4,
+                },
+              ]}
+            >
+              Accounts
+            </ThemedText>
+
+            <ShimmerSkeleton height={16} width={220} />
+          </VStack>
+
+          <ShimmerSkeleton
+            height={60}
+            width={60}
+            borderRadius={18}
+          />
+        </HStack>
+
+        <View
+          style={{
+            marginTop: 24,
+            paddingTop: 20,
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <View>
+            <ShimmerSkeleton height={34} width={80} />
+            <View style={{ height: 8 }} />
+            <ShimmerSkeleton height={14} width={150} />
+          </View>
+
+          <ShimmerSkeleton
+            height={36}
+            width={110}
+            borderRadius={20}
+          />
+        </View>
+      </View>
+
+      {/* Platforms Skeleton */}
       <ScrollView showsVerticalScrollIndicator={false}>
         <View
           style={[
-            styles.summaryCard,
-            { backgroundColor: colors.card, borderColor: colors.border },
+            styles.unifiedCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            },
           ]}
         >
-          <View style={{ gap: 12 }}>
-            <ShimmerSkeleton height={18} width={150} />
-            <ShimmerSkeleton height={34} width={90} borderRadius={16} />
-            <ShimmerSkeleton height={12} width="85%" />
-          </View>
-        </View>
+          {Array.from({ length: 5 }).map((_, index) => (
+            <View key={index}>
+              <HStack style={styles.platformRow}>
+                <ShimmerSkeleton
+                  height={46}
+                  width={46}
+                  borderRadius={23}
+                />
 
-        {Array.from({ length: 5 }).map((_, index) => (
-          <View
-            key={index}
-            style={[
-              styles.platformCard,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-          >
-            <HStack style={styles.cardTop}>
-              <ShimmerSkeleton height={48} width={48} borderRadius={16} />
-              <VStack style={styles.cardText}>
-                <ShimmerSkeleton height={16} width={110} />
-                <ShimmerSkeleton height={12} width="92%" />
-              </VStack>
-            </HStack>
-            <ShimmerSkeleton height={36} width="100%" borderRadius={12} />
-          </View>
-        ))}
+                <VStack style={styles.rowText}>
+                  <ShimmerSkeleton
+                    height={16}
+                    width={120}
+                  />
+                  <View style={{ height: 8 }} />
+                  <ShimmerSkeleton
+                    height={14}
+                    width={140}
+                  />
+                </VStack>
+
+                <ShimmerSkeleton
+                  height={34}
+                  width={90}
+                  borderRadius={17}
+                />
+              </HStack>
+
+              {index < 4 && (
+                <View
+                  style={[
+                    styles.separator,
+                    { backgroundColor: colors.border },
+                  ]}
+                />
+              )}
+            </View>
+          ))}
+        </View>
       </ScrollView>
     </ThemedView>
   );
@@ -372,152 +439,309 @@ export default function Accounts() {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: colors.bg }]}>
-      {renderHeader(false)}
+      <View
+        style={[
+          styles.headerCard,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <HStack
+          style={{
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <VStack style={{ flex: 1 }}>
+            <ThemedText
+              style={[
+                styles.title,
+                {
+                  color: colors.text,
+                  fontSize: 26,
+                  marginBottom: 4,
+                },
+              ]}
+            >
+              Accounts
+            </ThemedText>
+
+            <ThemedText
+              style={[
+                styles.subtitle,
+                {
+                  color: colors.muted,
+                  marginTop: 0,
+                },
+              ]}
+            >
+              Manage your connected social platforms
+            </ThemedText>
+          </VStack>
+
+          <View
+            style={{
+              width: 60,
+              height: 60,
+              borderRadius: 18,
+              backgroundColor: colors.primarySoft,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <MaterialCommunityIcons
+              name="rocket-launch"
+              size={30}
+              color={colors.primary}
+            />
+          </View>
+        </HStack>
+
+        <View
+          style={{
+            marginTop: 24,
+            paddingTop: 20,
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <View>
+            <ThemedText
+              style={{
+                fontSize: 22,
+                fontWeight: "800",
+                color: colors.text,
+              }}
+            >
+              {connectedCount}/{platforms.length}
+            </ThemedText>
+
+            <ThemedText
+              style={{
+                color: colors.muted,
+                marginTop: 2,
+              }}
+            >
+              Platforms Connected
+            </ThemedText>
+          </View>
+
+          <View
+            style={{
+              backgroundColor: colors.successSoft,
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+              borderRadius: 20,
+            }}
+          >
+            <ThemedText
+              style={{
+                color: colors.success,
+                fontWeight: "700",
+                fontSize: 13,
+              }}
+            >
+              {connectedCount === platforms.length
+                ? "All Connected"
+                : `${platforms.length - connectedCount} Remaining`}
+            </ThemedText>
+          </View>
+        </View>
+      </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor="#dc2626" />
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+          />
         }
       >
         <View
           style={[
-            styles.summaryCard,
+            styles.unifiedCard,
             { backgroundColor: colors.card, borderColor: colors.border },
           ]}
         >
-          <HStack style={styles.summaryTop}>
-            <VStack>
-              <ThemedText
-                style={[styles.summaryLabel, { color: colors.muted }]}
+          {platforms.map((item, index) => {
+            const isLoading = loadingPlatform === item.platformKey;
+            const isConnected = Boolean(item.connected);
+            const isLast = index === platforms.length - 1;
+
+            return (
+              <RNPressable
+                key={item.platformKey}
+                pointerEvents={isLoading ? "none" : "auto"}
+                style={({ pressed }) => ({
+                  opacity: pressed ? 0.85 : 1,
+                  transform: [{ scale: pressed ? 0.98 : 1 }],
+                })}
               >
-                Connected accounts
-              </ThemedText>
-              <ThemedText style={[styles.summaryValue, { color: colors.text }]}>
-                {connectedCount} of {platforms.length}
-              </ThemedText>
-            </VStack>
-            <View style={styles.summaryIcon}>
-              <MaterialCommunityIcons
-                name="connection"
-                size={24}
-                color="#dc2626"
-              />
-            </View>
-          </HStack>
-          <ThemedText style={[styles.summaryCopy, { color: colors.muted }]}>
-            Connect your social media accounts to enable posting and analytics.
-          </ThemedText>
-        </View>
+                <HStack style={styles.platformRow}>
+                  <View
+                    style={[
+                      styles.platformIcon,
+                      { backgroundColor: item.backgroundColor },
+                    ]}
+                  >
+                    <FontAwesome
+                      name={item.icon}
+                      size={22}
+                      color={item.color}
+                    />
+                  </View>
 
-        {platforms.map((item) => {
-          const isLoading = loadingPlatform === item.platformKey;
-          const isConnected = Boolean(item.connected);
-
-          return (
-            <View
-              key={item.platformKey}
-              style={[
-                styles.platformCard,
-                { backgroundColor: colors.card, borderColor: colors.border },
-              ]}
-              pointerEvents={isLoading ? "none" : "auto"}
-            >
-              <HStack style={styles.cardTop}>
-                <View
-                  style={[
-                    styles.platformIcon,
-                    { backgroundColor: item.backgroundColor },
-                  ]}
-                >
-                  <FontAwesome name={item.icon} size={24} color={item.color} />
-                </View>
-
-                <VStack style={styles.cardText}>
-                  <HStack style={styles.nameRow}>
+                  <VStack style={styles.rowText}>
                     <ThemedText
                       style={[styles.platformTitle, { color: colors.text }]}
                     >
                       {item.title}
                     </ThemedText>
-                    <View
+                    {isConnected ? (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          marginTop: 6,
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: 11,
+                            backgroundColor: item.color,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            marginRight: 8,
+                          }}
+                        >
+                          <ThemedText
+                            style={{
+                              color: "#fff",
+                              fontSize: 10,
+                              fontWeight: "700",
+                            }}
+                          >
+                            {item.connectedAs?.charAt(0)}
+                          </ThemedText>
+                        </View>
+
+                        <ThemedText
+                          style={[
+                            styles.connectedAs,
+                            { color: colors.muted },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {item.connectedAs}
+                        </ThemedText>
+                      </View>
+                    ) : (
+                      <ThemedText
+                        style={[styles.description, { color: colors.muted }]}
+                        numberOfLines={1}
+                      >
+                        Not connected
+                      </ThemedText>
+                    )}
+                  </VStack>
+
+                  {isConnected ? (
+                    <RNPressable
+                      onPress={() => requestDisconnect(item)}
                       style={[
-                        styles.statusPill,
+                        styles.pillButton,
                         {
-                          backgroundColor: isConnected
-                            ? "#dcfce7"
-                            : colors.subtle,
+                          backgroundColor: colors.disconnectBg,
+                          borderColor: colors.disconnectBorder,
+                          borderWidth: 1,
                         },
                       ]}
                     >
-                      <Ionicons
-                        name={
-                          isConnected ? "checkmark-circle" : "ellipse-outline"
-                        }
-                        size={13}
-                        color={isConnected ? "#16a34a" : colors.muted}
-                      />
-                      <ThemedText
-                        style={[
-                          styles.statusText,
-                          { color: isConnected ? "#15803d" : colors.muted },
-                        ]}
-                      >
-                        {isConnected ? "Connected" : "Not connected"}
-                      </ThemedText>
-                    </View>
-                  </HStack>
+                      {isLoading && loadingAction === "disconnect" ? (
+                        <ActivityIndicator
+                          size="small"
+                          color={colors.primary}
+                        />
+                      ) : (
+                        <HStack
+                          style={{
+                            alignItems: "center",
+                            gap: 4,
+                          }}
+                        >
+                          <Ionicons
+                            name="unlink-outline"
+                            size={14}
+                            color={colors.primary}
+                          />
 
-                  <ThemedText
-                    style={[styles.description, { color: colors.muted }]}
-                  >
-                    {item.description}
-                  </ThemedText>
-
-                  {item.connectedAs ? (
-                    <ThemedText style={styles.connectedAs}>
-                      Connected as: {item.connectedAs}
-                    </ThemedText>
-                  ) : null}
-                </VStack>
-              </HStack>
-
-              {isConnected ? (
-                <RNPressable
-                  onPress={() => requestDisconnect(item)}
-                  style={[styles.actionButton, styles.disconnectButton]}
-                >
-                  {isLoading && loadingAction === "disconnect" ? (
-                    <ActivityIndicator size="small" color="#dc2626" />
+                          <ThemedText
+                            style={[
+                              styles.disconnectText,
+                              { color: colors.primary },
+                            ]}
+                          >
+                            Revoke
+                          </ThemedText>
+                        </HStack>
+                      )}
+                    </RNPressable>
                   ) : (
-                    <ThemedText style={styles.disconnectText}>
-                      Disconnect
-                    </ThemedText>
+                    <RNPressable
+                      onPress={() => handleConnect(item.platformKey)}
+                      style={[
+                        styles.pillButton,
+                        { backgroundColor: colors.primary },
+                      ]}
+                    >
+                      {isLoading && loadingAction === "connect" ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
+                      ) : (
+                        <HStack
+                          style={{
+                            alignItems: "center",
+                            gap: 4,
+                          }}
+                        >
+                          <Ionicons
+                            name="link-outline"
+                            size={14}
+                            color="#fff"
+                          />
+
+                          <ThemedText style={styles.connectText}>
+                            Connect
+                          </ThemedText>
+                        </HStack>
+                      )}
+                    </RNPressable>
                   )}
-                </RNPressable>
-              ) : (
-                <RNPressable
-                  onPress={() => handleConnect(item.platformKey)}
-                  style={[styles.actionButton, styles.connectButton]}
-                >
-                  {isLoading && loadingAction === "connect" ? (
-                    <HStack style={styles.loadingRow}>
-                      <ActivityIndicator size="small" color="#ffffff" />
-                      <ThemedText style={styles.connectText}>
-                        Connecting
-                      </ThemedText>
-                    </HStack>
-                  ) : (
-                    <ThemedText style={styles.connectText}>Connect</ThemedText>
-                  )}
-                </RNPressable>
-              )}
-            </View>
-          );
-        })}
+                </HStack>
+                {!isLast && (
+                  <View
+                    style={[
+                      styles.separator,
+                      { backgroundColor: colors.border },
+                    ]}
+                  />
+                )}
+              </RNPressable>
+            );
+          })}
+        </View>
       </ScrollView>
 
+      {/* Disconnect Modal */}
       <Modal
         visible={showDisconnectModal}
         transparent
@@ -531,11 +755,16 @@ export default function Accounts() {
               { backgroundColor: colors.card, borderColor: colors.border },
             ]}
           >
-            <View style={styles.warningIcon}>
-              <Ionicons name="close" size={28} color="#dc2626" />
+            <View
+              style={[
+                styles.warningIcon,
+                { backgroundColor: colors.primarySoft },
+              ]}
+            >
+              <Ionicons name="close" size={28} color={colors.primary} />
             </View>
             <ThemedText style={[styles.modalTitle, { color: colors.text }]}>
-              Disconnect {platformToDisconnect?.title}?
+              Revoke {platformToDisconnect?.title}?
             </ThemedText>
             <ThemedText style={[styles.modalCopy, { color: colors.muted }]}>
               Campaign publishing and analytics for this channel will pause
@@ -553,12 +782,15 @@ export default function Accounts() {
               </RNPressable>
               <RNPressable
                 onPress={confirmDisconnect}
-                style={[styles.modalButton, styles.confirmButton]}
+                style={[
+                  styles.modalButton,
+                  { backgroundColor: colors.primary },
+                ]}
               >
                 {loadingAction === "disconnect" ? (
                   <ActivityIndicator size="small" color="#ffffff" />
                 ) : (
-                  <ThemedText style={styles.confirmText}>Disconnect</ThemedText>
+                  <ThemedText style={styles.confirmText}>Revoke</ThemedText>
                 )}
               </RNPressable>
             </HStack>
@@ -566,6 +798,7 @@ export default function Accounts() {
         </View>
       </Modal>
 
+      {/* Facebook Page Select Modal */}
       <Modal
         visible={showFacebookPageModal}
         transparent
@@ -659,12 +892,12 @@ export default function Accounts() {
                       </ThemedText>
                     </VStack>
                     {savingThisPage ? (
-                      <ActivityIndicator size="small" color="#dc2626" />
+                      <ActivityIndicator size="small" color={colors.primary} />
                     ) : (
                       <Ionicons
                         name="chevron-forward"
                         size={20}
-                        color="#dc2626"
+                        color={colors.primary}
                       />
                     )}
                   </RNPressable>
@@ -682,262 +915,237 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingTop: 16,
   },
   content: {
-    paddingBottom: 32,
-    gap: 14,
+    paddingBottom: 40,
+    gap: 16,
   },
   header: {
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 22,
-  },
-  iconButton: {
-    alignItems: "center",
-    borderRadius: 12,
-    height: 40,
-    justifyContent: "center",
-    width: 40,
-  },
-  headerText: {
-    flex: 1,
-    marginLeft: 12,
-    alignItems: "flex-start",
-  },
-
-  subtitle: {
-    fontSize: 13,
-    marginTop: 4,
-    textAlign: "left",
+    marginBottom: 24,
+    paddingHorizontal: 4,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "800",
-    lineHeight: 30,
+    lineHeight: 34,
+    letterSpacing: -0.5,
   },
-  summaryCard: {
-    borderRadius: 20,
+  subtitle: {
+    fontSize: 15,
+    marginTop: 6,
+    letterSpacing: -0.2,
+  },
+  unifiedCard: {
+    borderRadius: 30,
     borderWidth: 1,
-    marginBottom: 4,
-    padding: 18,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 3,
   },
-  summaryTop: {
+  platformRow: {
     alignItems: "center",
-    justifyContent: "space-between",
-  },
-  summaryLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-  },
-  summaryValue: {
-    fontSize: 30,
-    fontWeight: "800",
-    marginTop: 4,
-  },
-  summaryIcon: {
-    alignItems: "center",
-    backgroundColor: "#fee2e2",
-    borderRadius: 16,
-    height: 50,
-    justifyContent: "center",
-    width: 50,
-  },
-  summaryCopy: {
-    fontSize: 13,
-    lineHeight: 19,
-    marginTop: 12,
-  },
-  platformCard: {
-    borderRadius: 18,
-    borderWidth: 1,
+    paddingVertical: 22,
+    paddingHorizontal: 20,
     gap: 16,
-    padding: 16,
-  },
-  cardTop: {
-    alignItems: "flex-start",
-    gap: 12,
   },
   platformIcon: {
     alignItems: "center",
-    borderRadius: 16,
-    height: 48,
+    borderRadius: 23,
+    height: 46,
     justifyContent: "center",
-    width: 48,
+    width: 46,
   },
-  cardText: {
+  rowText: {
     flex: 1,
-    gap: 6,
-  },
-  nameRow: {
-    alignItems: "center",
-    flexWrap: "wrap",
-    justifyContent: "space-between"
+    gap: 2,
   },
   platformTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-  },
-  statusPill: {
-    alignItems: "center",
-    borderRadius: 999,
-    flexDirection: "row",
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-  },
-  statusText: {
-    fontSize: 11,
+    fontSize: 16,
     fontWeight: "700",
+    letterSpacing: -0.3,
+  },
+  statusContainer: {
+    alignItems: "center",
+    gap: 6,
+    marginTop: 2,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  connectedAs: {
+    fontSize: 13,
   },
   description: {
     fontSize: 13,
-    lineHeight: 18,
+    marginTop: 2,
   },
-  connectedAs: {
-    color: "#16a34a",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  actionButton: {
+  pillButton: {
     alignItems: "center",
-    borderRadius: 12,
+    borderRadius: 16,
     justifyContent: "center",
-    minHeight: 42,
-  },
-  connectButton: {
-    backgroundColor: "#dc2626",
+    paddingHorizontal: 16,
+    height: 34,
   },
   connectText: {
     color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  disconnectButton: {
-    backgroundColor: "#fff1f2",
-    borderColor: "#fecdd3",
-    borderWidth: 1,
+    fontSize: 13,
+    fontWeight: "700",
   },
   disconnectText: {
-    color: "#dc2626",
-    fontSize: 14,
-    fontWeight: "800",
+    fontSize: 13,
+    fontWeight: "700",
   },
-  loadingRow: {
-    alignItems: "center",
-    gap: 8,
+  separator: {
+    height: 1,
+    marginLeft: 82,
   },
   modalOverlay: {
     alignItems: "center",
-    backgroundColor: "rgba(15, 23, 42, 0.58)",
+    backgroundColor: "rgba(15, 23, 42, 0.65)",
     flex: 1,
     justifyContent: "center",
-    padding: 18,
+    padding: 20,
   },
   modalCard: {
-    borderRadius: 24,
+    borderRadius: 28,
     borderWidth: 1,
-    padding: 22,
+    padding: 24,
     width: "100%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 5,
   },
   warningIcon: {
     alignItems: "center",
     alignSelf: "center",
-    backgroundColor: "#fee2e2",
-    borderRadius: 18,
-    height: 64,
+    borderRadius: 20,
+    height: 68,
     justifyContent: "center",
-    marginBottom: 16,
-    width: 64,
+    marginBottom: 18,
+    width: 68,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "800",
     textAlign: "center",
+    letterSpacing: -0.5,
   },
   modalCopy: {
-    fontSize: 13,
-    lineHeight: 19,
-    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: 10,
     textAlign: "center",
   },
   modalActions: {
-    gap: 12,
-    marginTop: 22,
+    gap: 14,
+    marginTop: 26,
+    flexDirection: "row",
   },
   modalButton: {
     alignItems: "center",
-    borderRadius: 14,
+    borderRadius: 16,
     flex: 1,
-    minHeight: 46,
+    minHeight: 50,
     justifyContent: "center",
   },
   cancelText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "800",
-  },
-  confirmButton: {
-    backgroundColor: "#dc2626",
   },
   confirmText: {
     color: "#ffffff",
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "800",
   },
   pageModal: {
-    maxHeight: "78%",
+    maxHeight: "80%",
+    padding: 20,
   },
   pageModalHeader: {
     alignItems: "center",
-    gap: 12,
-    marginBottom: 16,
+    gap: 14,
+    marginBottom: 20,
   },
   pageTitle: {
     textAlign: "left",
+    fontSize: 20,
   },
   pageSubtitle: {
-    marginTop: 2,
+    marginTop: 4,
     textAlign: "left",
   },
   closeButton: {
     alignItems: "center",
-    borderRadius: 12,
-    height: 38,
-    justifyContent: "center",
-    width: 38,
-  },
-  pagesList: {
-    maxHeight: 360,
-  },
-  pageRow: {
-    alignItems: "center",
-    borderRadius: 16,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 10,
-    padding: 12,
-  },
-  pageAvatar: {
-    alignItems: "center",
-    borderRadius: 12,
+    borderRadius: 14,
     height: 40,
     justifyContent: "center",
     width: 40,
+    backgroundColor: "rgba(0,0,0,0.05)",
+  },
+  pagesList: {
+    maxHeight: 400,
+  },
+  pageRow: {
+    alignItems: "center",
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 14,
+    marginBottom: 12,
+    padding: 14,
+  },
+  pageAvatar: {
+    alignItems: "center",
+    borderRadius: 14,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
   },
   pageInitial: {
     color: "#ffffff",
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "800",
   },
   pageName: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "800",
   },
   pageId: {
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 2,
+  },
+  statsCard: {
+    borderWidth: 1,
+    borderRadius: 24,
+    padding: 22,
+    marginBottom: 20,
+  },
+
+  statsNumber: {
+    fontSize: 34,
+    fontWeight: "900",
+    marginTop: 10,
+  },
+  headerCard: {
+    borderWidth: 1,
+    borderRadius: 28,
+    padding: 22,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 3,
   },
 });

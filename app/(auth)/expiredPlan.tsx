@@ -43,7 +43,10 @@ export default function ExpiredPlan() {
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: COLORS.screenBg }]}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+      <StatusBar 
+        barStyle={isDark ? "light-content" : "dark-content"} 
+        backgroundColor={COLORS.screenBg}
+      />
 
       <View
         style={[

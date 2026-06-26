@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Alert,
   Dimensions,
@@ -15,9 +15,10 @@ import {
   Text,
 } from "react-native";
 import { Platform } from "react-native";
+import Toast from "react-native-toast-message";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useAuth } from "@/context/AuthContext";
@@ -26,7 +27,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { uploadMediaApi, generateAIContentApi, generateAIImageApi } from "@/api/campaignApi";
 import { getUser } from "@/api/dashboardApi";
 import Video from "react-native-video";
-import { createTemplateApi } from "@/api/templetsApi";
+import { createTemplateApi, updateTemplateApi } from "@/api/templetsApi";
 
 
 // ─── Constants ─────────────────────────────────────────────────────────────
@@ -90,6 +91,18 @@ const PlatformIcon = ({
 export default function CreateTemplet() {
   const isDark = useColorScheme() === "dark";
 
+  // ── Edit mode params ─────────────────────────────────────────────────────
+  const params = useLocalSearchParams<{
+    editId?: string;
+    editName?: string;
+    editPlatform?: string;
+    editContent?: string;
+    editSubject?: string;
+    editMetadata?: string;
+    editMediaUrls?: string;
+  }>();
+  const isEditMode = !!params.editId;
+
   const [templateName, setTemplateName] = useState("");
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformType>("EMAIL");
   const [orderedPlatforms, setOrderedPlatforms] = useState<PlatformType[]>(PLATFORMS.map(p => p.value));
@@ -140,6 +153,49 @@ export default function CreateTemplet() {
     fetchOrgId();
   }, []);
 
+  // ── Pre-fill fields when editing ─────────────────────────────────────────
+  useEffect(() => {
+    if (!isEditMode) return;
+    if (params.editName) setTemplateName(params.editName);
+    if (params.editContent) setContent(params.editContent);
+    if (params.editSubject) setEmailSubject(params.editSubject);
+    if (params.editPlatform) {
+      const platform = params.editPlatform as PlatformType;
+      setSelectedPlatform(platform);
+      setOrderedPlatforms(prev => {
+        const filtered = prev.filter(p => p !== platform);
+        return [platform, ...filtered];
+      });
+    }
+    if (params.editMetadata) {
+      try {
+        const meta = JSON.parse(params.editMetadata);
+        if (meta.preHeader) setPreHeader(meta.preHeader);
+        if (meta.facebookContentType) setFacebookContentType(meta.facebookContentType);
+        if (meta.youtubeContentType) setYoutubeContentType(meta.youtubeContentType);
+        if (meta.tags) setTags(meta.tags);
+        if (meta.privacyStatus) setPrivacyStatus(meta.privacyStatus);
+        if (meta.playlist) setPlaylist(meta.playlist);
+        if (meta.destinationLink) setDestinationLink(meta.destinationLink);
+      } catch {}
+    }
+    if (params.editMediaUrls) {
+      try {
+        const urls: string[] = JSON.parse(params.editMediaUrls);
+        const mediaItems = urls.map(url => {
+          const lower = url.toLowerCase();
+          const type: "image" | "video" | "pdf" = lower.includes(".mp4") || lower.includes(".mov")
+            ? "video"
+            : lower.includes(".pdf")
+            ? "pdf"
+            : "image";
+          return { uri: url, uploadedUrl: url, type };
+        });
+        setMedia(mediaItems);
+      } catch {}
+    }
+  }, [params.editId]);
+
   // ── style helpers ──────────────────────────────────────────────────────────
 
   const bg = isDark ? "#161618" : "#f3f4f6";
@@ -173,7 +229,7 @@ export default function CreateTemplet() {
 
   const handleGenerateAIText = async () => {
     if (!aiPrompt.trim()) {
-      Alert.alert("Enter instruction like: add emoji, make promotional");
+      Toast.show({ type: 'info', text1: "Enter instruction like: add emoji, make promotional" });
       return;
     }
     if (loadingAI) return;
@@ -237,7 +293,7 @@ export default function CreateTemplet() {
         { subject: "", content: `Error: ${errorMsg}`, isLoading: false },
         { subject: "", content: `Error: ${errorMsg}`, isLoading: false },
       ]);
-      Alert.alert("Error", errorMsg);
+      Toast.show({ type: 'error', text1: "Error", text2: errorMsg });
     } finally {
       setLoadingAI(false);
     }
@@ -245,7 +301,7 @@ export default function CreateTemplet() {
 
   const handleGenerateAIImage = async () => {
     if (!imagePrompt.trim()) {
-      Alert.alert("Enter a prompt to generate an image");
+      Toast.show({ type: 'info', text1: "Enter a prompt to generate an image" });
       return;
     }
     if (loadingImage) return;
@@ -258,14 +314,14 @@ export default function CreateTemplet() {
       const response: any = await generateAIImageApi({ prompt: imagePrompt }, token);
       const rawImageUrl = response?.imageUrl || response?.imagePrompt;
       if (!rawImageUrl) {
-        Alert.alert("Failed", "No image URL returned");
+        Toast.show({ type: 'error', text1: "Failed", text2: "No image URL returned" });
         return;
       }
       setGeneratedImages((prev) => [...prev, rawImageUrl]);
       setImageLoadingMap((prev) => ({ ...prev, [rawImageUrl]: true }));
       setImageErrorMap((prev) => ({ ...prev, [rawImageUrl]: false }));
     } catch (error: any) {
-      Alert.alert("Error", error?.message || "Failed to generate image.");
+      Toast.show({ type: 'error', text1: "Error", text2: error?.message || "Failed to generate image." });
     } finally {
       setLoadingImage(false);
     }
@@ -292,23 +348,7 @@ export default function CreateTemplet() {
   };
 
   const handleCreate = async () => {
-    if (!templateName.trim()) {
-      Alert.alert("Validation", "Please enter a template name.");
-      return;
-    }
-    if (!selectedPlatform) {
-      Alert.alert("Validation", "Please select a platform.");
-      return;
-    }
-    if (!content.trim()) {
-      Alert.alert("Validation", "Please enter template content.");
-      return;
-    }
-
-    if (!organisationId) {
-      Alert.alert("Error", "Organisation ID not found.");
-      return;
-    }
+    if (!templateName.trim() || !selectedPlatform || !content.trim() || !organisationId) return;
 
     setSubmitting(true);
     try {
@@ -334,13 +374,15 @@ export default function CreateTemplet() {
         mediaUrls: media.filter(m => m.uploadedUrl).map(m => m.uploadedUrl as string),
       };
 
-      await createTemplateApi(organisationId, payload, token || undefined);
+      if (isEditMode && params.editId) {
+        await updateTemplateApi(organisationId, Number(params.editId), payload, token || undefined);
+      } else {
+        await createTemplateApi(organisationId, payload, token || undefined);
+      }
 
-      Alert.alert("Success", "Template created successfully!", [
-        { text: "OK", onPress: () => router.back() },
-      ]);
+      router.back();
     } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to create template.");
+      console.error("Failed to save template:", e);
     } finally {
       setSubmitting(false);
     }
@@ -380,7 +422,7 @@ export default function CreateTemplet() {
       ]);
     } catch (error: any) {
       console.error("Upload error:", error);
-      Alert.alert("Upload failed", error.message || "Failed to select or upload media.");
+      Toast.show({ type: 'error', text1: "Upload failed", text2: error.message || "Failed to select or upload media." });
     } finally {
       setUploading(false);
     }
@@ -409,7 +451,7 @@ export default function CreateTemplet() {
               onPress: async () => {
                 const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
                 if (!permission.granted) {
-                  Alert.alert("Permission required", "Please allow access to photos and videos.");
+                  Toast.show({ type: 'info', text1: "Permission required", text2: "Please allow access to photos and videos." });
                   return;
                 }
                 const result = await ImagePicker.launchImageLibraryAsync({
@@ -431,7 +473,7 @@ export default function CreateTemplet() {
       } else {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
-          Alert.alert("Permission required", "Please allow access to photos and videos.");
+          Toast.show({ type: 'info', text1: "Permission required", text2: "Please allow access to photos and videos." });
           return;
         }
 
@@ -445,7 +487,7 @@ export default function CreateTemplet() {
       }
     } catch (error: any) {
       console.error("Picker error:", error);
-      Alert.alert("Error", error.message || "Failed to open picker.");
+      Toast.show({ type: 'error', text1: "Error", text2: error.message || "Failed to open picker." });
     }
   };
 
@@ -504,7 +546,7 @@ export default function CreateTemplet() {
           <ThemedText
             style={{ fontSize: 20, fontWeight: "700", color: textPrimary, flex: 1 }}
           >
-            Create New Template
+            {isEditMode ? "Edit Template" : "Create New Template"}
           </ThemedText>
         </View>
 
@@ -1858,7 +1900,9 @@ export default function CreateTemplet() {
               <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
             )}
             <ThemedText style={{ color: "#fff", fontWeight: "700", fontSize: 15 }}>
-              {submitting ? "Creating..." : "Create Template"}
+              {submitting
+                ? isEditMode ? "Saving..." : "Creating..."
+                : isEditMode ? "Save Changes" : "Create Template"}
             </ThemedText>
           </TouchableOpacity>
         </View>

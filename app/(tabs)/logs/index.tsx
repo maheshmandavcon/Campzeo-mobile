@@ -74,7 +74,7 @@ export default function Logs() {
     if (name === "EMAIL" || name === "SMS" || name === "WHATSAPP") {
       return true;
     }
-    if (!socialStatus) return true; // fallback to active while loading
+    if (!socialStatus) return true; 
     const key = platformName.toLowerCase();
     const status = socialStatus[key];
     return status?.connected === true;
@@ -145,7 +145,6 @@ export default function Logs() {
     return { startStr, endStr };
   };
 
-  // Fetch initial base values (platforms and social accounts status)
   const fetchMetadata = async () => {
     if (!token) return;
     try {
@@ -162,7 +161,6 @@ export default function Logs() {
     }
   };
 
-  // Fetch performance metrics and posts list
   const fetchAnalyticsAndLogs = async (resetPosts = true) => {
     if (!token) return;
     const { startStr, endStr } = getDateRange();
@@ -211,7 +209,6 @@ export default function Logs() {
     setIsRefreshing(false);
   };
 
-  // Infinite Scroll - Load more records on scroll end
   const handleLoadMore = async () => {
     if (feedLoading || !hasMore || !token) return;
 
@@ -238,21 +235,18 @@ export default function Logs() {
     }
   };
 
-  // Trigger metadata fetch on mount / screen focus
   useFocusEffect(
     useCallback(() => {
       fetchMetadata();
     }, [token])
   );
 
-  // Trigger metrics reload when platform or date configurations change
   useEffect(() => {
     if (!initialLoading) {
       fetchAnalyticsAndLogs(true);
     }
   }, [duration, activePlatform, customStartDate, customEndDate, initialLoading]);
 
-  // Handle platform tab press validation
   const handlePlatformPress = (platformName: string) => {
     const name = platformName.toUpperCase();
     if (name === "ALL") {

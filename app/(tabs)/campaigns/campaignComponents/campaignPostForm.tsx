@@ -1,3 +1,4 @@
+import Toast from "react-native-toast-message";
 import { getUser } from "@/api/dashboardApi";
 import { useCampaignPostForm } from "@/hooks/useCampaignPostForm";
 import { useUser } from "@/context/AuthContext";
@@ -93,14 +94,14 @@ import { Picker } from "@react-native-picker/picker";
 // ---------- Define Props Interface ----------
 interface CampaignPostFormProps {
   platform:
-    | "EMAIL"
-    | "SMS"
-    | "INSTAGRAM"
-    | "WHATSAPP"
-    | "FACEBOOK"
-    | "YOUTUBE"
-    | "LINKEDIN"
-    | "PINTEREST";
+  | "EMAIL"
+  | "SMS"
+  | "INSTAGRAM"
+  | "WHATSAPP"
+  | "FACEBOOK"
+  | "YOUTUBE"
+  | "LINKEDIN"
+  | "PINTEREST";
   existingPost?: any;
   campaignId?: string;
   campaignStartDate?: string;
@@ -246,8 +247,8 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
     existingPost: existingPost
       ? existingPost
       : {
-          campaign: { startDate: campaignStartDate, endDate: campaignEndDate },
-        },
+        campaign: { startDate: campaignStartDate, endDate: campaignEndDate },
+      },
     // campaignStartDate,
     onClose,
   });
@@ -697,14 +698,14 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                               <Text style={{ color: isDark ? "#9ca3af" : "#9ca3af", fontWeight: 'bold', fontSize: 12, marginTop: 4, letterSpacing: 0.5 }}>
                                 {badgeLabel}
                               </Text>
-                              
+
                               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 {item.isLoading ? (
                                   <ActivityIndicator size="small" color="#dc2626" style={{ marginRight: 8 }} />
                                 ) : (
                                   <>
                                     {/* Red Check Button (Replace/Use) */}
-                                    <TouchableOpacity 
+                                    <TouchableOpacity
                                       activeOpacity={0.7}
                                       onPress={() => {
                                         setSubject(item.subject);
@@ -2568,14 +2569,15 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                     minute: "2-digit",
                   });
 
-                  Alert.alert(
-                    "Invalid Time",
-                    `Please select a future time (for example, ${futureTime} instead of ${currentTime}).`,
-                  );
+                  Toast.show({
+                    type: "info",
+                    text1: "Invalid Time",
+                    text2: `Please select a future time (for example, ${futureTime} instead of ${currentTime}).`,
+                  });
                   return;
                 }
 
-                setPostDate(selectedDateTime);
+                setPostDate(selectedDateTime);                                            
               }}
             />
           )}
@@ -2726,7 +2728,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
               username={`${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`}
               text={message}
               images={attachments?.map((a) => a.uri)}
-              // timestamp={previewTimestamp}
+            // timestamp={previewTimestamp}
             />
           )}
 

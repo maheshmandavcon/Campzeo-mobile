@@ -17,7 +17,7 @@ import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
 import { BarChart, PieChart } from "react-native-gifted-charts";
 import { getPostsInsights } from "@/api/dashboardApi";
-
+import { FontAwesome, MaterialCommunityIcons } from "@expo/vector-icons";
 
 export default function CalendarInsights() {
   const colorScheme = useColorScheme();
@@ -38,6 +38,9 @@ export default function CalendarInsights() {
 
   const [showFilters, setShowFilters] = useState(false);
 
+  const hasPlatformData =
+    insightsData?.platformMix?.some((item: any) => item.count > 0);
+
   // const platformColors: any = {
   //   FACEBOOK: "#3b82f6",
   //   INSTAGRAM: "#22c55e",
@@ -56,6 +59,53 @@ export default function CalendarInsights() {
     EMAIL: "#F59E0B",
     SMS: "#8B5CF6",
   };
+
+  const platformIcons: any = {
+    FACEBOOK: {
+      component: FontAwesome,
+      name: "facebook-square",
+      color: "#1877F2",
+    },
+    INSTAGRAM: {
+      component: FontAwesome,
+      name: "instagram",
+      color: "#E4405F",
+    },
+    LINKEDIN: {
+      component: FontAwesome,
+      name: "linkedin-square",
+      color: "#0A66C2",
+    },
+    PINTEREST: {
+      component: FontAwesome,
+      name: "pinterest",
+      color: "#BD081C",
+    },
+    YOUTUBE: {
+      component: FontAwesome,
+      name: "youtube-play",
+      color: "#FF0000",
+    },
+    WHATSAPP: {
+      component: FontAwesome,
+      name: "whatsapp",
+      color: "#25D366",
+    },
+    EMAIL: {
+      component: MaterialCommunityIcons,
+      name: "email",
+      color: "#F59E0B",
+    },
+    SMS: {
+      component: MaterialCommunityIcons,
+      name: "message-text",
+      color: "#8B5CF6",
+    },
+  };
+
+  const sortedPlatformMix = [...(insightsData?.platformMix || [])].sort(
+    (a, b) => b.count - a.count
+  );
 
   const barData =
     insightsData?.platformMix?.map((item: any) => ({
@@ -99,12 +149,18 @@ export default function CalendarInsights() {
 
   const onDateChange = (event: any, selectedDate?: Date) => {
     setShowPicker(false);
-    if (selectedDate) {
-      if (pickingMode === "from") {
-        setFromDate(selectedDate);
-      } else {
-        setToDate(selectedDate);
+
+    if (!selectedDate) return;
+
+    if (pickingMode === "from") {
+      setFromDate(selectedDate);
+
+      // Clear invalid toDate
+      if (toDate && selectedDate > toDate) {
+        setToDate(null);
       }
+    } else {
+      setToDate(selectedDate);
     }
   };
 
@@ -126,494 +182,606 @@ export default function CalendarInsights() {
         justifyContent: "flex-start",
       }}
     >
-    <ScrollView
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
-          tintColor="#dc2626"
-          colors={["#dc2626"]}
-        />
-      }
-    >
-      <TouchableOpacity
-        onPress={() => setShowFilters(!showFilters)}
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: 15,
-          borderWidth: 1,
-          borderColor: "#e5e7eb",
-          borderRadius: 16,
-          marginBottom: 10,
-        }}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#dc2626"
+            colors={["#dc2626"]}
+          />
+        }
       >
-        <HStack style={{ alignItems: "center", gap: 8 }}>
+        <TouchableOpacity
+          onPress={() => setShowFilters(!showFilters)}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: 15,
+            borderWidth: 1,
+            borderColor: "#e5e7eb",
+            borderRadius: 16,
+            marginBottom: 10,
+          }}
+        >
+          <HStack style={{ alignItems: "center", gap: 8 }}>
+            <Ionicons
+              name="options-outline"
+              size={20}
+              color={isDark ? "#fff" : "#000"}
+            />
+            <ThemedText style={{ fontSize: 16, fontWeight: "600" }}>
+              Filters
+            </ThemedText>
+          </HStack>
+
           <Ionicons
-            name="options-outline"
+            name={showFilters ? "chevron-up" : "chevron-down"}
             size={20}
             color={isDark ? "#fff" : "#000"}
           />
-          <ThemedText style={{ fontSize: 16, fontWeight: "600" }}>
-            Filters
-          </ThemedText>
-        </HStack>
+        </TouchableOpacity>
 
-        <Ionicons
-          name={showFilters ? "chevron-up" : "chevron-down"}
-          size={20}
-          color={isDark ? "#fff" : "#000"}
-        />
-      </TouchableOpacity>
-
-      {/* Date Filter */}
-      {showFilters && (
-        <VStack
-          style={{
-            gap: 5,
-            marginBottom: 10,
-            width: "100%",
-            padding: 15,
-            borderWidth: 1,
-            borderColor: "#e5e7eb",
-            borderRadius: 16,
-          }}
-        >
-          <HStack style={{ gap: 10, width: "100%" }}>
-            {/* From Date */}
-            <VStack style={{ flex: 1, gap: 4 }}>
-              <ThemedText style={{ fontSize: 12, opacity: 0.6 }}>From</ThemedText>
-              <TouchableOpacity
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  borderWidth: 1,
-                  borderColor: isDark ? "#333" : "rgba(0,0,0,0.1)",
-                  borderRadius: 14,
-                  backgroundColor: isDark ? "#1a1a1a" : "rgba(255,255,255,0.9)",
-                  height: 45,
-                  paddingHorizontal: 12,
-                }}
-                onPress={() => {
-                  setPickingMode("from");
-                  setShowPicker(true);
-                }}
-              >
-                <Ionicons
-                  name="calendar-outline"
-                  size={18}
-                  color={isDark ? "#aaa" : "rgba(0,0,0,0.4)"}
-                  style={{ marginRight: 8 }}
-                />
-                <Text style={{ color: isDark ? "#fff" : "#000", fontSize: 13 }}>
-                  {fromDate ? formatDate(fromDate) : "Select Date"}
-                </Text>
-              </TouchableOpacity>
-            </VStack>
-
-            {/* To Date */}
-            <VStack style={{ flex: 1, gap: 4 }}>
-              <ThemedText style={{ fontSize: 12, opacity: 0.6 }}>To</ThemedText>
-              <TouchableOpacity
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  borderWidth: 1,
-                  borderColor: isDark ? "#333" : "rgba(0,0,0,0.1)",
-                  borderRadius: 14,
-                  backgroundColor: isDark ? "#1a1a1a" : "rgba(255,255,255,0.9)",
-                  height: 45,
-                  paddingHorizontal: 12,
-                }}
-                onPress={() => {
-                  setPickingMode("to");
-                  setShowPicker(true);
-                }}
-              >
-                <Ionicons
-                  name="calendar-outline"
-                  size={18}
-                  color={isDark ? "#aaa" : "rgba(0,0,0,0.4)"}
-                  style={{ marginRight: 8 }}
-                />
-                <Text style={{ color: isDark ? "#fff" : "#000", fontSize: 13 }}>
-                  {toDate ? formatDate(toDate) : "Select Date"}
-                </Text>
-              </TouchableOpacity>
-            </VStack>
-
-            {showPicker && (
-              <DateTimePicker
-                value={
-                  pickingMode === "from"
-                    ? fromDate || new Date()
-                    : toDate || new Date()
-                }
-                mode="date"
-                display="default"
-                maximumDate={new Date()}
-                onChange={onDateChange}
-              />
-            )}
-          </HStack>
-          {/* Platform Dropdown and Refresh */}
-          <HStack
+        {/* Date Filter */}
+        {showFilters && (
+          <VStack
             style={{
-              alignItems: "flex-end",
-              gap: 10,
+              gap: 5,
+              marginBottom: 10,
+              width: "100%",
+              padding: 15,
+              borderWidth: 1,
+              borderColor: "#e5e7eb",
+              borderRadius: 16,
             }}
           >
-            <VStack style={{ flex: 1, gap: 4 }}>
-              <ThemedText style={{ fontSize: 12, opacity: 0.6 }}>
-                Platform
-              </ThemedText>
-              <Dropdown
-                style={{
-                  borderWidth: 1,
-                  borderColor: isDark ? "#333" : "#ddd",
-                  borderRadius: 12,
-                  paddingHorizontal: 12,
-                  height: 45,
-                  backgroundColor: isDark ? "#1a1a1a" : "#fff",
-                }}
-                placeholderStyle={{
-                  color: isDark ? "#777" : "#999",
-                  fontSize: 14,
-                }}
-                selectedTextStyle={{
-                  color: isDark ? "white" : "black",
-                  fontSize: 14,
-                }}
-                containerStyle={{
-                  backgroundColor: isDark ? "#1a1a1a" : "#fff",
-                  borderColor: isDark ? "#333" : "#ddd",
-                  borderRadius: 12,
-                }}
-                itemTextStyle={{ color: isDark ? "white" : "black" }}
-                activeColor={isDark ? "#333" : "#f0f0f0"}
-                data={[
-                  { label: "All Platforms", value: "all" },
-                  { label: "Email", value: "EMAIL" },
-                  { label: "SMS", value: "SMS" },
-                  { label: "Facebook", value: "FACEBOOK" },
-                  { label: "WhatsApp", value: "WHATSAPP" },
-                  { label: "Instagram", value: "INSTAGRAM" },
-                  { label: "LinkedIn", value: "LINKEDIN" },
-                  { label: "YouTube", value: "YOUTUBE" },
-                  { label: "Pinterest", value: "PINTEREST" },
-                ]}
-                labelField="label"
-                valueField="value"
-                placeholder="Select Platform"
-                value={platform}
-                onChange={(item) => {
-                  setPlatform(item.value);
-                }}
-              />
-            </VStack>
+            <HStack style={{ gap: 10, width: "100%" }}>
+              {/* From Date */}
+              <VStack style={{ flex: 1, gap: 4 }}>
+                <ThemedText style={{ fontSize: 12, opacity: 0.6 }}>From</ThemedText>
+                <TouchableOpacity
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: isDark ? "#333" : "rgba(0,0,0,0.1)",
+                    borderRadius: 14,
+                    backgroundColor: isDark ? "#1a1a1a" : "rgba(255,255,255,0.9)",
+                    height: 45,
+                    paddingHorizontal: 12,
+                  }}
+                  onPress={() => {
+                    setPickingMode("from");
+                    setShowPicker(true);
+                  }}
+                >
+                  <Ionicons
+                    name="calendar-outline"
+                    size={18}
+                    color={isDark ? "#aaa" : "rgba(0,0,0,0.4)"}
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={{ color: isDark ? "#fff" : "#000", fontSize: 13 }}>
+                    {fromDate ? formatDate(fromDate) : "Select Date"}
+                  </Text>
+                </TouchableOpacity>
+              </VStack>
 
-            <TouchableOpacity
-              onPress={fetchInsights}
-              style={{
-                height: 45,
-                paddingHorizontal: 20,
-                borderRadius: 12,
-                backgroundColor: "#dc2626",
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-              }}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="refresh" size={18} color="#fff" />
-              <Text style={{ color: "#fff", fontWeight: "600", fontSize: 14 }}>
-                Refresh
-              </Text>
-            </TouchableOpacity>
-          </HStack>
-        </VStack>
-      )}
+              {/* To Date */}
+              <VStack style={{ flex: 1, gap: 4 }}>
+                <ThemedText style={{ fontSize: 12, opacity: 0.6 }}>To</ThemedText>
+                <TouchableOpacity
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: isDark ? "#333" : "rgba(0,0,0,0.1)",
+                    borderRadius: 14,
+                    backgroundColor: isDark ? "#1a1a1a" : "rgba(255,255,255,0.9)",
+                    height: 45,
+                    paddingHorizontal: 12,
+                  }}
+                  onPress={() => {
+                    setPickingMode("to");
+                    setShowPicker(true);
+                  }}
+                >
+                  <Ionicons
+                    name="calendar-outline"
+                    size={18}
+                    color={isDark ? "#aaa" : "rgba(0,0,0,0.4)"}
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={{ color: isDark ? "#fff" : "#000", fontSize: 13 }}>
+                    {toDate ? formatDate(toDate) : "Select Date"}
+                  </Text>
+                </TouchableOpacity>
+              </VStack>
 
-      <View
-        style={{
-          flexDirection: "row",
-          flexWrap: "wrap",
-          justifyContent: "space-between",
-          marginBottom: 8,
-          rowGap: 12,
-        }}
-      >
-        {/* Total Posts */}
-        <VStack
-          style={{
-            padding: 15,
-            gap: 9,
-            width: "48%",
-            borderWidth: 1,
-            borderColor: "#e5e7eb",
-            borderRadius: 16,
-            minHeight: 120,
-            backgroundColor: isDark ? "#0f172a" : "#fff",
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <ThemedText style={{ fontWeight: "bold", fontSize: 22 }}>
-              {insightsData?.totalPosts ?? "-"}
-            </ThemedText>
-            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#6b728022", alignItems: "center", justifyContent: "center" }}>
-              <Ionicons name="document-text-outline" size={18} color="#6b7280" />
-            </View>
-          </View>
-          <ThemedText style={{ fontWeight: "600", fontSize: 13, color: isDark ? "#cbd5e1" : "#374151" }}>
-            Total Posts
-          </ThemedText>
-          <HStack className="items-center gap-2">
-            <Ionicons name="trending-up" size={12} color={"#6a7282"} />
-            <ThemedText style={{ fontSize: 11, color: "#6a7282" }}>
-              All records
-            </ThemedText>
-          </HStack>
-        </VStack>
-
-        {/* Upcoming Posts */}
-        <VStack
-          style={{
-            padding: 15,
-            gap: 9,
-            width: "48%",
-            borderWidth: 1,
-            borderColor: "#e5e7eb",
-            borderRadius: 16,
-            minHeight: 120,
-            backgroundColor: isDark ? "#0f172a" : "#fff",
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <ThemedText style={{ fontWeight: "bold", fontSize: 22 }}>
-              {insightsData?.stats?.upcoming ?? "-"}
-            </ThemedText>
-            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#00a63e22", alignItems: "center", justifyContent: "center" }}>
-              <Ionicons name="time-outline" size={18} color="#00a63e" />
-            </View>
-          </View>
-          <ThemedText style={{ fontWeight: "600", fontSize: 13, color: isDark ? "#cbd5e1" : "#374151" }}>
-            Upcoming
-          </ThemedText>
-          <HStack className="items-center gap-2">
-            <Ionicons name="trending-up" size={12} color={"#00a63e"} />
-            <ThemedText style={{ fontSize: 11, color: "#00a63e" }}>
-              Scheduled
-            </ThemedText>
-          </HStack>
-        </VStack>
-
-        {/* Past (Published) */}
-        <VStack
-          style={{
-            padding: 15,
-            gap: 9,
-            width: "48%",
-            borderWidth: 1,
-            borderColor: "#e5e7eb",
-            borderRadius: 16,
-            minHeight: 120,
-            backgroundColor: isDark ? "#0f172a" : "#fff",
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <ThemedText style={{ fontWeight: "bold", fontSize: 22 }}>
-              {insightsData?.stats?.past ?? "-"}
-            </ThemedText>
-            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#155dfc22", alignItems: "center", justifyContent: "center" }}>
-              <Ionicons name="bar-chart-outline" size={18} color="#155dfc" />
-            </View>
-          </View>
-          <ThemedText style={{ fontWeight: "600", fontSize: 13, color: isDark ? "#cbd5e1" : "#374151" }}>
-            Published
-          </ThemedText>
-          <HStack className="items-center gap-2">
-            <Ionicons name="checkmark-circle-outline" size={12} color={"#155dfc"} />
-            <ThemedText style={{ fontSize: 11, color: "#155dfc" }}>
-              Sent
-            </ThemedText>
-          </HStack>
-        </VStack>
-
-        {/* Drafts */}
-        <VStack
-          style={{
-            padding: 15,
-            gap: 9,
-            width: "48%",
-            borderWidth: 1,
-            borderColor: "#e5e7eb",
-            borderRadius: 16,
-            minHeight: 120,
-            backgroundColor: isDark ? "#0f172a" : "#fff",
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <ThemedText style={{ fontWeight: "bold", fontSize: 22 }}>
-              {insightsData?.stats?.drafts ?? "-"}
-            </ThemedText>
-            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#f54a0022", alignItems: "center", justifyContent: "center" }}>
-              <Ionicons name="create-outline" size={18} color="#f54a00" />
-            </View>
-          </View>
-          <ThemedText style={{ fontWeight: "600", fontSize: 13, color: isDark ? "#cbd5e1" : "#374151" }}>
-            Drafts
-          </ThemedText>
-          <HStack className="items-center gap-2">
-            <Ionicons name="calendar-outline" size={12} color={"#f54a00"} />
-            <ThemedText style={{ fontSize: 11, color: "#f54a00" }}>
-              Pending
-            </ThemedText>
-          </HStack>
-        </VStack>
-      </View>
-
-      {/* Charts Section */}
-      <VStack style={{ marginTop: 20, gap: 15 }}>
-        {/* Pie Chart */}
-
-        <VStack
-          style={{
-            padding: 15,
-            borderWidth: 1,
-            borderColor: "#e5e7eb",
-            borderRadius: 16,
-          }}
-        >
-          <VStack>
-            <HStack className="justify-between mb-2 items-center">
-              <ThemedText style={{ fontSize: 16, fontWeight: "600" }}>
-                Platform Distribution
-              </ThemedText>
-
+              {showPicker && (
+                <DateTimePicker
+                  value={
+                    pickingMode === "from"
+                      ? fromDate || new Date()
+                      : toDate || fromDate || new Date()
+                  }
+                  mode="date"
+                  display="default"
+                  maximumDate={
+                    pickingMode === "from"
+                      ? toDate || undefined
+                      : undefined
+                  }
+                  minimumDate={
+                    pickingMode === "to"
+                      ? fromDate || undefined
+                      : undefined
+                  }
+                  onChange={onDateChange}
+                />
+              )}
             </HStack>
-            <ThemedText
-              style={{ fontSize: 12, color: "#6a7282", marginBottom: 10 }}
-            >
-              Distribution of posts across different social platforms.
-            </ThemedText>
-          </VStack>
-
-          <View collapsable={false} renderToHardwareTextureAndroid>
+            {/* Platform Dropdown and Refresh */}
             <HStack
               style={{
-                justifyContent: "space-between",
-                alignItems: "center",
+                alignItems: "flex-end",
+                gap: 10,
               }}
             >
-              {/* Pie Chart */}
-              <PieChart
-                data={pieData}
-                donut
-                innerRadius={30}
-                radius={90}
-                showText
-                textColor="white"
-                textSize={12}
-              />
-
-              {/* Legend */}
-              <VStack style={{ marginLeft: 10, gap: 8 }}>
-                {insightsData?.platformMix?.map((item: any) => {
-                  const percentage = Math.round(
-                    (item.count / (insightsData?.totalPosts || 1)) *
-                    100,
-                  );
-
-                  return (
-                    <HStack
-                      key={item.platform}
-                      style={{
-                        alignItems: "center",
-                        width: 120,
-                      }}
-                    >
-                      <View
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: 5,
-                          backgroundColor: platformColors[item.platform] || "#999",
-                          marginRight: 8,
-                        }}
-                      />
-
-                      <Text
-                        style={{
-                          flex: 1,
-                          fontSize: 12,
-                        }}
-                      >
-                        {item.platform}
-                      </Text>
-
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          color: "#6b7280",
-                          marginLeft: 6,
-                        }}
-                      >
-                        {percentage}%
-                      </Text>
-                    </HStack>
-                  );
-                })}
+              <VStack style={{ flex: 1, gap: 4 }}>
+                <ThemedText style={{ fontSize: 12, opacity: 0.6 }}>
+                  Platform
+                </ThemedText>
+                <Dropdown
+                  style={{
+                    borderWidth: 1,
+                    borderColor: isDark ? "#333" : "#ddd",
+                    borderRadius: 12,
+                    paddingHorizontal: 12,
+                    height: 45,
+                    backgroundColor: isDark ? "#1a1a1a" : "#fff",
+                  }}
+                  placeholderStyle={{
+                    color: isDark ? "#777" : "#999",
+                    fontSize: 14,
+                  }}
+                  selectedTextStyle={{
+                    color: isDark ? "white" : "black",
+                    fontSize: 14,
+                  }}
+                  containerStyle={{
+                    backgroundColor: isDark ? "#1a1a1a" : "#fff",
+                    borderColor: isDark ? "#333" : "#ddd",
+                    borderRadius: 12,
+                  }}
+                  itemTextStyle={{ color: isDark ? "white" : "black" }}
+                  activeColor={isDark ? "#333" : "#f0f0f0"}
+                  data={[
+                    { label: "All Platforms", value: "all" },
+                    { label: "Email", value: "EMAIL" },
+                    { label: "SMS", value: "SMS" },
+                    { label: "Facebook", value: "FACEBOOK" },
+                    { label: "WhatsApp", value: "WHATSAPP" },
+                    { label: "Instagram", value: "INSTAGRAM" },
+                    { label: "LinkedIn", value: "LINKEDIN" },
+                    { label: "YouTube", value: "YOUTUBE" },
+                    { label: "Pinterest", value: "PINTEREST" },
+                  ]}
+                  labelField="label"
+                  valueField="value"
+                  placeholder="Select Platform"
+                  value={platform}
+                  onChange={(item) => {
+                    setPlatform(item.value);
+                  }}
+                />
               </VStack>
+
+              <TouchableOpacity
+                onPress={fetchInsights}
+                style={{
+                  height: 45,
+                  paddingHorizontal: 20,
+                  borderRadius: 12,
+                  backgroundColor: "#dc2626",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="refresh" size={18} color="#fff" />
+                <Text style={{ color: "#fff", fontWeight: "600", fontSize: 14 }}>
+                  Refresh
+                </Text>
+              </TouchableOpacity>
             </HStack>
-          </View>
-        </VStack>
+          </VStack>
+        )}
 
-        {/* Bar Chart */}
-
-        <VStack
+        <View
           style={{
-            padding: 15,
-            borderWidth: 1,
-            borderColor: "#e5e7eb",
-            borderRadius: 16,
-            overflow: "hidden",
+            flexDirection: "row",
+            flexWrap: "wrap",
+            justifyContent: "space-between",
+            marginBottom: 8,
+            rowGap: 12,
           }}
         >
-          <VStack>
-            <HStack className="justify-between mb-2 items-center">
-              <ThemedText style={{ fontSize: 16, fontWeight: "600" }}>
-                Platform Distribution
+          {/* Total Posts */}
+          <VStack
+            style={{
+              padding: 15,
+              gap: 9,
+              width: "48%",
+              borderWidth: 1,
+              borderColor: "#e5e7eb",
+              borderRadius: 16,
+              minHeight: 120,
+              backgroundColor: isDark ? "#0f172a" : "#fff",
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <ThemedText style={{ fontWeight: "bold", fontSize: 22 }}>
+                {insightsData?.totalPosts ?? "-"}
+              </ThemedText>
+              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#6b728022", alignItems: "center", justifyContent: "center" }}>
+                <Ionicons name="document-text-outline" size={18} color="#6b7280" />
+              </View>
+            </View>
+            <ThemedText style={{ fontWeight: "600", fontSize: 13, color: isDark ? "#cbd5e1" : "#374151" }}>
+              Total Posts
+            </ThemedText>
+            <HStack className="items-center gap-2">
+              <Ionicons name="trending-up" size={12} color={"#6a7282"} />
+              <ThemedText style={{ fontSize: 11, color: "#6a7282" }}>
+                All records
               </ThemedText>
             </HStack>
-            <ThemedText
-              style={{ fontSize: 12, color: "#6a7282", marginBottom: 10 }}
-            >
-              Compare post volumes across different social platforms.
-            </ThemedText>
           </VStack>
 
-          <BarChart
-            data={barData}
-            barWidth={30}
-            spacing={25}
-            rulesType="dashed"
-            dashWidth={4}
-            dashGap={4}
-            rulesColor="#d1d5db"
-            xAxisThickness={0}
-            yAxisThickness={0}
-            yAxisTextStyle={{ color: "#888" }}
-            noOfSections={maxCount}
-            maxValue={maxCount}
-            stepValue={1}
-          />
+          {/* Upcoming Posts */}
+          <VStack
+            style={{
+              padding: 15,
+              gap: 9,
+              width: "48%",
+              borderWidth: 1,
+              borderColor: "#e5e7eb",
+              borderRadius: 16,
+              minHeight: 120,
+              backgroundColor: isDark ? "#0f172a" : "#fff",
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <ThemedText style={{ fontWeight: "bold", fontSize: 22 }}>
+                {insightsData?.stats?.upcoming ?? "-"}
+              </ThemedText>
+              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#00a63e22", alignItems: "center", justifyContent: "center" }}>
+                <Ionicons name="time-outline" size={18} color="#00a63e" />
+              </View>
+            </View>
+            <ThemedText style={{ fontWeight: "600", fontSize: 13, color: isDark ? "#cbd5e1" : "#374151" }}>
+              Upcoming
+            </ThemedText>
+            <HStack className="items-center gap-2">
+              <Ionicons name="trending-up" size={12} color={"#00a63e"} />
+              <ThemedText style={{ fontSize: 11, color: "#00a63e" }}>
+                Scheduled
+              </ThemedText>
+            </HStack>
+          </VStack>
 
+          {/* Past (Published) */}
+          <VStack
+            style={{
+              padding: 15,
+              gap: 9,
+              width: "48%",
+              borderWidth: 1,
+              borderColor: "#e5e7eb",
+              borderRadius: 16,
+              minHeight: 120,
+              backgroundColor: isDark ? "#0f172a" : "#fff",
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <ThemedText style={{ fontWeight: "bold", fontSize: 22 }}>
+                {insightsData?.stats?.past ?? "-"}
+              </ThemedText>
+              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#155dfc22", alignItems: "center", justifyContent: "center" }}>
+                <Ionicons name="bar-chart-outline" size={18} color="#155dfc" />
+              </View>
+            </View>
+            <ThemedText style={{ fontWeight: "600", fontSize: 13, color: isDark ? "#cbd5e1" : "#374151" }}>
+              Published
+            </ThemedText>
+            <HStack className="items-center gap-2">
+              <Ionicons name="checkmark-circle-outline" size={12} color={"#155dfc"} />
+              <ThemedText style={{ fontSize: 11, color: "#155dfc" }}>
+                Sent
+              </ThemedText>
+            </HStack>
+          </VStack>
+
+          {/* Drafts */}
+          <VStack
+            style={{
+              padding: 15,
+              gap: 9,
+              width: "48%",
+              borderWidth: 1,
+              borderColor: "#e5e7eb",
+              borderRadius: 16,
+              minHeight: 120,
+              backgroundColor: isDark ? "#0f172a" : "#fff",
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <ThemedText style={{ fontWeight: "bold", fontSize: 22 }}>
+                {insightsData?.stats?.drafts ?? "-"}
+              </ThemedText>
+              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#f54a0022", alignItems: "center", justifyContent: "center" }}>
+                <Ionicons name="create-outline" size={18} color="#f54a00" />
+              </View>
+            </View>
+            <ThemedText style={{ fontWeight: "600", fontSize: 13, color: isDark ? "#cbd5e1" : "#374151" }}>
+              Drafts
+            </ThemedText>
+            <HStack className="items-center gap-2">
+              <Ionicons name="calendar-outline" size={12} color={"#f54a00"} />
+              <ThemedText style={{ fontSize: 11, color: "#f54a00" }}>
+                Pending
+              </ThemedText>
+            </HStack>
+          </VStack>
+        </View>
+
+        {/* Charts Section */}
+        <VStack style={{ marginTop: 20, gap: 15 }}>
+          {/* Pie Chart */}
+
+          <VStack
+            style={{
+              padding: 15,
+              borderWidth: 1,
+              borderColor: "#e5e7eb",
+              borderRadius: 16,
+            }}
+          >
+            <VStack>
+              <HStack className="justify-between mb-2 items-center">
+                <ThemedText style={{ fontSize: 16, fontWeight: "600" }}>
+                  Platform Distribution
+                </ThemedText>
+
+              </HStack>
+              <ThemedText
+                style={{ fontSize: 12, color: "#6a7282", marginBottom: 10 }}
+              >
+                Distribution of posts across different social platforms.
+              </ThemedText>
+            </VStack>
+
+            <View collapsable={false} renderToHardwareTextureAndroid>
+              <HStack
+                style={{
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                {/* Pie Chart */}
+                {hasPlatformData ? (
+                  <HStack
+                    style={{
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <PieChart
+                      data={pieData}
+                      donut
+                      innerRadius={30}
+                      radius={90}
+                      showText
+                      textColor="white"
+                      textSize={12}
+                    />
+
+                    <VStack style={{ marginLeft: 10, gap: 8 }}>
+                      {sortedPlatformMix.map((item: any) => {
+                        const percentage = Math.round(
+                          (item.count / (insightsData?.totalPosts || 1)) * 100
+                        );
+
+                        return (
+                          <HStack
+                            key={item.platform}
+                            style={{
+                              alignItems: "center",
+                              flex: 1,
+                              minWidth: 100,
+                            }}
+                          >
+                            <View
+                              style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: 5,
+                                backgroundColor:
+                                  platformColors[item.platform] || "#999",
+                                marginRight: 8,
+                              }}
+                            />
+
+                            <View
+                              style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: 14,
+                                backgroundColor: `${platformColors[item.platform]}22`,
+                                alignItems: "center",
+                                justifyContent: "center",
+                                marginRight: 8,
+                              }}
+                            >
+                              {(() => {
+                                const icon = platformIcons[item.platform];
+
+                                if (!icon) return null;
+
+                                const IconComponent = icon.component;
+
+                                return (
+                                  <IconComponent
+                                    name={icon.name as any}
+                                    size={16}
+                                    color={icon.color}
+                                  />
+                                );
+                              })()}
+                            </View>
+
+                            <Text
+                              style={{
+                                fontSize: 12,
+                                color: isDark ? "#fff" : "#6b7280",
+                                marginLeft: 6,
+                              }}
+                            >
+                              {percentage}%
+                            </Text>
+                          </HStack>
+                        );
+                      })}
+                    </VStack>
+                  </HStack>
+                ) : (
+                  <VStack
+                    style={{
+                      width: "100%",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      paddingVertical: 50,
+                      gap: 10,
+                    }}
+                  >
+                    <Ionicons
+                      name="pie-chart-outline"
+                      size={42}
+                      color="#9ca3af"
+                    />
+
+                    <ThemedText
+                      style={{
+                        fontSize: 15,
+                        fontWeight: "600",
+                        color: "#6b7280",
+                      }}
+                    >
+                      No platform data available
+                    </ThemedText>
+
+                    <ThemedText
+                      style={{
+                        fontSize: 12,
+                        color: "#9ca3af",
+                        textAlign: "center",
+                        maxWidth: 250,
+                      }}
+                    >
+                      Publish posts to see how your content is distributed across platforms.
+                    </ThemedText>
+                  </VStack>
+                )}
+              </HStack>
+            </View>
+          </VStack>
+
+          {/* Bar Chart */}
+
+          <VStack
+            style={{
+              padding: 15,
+              borderWidth: 1,
+              borderColor: "#e5e7eb",
+              borderRadius: 16,
+              overflow: "hidden",
+            }}
+          >
+            <VStack>
+              <HStack className="justify-between mb-2 items-center">
+                <ThemedText style={{ fontSize: 16, fontWeight: "600" }}>
+                  Platform Distribution
+                </ThemedText>
+              </HStack>
+              <ThemedText
+                style={{ fontSize: 12, color: "#6a7282", marginBottom: 10 }}
+              >
+                Compare post volumes across different social platforms.
+              </ThemedText>
+            </VStack>
+
+            {hasPlatformData ? (
+              <BarChart
+                data={barData}
+                barWidth={30}
+                spacing={25}
+                rulesType="dashed"
+                dashWidth={4}
+                dashGap={4}
+                rulesColor="#d1d5db"
+                xAxisThickness={0}
+                yAxisThickness={0}
+                yAxisTextStyle={{ color: "#888" }}
+                noOfSections={maxCount}
+                maxValue={maxCount}
+                stepValue={1}
+              />
+            ) : (
+              <VStack
+                style={{
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingVertical: 50,
+                  gap: 10,
+                }}
+              >
+                <Ionicons
+                  name="bar-chart-outline"
+                  size={42}
+                  color="#9ca3af"
+                />
+
+                <ThemedText
+                  style={{
+                    fontSize: 15,
+                    fontWeight: "600",
+                    color: "#6b7280",
+                  }}
+                >
+                  No post activity yet
+                </ThemedText>
+
+                <ThemedText
+                  style={{
+                    fontSize: 12,
+                    color: "#9ca3af",
+                    textAlign: "center",
+                    maxWidth: 250,
+                  }}
+                >
+                  Once you start publishing posts, platform comparisons will appear here.
+                </ThemedText>
+              </VStack>
+            )}
+
+          </VStack>
         </VStack>
-      </VStack>
-    </ScrollView>
+      </ScrollView>
     </ThemedView>
   );
 }

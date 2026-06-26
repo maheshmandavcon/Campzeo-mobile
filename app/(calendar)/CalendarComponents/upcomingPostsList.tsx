@@ -3,6 +3,8 @@ import { ThemedView } from "@/components/themed-view";
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Dimensions } from "react-native";
+import { useWindowDimensions } from "react-native";
 
 import { WebView } from "react-native-webview";
 import { Image } from "react-native";
@@ -71,14 +73,17 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
     }
   });
 
+  const SCREEN_HEIGHT = Dimensions.get("window").height;
+  const { height } = useWindowDimensions();
+
   const filteredDateKeys = Object.keys(filteredGroupedEvents).sort();
 
   const activePlatformConfig = selectedEvent
     ? PLATFORM_CONFIGS[selectedEvent.platform?.toLowerCase() || "facebook"] || {
-        name: selectedEvent.platform || "Platform",
-        color: "#6b7280",
-        icon: "document-text-outline",
-      }
+      name: selectedEvent.platform || "Platform",
+      color: "#6b7280",
+      icon: "document-text-outline",
+    }
     : null;
 
   if (filteredDateKeys.length === 0) {
@@ -321,7 +326,7 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
 
           {/* DETAILS */}
           {selectedEvent && activePlatformConfig && (
-            <ScrollView style={{ width: "100%", maxHeight: 400 }} showsVerticalScrollIndicator={false}>
+            <ScrollView style={{ width: "100%", maxHeight: SCREEN_HEIGHT * 0.7, }} showsVerticalScrollIndicator={false}>
               <VStack style={{ gap: 16, width: "100%" }}>
                 {/* CAMPAIGN */}
                 <VStack>

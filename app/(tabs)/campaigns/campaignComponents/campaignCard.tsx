@@ -561,7 +561,7 @@ const handleDelete = async (cId: number) => {
                   paddingHorizontal: 14,
                   paddingVertical: 8,
                   borderRadius: 99,
-                  backgroundColor: "#0284c7",
+                  backgroundColor: "#DC2626",
                   alignItems: "center",
                   justifyContent: "center",
                 }}

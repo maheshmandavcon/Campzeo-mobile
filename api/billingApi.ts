@@ -58,8 +58,7 @@ export const cancelSubscription = async (subscription: boolean, message: string)
 
 export const getPlans = async () => {
   try {
-    const response = await https.get(`plans`);    
-    // console.log("Plans details: ",response.data);   
+    const response = await https.get(`Admin/BillingPlans/GetAllPlans?isActive=true&sortBy=price&sortOrder=asc`);
     return response.data;
   } 
   catch (error) {

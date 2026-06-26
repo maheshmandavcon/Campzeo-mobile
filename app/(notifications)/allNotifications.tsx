@@ -5,6 +5,8 @@ import {
   SectionList,
   ActivityIndicator,
   Alert,
+  View,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -33,6 +35,9 @@ export default function AllNotifications() {
   const [visibleCount, setVisibleCount] = useState(5);
   const [searchText, setSearchText] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const onRefresh = async () => {
     if (loading || refreshing) return;
@@ -141,46 +146,22 @@ export default function AllNotifications() {
   };
 
   // ---------------- DELETE NOTIFICATION ----------------
-  const deleteNotification = async (id: number) => {
+  const handleDelete = async (id: number) => {
     try {
+      setDeletingId(id);
+
       const token = await getToken();
       if (!token) return;
 
-      Alert.alert(
-        "Delete Notification",
-        "Are you sure you want to delete this notification?",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Delete",
-            style: "destructive",
-            onPress: async () => {
-              try {
-                setDeletingId(id);
+      await deleteNotificationApi(token, id);
 
-                await deleteNotificationApi(token, id);
-
-                setNotifications((prev) =>
-                  prev.filter((n) => n.id !== id)
-                );
-              } catch (error: any) {
-                console.log(
-                  "Delete Notification API Error:",
-                  error.response?.data || error
-                );
-                Alert.alert(
-                  "Error",
-                  error.response?.data?.message || "Failed to delete notification"
-                );
-              } finally {
-                setDeletingId(null);
-              }
-            }
-          },
-        ]
+      setNotifications((prev) =>
+        prev.filter((n) => n.id !== id)
       );
     } catch (error) {
-      console.log("Delete notification error:", error);
+      console.log(error);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -488,8 +469,12 @@ export default function AllNotifications() {
             renderItem={({ item }) => (
               <ThemedView style={{ marginBottom: 12, backgroundColor: isDark ? "#161618" : "#f3f4f6" }}>
                 <TouchableOpacity
+                  activeOpacity={0.8}
                   onPress={() => markAsRead(item.id)}
-                  onLongPress={() => deleteNotification(item.id)}
+                  onLongPress={() => {
+                    setSelectedId(item.id);
+                    setDeleteModalVisible(true);
+                  }}
                   style={{
                     flexDirection: "row",
                     backgroundColor: isDark ? "#161618" : "#ffffff",
@@ -563,6 +548,76 @@ export default function AllNotifications() {
           />
         )}
       </ThemedView>
+
+      <Modal
+        visible={deleteModalVisible}
+        transparent
+        animationType="fade"
+      >
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0,0,0,0.5)",
+          }}
+        >
+          <View
+            style={{
+              width: "85%",
+              backgroundColor: isDark ? "#18181b" : "#fff",
+              padding: 20,
+              borderRadius: 20,
+            }}
+          >
+            <ThemedText
+              style={{
+                fontSize: 18,
+                fontWeight: "bold",
+                marginBottom: 10,
+              }}
+            >
+              Delete Notification
+            </ThemedText>
+
+            <ThemedText
+              style={{
+                color: isDark ? "#d4d4d8" : "#525252",
+                marginBottom: 20,
+              }}
+            >
+              Are you sure you want to delete this notification?
+            </ThemedText>
+
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "flex-end",
+              }}
+            >
+              <TouchableOpacity
+                onPress={() => setDeleteModalVisible(false)}
+                style={{ marginRight: 20 }}
+              >
+                <ThemedText>Cancel</ThemedText>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  if (selectedId) {
+                    handleDelete(selectedId);
+                  }
+                  setDeleteModalVisible(false);
+                }}
+              >
+                <ThemedText style={{ color: "#dc2626", fontWeight: "bold" }}>
+                  Delete
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

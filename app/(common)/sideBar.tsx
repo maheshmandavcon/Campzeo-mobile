@@ -122,28 +122,6 @@ export default function Sidebar() {
                   ]}
                 />
 
-                {/* Accounts */}
-                {/* <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => navigate("/accounts")}
-                  style={styles.drawerItem}
-                >
-                  <View style={[styles.iconContainer, { backgroundColor: isDark ? "rgba(220, 38, 38, 0.15)" : "rgba(220, 38, 38, 0.08)" }]}>
-                    <Ionicons name="book-outline" size={22} color="#dc2626" />
-                  </View>
-                  <Text style={styles.drawerText}>Accounts</Text>
-                  <Ionicons name="chevron-forward" size={18} color="#dc2626" style={styles.chevron} />
-                </TouchableOpacity>
-                <View
-                  style={[
-                    styles.divider,
-                    {
-                      backgroundColor: isDark ? "#fff" : "#000",
-                      opacity: isDark ? 0.2 : 0.08,
-                    },
-                  ]}
-                /> */}
-
                 {/* Calendar */}
                 <TouchableOpacity
                   activeOpacity={0.7}

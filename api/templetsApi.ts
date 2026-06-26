@@ -42,6 +42,22 @@ export const createTemplateApi = async (orgId: number, data: TemplateData, token
   }
 };
 
+// Update an existing template
+export const updateTemplateApi = async (orgId: number, id: number, data: TemplateData, token?: string) => {
+  try {
+    const response = await https.put(`Templates/${id}?organisationId=${orgId}`, data, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Update Template API Error:", error.response || error.message);
+    throw error;
+  }
+};
+
 // Delete a template
 export const deleteTemplateApi = async (orgId: number, id: number, token?: string) => {
   try {

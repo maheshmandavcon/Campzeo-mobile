@@ -367,7 +367,11 @@ export function useCampaignPostForm({
     setMessage(existingPost.message || "");
     setPostDate(
       existingPost.scheduledPostTime
-        ? new Date(existingPost.scheduledPostTime)
+        ? (() => {
+            let s = existingPost.scheduledPostTime;
+            if (s.endsWith('Z')) s = s.slice(0, -1);
+            return new Date(s);
+          })()
         : null,
     );
 
@@ -526,10 +530,7 @@ export function useCampaignPostForm({
         await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (!permission.granted) {
-        Alert.alert(
-          "Permission required",
-          "Please allow access to photos and videos to upload media.",
-        );
+        Toast.show({ type: 'info', text1: "Permission required", text2: "Please allow access to photos and videos to upload media.", });
         return;
       }
 
@@ -548,10 +549,7 @@ export function useCampaignPostForm({
 
       // 3️⃣ Validate max media limit
       if (attachments.length + 1 > 10) {
-        Alert.alert(
-          "Upload limit",
-          "You can upload a maximum of 10 media files",
-        );
+        Toast.show({ type: 'info', text1: "Upload limit", text2: "You can upload a maximum of 10 media files", });
         return;
       }
 
@@ -637,7 +635,7 @@ export function useCampaignPostForm({
       }
     } catch (error: any) {
       console.error("Attachment upload error:", error);
-      Alert.alert("Upload failed", error?.message || "Media upload failed");
+      Toast.show({ type: 'error', text1: "Upload failed", text2: error?.message || "Media upload failed" });
 
       setAttachments((prev) => prev.filter((a) => !a.uploading));
     } finally {
@@ -672,7 +670,7 @@ export function useCampaignPostForm({
   // ================= AI TEXT =================
   const handleGenerateAIText = async () => {
     if (!aiPrompt.trim()) {
-      Alert.alert("Enter instruction like: add emoji, make promotional");
+      Toast.show({ type: 'info', text1: "Enter instruction like: add emoji, make promotional" });
       return;
     }
     if (loadingAI) return;
@@ -778,7 +776,7 @@ export function useCampaignPostForm({
         { subject: "", content: `Error: ${errorMsg}`, isLoading: false },
         { subject: "", content: `Error: ${errorMsg}`, isLoading: false },
       ]);
-      Alert.alert("AI Generation Error", errorMsg);
+      Toast.show({ type: 'error', text1: "AI Generation Error", text2: errorMsg });
     } finally {
       setLoadingAI(false);
     }
@@ -789,7 +787,7 @@ export function useCampaignPostForm({
 
   // const handleGenerateAIImage = async () => {
   //   if (!imagePrompt.trim()) {
-  //     Alert.alert("Enter a prompt to generate an image");
+  //     Toast.show({ type: 'info', text1: "Enter a prompt to generate an image" });
   //     return;
   //   }
 
@@ -948,10 +946,7 @@ export function useCampaignPostForm({
 
       setSelectingImage(null);
 
-      Alert.alert(
-        "Error",
-        error?.message || "Failed to use AI image"
-      );
+      Toast.show({ type: 'error', text1: "Error", text2: error?.message || "Failed to use AI image" });
     }
   };
 
@@ -971,7 +966,7 @@ export function useCampaignPostForm({
 
   const handleGenerateAIImage = async () => {
     if (!imagePrompt.trim()) {
-      Alert.alert("Enter a prompt to generate an image");
+      Toast.show({ type: 'info', text1: "Enter a prompt to generate an image" });
       return;
     }
 
@@ -997,14 +992,14 @@ export function useCampaignPostForm({
       const rawImageUrl = response?.imageUrl || response?.imagePrompt;
 
       if (!rawImageUrl) {
-        Alert.alert("Image Generation Failed", "No image URL returned");
+        Toast.show({ type: 'error', text1: "Image Generation Failed", text2: "No image URL returned" });
         return;
       }
 
       const imageUrl = normalizeAIImageUrl(rawImageUrl);
       // if (!imageUrl) {
       //   console.warn("API responded but no image returned", response);
-      //   Alert.alert("Image Generation Failed", "The AI could not generate an image.");
+      //   Toast.show({ type: 'error', text1: "Image Generation Failed", text2: "The AI could not generate an image." });
       //   return;
       // }
 
@@ -1034,10 +1029,7 @@ export function useCampaignPostForm({
         "Error generating AI image:",
         error?.response || error?.message || error,
       );
-      Alert.alert(
-        "Image Generation Error",
-        error?.message || "Something went wrong while generating the image.",
-      );
+      Toast.show({ type: 'error', text1: "Image Generation Error", text2: error?.message || "Something went wrong while generating the image.", });
     } finally {
       setLoadingImage(false);
       console.log(
@@ -1193,7 +1185,7 @@ export function useCampaignPostForm({
 
   const handleCreatePinterestBoard = async () => {
     if (!newPinterestBoard.trim()) {
-      Alert.alert("Board name cannot be empty");
+      Toast.show({ type: 'info', text1: "Board name cannot be empty" });
       return;
     }
 
@@ -1235,20 +1227,11 @@ export function useCampaignPostForm({
       const errorMessage = error?.response?.data?.error;
 
       if (errorMessage?.includes("You already have a board with this name")) {
-        Alert.alert(
-          "Board Already Exists",
-          "You already have a board with this name. Please choose a different name.",
-        );
+        Toast.show({ type: 'info', text1: "Board Already Exists", text2: "You already have a board with this name. Please choose a different name.", });
       } else if (errorMessage === "Pinterest not connected") {
-        Alert.alert(
-          "Pinterest Not Connected",
-          "Please connect your Pinterest account before creating a board.",
-        );
+        Toast.show({ type: 'info', text1: "Pinterest Not Connected", text2: "Please connect your Pinterest account before creating a board.", });
       } else {
-        Alert.alert(
-          "Error",
-          error?.response?.data?.message || "Failed to create board",
-        );
+        Toast.show({ type: 'error', text1: "Error", text2: error?.response?.data?.message || "Failed to create board", });
       }
     } finally {
       setIsPinterestBoardLoading(false);
@@ -1289,7 +1272,7 @@ export function useCampaignPostForm({
 
   const handleCreateYoutubePlaylist = async () => {
     if (!newPlaylistName.trim()) {
-      Alert.alert("Playlist title cannot be empty");
+      Toast.show({ type: 'info', text1: "Playlist title cannot be empty" });
       return;
     }
     setLoadingPlaylists(true);
@@ -1330,7 +1313,7 @@ export function useCampaignPostForm({
       }
     } catch (error: any) {
       console.error("Failed to create YouTube playlist:", error);
-      Alert.alert("Error", error.message || "Failed to create YouTube playlist");
+      Toast.show({ type: 'error', text1: "Error", text2: error.message || "Failed to create YouTube playlist" });
     } finally {
       setLoadingPlaylists(false);
     }
@@ -1377,10 +1360,7 @@ export function useCampaignPostForm({
         throw new Error("Failed to upload thumbnail: no URL returned");
       }
     } catch (error: any) {
-      Alert.alert(
-        "Upload failed",
-        error?.message || "Failed to upload thumbnail",
-      );
+      Toast.show({ type: 'error', text1: "Upload failed", text2: error?.message || "Failed to upload thumbnail", });
     }
   };
 
@@ -1485,10 +1465,7 @@ export function useCampaignPostForm({
       }
     } catch (error: any) {
       console.error("[Cover] Upload error:", error);
-      Alert.alert(
-        "Upload failed",
-        error?.message || "Failed to upload cover image",
-      );
+      Toast.show({ type: 'error', text1: "Upload failed", text2: error?.message || "Failed to upload cover image", });
     } finally {
       setCoverUploading(false);
       console.log("[Cover] Upload state set to false");
@@ -1505,7 +1482,7 @@ export function useCampaignPostForm({
     try {
       // ================= BASIC VALIDATION =================
       if (!message) {
-        Alert.alert("⚠️ Please fill in all fields.");
+        Toast.show({ type: 'info', text1: "⚠️ Please fill in all fields." });
         return;
       }
 
@@ -1516,15 +1493,12 @@ export function useCampaignPostForm({
         attachments.length === 0
       ) {
         const platformName = PLATFORM_LABELS[platform] ?? platform;
-        Alert.alert(
-          "⚠️ Missing Media",
-          `Please add at least one image or video for ${platformName}.`
-        );
+        Toast.show({ type: 'info', text1: "⚠️ Missing Media", text2: `Please add at least one image or video for ${platformName}.` });
         return;
       }
 
       if (platform === "EMAIL" && (!subject || !senderEmail)) {
-        Alert.alert("⚠️ Please fill in all fields.");
+        Toast.show({ type: 'info', text1: "⚠️ Please fill in all fields." });
         return;
       }
 
@@ -1537,7 +1511,7 @@ export function useCampaignPostForm({
       ];
 
       if (subjectRequiredPlatforms.includes(platform) && !subject) {
-        Alert.alert("⚠️ Please fill in all fields.");
+        Toast.show({ type: 'info', text1: "⚠️ Please fill in all fields." });
         return;
       }
 
@@ -1592,10 +1566,7 @@ export function useCampaignPostForm({
       );
 
       if (invalidMedia.length > 0) {
-        Alert.alert(
-          "Invalid Media",
-          "Some media files are not uploaded properly. Please reselect them."
-        );
+        Toast.show({ type: 'info', text1: "Invalid Media", text2: "Some media files are not uploaded properly. Please reselect them." });
         return;
       }
 
@@ -1650,6 +1621,12 @@ export function useCampaignPostForm({
         };
       }
 
+      // ================= FORMAT DATE TO LOCAL =================
+      const toLocalISOString = (date: Date) => {
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+      };
+
       // ================= BUILD POST DATA =================
       // Get selected Facebook page details if applicable
       const selectedPageObj = facebookPages.find(
@@ -1669,7 +1646,7 @@ export function useCampaignPostForm({
         message: message || "",
         pinterestBoardId: PinterestBoardId || existingPost?.pinterestBoardId || "",
         pinterestLink: destinationLink || metadata?.destinationLink || existingPost?.pinterestLink || "",
-        scheduledPostTime: postDate?.toISOString() || new Date().toISOString(),
+        scheduledPostTime: postDate ? toLocalISOString(postDate) : toLocalISOString(new Date()),
         senderEmail: senderEmail || null,
         subject: subject || "",
         thumbnailUrl: coverImage || customThumbnail || existingPost?.thumbnailUrl || null,
@@ -1757,7 +1734,7 @@ export function useCampaignPostForm({
         error?.message ||
         "Something went wrong";
 
-      Alert.alert("⚠️ Scheduling Error", apiMessage);
+      Toast.show({ type: 'error', text1: "⚠️ Scheduling Error", text2: apiMessage });
     } finally {
       setLoading(false);
     }
