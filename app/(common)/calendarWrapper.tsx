@@ -1,6 +1,6 @@
 import { getScheduledPosts } from "@/api/calanderApi";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, Text } from "react-native";
+import { ActivityIndicator, RefreshControl, ScrollView, Text, DeviceEventEmitter, View } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import CalendarView from "../(calendar)/CalendarComponents/calendarView";
@@ -11,6 +11,16 @@ const CalendarWrapper = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
+
+  useEffect(() => {
+    const listener = DeviceEventEmitter.addListener("calendarScrollEnabled", (enabled) => {
+      setScrollEnabled(enabled);
+    });
+    return () => {
+      listener.remove();
+    };
+  }, []);
 
   const loadPosts = async () => {
     try {
@@ -36,22 +46,7 @@ const CalendarWrapper = () => {
     setRefreshing(false);
   }, []);
 
-  if (loading) {
-    return (
-      <ThemedView className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#dc2626" />
-        <ThemedText
-          style={{
-            marginTop: 12,
-            fontSize: 14,
-            color: "#6b7280",
-          }}
-        >
-          Loading Calendar…
-        </ThemedText>
-      </ThemedView>
-    );
-  }
+
 
   if (error) {
     return <Text>{error}</Text>;
@@ -60,12 +55,14 @@ const CalendarWrapper = () => {
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
+      scrollEnabled={scrollEnabled}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={handleRefresh}
           tintColor="#dc2626"
           colors={["#dc2626"]}
+          enabled={scrollEnabled}
         />
       }
     >

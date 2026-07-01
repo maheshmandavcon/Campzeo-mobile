@@ -52,12 +52,12 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/app-images/app-logo.png",
-          "imageWidth": 200,
-          "resizeMode": "cover",
+          "image": "./assets/app-images/camp-logo.png",
+          "imageWidth": 140,
+          "resizeMode": "contain",
           "backgroundColor": "#ffffff",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#0f1115"
           }
         }
       ],

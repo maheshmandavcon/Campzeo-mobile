@@ -17,16 +17,20 @@ import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
 import { BarChart, PieChart } from "react-native-gifted-charts";
 import { getPostsInsights } from "@/api/dashboardApi";
+import { templetApi } from "@/api/templetApi";
 import { FontAwesome, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 
-export default function CalendarInsights() {
+export default function CalendarInsights({ setActiveCalendarTab }: { setActiveCalendarTab?: (tab: number) => void }) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const router = useRouter();
 
   // Date states
   const [fromDate, setFromDate] = useState<Date | null>(null);
   const [toDate, setToDate] = useState<Date | null>(null);
   const [insightsData, setInsightsData] = useState<any>([]);
+  const [templateCount, setTemplateCount] = useState<number | null>(null);
   // Picker states
   const [platform, setPlatform] = useState("all");
   const [showPicker, setShowPicker] = useState(false);
@@ -132,6 +136,18 @@ export default function CalendarInsights() {
       const response = await getPostsInsights(platform, from, to);
       console.log("Insights Data:", response);
       setInsightsData(response);
+
+      try {
+        const templatesRes = await templetApi.getTemplates();
+        const count = Array.isArray(templatesRes) 
+          ? templatesRes.length 
+          : Array.isArray(templatesRes?.data) 
+            ? templatesRes.data.length 
+            : 0;
+        setTemplateCount(count);
+      } catch (err) {
+        console.error("Error fetching templates count:", err);
+      }
     } catch (error) {
       console.error("Error fetching insights:", error);
     }
@@ -444,7 +460,7 @@ export default function CalendarInsights() {
           </VStack>
 
           {/* Upcoming Posts */}
-          <VStack
+          <TouchableOpacity
             style={{
               padding: 15,
               gap: 9,
@@ -454,6 +470,10 @@ export default function CalendarInsights() {
               borderRadius: 16,
               minHeight: 120,
               backgroundColor: isDark ? "#0f172a" : "#fff",
+            }}
+            activeOpacity={0.8}
+            onPress={() => {
+              if (setActiveCalendarTab) setActiveCalendarTab(1);
             }}
           >
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
@@ -473,7 +493,7 @@ export default function CalendarInsights() {
                 Scheduled
               </ThemedText>
             </HStack>
-          </VStack>
+          </TouchableOpacity>
 
           {/* Past (Published) */}
           <VStack
@@ -507,8 +527,8 @@ export default function CalendarInsights() {
             </HStack>
           </VStack>
 
-          {/* Drafts */}
-          <VStack
+          {/* Templates */}
+          <TouchableOpacity
             style={{
               padding: 15,
               gap: 9,
@@ -519,25 +539,29 @@ export default function CalendarInsights() {
               minHeight: 120,
               backgroundColor: isDark ? "#0f172a" : "#fff",
             }}
+            activeOpacity={0.8}
+            onPress={() => {
+              router.push("/(templets)/templet");
+            }}
           >
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
               <ThemedText style={{ fontWeight: "bold", fontSize: 22 }}>
-                {insightsData?.stats?.drafts ?? "-"}
+                {templateCount ?? "-"}
               </ThemedText>
               <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#f54a0022", alignItems: "center", justifyContent: "center" }}>
-                <Ionicons name="create-outline" size={18} color="#f54a00" />
+                <Ionicons name="documents-outline" size={18} color="#f54a00" />
               </View>
             </View>
             <ThemedText style={{ fontWeight: "600", fontSize: 13, color: isDark ? "#cbd5e1" : "#374151" }}>
-              Drafts
+              Templates
             </ThemedText>
             <HStack className="items-center gap-2">
-              <Ionicons name="calendar-outline" size={12} color={"#f54a00"} />
+              <Ionicons name="document-text-outline" size={12} color={"#f54a00"} />
               <ThemedText style={{ fontSize: 11, color: "#f54a00" }}>
-                Pending
+                Available
               </ThemedText>
             </HStack>
-          </VStack>
+          </TouchableOpacity>
         </View>
 
         {/* Charts Section */}

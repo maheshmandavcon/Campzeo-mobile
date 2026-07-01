@@ -6,6 +6,7 @@ import {
   useColorScheme,
   View,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
@@ -27,6 +28,11 @@ interface RecordCardProps {
   onDelete: (record: ContactsRecord) => void;
   onCopy: (record: ContactsRecord) => void;
   onToggleShow: (record: ContactsRecord) => void;
+  onLongPress?: (record: ContactsRecord) => void;
+  onPress?: (record: ContactsRecord) => void;
+  isSelected?: boolean;
+  isMultiSelectMode?: boolean;
+  isDeleting?: boolean;
 }
 
 const AVATAR_COLORS = [
@@ -62,6 +68,11 @@ export default function ContactCard({
   onDelete,
   onCopy,
   onToggleShow,
+  onLongPress,
+  onPress,
+  isSelected,
+  isMultiSelectMode,
+  isDeleting,
 }: RecordCardProps) {
   const [modalVisible, setModalVisible] = React.useState(false);
   const isDark = useColorScheme() === "dark";
@@ -94,12 +105,19 @@ export default function ContactCard({
     <>
       <TouchableOpacity
         activeOpacity={0.8}
-        onPress={() => onToggleShow(record)}
+        delayLongPress={300}
+        onPress={() => onPress ? onPress(record) : onToggleShow(record)}
+        onLongPress={() => onLongPress?.(record)}
         style={[
           styles.card,
           {
-            backgroundColor: COLORS.cardBg,
-            borderColor: COLORS.cardBorder,
+            backgroundColor: isSelected 
+              ? (isDark ? "rgba(220, 38, 38, 0.15)" : "#fef2f2") 
+              : COLORS.cardBg,
+            borderColor: isSelected 
+              ? "#dc2626" 
+              : COLORS.cardBorder,
+            borderWidth: isSelected ? 2 : 1,
           },
         ]}
       >
@@ -126,26 +144,35 @@ export default function ContactCard({
 
         {/* Right Side: Action Badges */}
         <View style={styles.actionRow}>
-          <TouchableOpacity
-            onPress={() => onEdit(record)}
-            style={[styles.circularBtn, { backgroundColor: COLORS.editBg }]}
-          >
-            <Ionicons name="create-outline" size={18} color={COLORS.editIcon} />
-          </TouchableOpacity>
+          {!isMultiSelectMode && (
+            <>
+              <TouchableOpacity
+                onPress={() => onEdit(record)}
+                style={[styles.circularBtn, { backgroundColor: COLORS.editBg }]}
+              >
+                <Ionicons name="create-outline" size={18} color={COLORS.editIcon} />
+              </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() => onDelete(record)}
-            style={[styles.circularBtn, { backgroundColor: COLORS.deleteBg }]}
-          >
-            <Ionicons name="trash-outline" size={18} color={COLORS.deleteIcon} />
-          </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => onDelete(record)}
+                style={[styles.circularBtn, { backgroundColor: COLORS.deleteBg }]}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color={COLORS.deleteIcon} />
+                ) : (
+                  <Ionicons name="trash-outline" size={18} color={COLORS.deleteIcon} />
+                )}
+              </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() => onCopy(record)}
-            style={[styles.circularBtn, { backgroundColor: COLORS.copyBg }]}
-          >
-            <Ionicons name="copy-outline" size={18} color={COLORS.copyIcon} />
-          </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => onCopy(record)}
+                style={[styles.circularBtn, { backgroundColor: COLORS.copyBg }]}
+              >
+                <Ionicons name="copy-outline" size={18} color={COLORS.copyIcon} />
+              </TouchableOpacity>
+            </>
+          )}
 
           <TouchableOpacity
             onPress={() => onToggleShow(record)}

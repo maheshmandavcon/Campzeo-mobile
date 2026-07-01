@@ -10,6 +10,7 @@ import {
   useColorScheme,
   Alert,
   Clipboard,
+  Linking,
 } from "react-native";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import { WebView } from "react-native-webview";
@@ -485,13 +486,31 @@ export default function PostDetailsModal({
           {/* ACTION BUTTON FOOTER */}
           <View style={[styles.footer, isDark && styles.footerDark]}>
             {status === "SENT" && (
-              <TouchableOpacity
-                onPress={onClose}
-                style={[styles.actionBtn, styles.cancelBtn]}
-                activeOpacity={0.8}
-              >
-                <ThemedText style={styles.cancelBtnText}>Close</ThemedText>
-              </TouchableOpacity>
+              <View style={{ flexDirection: "row", flex: 1, gap: 8 }}>
+                {(post.type === "FACEBOOK" || post.type === "INSTAGRAM") && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      onClose();
+                      Linking.openURL("https://business.facebook.com/latest/posts/published_posts");
+                    }}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.actionBtn,
+                      { flex: 1, backgroundColor: post.type === "FACEBOOK" ? "#1877F2" : "#C13584", borderColor: post.type === "FACEBOOK" ? "#1877F2" : "#C13584", flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6 }
+                    ]}
+                  >
+                    <FontAwesome name={post.type === "FACEBOOK" ? "facebook-square" : "instagram"} size={18} color="#fff" />
+                    <ThemedText style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>Boost Post</ThemedText>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  onPress={onClose}
+                  style={[styles.actionBtn, styles.cancelBtn, { flex: (post.type === "FACEBOOK" || post.type === "INSTAGRAM") ? 0.5 : 1 }]}
+                  activeOpacity={0.8}
+                >
+                  <ThemedText style={styles.cancelBtnText}>Close</ThemedText>
+                </TouchableOpacity>
+              </View>
             )}
 
             {status !== "SENT" && (

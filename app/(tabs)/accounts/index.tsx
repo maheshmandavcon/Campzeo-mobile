@@ -121,6 +121,14 @@ export default function Accounts() {
   const [showFacebookPageModal, setShowFacebookPageModal] = useState(false);
   const [facebookPages, setFacebookPages] = useState<FacebookPage[]>([]);
 
+  const [showGlobalAlert, setShowGlobalAlert] = useState(false);
+  const [globalAlertContent, setGlobalAlertContent] = useState({ title: "", message: "", type: "error" as "error" | "info" });
+
+  const showAlert = (title: string, message: string, type: "error" | "info" = "error") => {
+    setGlobalAlertContent({ title, message, type });
+    setShowGlobalAlert(true);
+  };
+
   const colors = useMemo(
     () => ({
       bg: isDark ? "#161618" : "#f3f4f6",
@@ -172,7 +180,7 @@ export default function Accounts() {
       );
     } catch (error) {
       console.error("Failed to fetch connected platforms", error);
-      Alert.alert("Unable to load accounts", "Please try again in a moment.");
+      showAlert("Unable to load accounts", "Please try again in a moment.");
     } finally {
       setPageLoading(false);
     }
@@ -200,14 +208,14 @@ export default function Accounts() {
         return;
       }
 
-      Alert.alert(
+      showAlert(
         "No Facebook pages found",
         "Reconnect with an account that manages a Facebook Page.",
       );
       fetchConnections(false);
     } catch (error) {
       console.error("Error fetching facebook pages:", error);
-      Alert.alert(
+      showAlert(
         "Facebook pages unavailable",
         "We could not retrieve your Facebook Pages.",
       );
@@ -223,7 +231,7 @@ export default function Accounts() {
       const data = await getPlatform(platformKey);
 
       if (!data?.success || !data?.url) {
-        Alert.alert(
+        showAlert(
           "Connection failed",
           data?.errorMessage || `Unable to connect ${platformKey}.`,
         );
@@ -239,7 +247,7 @@ export default function Accounts() {
       }
     } catch (error) {
       console.error("Failed to connect:", error);
-      Alert.alert(
+      showAlert(
         "Connection failed",
         "Please try connecting the account again.",
       );
@@ -265,7 +273,7 @@ export default function Accounts() {
       );
 
       if (response?.success === false) {
-        Alert.alert(
+        showAlert(
           "Disconnect failed",
           response?.errorMessage ||
           `Unable to disconnect ${platformToDisconnect.title}.`,
@@ -278,7 +286,7 @@ export default function Accounts() {
       await fetchConnections(false);
     } catch (error) {
       console.error("Failed to disconnect:", error);
-      Alert.alert("Disconnect failed", "Please try again in a moment.");
+      showAlert("Disconnect failed", "Please try again in a moment.");
     } finally {
       setLoadingPlatform(null);
       setLoadingAction(null);
@@ -289,7 +297,7 @@ export default function Accounts() {
     const pageAccessToken = page.access_token || page.accessToken;
 
     if (!page.id || !pageAccessToken) {
-      Alert.alert(
+      showAlert(
         "Page cannot be linked",
         "The selected page is missing access details.",
       );
@@ -304,7 +312,7 @@ export default function Accounts() {
       await fetchConnections(false);
     } catch (error) {
       console.error("Error saving page:", error);
-      Alert.alert(
+      showAlert(
         "Page link failed",
         "We could not link the selected Facebook Page.",
       );
@@ -904,6 +912,54 @@ export default function Accounts() {
                 );
               })}
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Global Alert Modal */}
+      <Modal
+        visible={showGlobalAlert}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowGlobalAlert(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <View
+              style={[
+                styles.warningIcon,
+                { backgroundColor: globalAlertContent.type === "error" ? colors.disconnectBg : colors.primarySoft },
+              ]}
+            >
+              <Ionicons 
+                name={globalAlertContent.type === "error" ? "alert-circle" : "information-circle"} 
+                size={28} 
+                color={globalAlertContent.type === "error" ? "#dc2626" : colors.primary} 
+              />
+            </View>
+            <ThemedText style={[styles.modalTitle, { color: colors.text }]}>
+              {globalAlertContent.title}
+            </ThemedText>
+            <ThemedText style={[styles.modalCopy, { color: colors.muted }]}>
+              {globalAlertContent.message}
+            </ThemedText>
+
+            <HStack style={[styles.modalActions, { marginTop: 20 }]}>
+              <RNPressable
+                onPress={() => setShowGlobalAlert(false)}
+                style={[
+                  styles.modalButton,
+                  { backgroundColor: colors.primary },
+                ]}
+              >
+                <ThemedText style={styles.confirmText}>OK</ThemedText>
+              </RNPressable>
+            </HStack>
           </View>
         </View>
       </Modal>

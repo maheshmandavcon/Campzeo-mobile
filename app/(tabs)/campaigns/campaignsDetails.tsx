@@ -15,7 +15,7 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
+  Modal,
   FlatList,
   SectionList,
   TextInput,
@@ -25,6 +25,7 @@ import {
   Image,
   Text,
   RefreshControl,
+  Linking,
 } from "react-native";
 import { ContactsRecord } from "../contacts/contactComponents/contactCard";
 import CampaignCard, { Campaign } from "./campaignComponents/campaignCard";
@@ -78,6 +79,9 @@ export default function CampaignsDetails() {
   const [deletingPostId, setDeletingPostId] = useState<number | null>(null);
   const [selectedDetailPost, setSelectedDetailPost] = useState<any | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [postToDelete, setPostToDelete] = useState<number | null>(null);
+  const isDarkMode = useColorScheme() === "dark";
 
   const refreshCallback =
     typeof params.refreshCallback === "string";
@@ -303,39 +307,39 @@ export default function CampaignsDetails() {
   };
 
   // ========= POST ACTIONS =========
-  const handleDeletePost = async (postId: number) => {
+  const handleDeletePost = (postId: number) => {
+    setPostToDelete(postId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeletePost = async () => {
+    if (postToDelete === null) return;
+    
     const user = await getUser();
     const orgId = user?.organisation?.id;
     if (!resolvedCampaignId) return;
 
-    Alert.alert("Delete Post?", "Are you sure you want to delete this post?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            setDeletingPostId(postId);
+    try {
+      setShowDeleteModal(false);
+      setDeletingPostId(postToDelete);
 
-            await deletePostForCampaignApi(orgId,resolvedCampaignId, postId);
+      await deletePostForCampaignApi(orgId, resolvedCampaignId, postToDelete);
 
-            // ✅ Reload ALL posts after delete
-            await fetchPosts();
+      // ✅ Reload ALL posts after delete
+      await fetchPosts();
 
-            // optional: reset visible count
-            setVisibleCount(5);
-          } catch (error) {
-            Toast.show({
-              type: "error",
-              text1: "Error",
-              text2: "Failed to delete post. Please try again."
-            });
-          } finally {
-            setDeletingPostId(null);
-          }
-        },
-      },
-    ]);
+      // optional: reset visible count
+      setVisibleCount(5);
+    } catch (error) {
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Failed to delete post. Please try again."
+      });
+    } finally {
+      setDeletingPostId(null);
+      setPostToDelete(null);
+    }
   };
 
 
@@ -941,50 +945,79 @@ export default function CampaignsDetails() {
             </Text>
           </View>
 
-          {/* STATUS PILL */}
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 4,
-              paddingHorizontal: 10,
-              paddingVertical: 3,
-              borderRadius: 20,
-              backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "#f9fafb",
-              borderWidth: 1,
-              borderColor: isDark ? "#2c2c2e" : "#f3f4f6",
-            }}
-          >
-            <Ionicons
-              name={
-                status === "SENT"
-                  ? "paper-plane"
-                  : status === "SCHEDULED"
-                  ? "alarm-outline"
-                  : status === "FAILED"
-                  ? "alert-circle"
-                  : "hourglass-outline"
-              }
-              size={12}
-              color={
-                status === "SENT"
-                  ? "#22c55e"
-                  : status === "SCHEDULED"
-                  ? "#3b82f6"
-                  : status === "FAILED"
-                  ? "#ef4444"
-                  : "#fbbf24"
-              }
-            />
-            <Text
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            {/* BOOST POST BUTTON */}
+            {status === "SENT" && (item.type === "FACEBOOK" || item.type === "INSTAGRAM") && (
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  Linking.openURL("https://business.facebook.com/latest/posts/published_posts");
+                }}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                  paddingHorizontal: 10,
+                  paddingVertical: 3,
+                  backgroundColor: item.type === "FACEBOOK" ? "#1877F2" : "#C13584",
+                  borderRadius: 20,
+                  shadowColor: item.type === "FACEBOOK" ? "#1877F2" : "#C13584",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 3,
+                  elevation: 2,
+                }}
+              >
+                <FontAwesome name="rocket" size={12} color="#fff" />
+                <Text style={{ color: "#fff", fontWeight: "700", fontSize: 11 }}>Boost</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* STATUS PILL */}
+            <View
               style={{
-                fontSize: 11,
-                fontWeight: "700",
-                color: isDark ? "#e5e7eb" : "#4b5563",
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 4,
+                paddingHorizontal: 10,
+                paddingVertical: 3,
+                borderRadius: 20,
+                backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "#f9fafb",
+                borderWidth: 1,
+                borderColor: isDark ? "#2c2c2e" : "#f3f4f6",
               }}
             >
-              {status}
-            </Text>
+              <Ionicons
+                name={
+                  status === "SENT"
+                    ? "paper-plane"
+                    : status === "SCHEDULED"
+                    ? "alarm-outline"
+                    : status === "FAILED"
+                    ? "alert-circle"
+                    : "hourglass-outline"
+                }
+                size={12}
+                color={
+                  status === "SENT"
+                    ? "#22c55e"
+                    : status === "SCHEDULED"
+                    ? "#3b82f6"
+                    : status === "FAILED"
+                    ? "#ef4444"
+                    : "#fbbf24"
+                }
+              />
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "700",
+                  color: isDark ? "#e5e7eb" : "#4b5563",
+                }}
+              >
+                {status}
+              </Text>
+            </View>
           </View>
         </View>
       </TouchableOpacity>
@@ -1169,6 +1202,69 @@ export default function CampaignsDetails() {
           handleDeletePost(postId);
         }}
       />
+
+      {/* Delete Post Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}
+      >
+        <View className="flex-1 justify-center items-center bg-black/60 px-4">
+          <View
+            className="w-full max-w-sm rounded-3xl p-6"
+            style={{ backgroundColor: isDarkMode ? "#1f2937" : "#ffffff" }}
+          >
+            <View className="flex-row justify-between items-center mb-4">
+              <View className="flex-row items-center gap-2">
+                <View className="p-2 bg-red-50 dark:bg-red-900/20 rounded-full">
+                  <Ionicons name="alert-circle" size={20} color="#dc2626" />
+                </View>
+                <Text
+                  className="text-lg font-bold"
+                  style={{ color: isDarkMode ? "#f3f4f6" : "#111827" }}
+                >
+                  Delete Post?
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowDeleteModal(false)}
+                className="p-1"
+              >
+                <Ionicons name="close" size={20} color={isDarkMode ? "#f3f4f6" : "#111827"} />
+              </TouchableOpacity>
+            </View>
+
+            <Text className="text-sm mb-6 leading-5" style={{ color: isDarkMode ? "#9ca3af" : "#6b7280" }}>
+              Are you sure you want to delete this post? This action cannot be undone.
+            </Text>
+
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                onPress={() => setShowDeleteModal(false)}
+                className="flex-1 py-3.5 border rounded-xl items-center"
+                style={{ borderColor: isDarkMode ? "#374151" : "#e5e7eb" }}
+              >
+                <Text
+                  className="font-bold text-sm"
+                  style={{ color: isDarkMode ? "#f3f4f6" : "#111827" }}
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={confirmDeletePost}
+                className="flex-1 py-3.5 bg-red-600 rounded-xl items-center flex-row justify-center"
+              >
+                <Text className="text-white font-bold text-sm">
+                  Delete
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }

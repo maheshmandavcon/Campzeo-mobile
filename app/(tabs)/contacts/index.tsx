@@ -15,6 +15,7 @@ import ContactCard, { ContactsRecord } from "./contactComponents/contactCard";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   getContactsApi,
+  bulkDeleteContactsApi,
   deleteContactApi,
   exportContactsApi,
 } from "@/api/contactApi";
@@ -39,6 +40,10 @@ export default function Contacts() {
   const [hasMore, setHasMore] = useState(true);
   const [menuVisible, setMenuVisible] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [selectedContacts, setSelectedContacts] = useState<number[]>([]);
+  const [deletingContactId, setDeletingContactId] = useState<number | null>(null);
 
   const isDark = useColorScheme() === "dark";
 
@@ -67,6 +72,8 @@ export default function Contacts() {
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
+      setIsMultiSelectMode(false);
+      setSelectedContacts([]);
 
       const load = async () => {
         setPage(1);
@@ -193,24 +200,6 @@ export default function Contacts() {
       },
     });
   };
-  //   const handleEdit = (record: ContactsRecord) => {
-  //   // 1️⃣ Print all emails
-  //   const allEmails = records.map((r) => r.email);
-  //   console.log("Existing contact emails:", allEmails);
-
-  //   // 2️⃣ Print all mobile numbers
-  //   const allMobiles = records.map((r) => r.mobile);
-  //   console.log("Existing contact numbers:", allMobiles);
-
-  //   // 3️⃣ Navigate to edit page
-  //   router.push({
-  //     pathname: "/contacts/createContact",
-  //     params: {
-  //       contactId: String(record.id),
-  //       record: JSON.stringify(record),
-  //     },
-  //   });
-  // };
 
   const handleCopy = (record: ContactsRecord) => {
     const textToCopy = `
@@ -244,7 +233,7 @@ WhatsApp: ${record.whatsapp || "-"}
         style: "destructive",
         onPress: async () => {
           try {
-            setLoading(true);
+            setDeletingContactId(record.id);
 
             const token = await getToken();
             if (!token) return;
@@ -265,11 +254,81 @@ WhatsApp: ${record.whatsapp || "-"}
               text1: "Failed to delete contact",
             });
           } finally {
-            setLoading(false);
+            setDeletingContactId(null);
           }
         },
       },
     ]);
+  };
+
+  const handleLongPress = (record: ContactsRecord) => {
+    if (!isMultiSelectMode) {
+      setIsMultiSelectMode(true);
+      setSelectedContacts([record.id]);
+    }
+  };
+
+  const toggleSelection = (record: ContactsRecord) => {
+    setSelectedContacts((prev) => {
+      if (prev.includes(record.id)) {
+        const newSelection = prev.filter(id => id !== record.id);
+        if (newSelection.length === 0) setIsMultiSelectMode(false);
+        return newSelection;
+      }
+      return [...prev, record.id];
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedContacts.length === records.length) {
+      setSelectedContacts([]);
+      setIsMultiSelectMode(false);
+    } else {
+      setSelectedContacts(records.map(r => r.id));
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedContacts.length === 0) return;
+    
+    Alert.alert(
+      "Delete Contacts",
+      `Are you sure you want to delete ${selectedContacts.length} selected contacts? This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const token = await getToken();
+              if (!token) return;
+              const user = await getUser();
+              const orgId = user?.organisation?.id;
+
+              await bulkDeleteContactsApi(orgId, selectedContacts);
+
+              setRecords((prev) => prev.filter((r) => !selectedContacts.includes(r.id)));
+              setIsMultiSelectMode(false);
+              setSelectedContacts([]);
+              
+              Toast.show({
+                type: "success",
+                text1: `${selectedContacts.length} contacts deleted successfully`,
+              });
+            } catch (e: any) {
+              Toast.show({
+                type: "error",
+                text1: "Failed to bulk delete contacts",
+              });
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleExportAll = async () => {
@@ -410,8 +469,76 @@ WhatsApp: ${record.whatsapp || "-"}
         style={{ backgroundColor: COLORS.screenBg }}
         className="flex-1 p-4"
       >
-        {/* Heading & Add Contacts Button Row */}
-        <View
+        {isMultiSelectMode ? (
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 20,
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => {
+                setIsMultiSelectMode(false);
+                setSelectedContacts([]);
+              }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: 10,
+              }}
+            >
+              <Ionicons name="close" size={24} color={COLORS.textPrimary} />
+              <Text
+                style={{
+                  marginLeft: 8,
+                  fontSize: 18,
+                  fontWeight: "700",
+                  color: COLORS.textPrimary,
+                }}
+              >
+                {selectedContacts.length} Selected
+              </Text>
+            </TouchableOpacity>
+
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+              <TouchableOpacity onPress={handleSelectAll}>
+                 <Text style={{ color: COLORS.textPrimary, fontWeight: "700", fontSize: 14 }}>
+                   {selectedContacts.length === records.length && records.length > 0 ? "Deselect All" : "Select All"}
+                 </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleBulkDelete}
+                disabled={selectedContacts.length === 0}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  borderRadius: 99,
+                  backgroundColor: selectedContacts.length > 0 ? COLORS.newButtonBg : COLORS.cardBorder,
+                }}
+              >
+                <Ionicons name="trash" size={18} color={selectedContacts.length > 0 ? COLORS.newButtonText : COLORS.textSecondary} />
+                <Text
+                  style={{
+                    marginLeft: 6,
+                    fontWeight: "700",
+                    fontSize: 14,
+                    color: selectedContacts.length > 0 ? COLORS.newButtonText : COLORS.textSecondary,
+                  }}
+                >
+                  Delete
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <>
+            {/* Heading & Add Contacts Button Row */}
+            <View
           style={{
             flexDirection: "row",
             justifyContent: "space-between",
@@ -525,6 +652,16 @@ WhatsApp: ${record.whatsapp || "-"}
             />
           </TouchableOpacity>
         </View>
+          </>
+        )}
+
+        {/* Click-outside overlay for dropdown */}
+        {menuVisible && (
+          <Pressable
+            style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 20, elevation: 7 }}
+            onPress={() => setMenuVisible(false)}
+          />
+        )}
 
         {/* Dropdown */}
         {menuVisible && (
@@ -653,6 +790,11 @@ WhatsApp: ${record.whatsapp || "-"}
                 onDelete={handleDelete}
                 onCopy={handleCopy}
                 onToggleShow={toggleShow}
+                isSelected={selectedContacts.includes(item.id)}
+                isMultiSelectMode={isMultiSelectMode}
+                isDeleting={deletingContactId === item.id}
+                onLongPress={handleLongPress}
+                onPress={isMultiSelectMode ? toggleSelection : undefined}
               />
             )
           }

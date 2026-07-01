@@ -17,6 +17,7 @@ import {
   Pressable,
   StyleSheet,
   View,
+  useColorScheme,
 } from "react-native";
 
 
@@ -28,6 +29,8 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
   const router = useRouter();
   const { setSession } = useAuth();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   const onSignInPress = async () => {
     if (!email.trim() || !password) {
@@ -62,36 +65,41 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
       <LinearGradient
-        colors={["#7f1d1d", "#dc2626", "#ef4444"]}
+        colors={isDark ? ["#09090b", "#18181b", "#18181b"] : ["#f8fafc", "#f1f5f9", "#f1f5f9"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.gradient}
       >
         <View style={styles.backgroundShapes}>
-          <View style={[styles.shape, styles.shape1]} />
-          <View style={[styles.shape, styles.shape2]} />
+          <View style={[styles.shape, styles.shape1, { backgroundColor: isDark ? "rgba(220, 38, 38, 0.08)" : "rgba(220, 38, 38, 0.15)" }]} />
+          <View style={[styles.shape, styles.shape2, { backgroundColor: isDark ? "rgba(220, 38, 38, 0.05)" : "rgba(220, 38, 38, 0.1)" }]} />
         </View>
 
-        <BlurView intensity={80} tint="light" style={styles.card}>
+        <View style={[styles.card, {
+          backgroundColor: isDark ? "rgba(30, 30, 30, 0.95)" : "rgba(255, 255, 255, 0.95)",
+          borderColor: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(255, 255, 255, 0.6)",
+        }]}>
           {/* Logo */}
-          <View style={styles.logoContainer}>
-            <Image
-              source={require("../../assets/app-images/camp-logo.png")}
-              style={styles.logo}
-              resizeMode="contain"
-            />
+          <View style={styles.logoWrapper}>
+            <View style={[styles.logoContainer, isDark && styles.logoContainerDark]}>
+              <Image
+                source={require("../../assets/app-images/camp-logo.png")}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+            </View>
           </View>
 
           {/* Title Section */}
           <View style={styles.header}>
-            <ThemedText type="title" style={styles.title}>
+            <ThemedText type="title" style={[styles.title, { color: isDark ? "#ffffff" : "#111827" }]}>
               Welcome Back
             </ThemedText>
-            <ThemedText style={styles.subtitle}>
+            <ThemedText style={[styles.subtitle, { color: isDark ? "#9ca3af" : "#4b5563" }]}>
               Sign in to continue to your dashboard
             </ThemedText>
           </View>
@@ -100,39 +108,47 @@ export default function LoginScreen() {
           <View style={styles.form}>
             {/* Email */}
             <View style={styles.inputGroup}>
-              <ThemedText style={styles.label}>Email</ThemedText>
-              <Input variant="outline" size="lg" style={styles.inputWrapper}>
+              <ThemedText style={[styles.label, { color: isDark ? "#d1d5db" : "#374151" }]}>Email</ThemedText>
+              <Input variant="outline" size="lg" style={[styles.inputWrapper, {
+                  backgroundColor: isDark ? "rgba(0,0,0,0.2)" : "#ffffff",
+                  borderColor: isDark ? "#3f3f46" : "#e5e7eb"
+              }]}>
                 <InputSlot style={{ paddingLeft: 12 }}>
-                  <Ionicons name="mail-outline" size={20} color="#991b1b" />
+                  <Ionicons name="mail-outline" size={20} color={isDark ? "#9ca3af" : "#6b7280"} />
                 </InputSlot>
                 <InputField
                   placeholder="Enter your email"
+                  placeholderTextColor={isDark ? "#6b7280" : "#9ca3af"}
                   value={email}
                   onChangeText={setEmail}
                   autoCapitalize="none"
                   keyboardType="email-address"
-                  style={styles.inputText}
+                  style={[styles.inputText, { color: isDark ? "#ffffff" : "#111827" }]}
                 />
               </Input>
             </View>
 
             {/* Password */}
             <View style={styles.inputGroup}>
-              <ThemedText style={styles.label}>Password</ThemedText>
-              <Input variant="outline" size="lg" style={styles.inputWrapper}>
+              <ThemedText style={[styles.label, { color: isDark ? "#d1d5db" : "#374151" }]}>Password</ThemedText>
+              <Input variant="outline" size="lg" style={[styles.inputWrapper, {
+                  backgroundColor: isDark ? "rgba(0,0,0,0.2)" : "#ffffff",
+                  borderColor: isDark ? "#3f3f46" : "#e5e7eb"
+              }]}>
                 <InputSlot style={{ paddingLeft: 12 }}>
                   <Ionicons
                     name="lock-closed-outline"
                     size={20}
-                    color="#991b1b"
+                    color={isDark ? "#9ca3af" : "#6b7280"}
                   />
                 </InputSlot>
                 <InputField
                   placeholder="Enter your password"
+                  placeholderTextColor={isDark ? "#6b7280" : "#9ca3af"}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
-                  style={styles.inputText}
+                  style={[styles.inputText, { color: isDark ? "#ffffff" : "#111827" }]}
                 />
                 <InputSlot
                   onPress={() => setShowPassword(!showPassword)}
@@ -141,7 +157,7 @@ export default function LoginScreen() {
                   <Ionicons
                     name={showPassword ? "eye-off-outline" : "eye-outline"}
                     size={20}
-                    color="#666"
+                    color={isDark ? "#9ca3af" : "#6b7280"}
                   />
                 </InputSlot>
               </Input>
@@ -152,16 +168,19 @@ export default function LoginScreen() {
               style={styles.forgotPassword}
               onPress={() => Linking.openURL("https://campzeo.com/forgot-password")}
             >
-              <ThemedText style={styles.forgotPasswordText}>
+              <ThemedText style={[styles.forgotPasswordText, { color: "#dc2626" }]}>
                 Forgot Password?
               </ThemedText>
             </Pressable>
 
             {/* Error Message */}
             {error !== "" && (
-              <View style={styles.errorContainer}>
-                <Ionicons name="alert-circle" size={16} color="#b91c1c" />
-                <ThemedText style={styles.errorText}>{error}</ThemedText>
+              <View style={[styles.errorContainer, { 
+                backgroundColor: isDark ? "rgba(220, 38, 38, 0.1)" : "#fef2f2",
+                borderColor: isDark ? "rgba(220, 38, 38, 0.2)" : "#fee2e2"
+              }]}>
+                <Ionicons name="alert-circle" size={16} color={isDark ? "#ef4444" : "#dc2626"} />
+                <ThemedText style={[styles.errorText, { color: isDark ? "#ef4444" : "#dc2626" }]}>{error}</ThemedText>
               </View>
             )}
 
@@ -170,26 +189,16 @@ export default function LoginScreen() {
               onPress={onSignInPress}
               disabled={loading}
               size="lg"
-              style={styles.signInButton}
+              style={[styles.signInButton, { opacity: loading ? 0.7 : 1, backgroundColor: "#dc2626" }]}
             >
               {loading ? (
-                <ButtonSpinner color="#fff" />
+                <ButtonSpinner color="#ffffff" />
               ) : (
                 <ButtonText style={styles.signInText}>Sign In</ButtonText>
               )}
             </Button>
           </View>
-
-          {/* Footer */}
-          {/* <View style={styles.footer}>
-            <ThemedText style={styles.footerText}>
-              Don't have an account?{" "}
-            </ThemedText>
-            <Pressable>
-              <ThemedText style={styles.signUpLink}>Sign Up</ThemedText>
-            </Pressable>
-          </View> */}
-        </BlurView>
+        </View>
       </LinearGradient>
     </KeyboardAvoidingView>
   );
@@ -249,11 +258,25 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
 
-  logoContainer: {
+  logoWrapper: {
     alignItems: "center",
     marginBottom: 24,
   },
-
+  logoContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoContainerDark: {
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   logo: {
     width: 160,
     height: 60,
