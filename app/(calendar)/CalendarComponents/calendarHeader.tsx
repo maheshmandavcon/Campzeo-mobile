@@ -50,11 +50,17 @@ const CalendarHeader: React.FC<CalendarHeaderProps> = ({
 
   /* ---------------------- VIEW MODE STYLES ------------------------ */
 
-  const getViewModeStyle = (mode: "month" | "week" | "day"): TextStyle => ({
-    fontSize: 16,
-    fontWeight: viewMode === mode ? "700" : "400",
-    color:  ACTIVE_COLOR,
-    // opacity: viewMode === mode ? 1 : 0.75,
+  const getPillStyle = (mode: "month" | "week" | "day") => ({
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    backgroundColor: viewMode === mode ? ACTIVE_COLOR : "transparent",
+  });
+
+  const getTextStyle = (mode: "month" | "week" | "day"): TextStyle => ({
+    fontSize: 14,
+    fontWeight: viewMode === mode ? "700" : "600",
+    color: viewMode === mode ? "#ffffff" : isDark ? "#94a3b8" : "#64748b",
   });
 
   /* ------------------------------ UI ------------------------------ */
@@ -62,60 +68,39 @@ const CalendarHeader: React.FC<CalendarHeaderProps> = ({
   return (
     <ThemedView
       style={{
-        padding: 12,
-        gap: 12,
+        padding: 16,
+        paddingBottom: 8,
+        gap: 16,
+        backgroundColor: "transparent"
       }}
     >
-      {/* ================= TOP ROW ================= */}
-
-      <ThemedView
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        {/* PREV */}
-        <TouchableOpacity onPress={handlePrev}>
-          <CircleChevronLeft size={34} color={ACTIVE_COLOR} />
-        </TouchableOpacity>
-
-        {/* MONTH LABEL */}
-        <ThemedText
-          style={{
-            fontSize: 20,
-            fontWeight: "700",
-            color: ACTIVE_COLOR,
-          }}
-        >
-          {monthLabel}
-        </ThemedText>
-
-        {/* NEXT */}
-        <TouchableOpacity onPress={handleNext}>
-          <CircleChevronRight size={34} color={ACTIVE_COLOR} />
-        </TouchableOpacity>
-      </ThemedView>
-
       {/* ================= VIEW MODES ================= */}
 
       <ThemedView
         style={{
           flexDirection: "row",
           justifyContent: "center",
-          gap: 20,
+          backgroundColor: isDark ? "#1e293b" : "#f1f5f9",
+          borderRadius: 24,
+          padding: 4,
+          alignSelf: "center",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.05,
+          shadowRadius: 2,
+          elevation: 1,
         }}
       >
-        <TouchableOpacity onPress={() => onChangeView("month")}>
-          <ThemedText style={getViewModeStyle("month")}>Month</ThemedText>
+        <TouchableOpacity onPress={() => onChangeView("month")} style={getPillStyle("month")}>
+          <ThemedText style={getTextStyle("month")}>Month</ThemedText>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => onChangeView("week")}>
-          <ThemedText style={getViewModeStyle("week")}>Week</ThemedText>
+        <TouchableOpacity onPress={() => onChangeView("week")} style={getPillStyle("week")}>
+          <ThemedText style={getTextStyle("week")}>Week</ThemedText>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => onChangeView("day")}>
-          <ThemedText style={getViewModeStyle("day")}>Day</ThemedText>
+        <TouchableOpacity onPress={() => onChangeView("day")} style={getPillStyle("day")}>
+          <ThemedText style={getTextStyle("day")}>Day</ThemedText>
         </TouchableOpacity>
       </ThemedView>
     </ThemedView>

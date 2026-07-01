@@ -97,6 +97,8 @@ export default function BillingPage() {
   const [creditChannel, setCreditChannel] = useState<'SMS' | 'WHATSAPP'>('SMS');
   const [creditQuantity, setCreditQuantity] = useState<string>('100');
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showRedirectModal, setShowRedirectModal] = useState(false);
+  const [redirectActionName, setRedirectActionName] = useState("");
   const [showComparePlans, setShowComparePlans] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isUpdatingAutoRenew, setIsUpdatingAutoRenew] = useState(false);
@@ -234,22 +236,13 @@ export default function BillingPage() {
   }, [loading, tab]);
 
   const handlePaymentRedirect = (actionName: string) => {
-    Alert.alert(
-      "Redirect to Web Dashboard",
-      `Payments cannot be processed directly through the mobile application. You will be redirected to the web dashboard to ${actionName}.`,
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Proceed",
-          onPress: () => {
-            Linking.openURL("https://campzeo.com/organisation/billing");
-          },
-        },
-      ],
-    );
+    setRedirectActionName(actionName);
+    setShowRedirectModal(true);
+  };
+
+  const proceedWithRedirect = () => {
+    setShowRedirectModal(false);
+    Linking.openURL("https://campzeo.com/organisation/billing");
   };
 
   const handleAutoRenewToggle = async (value: boolean) => {
@@ -2044,7 +2037,11 @@ export default function BillingPage() {
             </Text>
           </View>
 
-          <View>
+          <ScrollView 
+            nestedScrollEnabled 
+            style={{ maxHeight: 400 }} 
+            showsVerticalScrollIndicator={false}
+          >
             {paymentsData &&
               paymentsData?.invoices &&
               paymentsData?.invoices?.length > 0 ? (
@@ -2134,7 +2131,7 @@ export default function BillingPage() {
                 </Text>
               </View>
             )}
-          </View>
+          </ScrollView>
         </View>
       </ScrollView>
 
@@ -2314,6 +2311,69 @@ export default function BillingPage() {
                 )}
                 <Text className="text-white font-bold text-xs">
                   {isCancelling ? "Cancelling..." : "Confirm"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* REDIRECT MODAL */}
+      <Modal
+        visible={showRedirectModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRedirectModal(false)}
+      >
+        <View className="flex-1 justify-center items-center bg-black/60 px-4">
+          <View
+            className="w-full max-w-sm rounded-3xl p-6"
+            style={{ backgroundColor: COLORS.card }}
+          >
+            <View className="flex-row justify-between items-center mb-4">
+              <View className="flex-row items-center gap-2">
+                <View className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-full">
+                  <AlertCircle size={20} color="#3b82f6" />
+                </View>
+                <Text
+                  className="text-lg font-bold"
+                  style={{ color: COLORS.text }}
+                >
+                  Redirect to Web
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowRedirectModal(false)}
+                className="p-1"
+              >
+                <X size={20} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+
+            <Text className="text-sm mb-6 leading-5" style={{ color: COLORS.textMuted }}>
+              Payments cannot be processed directly through the mobile application. You will be redirected to the web dashboard to {redirectActionName}.
+            </Text>
+
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                onPress={() => setShowRedirectModal(false)}
+                className="flex-1 py-3.5 border rounded-xl items-center"
+                style={{ borderColor: COLORS.border }}
+              >
+                <Text
+                  className="font-bold text-sm"
+                  style={{ color: COLORS.text }}
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={proceedWithRedirect}
+                className="flex-1 py-3.5 bg-blue-600 rounded-xl items-center flex-row justify-center"
+              >
+                <Text className="text-white font-bold text-sm">
+                  Proceed
                 </Text>
               </TouchableOpacity>
             </View>

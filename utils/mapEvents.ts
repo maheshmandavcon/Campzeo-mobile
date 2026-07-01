@@ -4,13 +4,14 @@ export const mapEvents = (posts: any[]): any[] => {
   
   return posts.map((post) => {
     const start = new Date(post.scheduledPostTime || post.publishedDate || post.createdAt || new Date());
+    const end = new Date(start.getTime() + 60 * 60 * 1000); // 1 hour duration for grid rendering
 
     return {
       id: post.id,
       title: post.type, 
       mediaUrls: post.mediaUrls[0],
       start,
-      end: start,
+      end,
       isPostSent: post.isPostSent,
       platform: post.type,
       message: post.message,

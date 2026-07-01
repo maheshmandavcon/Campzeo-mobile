@@ -125,7 +125,7 @@ export const deleteContactApi = async (
 ) => {
   try {
     const payload = {
-      contactIds: contactIds,
+      id: contactIds,
       organisationId,
     };
     console.log("payload", payload);
@@ -141,10 +141,17 @@ export const deleteContactApi = async (
     );
     return res.data;
   } catch (error: any) {
-    console.log("Status:", error.response?.status);
-  console.log("Data:", error.response?.data);
-  console.log("Headers:", error.response?.headers);
-  console.log("Request:", error.config?.data);
+    console.error("Delete contact error details:");
+    console.error("Status:", error.response?.status);
+    console.error("Data:", error.response?.data);
+    
+    const apiData = error?.response?.data;
+    throw new Error(
+      apiData?.error || 
+      apiData?.message || 
+      error?.message || 
+      "Failed to delete contact"
+    );
   }
 };
 

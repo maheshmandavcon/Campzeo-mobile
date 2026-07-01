@@ -100,6 +100,7 @@ const DashboardTabs = () => {
         ref={pagerRef}
         style={{ flex: 1 }}
         initialPage={0}
+        scrollEnabled={false}
         onPageSelected={(e) => setActiveTab(e.nativeEvent.position)}
       >
         <View key="dashboard">

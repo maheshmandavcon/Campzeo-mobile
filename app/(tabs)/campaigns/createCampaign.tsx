@@ -907,130 +907,125 @@ export default function CreateCampaign() {
                 maxHeight: 400, // important
               }}
             >
-              <FlatList
-                data={contacts}
-              keyExtractor={(item) => item.id.toString()}
-              nestedScrollEnabled
-              showsVerticalScrollIndicator
-              onEndReached={handleLoadMoreContacts}
-              onEndReachedThreshold={0.5}
-              ListFooterComponent={
-                loadingMoreContacts ? (
+              <ScrollView
+                nestedScrollEnabled
+                showsVerticalScrollIndicator
+                onScroll={({ nativeEvent }) => {
+                  const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+                  const paddingToBottom = 20;
+                  if (layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom) {
+                    if (typeof handleLoadMoreContacts === 'function') handleLoadMoreContacts();
+                  }
+                }}
+                scrollEventThrottle={400}
+              >
+                {contacts.map((c: any) => {
+                  const checked = selectedContactIds.includes(c.id);
+                  const initials = c.name
+                    ? c.name
+                      .split(" ")
+                      .map((n: any) => n[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2)
+                    : "C";
+
+                  return (
+                    <TouchableOpacity
+                      key={c.id.toString()}
+                      onPress={() => toggleContact(c.id)}
+                      style={{
+                        marginVertical: 4,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        paddingHorizontal: 8,
+                        paddingVertical: 6,
+                        borderRadius: 12,
+                        backgroundColor: checked
+                          ? isDark
+                            ? "rgba(2,132,199,0.08)"
+                            : "#f0f9ff"
+                          : "transparent",
+                      }}
+                    >
+                      {/* Circle initials badge */}
+                      <View
+                        style={{
+                          height: 38,
+                          width: 38,
+                          borderRadius: 19,
+                          backgroundColor: checked
+                            ? "#DC2626"
+                            : isDark
+                              ? "#2a2a32"
+                              : "#f1f5f9",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          marginRight: 12,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "700",
+                            color: checked ? "#ffffff" : COLORS.textSecondary,
+                          }}
+                        >
+                          {initials}
+                        </Text>
+                      </View>
+
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontWeight: "700",
+                            color: COLORS.textPrimary,
+                          }}
+                          numberOfLines={1}
+                        >
+                          {c.name}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: COLORS.textSecondary,
+                            marginTop: 1,
+                          }}
+                          numberOfLines={1}
+                        >
+                          {c.email}
+                        </Text>
+                      </View>
+
+                      {/* Circular custom checkbox checkmark badge */}
+                      <View
+                        style={{
+                          height: 22,
+                          width: 22,
+                          borderRadius: 11,
+                          borderWidth: 2,
+                          borderColor: checked ? "#DC2626" : COLORS.cardBorder,
+                          backgroundColor: checked ? "#DC2626" : "transparent",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {checked && (
+                          <Ionicons name="checkmark" size={12} color="#ffffff" />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+                {loadingMoreContacts && (
                   <ActivityIndicator
                     size="small"
                     color="#DC2626"
                     style={{ marginVertical: 12 }}
                   />
-                ) : null
-              }
-              renderItem={({ item: c }) => {
-                const checked = selectedContactIds.includes(c.id);
-                const initials = c.name
-                  ? c.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .toUpperCase()
-                    .slice(0, 2)
-                  : "C";
-
-                return (
-                  <TouchableOpacity
-                    onPress={() => toggleContact(c.id)}
-                    style={{
-                      marginVertical: 4,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      paddingHorizontal: 8,
-                      paddingVertical: 6,
-                      borderRadius: 12,
-                      backgroundColor: checked
-                        ? isDark
-                          ? "rgba(2,132,199,0.08)"
-                          : "#f0f9ff"
-                        : "transparent",
-                    }}
-                  >
-                    {/* Circle initials badge */}
-                    <View
-                      style={{
-                        height: 38,
-                        width: 38,
-                        borderRadius: 19,
-                        backgroundColor: checked
-                          ? "#DC2626"
-                          : isDark
-                            ? "#2a2a32"
-                            : "#f1f5f9",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        marginRight: 12,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          fontWeight: "700",
-                          color: checked ? "#ffffff" : COLORS.textSecondary,
-                        }}
-                      >
-                        {initials}
-                      </Text>
-                    </View>
-
-                    <View style={{ flex: 1, marginRight: 8 }}>
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          fontWeight: "700",
-                          color: COLORS.textPrimary,
-                        }}
-                        numberOfLines={1}
-                      >
-                        {c.name}
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          color: COLORS.textSecondary,
-                          marginTop: 1,
-                        }}
-                        numberOfLines={1}
-                      >
-                        {c.email}
-                      </Text>
-                    </View>
-
-                    {/* Circular custom checkbox checkmark badge */}
-                    <View
-                      style={{
-                        height: 22,
-                        width: 22,
-                        borderRadius: 11,
-                        borderWidth: 2,
-                        borderColor: checked ? "#DC2626" : COLORS.cardBorder,
-                        backgroundColor: checked ? "#DC2626" : "transparent",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      {checked && (
-                        <Ionicons name="checkmark" size={12} color="#ffffff" />
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              }}
-              // ListFooterComponent={
-              //   loadingMoreContacts ? (
-              //     <ActivityIndicator
-              //       size="small"
-              //       color="#DC2626"
-              //       style={{ marginVertical: 12 }}
-              //     />
-              //   ) : null
-              // }
-                />
+                )}
+              </ScrollView>
             </View>
           )}
         </View>

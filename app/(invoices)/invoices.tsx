@@ -249,10 +249,20 @@ useEffect(() => {
               <div class="row"><span class="row-key">Plan Subtotal</span><span class="row-val">&#8377;${Number(planPrice).toLocaleString("en-IN")}</span></div>
               ${addOnTotal > 0 ? `<div class="row"><span class="row-key">Add-ons Total</span><span class="row-val">&#8377;${addOnTotal.toLocaleString("en-IN")}</span></div>` : ""}
               `}
-              ${(!detail.subscription || !isAddOnInvoice) ? `
-              <div class="row"><span class="row-key">Tax</span><span class="row-val">&#8377;${Number(detail.taxAmount || 0).toLocaleString("en-IN")}</span></div>
+              ${(!detail.subscription || !isAddOnInvoice) ? (() => {
+                let gstPercentage = 0;
+                const tAmt = Number(detail.taxAmount || 0);
+                const totAmt = Number(detail.amount || 0);
+                const taxable = totAmt - tAmt;
+                if (tAmt > 0 && taxable > 0) {
+                  gstPercentage = Math.round((tAmt / taxable) * 100);
+                }
+                const gstLabel = gstPercentage > 0 ? `GST (${gstPercentage}%)` : "GST";
+                return `
+              <div class="row"><span class="row-key">${gstLabel}</span><span class="row-val">&#8377;${tAmt.toLocaleString("en-IN")}</span></div>
               <div class="row"><span class="row-key">Discount</span><span class="row-val">&#8377;${Number(detail.discountAmount || 0).toLocaleString("en-IN")}</span></div>
-              ` : ""}
+              `;
+              })() : ""}
               <div class="total-row" style="margin-top:6px;">
                 <span class="total-label">Grand Total</span>
                 <span class="total-val">&#8377;${amount}</span>
@@ -523,18 +533,29 @@ useEffect(() => {
                   );
                 })()}
                 
-                {(Number(detail.subscription?.billingPlan?.price || 0) !== 0 || !detail.subscription) && (
+                {(Number(detail.subscription?.billingPlan?.price || 0) !== 0 || !detail.subscription) && (() => {
+                  let gstPercentage = 0;
+                  const tAmt = Number(detail.taxAmount || 0);
+                  const totAmt = Number(detail.amount || 0);
+                  const taxable = totAmt - tAmt;
+                  if (tAmt > 0 && taxable > 0) {
+                    gstPercentage = Math.round((tAmt / taxable) * 100);
+                  }
+                  const gstLabel = gstPercentage > 0 ? `GST (${gstPercentage}%)` : "GST";
+                  
+                  return (
                   <>
                     <View style={[styles.detailRow, { marginTop: 4 }]}>
-                      <Text style={[styles.detailKey, { color: COLORS.muted }]}>Tax</Text>
-                      <Text style={[styles.detailValue, { color: COLORS.text }]}>₹{Number(detail.taxAmount || 0).toLocaleString("en-IN")}</Text>
+                      <Text style={[styles.detailKey, { color: COLORS.muted }]}>{gstLabel}</Text>
+                      <Text style={[styles.detailValue, { color: COLORS.text }]}>₹{tAmt.toLocaleString("en-IN")}</Text>
                     </View>
                     <View style={[styles.detailRow, { marginTop: 4 }]}>
                       <Text style={[styles.detailKey, { color: COLORS.muted }]}>Discount</Text>
                       <Text style={[styles.detailValue, { color: COLORS.text }]}>₹{Number(detail.discountAmount || 0).toLocaleString("en-IN")}</Text>
                     </View>
                   </>
-                )}
+                  );
+                })()}
 
                 <View style={[styles.detailRow, { marginTop: 8 }]}>
                   <Text style={[styles.totalLabel, { color: COLORS.text }]}>Grand Total</Text>

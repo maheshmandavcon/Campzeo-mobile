@@ -1,8 +1,10 @@
 import { ThemedView } from "@/components/themed-view";
 import { Ionicons } from "@expo/vector-icons";
 import { HStack, VStack } from "@gluestack-ui/themed";
-import { useCallback, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, Text, useColorScheme } from "react-native";
+import { useCallback, useState, useEffect } from "react";
+import { Pressable, RefreshControl, ScrollView, Text, useColorScheme, DeviceEventEmitter, View, LogBox } from "react-native";
+
+LogBox.ignoreLogs(['VirtualizedLists should never be nested inside plain ScrollViews']);
 import CalendarView from "../CalendarComponents/calendarView";
 import Insights from "@/app/(tabs)/dashboard/dashboardComponents/insights";
 import CalendarWrapper from "@/app/(common)/calendarWrapper";
@@ -15,6 +17,16 @@ export default function CalendarParent() {
   const [activeCalendarTab, setActiveCalendarTab] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
+
+  useEffect(() => {
+    const listener = DeviceEventEmitter.addListener("calendarScrollEnabled", (enabled) => {
+      setScrollEnabled(enabled);
+    });
+    return () => {
+      listener.remove();
+    };
+  }, []);
 
   const tabs = [
     { key: 1, label: "Planner", icon: "calendar" },
@@ -83,18 +95,20 @@ export default function CalendarParent() {
 
         <ScrollView
           showsVerticalScrollIndicator={false}
+          scrollEnabled={scrollEnabled}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
               tintColor="#dc2626"
               colors={["#dc2626"]}
+              enabled={scrollEnabled}
             />
           }
         >
           <VStack>
             {activeCalendarTab === 1 && <CalendarWrapper key={`planner-${refreshKey}`} />}
-            {activeCalendarTab === 2 && <CalendarInsights key={`insights-${refreshKey}`} />}
+            {activeCalendarTab === 2 && <CalendarInsights key={`insights-${refreshKey}`} setActiveCalendarTab={setActiveCalendarTab} />}
             {activeCalendarTab === 3 && <CalendarExports key={`export-${refreshKey}`} />}
           </VStack>
         </ScrollView>

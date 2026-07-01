@@ -4,7 +4,6 @@ import {
   TouchableOpacity,
   SectionList,
   ActivityIndicator,
-  Alert,
   View,
   Modal,
 } from "react-native";
@@ -180,34 +179,22 @@ export default function AllNotifications() {
     data: grouped[date],
   }));
 
-  // ---------------- LOAD MORE / SEE LESS ----------------
-  const handleLoadToggle = () => {
-    setVisibleCount(isAllVisible ? 5 : searchedNotifications.length);
+  // ---------------- INFINITE SCROLL ----------------
+  const handleLoadMore = () => {
+    if (!isAllVisible) {
+      setVisibleCount((prev) => prev + 10);
+    }
   };
 
   const ListFooterButton = () => {
-    if (searchedNotifications.length <= 5) return null;
-    return (
-      <TouchableOpacity
-        onPress={handleLoadToggle}
-        style={{
-          paddingVertical: 12,
-          marginVertical: 8,
-          borderRadius: 12,
-          alignItems: "center",
-          backgroundColor: isAllVisible ? "#fee2e2" : "#bfdbfe",
-        }}
-      >
-        <ThemedText
-          style={{
-            fontWeight: "bold",
-            color: isAllVisible ? "#b91c1c" : "#1d4ed8",
-          }}
-        >
-          {isAllVisible ? "See Less" : "Load More"}
-        </ThemedText>
-      </TouchableOpacity>
-    );
+    if (!isAllVisible && searchedNotifications.length > 5) {
+      return (
+        <View style={{ paddingVertical: 20, alignItems: "center" }}>
+          <ActivityIndicator size="small" color={isDark ? "#ffffff" : "#000000"} />
+        </View>
+      );
+    }
+    return null;
   };
 
   const NotificationSkeletonCard = ({ isDark }: { isDark: boolean }) => {
@@ -335,7 +322,7 @@ export default function AllNotifications() {
                     : "#ffffff",
                 paddingHorizontal: 16,
                 paddingVertical: 4,
-                borderRadius: 9999, // fully rounded
+                borderRadius: 9999, 
               }}
             >
               <ThemedText
@@ -454,6 +441,8 @@ export default function AllNotifications() {
             showsVerticalScrollIndicator={false}
             refreshing={refreshing}
             onRefresh={onRefresh}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.5}
             renderSectionHeader={({ section }) => (
               <ThemedText
                 style={{
