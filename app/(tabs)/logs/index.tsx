@@ -193,6 +193,7 @@ export default function Logs() {
       } catch (err) {
         console.log("Error loading posts feed:", err);
         setPosts([]);
+        setHasMore(false);
       } finally {
         setFeedLoading(false);
       }
@@ -230,6 +231,7 @@ export default function Logs() {
       }
     } catch (err) {
       console.log("Error appending paginated logs:", err);
+      setHasMore(false);
     } finally {
       setFeedLoading(false);
     }
