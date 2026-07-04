@@ -103,7 +103,10 @@ export default function Contacts() {
           setHasMore(contactsArray.length >= 10);
         } catch (err) {
           console.log("GET CONTACTS ERROR:", err);
-          if (isActive) setRecords([]);
+          if (isActive) {
+            setRecords([]);
+            setHasMore(false);
+          }
         } finally {
           if (isActive) setLoading(false);
         }
@@ -145,6 +148,7 @@ export default function Contacts() {
       setHasMore(contactsArray.length >= 10);
     } catch (err) {
       console.log("REFRESH CONTACTS ERROR:", err);
+      setHasMore(false);
     } finally {
       setIsRefreshing(false);
     }
@@ -185,6 +189,7 @@ export default function Contacts() {
       setHasMore(contactsArray.length >= 10);
     } catch (err) {
       console.log("LOAD MORE ERROR:", err);
+      setHasMore(false);
     } finally {
       setLoadingMore(false);
     }
