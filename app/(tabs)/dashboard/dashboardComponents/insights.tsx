@@ -220,22 +220,14 @@ export default function Insights({ userData, usageData, walletData, subscription
           <VStack style={styles.section}>
             <HStack style={styles.statsRow} className="justify-between">
               {Array.from({ length: 2 }).map((_, i) => (
-                <View key={i}>{renderStatCardSkeleton()}</View>
+                <View key={i} style={{ flex: 1 }}>{renderStatCardSkeleton()}</View>
               ))}
             </HStack>
 
-            <HStack style={styles.statsRow}>
-              <Box style={styles.statCard}>
-                <ShimmerSkeleton height={13} width={100} />
-                <ShimmerSkeleton height={30} width={100} />
-                <ShimmerSkeleton height={12} width={100} />
-              </Box>
-
-              <Box style={styles.statCard}>
-                <ShimmerSkeleton height={13} width={100} />
-                <ShimmerSkeleton height={30} width={100} />
-                <ShimmerSkeleton height={12} width={100} />
-              </Box>
+            <HStack style={styles.statsRow} className="justify-between">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <View key={i} style={{ flex: 1 }}>{renderStatCardSkeleton()}</View>
+              ))}
             </HStack>
           </VStack>
 
