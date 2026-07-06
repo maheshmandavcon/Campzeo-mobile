@@ -52,6 +52,7 @@ const backendKeyMap: Record<string, string> = {
   linkedin: "LINKEDIN",
   pinterest: "PINTEREST",
   youtube: "YOUTUBE",
+  whatsapp: "WHATSAPP",
 };
 
 const initialPlatforms: SocialItem[] = [
@@ -99,6 +100,15 @@ const initialPlatforms: SocialItem[] = [
     platformKey: "PINTEREST",
     title: "Pinterest",
     description: "Publish visual content to Pinterest boards.",
+    connected: false,
+  },
+  {
+    icon: "whatsapp",
+    color: "#25D366",
+    backgroundColor: "#dcfce7",
+    platformKey: "WHATSAPP",
+    title: "WhatsApp",
+    description: "Connect your WhatsApp Business API for messaging.",
     connected: false,
   },
 ];

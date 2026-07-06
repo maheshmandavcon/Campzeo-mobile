@@ -323,7 +323,7 @@ export function useCampaignPostForm({
       existingPost.scheduledPostTime
         ? (() => {
             let s = existingPost.scheduledPostTime;
-            if (s.endsWith('Z')) s = s.slice(0, -1);
+            if (!s.endsWith('Z')) s += 'Z';
             return new Date(s);
           })()
         : null,

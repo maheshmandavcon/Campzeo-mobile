@@ -27,6 +27,7 @@ import {
   RefreshControl,
   Linking,
 } from "react-native";
+import { format } from "date-fns";
 import { ContactsRecord } from "../contacts/contactComponents/contactCard";
 import CampaignCard, { Campaign } from "./campaignComponents/campaignCard";
 import ShareCampaignPost from "./campaignComponents/shareCampaignPost";
@@ -81,6 +82,7 @@ export default function CampaignsDetails() {
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [postToDelete, setPostToDelete] = useState<number | null>(null);
+  const [failedMedia, setFailedMedia] = useState<Record<string, boolean>>({});
   const isDarkMode = useColorScheme() === "dark";
 
   const refreshCallback =
@@ -131,7 +133,7 @@ export default function CampaignsDetails() {
         if (!token) throw new Error("Token missing");
         const user = await getUser();
         const orgId = user?.organisation?.id;
-        const data = await getCampaignByIdApi(resolvedCampaignId,orgId, token);
+        const data = await getCampaignByIdApi(resolvedCampaignId, orgId, token);
         if (!data) return;
 
         const mapped: Campaign = {
@@ -219,7 +221,7 @@ export default function CampaignsDetails() {
                 show: true,
               });
             }
-          }).catch(() => {})
+          }).catch(() => { })
         ]);
       }
     } finally {
@@ -241,20 +243,20 @@ export default function CampaignsDetails() {
 
   // Polling for posts in SENDING state
   useEffect(() => {
-  let interval: ReturnType<typeof setInterval> | undefined;
+    let interval: ReturnType<typeof setInterval> | undefined;
 
-  if (sendingPosts.length > 0) {
-    interval = setInterval(async () => {
-      await fetchPosts(true);
-    }, 5000);
-  }
-
-  return () => {
-    if (interval) {
-      clearInterval(interval);
+    if (sendingPosts.length > 0) {
+      interval = setInterval(async () => {
+        await fetchPosts(true);
+      }, 5000);
     }
-  };
-}, [sendingPosts, fetchPosts]);
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [sendingPosts, fetchPosts]);
 
   // Resolve SENDING posts when data changes
   useEffect(() => {
@@ -314,7 +316,7 @@ export default function CampaignsDetails() {
 
   const confirmDeletePost = async () => {
     if (postToDelete === null) return;
-    
+
     const user = await getUser();
     const orgId = user?.organisation?.id;
     if (!resolvedCampaignId) return;
@@ -558,8 +560,8 @@ export default function CampaignsDetails() {
     if (!resolvedCampaignId || !currentSharePostId) return;
 
     const post = posts.find((p) => p.id === currentSharePostId);
-    console.log("ppooosstt",post);
-    
+    console.log("ppooosstt", post);
+
     if (!post) return;
 
     try {
@@ -695,7 +697,7 @@ export default function CampaignsDetails() {
     if (item.videoUrl && typeof item.videoUrl === "string" && !allMedia.includes(item.videoUrl)) {
       allMedia.push(item.videoUrl);
     }
-    
+
     const firstMedia = allMedia[0];
     const isVideo = firstMedia && (firstMedia.toLowerCase().split("?")[0].match(/\.(mp4|mov|webm|avi|mkv|3gp|m4v)$/i) || firstMedia.includes("video"));
 
@@ -894,11 +896,16 @@ export default function CampaignsDetails() {
                 <View style={{ width: "100%", height: "100%", justifyContent: "center", alignItems: "center", backgroundColor: "#000" }}>
                   <Ionicons name="play-circle" size={28} color="#fff" />
                 </View>
+              ) : failedMedia[firstMedia] ? (
+                <View style={{ width: "100%", height: "100%", justifyContent: "center", alignItems: "center", backgroundColor: isDark ? "#374151" : "#e5e7eb" }}>
+                  <Ionicons name="image-outline" size={24} color={isDark ? "#9ca3af" : "#6b7280"} />
+                </View>
               ) : (
                 <Image
                   source={{ uri: firstMedia }}
                   style={{ width: "100%", height: "100%" }}
                   resizeMode="cover"
+                  onError={() => setFailedMedia(prev => ({ ...prev, [firstMedia]: true }))}
                 />
               )}
 
@@ -930,18 +937,19 @@ export default function CampaignsDetails() {
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
             <Ionicons name="calendar-outline" size={14} color="#9ca3af" />
             <Text style={{ fontSize: 11, color: "#9ca3af" }}>
-              {item.scheduledPostTime || item.publishedDate || item.createdAt
-                ? (() => {
-                    let dStr = item.scheduledPostTime || item.publishedDate || item.createdAt;
-                    if (dStr && dStr.endsWith('Z')) dStr = dStr.slice(0, -1);
-                    return new Date(dStr).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    });
-                  })()
-                : "No schedule available"}
+              {(() => {
+                let dStr = status === "SENT" 
+                  ? (item.publishedAt || item.publishedDate || item.createdAt || item.scheduledPostTime)
+                  : (item.scheduledPostTime || item.publishedAt || item.publishedDate || item.createdAt);
+                  
+                if (typeof dStr === 'string' && dStr.trim() !== '') {
+                  if (!dStr.endsWith('Z')) {
+                    dStr += 'Z';
+                  }
+                  return format(new Date(dStr), "MMM d, h:mm a");
+                }
+                return "No schedule available";
+              })()}
             </Text>
           </View>
 
@@ -992,20 +1000,20 @@ export default function CampaignsDetails() {
                   status === "SENT"
                     ? "paper-plane"
                     : status === "SCHEDULED"
-                    ? "alarm-outline"
-                    : status === "FAILED"
-                    ? "alert-circle"
-                    : "hourglass-outline"
+                      ? "alarm-outline"
+                      : status === "FAILED"
+                        ? "alert-circle"
+                        : "hourglass-outline"
                 }
                 size={12}
                 color={
                   status === "SENT"
                     ? "#22c55e"
                     : status === "SCHEDULED"
-                    ? "#3b82f6"
-                    : status === "FAILED"
-                    ? "#ef4444"
-                    : "#fbbf24"
+                      ? "#3b82f6"
+                      : status === "FAILED"
+                        ? "#ef4444"
+                        : "#fbbf24"
                 }
               />
               <Text

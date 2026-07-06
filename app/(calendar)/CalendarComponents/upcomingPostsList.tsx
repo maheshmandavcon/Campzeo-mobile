@@ -67,37 +67,44 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
     );
   };
 
-  const filteredGroupedEvents: Record<string, any[]> = {};
+  const upcomingGroupedEvents: Record<string, any[]> = {};
+  const pastGroupedEvents: Record<string, any[]> = {};
 
   Object.entries(groupedEvents).forEach(([dateKey, events]) => {
-    let visibleEvents = events as any[];
+    let allVisibleEvents = events as any[];
 
     if (viewMode === "week" && currentDate) {
       const weekStart = startOfWeek(currentDate);
       const weekEnd = endOfWeek(currentDate);
-      visibleEvents = visibleEvents.filter((event: any) => {
+      allVisibleEvents = allVisibleEvents.filter((event: any) => {
         const eventDate = new Date(event.start);
         return eventDate >= weekStart && eventDate <= weekEnd;
       });
     } else if (viewMode === "day" && selectedDate) {
-      visibleEvents = visibleEvents.filter((event: any) => {
+      allVisibleEvents = allVisibleEvents.filter((event: any) => {
         return isSameDay(new Date(event.start), selectedDate);
       });
     } else {
-      visibleEvents = visibleEvents.filter(
-        (event: any) => new Date(event.start) > now
-      );
+      allVisibleEvents = allVisibleEvents.filter((event: any) => new Date(event.start) > now);
     }
 
-    if (visibleEvents.length > 0) {
-      filteredGroupedEvents[dateKey] = visibleEvents;
-    }
+    const past = allVisibleEvents.filter((e: any) => new Date(e.start) <= now);
+    const future = allVisibleEvents.filter((e: any) => new Date(e.start) > now);
+
+    if (past.length > 0) pastGroupedEvents[dateKey] = past;
+    if (future.length > 0) upcomingGroupedEvents[dateKey] = future;
   });
 
-  const getTitle = () => {
-    if (viewMode === "week") return "This Week's Posts";
-    if (viewMode === "day") return "Posts for Selected Day";
+  const getUpcomingTitle = () => {
+    if (viewMode === "week") return "Upcoming Posts This Week";
+    if (viewMode === "day") return "Upcoming Posts Today";
     return "Upcoming Posts";
+  };
+
+  const getPastTitle = () => {
+    if (viewMode === "week") return "Past Posts This Week";
+    if (viewMode === "day") return "Past Posts Today";
+    return "Past Posts";
   };
 
   const getEmptyMessage = () => {
@@ -109,7 +116,8 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
   const SCREEN_HEIGHT = Dimensions.get("window").height;
   const { height } = useWindowDimensions();
 
-  const filteredDateKeys = Object.keys(filteredGroupedEvents).sort();
+  const upcomingDateKeys = Object.keys(upcomingGroupedEvents).sort();
+  const pastDateKeys = Object.keys(pastGroupedEvents).sort();
 
   const activePlatformConfig = selectedEvent
     ? PLATFORM_CONFIGS[selectedEvent.platform?.toLowerCase() || "facebook"] || {
@@ -119,19 +127,143 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
     }
     : null;
 
-  if (filteredDateKeys.length === 0) {
+  const renderEventCard = (event: any) => {
+    const platformKey = event.platform?.toLowerCase() || "facebook";
+    const config = PLATFORM_CONFIGS[platformKey] || {
+      name: event.platform || "Platform",
+      color: "#6b7280",
+      icon: "document-text-outline",
+    };
+
+    return (
+      <Pressable
+        key={event.id}
+        onPress={() => {
+          setSelectedEvent(event);
+          setShowActionsheet(true);
+        }}
+      >
+        <ThemedView
+          style={[
+            styles.card,
+            {
+              backgroundColor: isDark ? "#1e293b" : "#ffffff",
+              borderColor: isDark ? "#334155" : "transparent",
+              padding: 16,
+              borderRadius: 16,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              borderWidth: isDark ? 1 : 0,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.05,
+              shadowRadius: 10,
+              elevation: 3,
+            },
+          ]}
+        >
+          <HStack style={{ alignItems: "center", gap: 14, flex: 1 }}>
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: config.lightColor || (isDark ? "rgba(30, 41, 59, 0.8)" : "#f8fafc"),
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Ionicons name={config.icon as any} size={20} color={config.color} />
+            </View>
+            <VStack style={{ flex: 1 }}>
+              <ThemedText
+                style={[
+                  styles.title,
+                  { color: isDark ? "#f8fafc" : "#0f172a", fontSize: 15, fontWeight: "700", marginBottom: 2 },
+                ]}
+                numberOfLines={1}
+              >
+                {event.campaign || "No Campaign Name"}
+              </ThemedText>
+              <Text
+                style={{
+                  color: isDark ? "#94a3b8" : "#64748b",
+                  fontSize: 12,
+                  fontWeight: "500",
+                }}
+              >
+                {config.name}
+              </Text>
+            </VStack>
+          </HStack>
+
+          <HStack style={{ alignItems: "center", gap: 8 }}>
+            <View style={{ backgroundColor: isDark ? "#0f172a" : "#f1f5f9", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 }}>
+              <ThemedText style={{ fontSize: 12, fontWeight: "600", color: isDark ? "#cbd5e1" : "#475569" }}>
+                {formatReadableTime(event.start)}
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward-outline" size={18} color={isDark ? "#475569" : "#cbd5e1"} />
+          </HStack>
+        </ThemedView>
+      </Pressable>
+    );
+  };
+
+  const renderSection = (dateKeys: string[], eventsMap: Record<string, any[]>, title: string) => {
+    if (dateKeys.length === 0) return null;
+
+    return (
+      <View style={{ marginBottom: 20 }}>
+        <ThemedText
+          style={{
+            fontSize: 22,
+            fontWeight: "700",
+            marginVertical: 12,
+            lineHeight: 30,
+            color: isDark ? "#f1f5f9" : "#020617",
+          }}
+        >
+          {title}
+        </ThemedText>
+
+        {dateKeys.map((dateKey) => {
+          const eventsForDate = eventsMap[dateKey];
+          const readableDateLabel = getDateLabel(dateKey);
+
+          return (
+            <ThemedView key={dateKey} style={styles.dateSection}>
+              <ThemedText
+                style={[
+                  styles.dateHeader,
+                  { color: isDark ? "#cbd5e1" : "#334155" },
+                ]}
+              >
+                {readableDateLabel}
+              </ThemedText>
+
+              {eventsForDate.map(renderEventCard)}
+            </ThemedView>
+          );
+        })}
+      </View>
+    );
+  };
+
+  if (upcomingDateKeys.length === 0 && pastDateKeys.length === 0) {
     return (
       <ThemedView style={styles.container}>
         <ThemedText
-        style={{
-          fontSize: 22,
-          fontWeight: "700",
-          marginVertical: 10,
-          color: isDark ? "#f8fafc" : "#0f172a",
-        }}
-      >
-        {getTitle()}
-      </ThemedText>
+          style={{
+            fontSize: 22,
+            fontWeight: "700",
+            marginVertical: 10,
+            color: isDark ? "#f8fafc" : "#0f172a",
+          }}
+        >
+          {getUpcomingTitle()}
+        </ThemedText>
 
         <ThemedView
           style={{
@@ -171,119 +303,8 @@ const UpcomingPostsList: React.FC<UpcomingPostsListProps> = ({
     <>
       <ScrollView showsVerticalScrollIndicator={false}>
         <ThemedView style={styles.container}>
-          <ThemedText
-            style={{
-              fontSize: 22,
-              fontWeight: "700",
-              marginVertical: 12,
-              lineHeight: 30,
-              color: isDark ? "#f1f5f9" : "#020617",
-            }}
-          >
-            Upcoming Posts
-          </ThemedText>
-
-          {filteredDateKeys.map((dateKey) => {
-            const eventsForDate = filteredGroupedEvents[dateKey];
-            const readableDateLabel = getDateLabel(dateKey);
-
-            return (
-              <ThemedView key={dateKey} style={styles.dateSection}>
-                <ThemedText
-                  style={[
-                    styles.dateHeader,
-                    { color: isDark ? "#cbd5e1" : "#334155" },
-                  ]}
-                >
-                  {readableDateLabel}
-                </ThemedText>
-
-                {eventsForDate.map((event) => {
-                  const platformKey = event.platform?.toLowerCase() || "facebook";
-                  const config = PLATFORM_CONFIGS[platformKey] || {
-                    name: event.platform || "Platform",
-                    color: "#6b7280",
-                    icon: "document-text-outline",
-                  };
-
-                  return (
-                    <Pressable
-                      key={event.id}
-                      onPress={() => {
-                        setSelectedEvent(event);
-                        setShowActionsheet(true);
-                      }}
-                    >
-                        <ThemedView
-                          style={[
-                            styles.card,
-                            {
-                              backgroundColor: isDark ? "#1e293b" : "#ffffff",
-                              borderColor: isDark ? "#334155" : "transparent",
-                              padding: 16,
-                              borderRadius: 16,
-                              flexDirection: "row",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              borderWidth: isDark ? 1 : 0,
-                              shadowColor: "#000",
-                              shadowOffset: { width: 0, height: 4 },
-                              shadowOpacity: 0.05,
-                              shadowRadius: 10,
-                              elevation: 3,
-                            },
-                          ]}
-                        >
-                          <HStack style={{ alignItems: "center", gap: 14, flex: 1 }}>
-                            <View
-                              style={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: 22,
-                                backgroundColor: config.lightColor || (isDark ? "rgba(30, 41, 59, 0.8)" : "#f8fafc"),
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                            >
-                              <Ionicons name={config.icon as any} size={20} color={config.color} />
-                            </View>
-                            <VStack style={{ flex: 1 }}>
-                              <ThemedText
-                                style={[
-                                  styles.title,
-                                  { color: isDark ? "#f8fafc" : "#0f172a", fontSize: 15, fontWeight: "700", marginBottom: 2 },
-                                ]}
-                                numberOfLines={1}
-                              >
-                                {event.campaign || "No Campaign Name"}
-                              </ThemedText>
-                              <Text
-                                style={{
-                                  color: isDark ? "#94a3b8" : "#64748b",
-                                  fontSize: 12,
-                                  fontWeight: "500",
-                                }}
-                              >
-                                {config.name}
-                              </Text>
-                            </VStack>
-                          </HStack>
-
-                          <HStack style={{ alignItems: "center", gap: 8 }}>
-                            <View style={{ backgroundColor: isDark ? "#0f172a" : "#f1f5f9", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 }}>
-                               <ThemedText style={{ fontSize: 12, fontWeight: "600", color: isDark ? "#cbd5e1" : "#475569" }}>
-                                 {formatReadableTime(event.start)}
-                               </ThemedText>
-                            </View>
-                            <Ionicons name="chevron-forward-outline" size={18} color={isDark ? "#475569" : "#cbd5e1"} />
-                          </HStack>
-                        </ThemedView>
-                    </Pressable>
-                  );
-                })}
-              </ThemedView>
-            );
-          })}
+          {renderSection(pastDateKeys, pastGroupedEvents, getPastTitle())}
+          {renderSection(upcomingDateKeys, upcomingGroupedEvents, getUpcomingTitle())}
         </ThemedView>
       </ScrollView>
 

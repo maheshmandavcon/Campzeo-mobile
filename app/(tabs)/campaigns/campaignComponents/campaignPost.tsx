@@ -101,7 +101,7 @@ export default function CampaignPost() {
 
   const { getToken } = useAuth();
 
-  const socialPlatforms = ["FACEBOOK", "INSTAGRAM", "LINKEDIN", "YOUTUBE", "PINTEREST"];
+  const socialPlatforms = ["FACEBOOK", "INSTAGRAM", "LINKEDIN", "YOUTUBE", "PINTEREST", "WHATSAPP"];
 
   const connectedCount = socialPlatforms.filter(
     (p) => connectedPlatforms[p]
@@ -149,7 +149,7 @@ export default function CampaignPost() {
             PINTEREST: data.pinterest?.connected ?? false,
             EMAIL: true,
             SMS: true,
-            WHATSAPP: true,
+            WHATSAPP: data.whatsapp?.connected ?? false,
           });
         } catch (error) {
           console.error("Failed to fetch social status", error);
@@ -239,8 +239,8 @@ export default function CampaignPost() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  // Check if any social platform is disconnected (SMS/EMAIL/WHATSAPP are always connected)
-  const hasDisconnectedPlatform = ["FACEBOOK", "INSTAGRAM", "LINKEDIN", "YOUTUBE", "PINTEREST"].some(
+  // Check if any social platform is disconnected (SMS/EMAIL are always connected)
+  const hasDisconnectedPlatform = ["FACEBOOK", "INSTAGRAM", "LINKEDIN", "YOUTUBE", "PINTEREST", "WHATSAPP"].some(
     (key) => connectedPlatforms[key] === false
   );
 
