@@ -7,6 +7,7 @@ import { Button } from "@gluestack-ui/themed";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { WebView } from "react-native-webview";
 import React, { useEffect, useState } from "react";
+import { format } from "date-fns";
 
 const Video = ({
   source,
@@ -82,6 +83,7 @@ import {
   Platform,
   ScrollView,
   Text,
+  Keyboard,
   TextInput,
   TouchableOpacity,
   useColorScheme,
@@ -480,7 +482,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
           {/* AI TEXT BUTTON FOR ALL PLATFORMS */}
           <TouchableOpacity
-            onPress={() => setAiModalVisible(true)}
+            onPress={() => { Keyboard.dismiss(); setAiModalVisible(true); }}
             activeOpacity={0.8}
             style={{
               flexDirection: "row",
@@ -645,7 +647,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   {/* Generate Button */}
                   <TouchableOpacity
                     disabled={loadingAI}
-                    onPress={handleGenerateAIText}
+                    onPress={() => { Keyboard.dismiss(); handleGenerateAIText(); }}
                     style={{
                       backgroundColor: loadingAI ? "#6b7280" : "#dc2626",
                       borderWidth: 1,
@@ -835,15 +837,9 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
                   {/* Generate Image Button */}
                   <TouchableOpacity
                     disabled={loadingImage}
-                    onPress={handleGenerateAIImage}
+                    onPress={() => { Keyboard.dismiss(); handleGenerateAIImage(); }}
                     style={{
-                      backgroundColor: loadingImage
-                        ? isDark
-                          ? "#4b5563"
-                          : "#aaa"
-                        : isDark
-                          ? "#1e40af"
-                          : "#2563eb",
+                      backgroundColor: loadingImage ? "#6b7280" : "#dc2626",
                       height: 48,
                       paddingHorizontal: 16,
                       justifyContent: "center",
@@ -861,25 +857,8 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
 
                 {/* AI GENERATED IMAGES */}
                 {loadingImage ? (
-                  <View
-                    style={{
-                      height: 150, // fixed height
-                      justifyContent: "center",
-                      alignItems: "center",
-                      marginVertical: 20,
-                      borderRadius: 12,
-                    }}
-                  >
-                    <ActivityIndicator size="large" color="#2563eb" />
-                    <Text
-                      style={{
-                        marginTop: 12,
-                        fontWeight: "bold",
-                        color: isDark ? "#fff" : "#000",
-                      }}
-                    >
-                      Generating image...
-                    </Text>
+                  <View style={{ width: 100, height: 100, marginVertical: 8, borderRadius: 8, justifyContent: "center", alignItems: "center", backgroundColor: isDark ? "#1f2933" : "#f1f5f9" }}>
+                    <ActivityIndicator size="small" color={isDark ? "#60a5fa" : "#2563eb"} />
                   </View>
                 ) : generatedImages.length > 0 ? (
                   <FlatList
@@ -2505,7 +2484,7 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
             }}
           >
             <Text style={{ color: isDark ? "#9ca3af" : "#6b7280" }}>
-              {postDate ? postDate.toLocaleString() : "Select Date & Time"}
+              {postDate ? format(postDate, "MMM dd, yyyy - hh:mm a") : "Select Date & Time"}
             </Text>
 
             {postDate && (
@@ -2749,14 +2728,14 @@ export const CampaignPostForm: React.FC<CampaignPostFormProps> = ({
           onPress={handleSubmit}
           activeOpacity={0.85}
           style={{
-            backgroundColor: "#2563eb",
+            backgroundColor: "#dc2626",
             borderRadius: 14,
             height: 52,
             justifyContent: "center",
             alignItems: "center",
             marginBottom: 32,
             marginTop: 16,
-            shadowColor: "#2563eb",
+            shadowColor: "#dc2626",
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.2,
             shadowRadius: 8,

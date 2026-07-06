@@ -749,8 +749,6 @@ export default function Logs() {
           ) : null
         }
       />
-      {/* Toast Notification Mount */}
-      <Toast />
     </ThemedView>
   );
 }

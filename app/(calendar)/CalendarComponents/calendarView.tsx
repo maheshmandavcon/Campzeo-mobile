@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   DeviceEventEmitter,
   RefreshControl,
+  PanResponder,
 } from "react-native";
 import { groupEventsByDate } from "../../../utils/groupEventsByDate";
 import { mapEvents } from "../../../utils/mapEvents";
@@ -32,6 +33,11 @@ import {
   isSameDay,
   isToday,
   addMonths,
+  subMonths,
+  addWeeks,
+  subWeeks,
+  addDays,
+  subDays,
   setYear,
   setMonth,
 } from "date-fns";
@@ -213,8 +219,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts, refreshing, onRefres
         setSelectedDate(futureEvents[0].start);
         setCurrentDate(futureEvents[0].start);
       } else {
-        setSelectedDate(events[0].start);
-        setCurrentDate(events[0].start);
+        setSelectedDate(new Date());
+        setCurrentDate(new Date());
       }
     }
   }, [posts]);
@@ -259,15 +265,39 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts, refreshing, onRefres
           style={[
             style,
             {
-              backgroundColor: config.color,
-              borderRadius: 4,
-              padding: 2,
-              alignItems: "center",
-              justifyContent: "center",
+              backgroundColor: isDark ? "#1e293b" : "#ffffff",
+              borderLeftWidth: 3,
+              borderLeftColor: config.color,
+              borderWidth: 1,
+              borderColor: isDark ? "#334155" : "#e2e8f0",
+              borderRadius: 6,
+              padding: 4,
+              flexDirection: "column",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              overflow: "hidden",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.05,
+              shadowRadius: 1,
+              elevation: 1,
             },
           ]}
         >
-          <Ionicons name={config.icon as any} size={11} color="#ffffff" />
+          <VStack style={{ width: '100%' }}>
+            <Text style={{ fontSize: 7, fontWeight: "800", color: event.isPostSent ? "#10b981" : "#3b82f6", textTransform: "uppercase", marginBottom: 1 }} numberOfLines={1}>
+              {event.isPostSent ? "SENT" : "SCHED"}
+            </Text>
+            <Text style={{ fontSize: 9, color: isDark ? '#f8fafc' : '#0f172a', fontWeight: '700', flexShrink: 1, marginBottom: 2 }} numberOfLines={2}>
+              {event.campaign || config.name}
+            </Text>
+          </VStack>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 2, marginTop: 'auto' }}>
+            <Ionicons name={config.icon as any} size={8} color={config.color} />
+            <Text style={{ fontSize: 8, color: isDark ? '#94a3b8' : '#64748b', fontWeight: '500' }} numberOfLines={1}>
+              {formatReadableTime(event.start)}
+            </Text>
+          </View>
         </TouchableOpacity>
       );
     }
@@ -281,14 +311,15 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts, refreshing, onRefres
           style,
           {
             backgroundColor: isDark ? "#1e293b" : "#ffffff",
-            borderColor: config.color,
+            borderColor: isDark ? "#334155" : "#e2e8f0",
             borderLeftWidth: 4,
+            borderLeftColor: config.color,
             borderRadius: 8,
-            paddingVertical: 6,
-            paddingHorizontal: 10,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 8,
+            paddingVertical: 10,
+            paddingHorizontal: 12,
+            flexDirection: "column",
+            alignItems: "stretch",
+            justifyContent: "space-between",
             borderWidth: 1,
             shadowColor: "#000",
             shadowOffset: { width: 0, height: 1 },
@@ -298,41 +329,49 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts, refreshing, onRefres
           },
         ]}
       >
-        <View
-          style={{
-            width: 24,
-            height: 24,
-            borderRadius: 12,
-            backgroundColor: isDark ? "rgba(30, 41, 59, 0.8)" : "#f8fafc",
-            alignItems: "center",
-            justifyContent: "center",
-            borderWidth: 1,
-            borderColor: isDark ? "#334155" : "#e2e8f0",
-          }}
-        >
-          <Ionicons name={config.icon as any} size={13} color={config.color} />
-        </View>
-        <VStack style={{ flex: 1 }}>
+        <VStack gap={4}>
+          <Text style={{ fontSize: 9, fontWeight: "800", color: event.isPostSent ? "#10b981" : "#3b82f6", textTransform: "uppercase" }}>
+            {event.isPostSent ? "SENT" : "SCHEDULED"}
+          </Text>
           <Text
             style={{
-              fontSize: 12,
+              fontSize: 14,
               fontWeight: "700",
-              color: isDark ? "#f8fafc" : "#020617",
+              color: isDark ? "#f8fafc" : "#0f172a",
+              marginBottom: 4
             }}
-            numberOfLines={1}
+            numberOfLines={2}
           >
             {event.campaign || "No Campaign"}
           </Text>
-          <Text
-            style={{
-              fontSize: 10,
-              color: isDark ? "#cbd5e1" : "#475569",
-              fontWeight: "600",
-            }}
-          >
-            {formatReadableTime(event.start)} • {config.name}
-          </Text>
         </VStack>
+        
+        <HStack style={{ alignItems: "center", justifyContent: "space-between" }}>
+          <HStack style={{ alignItems: "center", gap: 6 }}>
+            <View
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: 10,
+                backgroundColor: config.lightColor || (isDark ? "rgba(30, 41, 59, 0.8)" : "#f8fafc"),
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Ionicons name={config.icon as any} size={11} color={config.color} />
+            </View>
+            <Text
+              style={{
+                fontSize: 12,
+                color: isDark ? "#cbd5e1" : "#475569",
+                fontWeight: "500",
+              }}
+            >
+              {config.name}
+            </Text>
+          </HStack>
+          <Ionicons name="chatbubble-ellipses-outline" size={16} color={isDark ? "#94a3b8" : "#94a3b8"} />
+        </HStack>
       </TouchableOpacity>
     );
   };
@@ -342,8 +381,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts, refreshing, onRefres
     
     const dayPosts = events.filter((e) => {
       if (!isSameDay(e.start, selectedDate)) return false;
-      if (e.start > now) return false;
-      
       return true;
     });
 
@@ -475,6 +512,94 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts, refreshing, onRefres
             </View>
           );
         })()}
+      </View>
+    );
+  };
+
+  const headerPanResponder = React.useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        return Math.abs(gestureState.dx) > 20; 
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        if (gestureState.dx > 50) {
+          
+          if (viewMode === "month") {
+            setCurrentDate((prev) => subMonths(prev, 1));
+          } else if (viewMode === "week") {
+            setCurrentDate((prev) => subWeeks(prev, 1));
+          } else if (viewMode === "day") {
+            setCurrentDate((prev) => subDays(prev, 1));
+          }
+        } else if (gestureState.dx < -50) {
+          // swipe left -> next week
+          if (viewMode === "month") {
+            setCurrentDate((prev) => addMonths(prev, 1));
+          } else if (viewMode === "week") {
+            setCurrentDate((prev) => addWeeks(prev, 1));
+          } else if (viewMode === "day") {
+            setCurrentDate((prev) => addDays(prev, 1));
+          }
+        }
+      },
+    })
+  ).current;
+
+  const renderCustomWeekHeader = (props: any) => {
+    return (
+      <View {...headerPanResponder.panHandlers} style={[{ flexDirection: "row", paddingBottom: 10, paddingTop: 10, borderBottomWidth: 1, borderBottomColor: isDark ? "#334155" : "#e2e8f0" }, props.style]}>
+        <View style={{ width: 50 }} />
+        {props.dateRange.map((d: any, index: number) => {
+          const dateObj = d.toDate ? d.toDate() : new Date(d);
+          const isToday = isSameDay(dateObj, new Date());
+          const isSelected = isSameDay(dateObj, selectedDate);
+          
+          const dayEvents = events.filter((e) => isSameDay(e.start, dateObj));
+          const dots = dayEvents.slice(0, 3).map((e) => {
+            const platformKey = e.platform?.toLowerCase() || "facebook";
+            const config = PLATFORM_CONFIGS[platformKey] || { color: "#6b7280" };
+            return config.color;
+          });
+
+          return (
+            <TouchableOpacity
+              key={index}
+              style={{ flex: 1, alignItems: "center" }}
+              onPress={() => {
+                setSelectedDate(dateObj);
+                setCurrentDate(dateObj);
+              }}
+            >
+              <Text style={{
+                fontSize: 12,
+                color: isToday ? "#dc2626" : (isDark ? "#94a3b8" : "#64748b"),
+                fontWeight: isToday ? "700" : "500",
+                marginBottom: 2
+              }}>
+                {format(dateObj, "EEE")}
+              </Text>
+              <View style={{
+                width: 32, height: 32, borderRadius: 16,
+                backgroundColor: isSelected ? (isDark ? "rgba(220, 38, 38, 0.25)" : "rgba(220, 38, 38, 0.12)") : "transparent",
+                alignItems: "center", justifyContent: "center"
+              }}>
+                <Text style={{
+                  fontSize: 15,
+                  color: isSelected ? "#dc2626" : (isDark ? "#f8fafc" : "#0f172a"),
+                  fontWeight: isSelected ? "700" : "600"
+                }}>
+                  {format(dateObj, "d")}
+                </Text>
+              </View>
+              <View style={{ flexDirection: "row", marginTop: 2, height: 6, alignItems: "center" }}>
+                {dots.map((color, i) => (
+                  <View key={i} style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: color, marginHorizontal: 1 }} />
+                ))}
+              </View>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     );
   };
@@ -793,6 +918,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts, refreshing, onRefres
                 }}
                 swipeEnabled={true}
                 renderEvent={renderEvent}
+                renderHeader={renderCustomWeekHeader}
                 calendarContainerStyle={{ backgroundColor: 'transparent' }}
                 headerContainerStyle={{ backgroundColor: 'transparent' }}
                 bodyContainerStyle={{ backgroundColor: 'transparent' }}

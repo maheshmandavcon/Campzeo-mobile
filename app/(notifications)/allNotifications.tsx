@@ -60,16 +60,35 @@ export default function AllNotifications() {
   // ---------------- FORMAT API DATA ----------------
   const formatNotification = (item: any) => {
     const dateObj = new Date(item.createdAt);
+    
+    let description = item.message;
+    if (typeof description === "string") {
+      const jsonStartIndex = description.indexOf('{');
+      if (jsonStartIndex !== -1) {
+        try {
+          const jsonStr = description.substring(jsonStartIndex);
+          const parsed = JSON.parse(jsonStr);
+          if (parsed?.error?.message) {
+            description = description.substring(0, jsonStartIndex).trim() + " " + parsed.error.message;
+          }
+        } catch (e) {
+          // Ignore parsing errors and fallback to original string
+        }
+      }
+    }
+
     return {
       id: item.id,
       title:
         item.platform ||
         item.type?.replaceAll("_", " ") ||
-        "Notification", desc: item.message,
+        "Notification", 
+      desc: description,
       read: item.isRead, // ✅ ALWAYS TRUST SERVER
       time: dateObj.toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
+        hour12: true,
       }),
       date: dateObj.toDateString(),
     };
@@ -322,7 +341,7 @@ export default function AllNotifications() {
                     : "#ffffff",
                 paddingHorizontal: 16,
                 paddingVertical: 4,
-                borderRadius: 9999, 
+                borderRadius: 9999,
               }}
             >
               <ThemedText

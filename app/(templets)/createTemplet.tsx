@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Alert,
   Dimensions,
@@ -13,6 +13,8 @@ import {
   ActivityIndicator,
   FlatList,
   Text,
+  RefreshControl,
+  Keyboard,
 } from "react-native";
 import { Platform } from "react-native";
 import Toast from "react-native-toast-message";
@@ -28,7 +30,7 @@ import { uploadMediaApi, generateAIContentApi, generateAIImageApi } from "@/api/
 import { getUser } from "@/api/dashboardApi";
 import Video from "react-native-video";
 import { createTemplateApi, updateTemplateApi } from "@/api/templetsApi";
-
+import { Picker } from "@react-native-picker/picker";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -109,24 +111,138 @@ export default function CreateTemplet() {
   const [preHeader, setPreHeader] = useState("");
   const [emailSubject, setEmailSubject] = useState("");
   const [content, setContent] = useState("");
-  const [facebookContentType, setFacebookContentType] = useState<"STANDARD" | "REEL">("STANDARD");
+  const [facebookContentType, setFacebookContentType] = useState<"POST" | "REEL" | "STORY">("POST");
   const [youtubeContentType, setYoutubeContentType] = useState<"VIDEO" | "SHORT">("VIDEO");
+  const [templateCategory, setTemplateCategory] = useState("Marketing");
+  const [templateLanguage, setTemplateLanguage] = useState("English (US)");
+  const [customDropdown, setCustomDropdown] = useState<{
+    visible: boolean;
+    title: string;
+    options: string[];
+    selectedValue: string;
+    onSelect: (val: string) => void;
+  }>({ visible: false, title: "", options: [], selectedValue: "", onSelect: () => {} });
+  const [waHeaderType, setWaHeaderType] = useState<"NONE" | "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT">("NONE");
+  const [waHeaderText, setWaHeaderText] = useState("");
+  const [waHeaderMediaMode, setWaHeaderMediaMode] = useState<"UPLOAD" | "URL">("UPLOAD");
+  const [waHeaderMediaUrl, setWaHeaderMediaUrl] = useState("");
+  const [waHeaderMediaFile, setWaHeaderMediaFile] = useState<{ uri: string; name: string; type: string } | null>(null);
+  const [waHeaderExpanded, setWaHeaderExpanded] = useState(false);
+  const [waBodyText, setWaBodyText] = useState("");
+  const [waBodyExpanded, setWaBodyExpanded] = useState(false);
+  const [waBodySelection, setWaBodySelection] = useState({ start: 0, end: 0 });
+  const bodyInputRef = useRef<TextInput>(null);
+
+  const handleFormat = (token: string) => {
+    const { start, end } = waBodySelection;
+    const textBefore = waBodyText.substring(0, start);
+    const textSelected = waBodyText.substring(start, end);
+    const textAfter = waBodyText.substring(end);
+    
+    const newText = textBefore + token + textSelected + token + textAfter;
+    if (newText.length <= 1024) {
+      setWaBodyText(newText);
+      setTimeout(() => {
+        setWaBodySelection({
+          start: start + token.length + textSelected.length,
+          end: start + token.length + textSelected.length
+        });
+        bodyInputRef.current?.focus();
+      }, 10);
+    }
+  };
+
+  const renderWhatsAppFormat = (text: string, isDark: boolean) => {
+    if (!text) return <ThemedText style={{ fontSize: 14.5, color: isDark ? '#e9edef' : '#111b21', lineHeight: 20 }}>Your message body will appear here...</ThemedText>;
+
+    const processPass = (nodes: any[], tokenStart: string, tokenEnd: string, style: any) => {
+      return nodes.flatMap((node, idx) => {
+        if (typeof node !== 'string') return [node];
+        const parts = node.split(new RegExp(`(${tokenStart.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}.*?${tokenEnd.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')})`, 'g'));
+        return parts.map((part, pIdx) => {
+          if (part.startsWith(tokenStart) && part.endsWith(tokenEnd) && part.length >= tokenStart.length + tokenEnd.length) {
+            return <ThemedText key={`fmt-${tokenStart}-${idx}-${pIdx}`} style={style}>{part.substring(tokenStart.length, part.length - tokenEnd.length)}</ThemedText>;
+          }
+          return <React.Fragment key={`text-${tokenStart}-${idx}-${pIdx}`}>{part}</React.Fragment>;
+        });
+      });
+    };
+
+    let nodes: any[] = [text];
+    nodes = processPass(nodes, '```', '```', { fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', backgroundColor: isDark ? '#2a3942' : '#f0f2f5' });
+    nodes = processPass(nodes, '*', '*', { fontWeight: 'bold' });
+    // Fix for italic: custom fonts often disappear on Android when fontStyle is italic, so we reset fontFamily
+    nodes = processPass(nodes, '_', '_', { fontStyle: 'italic', fontFamily: Platform.OS === 'ios' ? 'System' : 'normal' });
+    nodes = processPass(nodes, '~', '~', { textDecorationLine: 'line-through' });
+
+    return (
+      <ThemedText style={{ fontSize: 14.5, color: isDark ? '#e9edef' : '#111b21', lineHeight: 20 }}>
+        {nodes}
+      </ThemedText>
+    );
+  };
+
+  const [waFooterText, setWaFooterText] = useState("");
+  const [waFooterExpanded, setWaFooterExpanded] = useState(false);
+  const [waButtons, setWaButtons] = useState<{ id: string; type: string; text: string; value: string }[]>([]);
+  const [waButtonsExpanded, setWaButtonsExpanded] = useState(false);
+
+  const handleWaHeaderUpload = async (type: "IMAGE" | "VIDEO" | "DOCUMENT") => {
+    try {
+      if (type === "DOCUMENT") {
+        const result = await DocumentPicker.getDocumentAsync({ type: "*/*", copyToCacheDirectory: true });
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+          const asset = result.assets[0];
+          setWaHeaderMediaFile({ uri: asset.uri, name: asset.name, type: asset.mimeType || "application/pdf" });
+        }
+      } else {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (permission.status !== "granted") {
+          Toast.show({ type: "error", text1: "Permission Denied", text2: "Gallery access is required." });
+          return;
+        }
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: type === "VIDEO" ? ImagePicker.MediaTypeOptions.Videos : ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: false,
+          quality: 1,
+        });
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+          const asset = result.assets[0];
+          setWaHeaderMediaFile({ uri: asset.uri, name: asset.fileName || `${type.toLowerCase()}-${Date.now()}`, type: asset.type === "video" ? "video/mp4" : "image/jpeg" });
+        }
+      }
+    } catch (e: any) {
+      console.warn("Upload failed:", e);
+      Toast.show({ type: "error", text1: "Error", text2: "Failed to pick file" });
+    }
+  };
+
   const [tags, setTags] = useState("");
   const [privacyStatus, setPrivacyStatus] = useState("PUBLIC");
   const [playlist, setPlaylist] = useState("");
   const [destinationLink, setDestinationLink] = useState("");
   const [media, setMedia] = useState<{ uri: string; type: "image" | "video" | "pdf"; uploadedUrl?: string; name?: string }[]>([]);
+  const platformScrollRef = React.useRef<ScrollView>(null);
   const [isPlayingPreview, setIsPlayingPreview] = useState(true);
   const [pinterestActiveIndex, setPinterestActiveIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [organisationId, setOrganisationId] = useState<number | undefined>(undefined);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  }, []);
 
   // ================= AI TEXT =================
   const [aiPrompt, setAiPrompt] = useState("");
   const [loadingAI, setLoadingAI] = useState(false);
-  const [aiResults, setAiResults] = useState<{subject: string, content: string, isLoading?: boolean}[]>([]);
+  const [aiResults, setAiResults] = useState<{ subject: string, content: string, isLoading?: boolean }[]>([]);
   const [aiModalVisible, setAiModalVisible] = useState(false);
+  const [uploadModalVisible, setUploadModalVisible] = useState(false);
 
   // ================= AI IMAGE =================
   const [imagePrompt, setImagePrompt] = useState("");
@@ -177,7 +293,7 @@ export default function CreateTemplet() {
         if (meta.privacyStatus) setPrivacyStatus(meta.privacyStatus);
         if (meta.playlist) setPlaylist(meta.playlist);
         if (meta.destinationLink) setDestinationLink(meta.destinationLink);
-      } catch {}
+      } catch { }
     }
     if (params.editMediaUrls) {
       try {
@@ -187,12 +303,12 @@ export default function CreateTemplet() {
           const type: "image" | "video" | "pdf" = lower.includes(".mp4") || lower.includes(".mov")
             ? "video"
             : lower.includes(".pdf")
-            ? "pdf"
-            : "image";
+              ? "pdf"
+              : "image";
           return { uri: url, uploadedUrl: url, type };
         });
         setMedia(mediaItems);
-      } catch {}
+      } catch { }
     }
   }, [params.editId]);
 
@@ -228,6 +344,7 @@ export default function CreateTemplet() {
   // ── handlers ──────────────────────────────────────────────────────────────
 
   const handleGenerateAIText = async () => {
+    Keyboard.dismiss();
     if (!aiPrompt.trim()) {
       Toast.show({ type: 'info', text1: "Enter instruction like: add emoji, make promotional" });
       return;
@@ -263,7 +380,7 @@ export default function CreateTemplet() {
       const extractJsonArray = (str: string) => {
         try { return JSON.parse(str); } catch (e) {
           const match = str.match(/\[\s*\{[\s\S]*\}\s*\]/);
-          if (match) { try { return JSON.parse(match[0]); } catch (innerError) {} }
+          if (match) { try { return JSON.parse(match[0]); } catch (innerError) { } }
           throw e;
         }
       };
@@ -300,6 +417,7 @@ export default function CreateTemplet() {
   };
 
   const handleGenerateAIImage = async () => {
+    Keyboard.dismiss();
     if (!imagePrompt.trim()) {
       Toast.show({ type: 'info', text1: "Enter a prompt to generate an image" });
       return;
@@ -330,7 +448,7 @@ export default function CreateTemplet() {
   const handleSelectGeneratedImage = async (imageUrl: string) => {
     if (selectingImage) return;
     setSelectingImage(imageUrl);
-    
+
     setMedia((prev) => [
       ...prev,
       {
@@ -348,12 +466,44 @@ export default function CreateTemplet() {
   };
 
   const handleCreate = async () => {
-    if (!templateName.trim() || !selectedPlatform || !content.trim() || !organisationId) return;
+    if (!templateName.trim() || !selectedPlatform || !organisationId) return;
+    if (selectedPlatform !== "WHATSAPP" && !content.trim()) return;
+
+    if (selectedPlatform === "WHATSAPP") {
+      const isValidName = /^[a-z0-9_]+$/.test(templateName.trim());
+      if (!isValidName) {
+        Toast.show({ type: "error", text1: "Validation Error", text2: "Template name must be lowercase and numbers only (e.g. order_confirmation_v2)." });
+        return;
+      }
+      if (waHeaderType === "TEXT" && !waHeaderText.trim()) {
+        Toast.show({ type: "error", text1: "Validation Error", text2: "Header text cannot be empty." });
+        return;
+      }
+      if (!waBodyText.trim()) {
+        Toast.show({ type: "error", text1: "Validation Error", text2: "Body text is required for WhatsApp templates." });
+        return;
+      }
+      if ((waHeaderType === "IMAGE" || waHeaderType === "VIDEO" || waHeaderType === "DOCUMENT")) {
+        if (waHeaderMediaMode === "URL" && !waHeaderMediaUrl.trim()) {
+          Toast.show({ type: "error", text1: "Validation Error", text2: "Media URL is required." });
+          return;
+        }
+        if (waHeaderMediaMode === "UPLOAD" && !waHeaderMediaFile) {
+          Toast.show({ type: "error", text1: "Validation Error", text2: "Please upload a media file." });
+          return;
+        }
+      }
+    }
+
+    if ((selectedPlatform === "INSTAGRAM" || selectedPlatform === "YOUTUBE") && media.length === 0) {
+      Toast.show({ type: "error", text1: "Validation Error", text2: "Upload media is required for this platform." });
+      return;
+    }
 
     setSubmitting(true);
     try {
       const token = await getToken();
-      const metadataObj = {
+      const metadataObj: any = {
         preHeader,
         facebookContentType,
         youtubeContentType,
@@ -363,10 +513,23 @@ export default function CreateTemplet() {
         destinationLink,
       };
 
+      if (selectedPlatform === "WHATSAPP") {
+        metadataObj.waHeaderType = waHeaderType;
+        if (waHeaderType === "TEXT") metadataObj.waHeaderText = waHeaderText.trim();
+        if (waHeaderType === "IMAGE" || waHeaderType === "VIDEO" || waHeaderType === "DOCUMENT") {
+          metadataObj.waHeaderMediaMode = waHeaderMediaMode;
+          if (waHeaderMediaMode === "URL") metadataObj.waHeaderMediaUrl = waHeaderMediaUrl.trim();
+        }
+        metadataObj.waBodyText = waBodyText.trim();
+        if (waFooterText.trim()) metadataObj.waFooterText = waFooterText.trim();
+        if (waButtons.length > 0) metadataObj.waButtons = waButtons;
+      }
+
       const payload = {
         name: templateName,
         platform: selectedPlatform,
-        category: "CUSTOM",
+        category: selectedPlatform === "WHATSAPP" ? templateCategory : "CUSTOM",
+        language: selectedPlatform === "WHATSAPP" ? templateLanguage : undefined,
         isActive: true,
         content: content,
         subject: emailSubject,
@@ -431,44 +594,7 @@ export default function CreateTemplet() {
   const handleUpload = async () => {
     try {
       if (selectedPlatform === "EMAIL") {
-        Alert.alert(
-          "Upload Media",
-          "What kind of file do you want to attach?",
-          [
-            {
-              text: "Document (PDF)",
-              onPress: async () => {
-                const result = await DocumentPicker.getDocumentAsync({
-                  type: "application/pdf",
-                  copyToCacheDirectory: true,
-                });
-                if (result.canceled) return;
-                processUpload(result.assets[0], "pdf");
-              }
-            },
-            {
-              text: "Photo / Video",
-              onPress: async () => {
-                const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                if (!permission.granted) {
-                  Toast.show({ type: 'info', text1: "Permission required", text2: "Please allow access to photos and videos." });
-                  return;
-                }
-                const result = await ImagePicker.launchImageLibraryAsync({
-                  mediaTypes: ImagePicker.MediaTypeOptions.All,
-                  quality: 0.8,
-                });
-                if (result.canceled) return;
-                const asset = result.assets[0];
-                processUpload(asset, asset.type === "video" ? "video" : "image");
-              }
-            },
-            {
-              text: "Cancel",
-              style: "cancel"
-            }
-          ]
-        );
+        setUploadModalVisible(true);
         return;
       } else {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -502,6 +628,9 @@ export default function CreateTemplet() {
       const filtered = prev.filter((p) => p !== platform && p !== selectedPlatform);
       return [platform, ...filtered, selectedPlatform];
     });
+    setTimeout(() => {
+      platformScrollRef.current?.scrollTo({ x: 0, animated: false });
+    }, 0);
   };
 
   // ── preview label ─────────────────────────────────────────────────────────
@@ -554,10 +683,14 @@ export default function CreateTemplet() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
           keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={isDark ? "#ffffff" : "#000000"} />
+          }
         >
           {/* ── Select Platform ── */}
           <ThemedText style={labelStyle}>Select Platform</ThemedText>
           <ScrollView
+            ref={platformScrollRef}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{
@@ -605,6 +738,369 @@ export default function CreateTemplet() {
             })}
           </ScrollView>
 
+          {selectedPlatform === "WHATSAPP" ? (
+            <View>
+              <ThemedText style={{ fontSize: 16, fontWeight: "700", color: textPrimary }}>Template Identity</ThemedText>
+              <ThemedText style={{ fontSize: 14, color: textMuted, marginBottom: 24 }}>Configure your Meta-compliant template</ThemedText>
+              <ThemedText style={labelStyle}>Template Name *</ThemedText>
+              <TextInput
+                value={templateName}
+                onChangeText={(text) => setTemplateName(text.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                placeholder="e.g. order_confirmation_v2"
+                placeholderTextColor={textMuted}
+                style={[inputStyle, { marginBottom: 4 }]}
+              />
+              <ThemedText style={{ fontSize: 12, color: textMuted, marginBottom: 20 }}>Lowercase and numbers only</ThemedText>
+
+              <ThemedText style={labelStyle}>Category *</ThemedText>
+              <TouchableOpacity
+                onPress={() => setCustomDropdown({
+                  visible: true,
+                  title: "Select Category",
+                  options: ["Marketing", "Utility", "Authentication"],
+                  selectedValue: templateCategory,
+                  onSelect: (val) => setTemplateCategory(val)
+                })}
+                activeOpacity={0.7}
+                style={[inputStyle, { marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', height: 54 }]}
+              >
+                 <ThemedText style={{ color: textPrimary, fontSize: 15 }}>{templateCategory}</ThemedText>
+                 <Ionicons name="chevron-down" size={18} color={textMuted} />
+              </TouchableOpacity>
+
+              <ThemedText style={labelStyle}>Language *</ThemedText>
+              <TouchableOpacity
+                onPress={() => setCustomDropdown({
+                  visible: true,
+                  title: "Select Language",
+                  options: ["English (US)", "English (UK)", "Spanish"],
+                  selectedValue: templateLanguage,
+                  onSelect: (val) => setTemplateLanguage(val)
+                })}
+                activeOpacity={0.7}
+                style={[inputStyle, { marginBottom: 28, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', height: 54 }]}
+              >
+                 <ThemedText style={{ color: textPrimary, fontSize: 15 }}>{templateLanguage}</ThemedText>
+                 <Ionicons name="chevron-down" size={18} color={textMuted} />
+              </TouchableOpacity>
+
+              <ThemedText style={{ fontSize: 16, fontWeight: "700", color: textPrimary, marginBottom: 4 }}>Components</ThemedText>
+              <ThemedText style={{ fontSize: 13, color: textMuted, marginBottom: 16 }}>Drag to reorder</ThemedText>
+
+              <View style={{ gap: 12, marginBottom: 24 }}>
+                <View style={{ backgroundColor: card, borderRadius: 12, borderWidth: 1, borderColor: border, overflow: "hidden" }}>
+                  <TouchableOpacity onPress={() => { if (waHeaderExpanded) setWaHeaderType("NONE"); setWaHeaderExpanded(!waHeaderExpanded); }} activeOpacity={0.7} style={{ flexDirection: "row", alignItems: "center", padding: 16 }}>
+                    <Ionicons name="menu" size={24} color={textMuted} style={{ marginRight: 16 }} />
+                    <ThemedText style={{ flex: 1, fontSize: 16, color: textPrimary, fontWeight: "600" }}>Header</ThemedText>
+                    <View style={{ backgroundColor: isDark ? "#1e3a8a" : "#eff6ff", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginRight: 12 }}>
+                      <ThemedText style={{ fontSize: 10, fontWeight: "700", color: isDark ? "#93c5fd" : "#2563eb" }}>OPTIONAL</ThemedText>
+                    </View>
+                    <ThemedText style={{ fontSize: 12, color: textMuted, marginRight: 12 }}>{waHeaderType === "NONE" ? "None" : waHeaderType.charAt(0) + waHeaderType.slice(1).toLowerCase()}</ThemedText>
+                    <Ionicons name={waHeaderExpanded ? "chevron-up" : "chevron-down"} size={20} color={textMuted} />
+                  </TouchableOpacity>
+                  {waHeaderExpanded && (
+                    <View style={{ padding: 16, paddingTop: 0 }}>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 16 }}>
+                        {(["TEXT", "IMAGE", "VIDEO", "DOCUMENT"] as const).map(type => (
+                          <TouchableOpacity key={type} onPress={() => setWaHeaderType(type)} style={{ paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, backgroundColor: waHeaderType === type ? `${getPlatformConfig("WHATSAPP").color}22` : inputBg, borderWidth: 1, borderColor: waHeaderType === type ? getPlatformConfig("WHATSAPP").color : border }}>
+                            <ThemedText style={{ color: waHeaderType === type ? getPlatformConfig("WHATSAPP").color : textPrimary, fontWeight: waHeaderType === type ? "600" : "400", fontSize: 13 }}>
+                              {type.charAt(0) + type.slice(1).toLowerCase()}
+                            </ThemedText>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+
+                      {waHeaderType === "TEXT" && (
+                        <View>
+                          <TextInput
+                            value={waHeaderText}
+                            onChangeText={(text) => { if (text.length <= 60) setWaHeaderText(text); }}
+                            placeholder="Enter header text..."
+                            placeholderTextColor={textMuted}
+                            style={[inputStyle, { padding: 12, fontSize: 14 }]}
+                          />
+                          <ThemedText style={{ fontSize: 11, color: waHeaderText.length === 60 ? "#ef4444" : textMuted, marginTop: 4, alignSelf: "flex-end" }}>{waHeaderText.length}/60</ThemedText>
+                        </View>
+                      )}
+
+                      {(waHeaderType === "IMAGE" || waHeaderType === "VIDEO" || waHeaderType === "DOCUMENT") && (
+                        <View>
+                          <View style={{ flexDirection: "row", marginBottom: 12, backgroundColor: inputBg, borderRadius: 8, padding: 4 }}>
+                            <TouchableOpacity onPress={() => setWaHeaderMediaMode("UPLOAD")} style={{ flex: 1, paddingVertical: 8, alignItems: "center", backgroundColor: waHeaderMediaMode === "UPLOAD" ? card : "transparent", borderRadius: 6, shadowColor: waHeaderMediaMode === "UPLOAD" ? "#000" : "transparent", shadowOpacity: 0.1, shadowRadius: 2, elevation: waHeaderMediaMode === "UPLOAD" ? 2 : 0 }}>
+                              <ThemedText style={{ fontSize: 13, fontWeight: waHeaderMediaMode === "UPLOAD" ? "600" : "400", color: textPrimary }}>Upload</ThemedText>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => setWaHeaderMediaMode("URL")} style={{ flex: 1, paddingVertical: 8, alignItems: "center", backgroundColor: waHeaderMediaMode === "URL" ? card : "transparent", borderRadius: 6, shadowColor: waHeaderMediaMode === "URL" ? "#000" : "transparent", shadowOpacity: 0.1, shadowRadius: 2, elevation: waHeaderMediaMode === "URL" ? 2 : 0 }}>
+                              <ThemedText style={{ fontSize: 13, fontWeight: waHeaderMediaMode === "URL" ? "600" : "400", color: textPrimary }}>URL</ThemedText>
+                            </TouchableOpacity>
+                          </View>
+
+                          {waHeaderMediaMode === "URL" ? (
+                            <TextInput
+                              value={waHeaderMediaUrl}
+                              onChangeText={setWaHeaderMediaUrl}
+                              placeholder={`Paste ${waHeaderType.toLowerCase()} URL here...`}
+                              placeholderTextColor={textMuted}
+                              style={[inputStyle, { padding: 12, fontSize: 14 }]}
+                            />
+                          ) : (
+                            <TouchableOpacity onPress={() => handleWaHeaderUpload(waHeaderType)} style={{ borderStyle: "dashed", borderWidth: 1.5, borderColor: border, borderRadius: 12, padding: 24, alignItems: "center", backgroundColor: inputBg }}>
+                              {waHeaderMediaFile ? (
+                                <>
+                                  <Ionicons name="checkmark-circle" size={32} color={getPlatformConfig("WHATSAPP").color} />
+                                  <ThemedText style={{ fontSize: 13, color: textPrimary, marginTop: 8, fontWeight: "600" }} numberOfLines={1}>{waHeaderMediaFile.name}</ThemedText>
+                                  <ThemedText style={{ fontSize: 11, color: textMuted, marginTop: 4 }}>Tap to change</ThemedText>
+                                </>
+                              ) : (
+                                <>
+                                  <Ionicons name="cloud-upload-outline" size={32} color={textMuted} />
+                                  <ThemedText style={{ fontSize: 13, color: textMuted, marginTop: 8 }}>Select a {waHeaderType.toLowerCase()} file from device</ThemedText>
+                                </>
+                              )}
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </View>
+
+                {/* INTERACTIVE BODY */}
+                <View style={{ backgroundColor: card, borderRadius: 12, borderWidth: 1, borderColor: border, overflow: "hidden" }}>
+                  <TouchableOpacity onPress={() => setWaBodyExpanded(!waBodyExpanded)} activeOpacity={0.7} style={{ flexDirection: "row", alignItems: "center", padding: 16 }}>
+                    <Ionicons name="menu" size={24} color={textMuted} style={{ marginRight: 16 }} />
+                    <ThemedText style={{ flex: 1, fontSize: 16, color: textPrimary, fontWeight: "600" }}>Body</ThemedText>
+                    <View style={{ backgroundColor: isDark ? "#7f1d1d" : "#fee2e2", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginRight: 12 }}>
+                      <ThemedText style={{ fontSize: 10, fontWeight: "700", color: isDark ? "#fca5a5" : "#dc2626" }}>REQUIRED</ThemedText>
+                    </View>
+                    <Ionicons name={waBodyExpanded ? "chevron-up" : "chevron-down"} size={20} color={textMuted} />
+                  </TouchableOpacity>
+                  {waBodyExpanded && (
+                    <View style={{ padding: 16, paddingTop: 0 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8, paddingHorizontal: 4 }}>
+                        <View style={{ flexDirection: "row", gap: 20 }}>
+                          <TouchableOpacity onPress={() => handleFormat("*")}><FontAwesome name="bold" size={18} color={textPrimary} /></TouchableOpacity>
+                          <TouchableOpacity onPress={() => handleFormat("_")}><FontAwesome name="italic" size={18} color={textPrimary} /></TouchableOpacity>
+                          <TouchableOpacity onPress={() => handleFormat("~")}><FontAwesome name="strikethrough" size={18} color={textPrimary} /></TouchableOpacity>
+                          <TouchableOpacity onPress={() => handleFormat("```")}><FontAwesome name="code" size={18} color={textPrimary} /></TouchableOpacity>
+                        </View>
+                        <ThemedText style={{ fontSize: 11, color: textMuted }}>Select text then click format</ThemedText>
+                      </View>
+                      
+                      <View style={{ borderWidth: 1, borderColor: waBodyText.length === 0 ? "#dc2626" : border, borderRadius: 12, padding: 12, minHeight: 120 }}>
+                        <TextInput
+                          ref={bodyInputRef}
+                          value={waBodyText}
+                          onChangeText={(text) => { if (text.length <= 1024) setWaBodyText(text); }}
+                          onSelectionChange={(e) => setWaBodySelection(e.nativeEvent.selection)}
+                          selection={waBodySelection}
+                          placeholder="Enter message body here..."
+                          placeholderTextColor={textMuted}
+                          multiline
+                          style={{ flex: 1, color: textPrimary, fontSize: 14, textAlignVertical: "top", minHeight: 100 }}
+                        />
+                        <ThemedText style={{ fontSize: 11, color: waBodyText.length === 1024 ? "#ef4444" : textMuted, alignSelf: "flex-end" }}>{waBodyText.length}/1024</ThemedText>
+                      </View>
+
+                      <View style={{ flexDirection: "row", marginTop: 8, gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+                        <ThemedText style={{ fontSize: 12, color: textMuted }}>Use</ThemedText>
+                        <ThemedText style={{ fontSize: 12, color: "#dc2626", backgroundColor: isDark ? "#450a0a" : "#fef2f2", paddingHorizontal: 4, borderRadius: 4 }}>*bold*</ThemedText>
+                        <ThemedText style={{ fontSize: 12, color: textMuted }}>,</ThemedText>
+                        <ThemedText style={{ fontSize: 12, color: "#dc2626", backgroundColor: isDark ? "#450a0a" : "#fef2f2", paddingHorizontal: 4, borderRadius: 4 }}>_italic_</ThemedText>
+                        <ThemedText style={{ fontSize: 12, color: textMuted }}>,</ThemedText>
+                        <ThemedText style={{ fontSize: 12, color: "#dc2626", backgroundColor: isDark ? "#450a0a" : "#fef2f2", paddingHorizontal: 4, borderRadius: 4 }}>~strike~</ThemedText>
+                        <ThemedText style={{ fontSize: 12, color: textMuted }}>,</ThemedText>
+                        <ThemedText style={{ fontSize: 12, color: "#dc2626", backgroundColor: isDark ? "#450a0a" : "#fef2f2", paddingHorizontal: 4, borderRadius: 4 }}>`code`</ThemedText>
+                      </View>
+                    </View>
+                  )}
+                </View>
+
+                {/* INTERACTIVE FOOTER */}
+                <View style={{ backgroundColor: card, borderRadius: 12, borderWidth: 1, borderColor: border, overflow: "hidden" }}>
+                  <TouchableOpacity onPress={() => setWaFooterExpanded(!waFooterExpanded)} activeOpacity={0.7} style={{ flexDirection: "row", alignItems: "center", padding: 16 }}>
+                    <Ionicons name="menu" size={24} color={textMuted} style={{ marginRight: 16 }} />
+                    <ThemedText style={{ flex: 1, fontSize: 16, color: textPrimary, fontWeight: "600" }}>Footer</ThemedText>
+                    <View style={{ backgroundColor: isDark ? "#1e3a8a" : "#eff6ff", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginRight: 12 }}>
+                      <ThemedText style={{ fontSize: 10, fontWeight: "700", color: isDark ? "#93c5fd" : "#2563eb" }}>OPTIONAL</ThemedText>
+                    </View>
+                    <Ionicons name={waFooterExpanded ? "chevron-up" : "chevron-down"} size={20} color={textMuted} />
+                  </TouchableOpacity>
+                  {waFooterExpanded && (
+                    <View style={{ padding: 16, paddingTop: 0 }}>
+                      <TextInput
+                        value={waFooterText}
+                        onChangeText={(text) => { if (text.length <= 60) setWaFooterText(text); }}
+                        placeholder="Enter footer text (optional)..."
+                        placeholderTextColor={textMuted}
+                        style={[inputStyle, { padding: 12, fontSize: 14 }]}
+                      />
+                      <ThemedText style={{ fontSize: 11, color: waFooterText.length === 60 ? "#ef4444" : textMuted, marginTop: 4, alignSelf: "flex-end" }}>{waFooterText.length}/60</ThemedText>
+                    </View>
+                  )}
+                </View>
+
+                {/* INTERACTIVE BUTTONS */}
+                <View style={{ backgroundColor: card, borderRadius: 12, borderWidth: 1, borderColor: border, overflow: "hidden" }}>
+                  <TouchableOpacity onPress={() => setWaButtonsExpanded(!waButtonsExpanded)} activeOpacity={0.7} style={{ flexDirection: "row", alignItems: "center", padding: 16 }}>
+                    <Ionicons name="menu" size={24} color={textMuted} style={{ marginRight: 16 }} />
+                    <ThemedText style={{ flex: 1, fontSize: 16, color: textPrimary, fontWeight: "600" }}>Buttons</ThemedText>
+                    <View style={{ backgroundColor: isDark ? "#1e3a8a" : "#eff6ff", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginRight: 12 }}>
+                      <ThemedText style={{ fontSize: 10, fontWeight: "700", color: isDark ? "#93c5fd" : "#2563eb" }}>OPTIONAL</ThemedText>
+                    </View>
+                    <Ionicons name={waButtonsExpanded ? "chevron-up" : "chevron-down"} size={20} color={textMuted} />
+                  </TouchableOpacity>
+                  {waButtonsExpanded && (
+                    <View style={{ padding: 16, paddingTop: 0 }}>
+                      {waButtons.map((btn, idx) => (
+                        <View key={btn.id} style={{ marginBottom: 12, padding: 12, borderWidth: 1, borderColor: border, borderRadius: 12, backgroundColor: inputBg }}>
+                          <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
+                            <TouchableOpacity
+                              onPress={() => setCustomDropdown({
+                                visible: true,
+                                title: "Select Button Type",
+                                options: ["Quick Reply", "Visit URL", "Call Phone", "Open Flow", "View Catalog"],
+                                selectedValue: btn.type,
+                                onSelect: (val) => setWaButtons(prev => prev.map(b => b.id === btn.id ? { ...b, type: val } : b))
+                              })}
+                              style={[inputStyle, { flex: 0.8, padding: 12, height: 48, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }]}
+                            >
+                              <ThemedText style={{ fontSize: 13, color: textPrimary }} numberOfLines={1}>{btn.type}</ThemedText>
+                              <Ionicons name="chevron-down" size={16} color={textMuted} />
+                            </TouchableOpacity>
+
+                            <TextInput
+                              value={btn.text}
+                              onChangeText={(val) => {
+                                if (val.length <= 25) {
+                                  setWaButtons(prev => prev.map(b => b.id === btn.id ? { ...b, text: val } : b));
+                                }
+                              }}
+                              placeholder="Button label (max 25)"
+                              placeholderTextColor={textMuted}
+                              style={[inputStyle, { flex: 1.5, padding: 12, height: 48, fontSize: 13 }]}
+                            />
+
+                            <TouchableOpacity onPress={() => setWaButtons(prev => prev.filter(b => b.id !== btn.id))} style={{ padding: 4 }}>
+                              <Ionicons name="trash-outline" size={20} color={textMuted} />
+                            </TouchableOpacity>
+                          </View>
+
+                          {(btn.type === "Visit URL" || btn.type === "Call Phone") && (
+                            <View style={{ marginTop: 12 }}>
+                              <TextInput
+                                value={btn.value}
+                                onChangeText={(val) => setWaButtons(prev => prev.map(b => b.id === btn.id ? { ...b, value: val } : b))}
+                                placeholder={btn.type === "Visit URL" ? "https://..." : "+1234567890"}
+                                placeholderTextColor={textMuted}
+                                style={[inputStyle, { padding: 12, height: 48, fontSize: 13 }]}
+                              />
+                            </View>
+                          )}
+                        </View>
+                      ))}
+
+                      {waButtons.length < 10 && (
+                        <TouchableOpacity 
+                          onPress={() => setWaButtons(prev => [...prev, { id: Math.random().toString(), type: "Quick Reply", text: "", value: "" }])}
+                          style={{ paddingVertical: 12, borderRadius: 12, borderStyle: "dashed", borderWidth: 1.5, borderColor: border, backgroundColor: isDark ? "transparent" : "#ffffff", alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 }}
+                        >
+                          <Ionicons name="add" size={18} color={textMuted} />
+                          <ThemedText style={{ color: textPrimary, fontSize: 13, fontWeight: "600" }}>Add Button</ThemedText>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+                </View>
+
+                {/* ── WHATSAPP PREVIEW ── */}
+                <View style={{ marginTop: 12, paddingBottom: 20 }}>
+                  <ThemedText style={{ fontSize: 14, fontWeight: "600", color: textMuted, marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.5 }}>Live Preview</ThemedText>
+                  
+                  <View style={{ width: '100%', maxWidth: 360, alignSelf: 'center', backgroundColor: isDark ? '#0b141a' : '#efeae2', borderRadius: 24, borderWidth: 8, borderColor: isDark ? '#1f2937' : '#111827', overflow: 'hidden', height: 600 }}>
+                    {/* WhatsApp Header */}
+                    <View style={{ backgroundColor: '#005c4b', paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <Ionicons name="arrow-back" size={20} color="#fff" />
+                      <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#cbd5e1', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="business" size={20} color="#64748b" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <ThemedText style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Your Business</ThemedText>
+                        <ThemedText style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>Online</ThemedText>
+                      </View>
+                      <Ionicons name="videocam" size={20} color="#fff" style={{ marginLeft: 8 }} />
+                      <Ionicons name="call" size={18} color="#fff" style={{ marginLeft: 16 }} />
+                      <Ionicons name="ellipsis-vertical" size={20} color="#fff" style={{ marginLeft: 16 }} />
+                    </View>
+
+                    {/* Chat Area */}
+                    <ScrollView contentContainerStyle={{ padding: 12 }} showsVerticalScrollIndicator={false}>
+                      <View style={{ alignSelf: 'center', backgroundColor: isDark ? '#182229' : '#fff', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, marginBottom: 16, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 1, elevation: 1 }}>
+                        <ThemedText style={{ fontSize: 11, color: isDark ? '#8696a0' : '#54656f', fontWeight: '500' }}>TODAY</ThemedText>
+                      </View>
+
+                      <View style={{ alignSelf: 'flex-start', maxWidth: '85%', marginBottom: 12 }}>
+                        {/* Bubble Container */}
+                        <View style={{ backgroundColor: isDark ? '#202c33' : '#fff', borderRadius: 12, borderTopLeftRadius: 0, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 1, elevation: 1, overflow: 'hidden' }}>
+                          
+                          {/* Message Content */}
+                          <View style={{ padding: 8 }}>
+                            {/* Header Content */}
+                            {waHeaderType === "TEXT" && waHeaderText ? (
+                              <ThemedText style={{ fontSize: 15, fontWeight: 'bold', color: isDark ? '#e9edef' : '#111b21', marginBottom: 4 }}>{waHeaderText}</ThemedText>
+                            ) : (waHeaderType === "IMAGE" || waHeaderType === "VIDEO" || waHeaderType === "DOCUMENT") ? (
+                              <View style={{ width: '100%', height: 140, backgroundColor: isDark ? '#111b21' : '#f0f2f5', borderRadius: 8, marginBottom: 8, alignItems: 'center', justifyContent: 'center' }}>
+                                <Ionicons name={waHeaderType === "VIDEO" ? "videocam-outline" : waHeaderType === "DOCUMENT" ? "document-text-outline" : "image-outline"} size={40} color={isDark ? '#8696a0' : '#54656f'} />
+                              </View>
+                            ) : null}
+
+                            {/* Body Content */}
+                            {renderWhatsAppFormat(waBodyText, isDark)}
+
+                            {/* Footer Content */}
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 4, gap: 12 }}>
+                              <View style={{ flex: 1 }}>
+                                {waFooterText ? (
+                                  <ThemedText style={{ fontSize: 12, color: isDark ? '#8696a0' : '#54656f', marginTop: 2 }}>{waFooterText}</ThemedText>
+                                ) : <View />}
+                              </View>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                                <ThemedText style={{ fontSize: 11, color: isDark ? '#8696a0' : '#54656f' }}>
+                                  {`${new Date().getHours() % 12 || 12}:${new Date().getMinutes().toString().padStart(2, '0')} ${new Date().getHours() >= 12 ? 'PM' : 'AM'}`}
+                                </ThemedText>
+                                <Ionicons name="checkmark-done" size={14} color="#53bdeb" />
+                              </View>
+                            </View>
+                          </View>
+
+                          {/* Buttons Inside Bubble */}
+                          {waButtons.length > 0 && (
+                            <View style={{ borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }}>
+                              {waButtons.map((btn, index) => {
+                                let iconName = "arrow-undo";
+                                if (btn.type === "Visit URL") iconName = "open-outline";
+                                if (btn.type === "Call Phone") iconName = "call";
+                                if (btn.type === "View Catalog") iconName = "storefront";
+                                if (btn.type === "Open Flow") iconName = "layers";
+
+                                return (
+                                  <View key={btn.id} style={{ borderTopWidth: index > 0 ? 1 : 0, borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)', paddingVertical: 10, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                                    <Ionicons name={iconName as any} size={16} color="#53bdeb" />
+                                    <ThemedText style={{ color: '#53bdeb', fontSize: 14, fontWeight: '500' }}>{btn.text || "(Button text)"}</ThemedText>
+                                  </View>
+                                );
+                              })}
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    </ScrollView>
+                  </View>
+                </View>
+
+              </View>
+            </View>
+          ) : (
+            <>
           {/* ── Template Name ── */}
           <ThemedText style={labelStyle}>Template Name</ThemedText>
           <TextInput
@@ -634,7 +1130,7 @@ export default function CreateTemplet() {
             </>
           )}
 
-           {/* ── Subject / Title ── */}
+          {/* ── Subject / Title ── */}
           {(selectedPlatform === "EMAIL" || selectedPlatform === "FACEBOOK" || selectedPlatform === "INSTAGRAM" || selectedPlatform === "LINKEDIN" || selectedPlatform === "PINTEREST" || selectedPlatform === "YOUTUBE") && (
             <>
               <ThemedText style={labelStyle}>
@@ -644,9 +1140,9 @@ export default function CreateTemplet() {
                 value={emailSubject}
                 onChangeText={setEmailSubject}
                 placeholder={
-                  selectedPlatform === "EMAIL" ? "Enter email subject" : 
-                  selectedPlatform === "YOUTUBE" ? "Enter video title" : 
-                  "Enter post title"
+                  selectedPlatform === "EMAIL" ? "Enter email subject" :
+                    selectedPlatform === "YOUTUBE" ? "Enter video title" :
+                      "Enter post title"
                 }
                 placeholderTextColor={textMuted}
                 style={[inputStyle, { marginBottom: 20 }]}
@@ -656,7 +1152,7 @@ export default function CreateTemplet() {
 
           {/* AI TEXT BUTTON FOR ALL PLATFORMS */}
           <TouchableOpacity
-            onPress={() => setAiModalVisible(true)}
+            onPress={() => { Keyboard.dismiss(); setAiModalVisible(true); }}
             activeOpacity={0.8}
             style={{
               flexDirection: "row",
@@ -693,7 +1189,11 @@ export default function CreateTemplet() {
           {selectedPlatform !== "SMS" && (
             <>
               <ThemedText style={labelStyle}>
-                {selectedPlatform === "EMAIL" ? "Attachments (Optional)" : "Upload Media (Optional)"}
+                {selectedPlatform === "EMAIL"
+                  ? "Attachments (Optional)"
+                  : selectedPlatform === "INSTAGRAM" || selectedPlatform === "YOUTUBE"
+                  ? "Upload Media (Required)"
+                  : "Upload Media (Optional)"}
               </ThemedText>
               <ThemedText style={{ fontSize: 12, color: textMuted, marginBottom: 10 }}>
                 {selectedPlatform === "EMAIL"
@@ -701,220 +1201,220 @@ export default function CreateTemplet() {
                   : "Upload Images/Videos"}
               </ThemedText>
 
-          {selectedPlatform === "EMAIL" ? (
-            <View style={{ marginBottom: 20 }}>
-              <TouchableOpacity
-                onPress={handleUpload}
-                disabled={uploading}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: 14,
-                  borderRadius: 12,
-                  borderWidth: 1.5,
-                  borderStyle: "dashed",
-                  borderColor: border,
-                  backgroundColor: card,
-                  marginBottom: 12,
-                  opacity: uploading ? 0.6 : 1,
-                }}
-              >
-                {uploading ? (
-                  <>
-                    <Ionicons name="hourglass-outline" size={20} color={textMuted} />
-                    <ThemedText style={{ color: textMuted, fontWeight: "600" }}>Uploading...</ThemedText>
-                  </>
-                ) : (
-                  <>
-                    <Ionicons name="attach-outline" size={20} color={textMuted} />
-                    <ThemedText style={{ color: textMuted, fontWeight: "600" }}>Add Attachment</ThemedText>
-                  </>
-                )}
-              </TouchableOpacity>
-
-              {media.map((item, index) => {
-                const isVideo = item.type === "video";
-                const isPdf = item.type === "pdf";
-                let filename = item.name || item.uri.split("/").pop() || "file";
-                if (filename.includes("?")) filename = filename.split("?")[0];
-                const sizeStr = isVideo ? "14.2 MB" : isPdf ? "1.1 MB" : "2.4 MB";
-                const iconName: any = isVideo
-                  ? "videocam-outline"
-                  : isPdf
-                  ? "document-text-outline"
-                  : "image-outline";
-                const iconColor = isVideo ? "#8b5cf6" : isPdf ? "#ef4444" : "#3b82f6";
-
-                return (
-                  <View
-                    key={index}
+              {selectedPlatform === "EMAIL" ? (
+                <View style={{ marginBottom: 20 }}>
+                  <TouchableOpacity
+                    onPress={handleUpload}
+                    disabled={uploading}
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      padding: 12,
-                      borderRadius: 10,
-                      borderWidth: 1,
-                      borderColor: isDark ? "#333" : "#e5e7eb",
-                      backgroundColor: isDark ? "#2c2c2e" : "#fff",
-                      marginBottom: 8,
+                      gap: 10,
+                      padding: 14,
+                      borderRadius: 12,
+                      borderWidth: 1.5,
+                      borderStyle: "dashed",
+                      borderColor: border,
+                      backgroundColor: card,
+                      marginBottom: 12,
+                      opacity: uploading ? 0.6 : 1,
                     }}
                   >
-                    <View
+                    {uploading ? (
+                      <>
+                        <Ionicons name="hourglass-outline" size={20} color={textMuted} />
+                        <ThemedText style={{ color: textMuted, fontWeight: "600" }}>Uploading...</ThemedText>
+                      </>
+                    ) : (
+                      <>
+                        <Ionicons name="attach-outline" size={20} color={textMuted} />
+                        <ThemedText style={{ color: textMuted, fontWeight: "600" }}>Add Attachment</ThemedText>
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  {media.map((item, index) => {
+                    const isVideo = item.type === "video";
+                    const isPdf = item.type === "pdf";
+                    let filename = item.name || item.uri.split("/").pop() || "file";
+                    if (filename.includes("?")) filename = filename.split("?")[0];
+                    const sizeStr = isVideo ? "14.2 MB" : isPdf ? "1.1 MB" : "2.4 MB";
+                    const iconName: any = isVideo
+                      ? "videocam-outline"
+                      : isPdf
+                        ? "document-text-outline"
+                        : "image-outline";
+                    const iconColor = isVideo ? "#8b5cf6" : isPdf ? "#ef4444" : "#3b82f6";
+
+                    return (
+                      <View
+                        key={index}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          padding: 12,
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: isDark ? "#333" : "#e5e7eb",
+                          backgroundColor: isDark ? "#2c2c2e" : "#fff",
+                          marginBottom: 8,
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 8,
+                            backgroundColor: `${iconColor}22`,
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <Ionicons name={iconName} size={22} color={iconColor} />
+                        </View>
+                        <View style={{ flex: 1, paddingHorizontal: 10 }}>
+                          <ThemedText
+                            style={{ fontSize: 13, fontWeight: "600", color: isDark ? "#fff" : "#111827" }}
+                            numberOfLines={1}
+                          >
+                            {filename}
+                          </ThemedText>
+                          <ThemedText style={{ fontSize: 11, color: textMuted, marginTop: 2 }}>
+                            {sizeStr}
+                          </ThemedText>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => removeMedia(index)}
+                          style={{
+                            padding: 6,
+                            borderRadius: 10,
+                            backgroundColor: isDark ? "#444" : "#f3f4f6",
+                          }}
+                        >
+                          <Ionicons name="close" size={16} color={isDark ? "#ccc" : "#555"} />
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : (
+                <>
+                  <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6, gap: 10 }}>
+                    <TouchableOpacity
+                      onPress={handleUpload}
+                      disabled={uploading}
                       style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 8,
-                        backgroundColor: `${iconColor}22`,
+                        width: 70,
+                        height: 70,
+                        borderWidth: 1.5,
+                        borderStyle: "dashed",
+                        borderColor: isDark ? "#4b5563" : "#d1d5db",
+                        borderRadius: 12,
                         alignItems: "center",
                         justifyContent: "center",
+                        backgroundColor: card,
+                        opacity: uploading ? 0.6 : 1,
                       }}
                     >
-                      <Ionicons name={iconName} size={22} color={iconColor} />
-                    </View>
-                    <View style={{ flex: 1, paddingHorizontal: 10 }}>
-                      <ThemedText
-                        style={{ fontSize: 13, fontWeight: "600", color: isDark ? "#fff" : "#111827" }}
-                        numberOfLines={1}
-                      >
-                        {filename}
-                      </ThemedText>
-                      <ThemedText style={{ fontSize: 11, color: textMuted, marginTop: 2 }}>
-                        {sizeStr}
-                      </ThemedText>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => removeMedia(index)}
-                      style={{
-                        padding: 6,
-                        borderRadius: 10,
-                        backgroundColor: isDark ? "#444" : "#f3f4f6",
-                      }}
-                    >
-                      <Ionicons name="close" size={16} color={isDark ? "#ccc" : "#555"} />
+                      {uploading ? (
+                        <View style={{ alignItems: "center" }}>
+                          <Ionicons name="hourglass-outline" size={20} color={textMuted} />
+                          <ThemedText style={{ fontSize: 8, color: textMuted }}>UPLOADING</ThemedText>
+                        </View>
+                      ) : (
+                        <Ionicons name="add" size={28} color={textMuted} />
+                      )}
                     </TouchableOpacity>
-                  </View>
-                );
-              })}
-            </View>
-          ) : (
-            <>
-              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6, gap: 10 }}>
-                <TouchableOpacity
-                  onPress={handleUpload}
-                  disabled={uploading}
-                  style={{
-                    width: 70,
-                    height: 70,
-                    borderWidth: 1.5,
-                    borderStyle: "dashed",
-                    borderColor: isDark ? "#4b5563" : "#d1d5db",
-                    borderRadius: 12,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: card,
-                    opacity: uploading ? 0.6 : 1,
-                  }}
-                >
-                  {uploading ? (
-                    <View style={{ alignItems: "center" }}>
-                      <Ionicons name="hourglass-outline" size={20} color={textMuted} />
-                      <ThemedText style={{ fontSize: 8, color: textMuted }}>UPLOADING</ThemedText>
-                    </View>
-                  ) : (
-                    <Ionicons name="add" size={28} color={textMuted} />
-                  )}
-                </TouchableOpacity>
 
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ gap: 12, paddingVertical: 10, paddingHorizontal: 4 }}
-                >
-                  {media.map((item, index) => (
-                    <View key={index} style={{ position: "relative", marginRight: 4 }}>
-                      <View
-                        style={{
-                          width: 70,
-                          height: 70,
-                          borderRadius: 12,
-                          overflow: "hidden",
-                          backgroundColor: inputBg,
-                          borderWidth: 1,
-                          borderColor: border,
-                        }}
-                      >
-                        {item.type === "image" ? (
-                          <Image
-                            source={{ uri: item.uri || item.uploadedUrl }}
-                            style={{ width: "100%", height: "100%" }}
-                            resizeMode="cover"
-                          />
-                        ) : item.type === "video" ? (
-                          <View style={{ flex: 1 }}>
-                            <Video
-                              source={{ uri: item.uri || item.uploadedUrl || "" }}
-                              style={{ width: "100%", height: "100%" }}
-                              resizeMode="cover"
-                              paused={false}
-                              repeat
-                              muted
-                              controls={false}
-                            />
-                            <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.2)" }}>
-                              <Ionicons name="play" size={24} color="#fff" />
-                            </View>
-                          </View>
-                        ) : (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ gap: 12, paddingVertical: 10, paddingHorizontal: 4 }}
+                    >
+                      {media.map((item, index) => (
+                        <View key={index} style={{ position: "relative", marginRight: 4 }}>
                           <View
                             style={{
-                              flex: 1,
-                              backgroundColor: "#ef444411",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              gap: 4,
+                              width: 70,
+                              height: 70,
+                              borderRadius: 12,
+                              overflow: "hidden",
+                              backgroundColor: inputBg,
+                              borderWidth: 1,
+                              borderColor: border,
                             }}
                           >
-                            <Ionicons name="document-text-outline" size={24} color="#ef4444" />
-                            <ThemedText style={{ fontSize: 9, fontWeight: "700", color: "#ef4444" }}>
-                              PDF
-                            </ThemedText>
+                            {item.type === "image" ? (
+                              <Image
+                                source={{ uri: item.uri || item.uploadedUrl }}
+                                style={{ width: "100%", height: "100%" }}
+                                resizeMode="cover"
+                              />
+                            ) : item.type === "video" ? (
+                              <View style={{ flex: 1 }}>
+                                <Video
+                                  source={{ uri: item.uri || item.uploadedUrl || "" }}
+                                  style={{ width: "100%", height: "100%" }}
+                                  resizeMode="cover"
+                                  paused={false}
+                                  repeat
+                                  muted
+                                  controls={false}
+                                />
+                                <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.2)" }}>
+                                  <Ionicons name="play" size={24} color="#fff" />
+                                </View>
+                              </View>
+                            ) : (
+                              <View
+                                style={{
+                                  flex: 1,
+                                  backgroundColor: "#ef444411",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  gap: 4,
+                                }}
+                              >
+                                <Ionicons name="document-text-outline" size={24} color="#ef4444" />
+                                <ThemedText style={{ fontSize: 9, fontWeight: "700", color: "#ef4444" }}>
+                                  PDF
+                                </ThemedText>
+                              </View>
+                            )}
                           </View>
-                        )}
-                      </View>
-                      <TouchableOpacity
-                        onPress={() => removeMedia(index)}
-                        style={{
-                          position: "absolute",
-                          top: -8,
-                          right: -8,
-                          backgroundColor: "#ef4444",
-                          width: 22,
-                          height: 22,
-                          borderRadius: 11,
-                          alignItems: "center",
-                          justifyContent: "center",
-                          zIndex: 20,
-                          borderWidth: 2,
-                          borderColor: "#fff",
-                          shadowColor: "#000",
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: 0.25,
-                          shadowRadius: 3.84,
-                          elevation: 5,
-                        }}
-                      >
-                        <Ionicons name="close" size={14} color="#fff" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </ScrollView>
-              </View>
-                <ThemedText style={{ fontSize: 12, color: textMuted, marginBottom: 20 }}>
-                  Images and videos can be changed when creating posts
-                </ThemedText>
-              </>
-            )}
+                          <TouchableOpacity
+                            onPress={() => removeMedia(index)}
+                            style={{
+                              position: "absolute",
+                              top: -8,
+                              right: -8,
+                              backgroundColor: "#ef4444",
+                              width: 22,
+                              height: 22,
+                              borderRadius: 11,
+                              alignItems: "center",
+                              justifyContent: "center",
+                              zIndex: 20,
+                              borderWidth: 2,
+                              borderColor: "#fff",
+                              shadowColor: "#000",
+                              shadowOffset: { width: 0, height: 2 },
+                              shadowOpacity: 0.25,
+                              shadowRadius: 3.84,
+                              elevation: 5,
+                            }}
+                          >
+                            <Ionicons name="close" size={14} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </ScrollView>
+                  </View>
+                  <ThemedText style={{ fontSize: 12, color: textMuted, marginBottom: 20 }}>
+                    Images and videos can be changed when creating posts
+                  </ThemedText>
+                </>
+              )}
             </>
           )}
 
@@ -964,7 +1464,7 @@ export default function CreateTemplet() {
             <View style={{ marginBottom: 20 }}>
               <ThemedText style={labelStyle}>Content Type</ThemedText>
               <View style={{ flexDirection: "row", gap: 10 }}>
-                {(["STANDARD", "REEL"] as const).map((type) => (
+                {(["POST", "REEL", "STORY"] as const).map((type) => (
                   <TouchableOpacity
                     key={type}
                     onPress={() => setFacebookContentType(type)}
@@ -978,12 +1478,13 @@ export default function CreateTemplet() {
                       alignItems: "center",
                     }}
                   >
-                    <ThemedText style={{ 
-                      fontSize: 13, 
+                    <ThemedText style={{
+                      fontSize: 13,
                       fontWeight: "600",
-                      color: facebookContentType === type ? getPlatformConfig(selectedPlatform).color : textMuted
+                      color: facebookContentType === type ? getPlatformConfig(selectedPlatform).color : textMuted,
+                      textAlign: "center"
                     }}>
-                      {type === "STANDARD" ? "Standard Post" : "Reel / Short Video"}
+                      {type === "POST" ? "Standard Post" : type === "REEL" ? "Reel / Short" : "Story"}
                     </ThemedText>
                   </TouchableOpacity>
                 ))}
@@ -1010,8 +1511,8 @@ export default function CreateTemplet() {
                       alignItems: "center",
                     }}
                   >
-                    <ThemedText style={{ 
-                      fontSize: 13, 
+                    <ThemedText style={{
+                      fontSize: 13,
                       fontWeight: "600",
                       color: youtubeContentType === type ? getPlatformConfig("YOUTUBE").color : textMuted
                     }}>
@@ -1145,83 +1646,83 @@ export default function CreateTemplet() {
                   <ThemedText style={{ fontSize: 12, color: textMuted, width: 50 }}>From:</ThemedText>
                   <ThemedText style={{ fontSize: 12, color: textMuted }}>your-brand@company.com</ThemedText>
                 </View>
-                
+
                 <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: border, paddingTop: 10 }}>
-                   <TextInput
-                     value={content}
-                     onChangeText={setContent}
-                     placeholder="Email content..."
-                     placeholderTextColor={textMuted}
-                     multiline
-                     style={{
-                       fontSize: 14,
-                       color: textPrimary,
-                       lineHeight: 20,
-                       minHeight: 100,
-                     }}
-                   />
-                   
-                   {media.length > 0 && (
-                     <View style={{ marginTop: 12 }}>
-                       {media.map((item, index) => {
-                         const isVideo = item.type === "video";
-                         const isPdf = item.type === "pdf";
-                         
-                         let filename = item.name || item.uri.split('/').pop() || "file";
-                         if (filename.includes('?')) filename = filename.split('?')[0];
-                         
-                         const sizeStr = isVideo ? "14.2 MB" : isPdf ? "1.1 MB" : "2.4 MB";
-                         const iconName = isVideo ? "videocam-outline" : isPdf ? "document-text-outline" : "image-outline";
-                         
-                         return (
-                           <View
-                             key={index}
-                             style={{
-                               marginBottom: 12,
-                               borderWidth: 1,
-                               borderColor: isDark ? "#333" : "#e5e7eb",
-                               borderRadius: 8,
-                               overflow: "hidden"
-                             }}
-                           >
-                             <View
-                               style={{
-                                 flexDirection: "row",
-                                 alignItems: "center",
-                                 padding: 12,
-                                 backgroundColor: isDark ? "#2c2c2e" : "#fff"
-                               }}
-                             >
-                               <Ionicons name={iconName} size={24} color={isDark ? "#ccc" : "#555"} />
-                               
-                               <View style={{ flex: 1, paddingHorizontal: 12 }}>
-                                 <ThemedText
-                                   style={{ fontSize: 14, fontWeight: "500", color: isDark ? "#fff" : "#111827" }}
-                                   numberOfLines={1}
-                                 >
-                                   {filename}
-                                 </ThemedText>
-                                 <ThemedText style={{ fontSize: 12, color: textMuted, marginTop: 2 }}>
-                                   {sizeStr}
-                                 </ThemedText>
-                               </View>
-                               
-                               <TouchableOpacity
-                                 onPress={() => removeMedia(index)}
-                                 style={{
-                                   padding: 4,
-                                   borderRadius: 12,
-                                   backgroundColor: isDark ? "#444" : "#f3f4f6"
-                                 }}
-                               >
-                                 <Ionicons name="close" size={16} color={isDark ? "#ccc" : "#555"} />
-                               </TouchableOpacity>
-                             </View>
-                           </View>
-                         );
-                       })}
-                     </View>
-                   )}
+                  <TextInput
+                    value={content}
+                    onChangeText={setContent}
+                    placeholder="Email content..."
+                    placeholderTextColor={textMuted}
+                    multiline
+                    style={{
+                      fontSize: 14,
+                      color: textPrimary,
+                      lineHeight: 20,
+                      minHeight: 100,
+                    }}
+                  />
+
+                  {media.length > 0 && (
+                    <View style={{ marginTop: 12 }}>
+                      {media.map((item, index) => {
+                        const isVideo = item.type === "video";
+                        const isPdf = item.type === "pdf";
+
+                        let filename = item.name || item.uri.split('/').pop() || "file";
+                        if (filename.includes('?')) filename = filename.split('?')[0];
+
+                        const sizeStr = isVideo ? "14.2 MB" : isPdf ? "1.1 MB" : "2.4 MB";
+                        const iconName = isVideo ? "videocam-outline" : isPdf ? "document-text-outline" : "image-outline";
+
+                        return (
+                          <View
+                            key={index}
+                            style={{
+                              marginBottom: 12,
+                              borderWidth: 1,
+                              borderColor: isDark ? "#333" : "#e5e7eb",
+                              borderRadius: 8,
+                              overflow: "hidden"
+                            }}
+                          >
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                padding: 12,
+                                backgroundColor: isDark ? "#2c2c2e" : "#fff"
+                              }}
+                            >
+                              <Ionicons name={iconName} size={24} color={isDark ? "#ccc" : "#555"} />
+
+                              <View style={{ flex: 1, paddingHorizontal: 12 }}>
+                                <ThemedText
+                                  style={{ fontSize: 14, fontWeight: "500", color: isDark ? "#fff" : "#111827" }}
+                                  numberOfLines={1}
+                                >
+                                  {filename}
+                                </ThemedText>
+                                <ThemedText style={{ fontSize: 12, color: textMuted, marginTop: 2 }}>
+                                  {sizeStr}
+                                </ThemedText>
+                              </View>
+
+                              <TouchableOpacity
+                                onPress={() => removeMedia(index)}
+                                style={{
+                                  padding: 4,
+                                  borderRadius: 12,
+                                  backgroundColor: isDark ? "#444" : "#f3f4f6"
+                                }}
+                              >
+                                <Ionicons name="close" size={16} color={isDark ? "#ccc" : "#555"} />
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
                 </View>
               </View>
             </ThemedView>
@@ -1239,7 +1740,7 @@ export default function CreateTemplet() {
               {/* FB Preview Header */}
               <View style={{ padding: 12, flexDirection: "row", alignItems: "center", gap: 10 }}>
                 <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: "#E4E6EB", alignItems: "center", justifyContent: "center" }}>
-                   <Ionicons name="person" size={20} color="#8A8D91" />
+                  <Ionicons name="person" size={20} color="#8A8D91" />
                 </View>
                 <View>
                   <ThemedText style={{ fontWeight: "700", fontSize: 14 }}>Your Brand</ThemedText>
@@ -1269,16 +1770,16 @@ export default function CreateTemplet() {
 
               {/* FB Media */}
               {media.length > 0 && (
-                <View style={{ 
-                  aspectRatio: facebookContentType === "REEL" ? 9/16 : 1.91, 
+                <View style={{
+                  aspectRatio: facebookContentType === "REEL" ? 9 / 16 : 1.91,
                   maxHeight: facebookContentType === "REEL" ? 400 : undefined,
                   backgroundColor: inputBg,
                   overflow: "hidden"
                 }}>
                   {media[0].type === "video" ? (
-                    <TouchableOpacity 
-                      activeOpacity={0.9} 
-                      onPress={() => setIsPlayingPreview(!isPlayingPreview)} 
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      onPress={() => setIsPlayingPreview(!isPlayingPreview)}
                       style={{ flex: 1 }}
                     >
                       <Video
@@ -1297,8 +1798,8 @@ export default function CreateTemplet() {
                       )}
                     </TouchableOpacity>
                   ) : media[0].type === "image" ? (
-                    <Image 
-                      source={{ uri: media[0].uri || media[0].uploadedUrl || "" }} 
+                    <Image
+                      source={{ uri: media[0].uri || media[0].uploadedUrl || "" }}
                       style={{ width: "100%", height: "100%" }}
                       resizeMode="cover"
                     />
@@ -1343,19 +1844,19 @@ export default function CreateTemplet() {
               </View>
 
               {/* Instagram Media */}
-              <View style={{ 
-                aspectRatio: facebookContentType === "REEL" ? 9/16 : 1, 
+              <View style={{
+                aspectRatio: facebookContentType === "REEL" ? 9 / 16 : 1,
                 maxHeight: facebookContentType === "REEL" ? 400 : undefined,
-                backgroundColor: isDark ? "#1f2937" : "#f1f5f9", 
-                alignItems: "center", 
+                backgroundColor: isDark ? "#1f2937" : "#f1f5f9",
+                alignItems: "center",
                 justifyContent: "center",
                 overflow: "hidden"
               }}>
                 {media.length > 0 ? (
                   media[0].type === "video" ? (
-                    <TouchableOpacity 
-                      activeOpacity={0.9} 
-                      onPress={() => setIsPlayingPreview(!isPlayingPreview)} 
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      onPress={() => setIsPlayingPreview(!isPlayingPreview)}
                       style={{ flex: 1, width: "100%" }}
                     >
                       <Video
@@ -1374,8 +1875,8 @@ export default function CreateTemplet() {
                       )}
                     </TouchableOpacity>
                   ) : (
-                    <Image 
-                      source={{ uri: media[0].uri || media[0].uploadedUrl || "" }} 
+                    <Image
+                      source={{ uri: media[0].uri || media[0].uploadedUrl || "" }}
                       style={{ width: "100%", height: "100%" }}
                       resizeMode="cover"
                     />
@@ -1388,9 +1889,9 @@ export default function CreateTemplet() {
               {/* Instagram Interactions */}
               <View style={{ padding: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                 <View style={{ flexDirection: "row", gap: 16 }}>
-                   <Ionicons name="heart-outline" size={24} color={textPrimary} />
-                   <Ionicons name="chatbubble-outline" size={24} color={textPrimary} />
-                   <Ionicons name="paper-plane-outline" size={24} color={textPrimary} />
+                  <Ionicons name="heart-outline" size={24} color={textPrimary} />
+                  <Ionicons name="chatbubble-outline" size={24} color={textPrimary} />
+                  <Ionicons name="paper-plane-outline" size={24} color={textPrimary} />
                 </View>
                 <Ionicons name="bookmark-outline" size={24} color={textPrimary} />
               </View>
@@ -1427,7 +1928,7 @@ export default function CreateTemplet() {
               {/* LinkedIn Header */}
               <View style={{ padding: 12, flexDirection: "row", gap: 10 }}>
                 <View style={{ width: 48, height: 48, backgroundColor: "#0077B5", borderRadius: 4, alignItems: "center", justifyContent: "center" }}>
-                   <Ionicons name="business" size={24} color="#fff" />
+                  <Ionicons name="business" size={24} color="#fff" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <ThemedText style={{ fontWeight: "700", fontSize: 14 }}>Your Brand</ThemedText>
@@ -1465,9 +1966,9 @@ export default function CreateTemplet() {
               {media.length > 0 && (
                 <View style={{ aspectRatio: 1.91, backgroundColor: inputBg, overflow: "hidden" }}>
                   {media[0].type === "video" ? (
-                    <TouchableOpacity 
-                      activeOpacity={0.9} 
-                      onPress={() => setIsPlayingPreview(!isPlayingPreview)} 
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      onPress={() => setIsPlayingPreview(!isPlayingPreview)}
                       style={{ flex: 1 }}
                     >
                       <Video
@@ -1486,8 +1987,8 @@ export default function CreateTemplet() {
                       )}
                     </TouchableOpacity>
                   ) : media[0].type === "image" ? (
-                    <Image 
-                      source={{ uri: media[0].uri || media[0].uploadedUrl || "" }} 
+                    <Image
+                      source={{ uri: media[0].uri || media[0].uploadedUrl || "" }}
                       style={{ width: "100%", height: "100%" }}
                       resizeMode="cover"
                     />
@@ -1508,8 +2009,8 @@ export default function CreateTemplet() {
                   <ThemedText style={{ fontSize: 11, color: textMuted, fontWeight: "600" }}>Repost</ThemedText>
                 </View>
                 <View style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                   <Ionicons name="paper-plane-outline" size={18} color={textMuted} />
-                   <ThemedText style={{ fontSize: 11, color: textMuted, fontWeight: "600" }}>Send</ThemedText>
+                  <Ionicons name="paper-plane-outline" size={18} color={textMuted} />
+                  <ThemedText style={{ fontSize: 11, color: textMuted, fontWeight: "600" }}>Send</ThemedText>
                 </View>
               </View>
             </ThemedView>
@@ -1524,19 +2025,19 @@ export default function CreateTemplet() {
                 marginBottom: 20,
               }}
             >
-              <View style={{ 
-                aspectRatio: youtubeContentType === "SHORT" ? 9/16 : 16/9, 
+              <View style={{
+                aspectRatio: youtubeContentType === "SHORT" ? 9 / 16 : 16 / 9,
                 maxHeight: youtubeContentType === "SHORT" ? 400 : undefined,
-                backgroundColor: "#000", 
-                alignItems: "center", 
+                backgroundColor: "#000",
+                alignItems: "center",
                 justifyContent: "center",
                 overflow: "hidden"
               }}>
                 {media.length > 0 ? (
                   media[0].type === "video" ? (
-                    <TouchableOpacity 
-                      activeOpacity={0.9} 
-                      onPress={() => setIsPlayingPreview(!isPlayingPreview)} 
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      onPress={() => setIsPlayingPreview(!isPlayingPreview)}
                       style={{ flex: 1, width: "100%" }}
                     >
                       <Video
@@ -1555,8 +2056,8 @@ export default function CreateTemplet() {
                       )}
                     </TouchableOpacity>
                   ) : (
-                    <Image 
-                      source={{ uri: media[0].uri || media[0].uploadedUrl || "" }} 
+                    <Image
+                      source={{ uri: media[0].uri || media[0].uploadedUrl || "" }}
                       style={{ width: "100%", height: "100%" }}
                       resizeMode="cover"
                     />
@@ -1616,10 +2117,10 @@ export default function CreateTemplet() {
               }}
             >
               {/* Pinterest Image/Video Paging Carousel */}
-              <View style={{ aspectRatio: 2/3, backgroundColor: isDark ? "#1f2937" : "#f1f5f9" }}>
-                <ScrollView 
-                  horizontal 
-                  pagingEnabled 
+              <View style={{ aspectRatio: 2 / 3, backgroundColor: isDark ? "#1f2937" : "#f1f5f9" }}>
+                <ScrollView
+                  horizontal
+                  pagingEnabled
                   showsHorizontalScrollIndicator={false}
                   onMomentumScrollEnd={(e) => {
                     const index = Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width);
@@ -1628,11 +2129,11 @@ export default function CreateTemplet() {
                 >
                   {media.length > 0 ? (
                     media.map((item, index) => (
-                      <View key={index} style={{ width: CARD_WIDTH, height: CARD_WIDTH * (3/2) }}> 
+                      <View key={index} style={{ width: CARD_WIDTH, height: CARD_WIDTH * (3 / 2) }}>
                         {item.type === "video" ? (
-                          <TouchableOpacity 
-                            activeOpacity={0.9} 
-                            onPress={() => setIsPlayingPreview(!isPlayingPreview)} 
+                          <TouchableOpacity
+                            activeOpacity={0.9}
+                            onPress={() => setIsPlayingPreview(!isPlayingPreview)}
                             style={{ flex: 1 }}
                           >
                             <Video
@@ -1651,8 +2152,8 @@ export default function CreateTemplet() {
                             )}
                           </TouchableOpacity>
                         ) : (
-                          <Image 
-                            source={{ uri: item.uri || item.uploadedUrl || "" }} 
+                          <Image
+                            source={{ uri: item.uri || item.uploadedUrl || "" }}
                             style={{ width: "100%", height: "100%" }}
                             resizeMode="cover"
                           />
@@ -1660,7 +2161,7 @@ export default function CreateTemplet() {
                       </View>
                     ))
                   ) : (
-                    <View style={{ width: CARD_WIDTH, height: CARD_WIDTH * (3/2), alignItems: "center", justifyContent: "center" }}>
+                    <View style={{ width: CARD_WIDTH, height: CARD_WIDTH * (3 / 2), alignItems: "center", justifyContent: "center" }}>
                       <Ionicons name="image-outline" size={64} color={textMuted} />
                     </View>
                   )}
@@ -1668,32 +2169,32 @@ export default function CreateTemplet() {
 
                 {/* Save Button (Static Overlay) */}
                 <View style={{ position: "absolute", top: 16, right: 16, backgroundColor: "#E60023", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 }}>
-                   <ThemedText style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>Save</ThemedText>
+                  <ThemedText style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>Save</ThemedText>
                 </View>
 
                 {/* Pagination Dots */}
                 {media.length > 1 && (
-                  <View style={{ 
-                    position: "absolute", 
-                    bottom: 12, 
-                    left: 0, 
-                    right: 0, 
-                    flexDirection: "row", 
-                    justifyContent: "center", 
+                  <View style={{
+                    position: "absolute",
+                    bottom: 12,
+                    left: 0,
+                    right: 0,
+                    flexDirection: "row",
+                    justifyContent: "center",
                     gap: 6,
-                    paddingHorizontal: 20 
+                    paddingHorizontal: 20
                   }}>
                     {media.map((_, i) => (
-                      <View 
-                        key={i} 
-                        style={{ 
-                          width: 6, 
-                          height: 6, 
-                          borderRadius: 3, 
+                      <View
+                        key={i}
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: 3,
                           backgroundColor: pinterestActiveIndex === i ? "#fff" : "rgba(255,255,255,0.5)",
                           borderWidth: 0.5,
                           borderColor: "rgba(0,0,0,0.1)"
-                        }} 
+                        }}
                       />
                     ))}
                   </View>
@@ -1703,7 +2204,7 @@ export default function CreateTemplet() {
               {/* Pinterest Info Area */}
               <View style={{ padding: 16, gap: 10 }}>
                 <ThemedText style={{ fontWeight: "700", fontSize: 20, color: textPrimary }}>
-                   {emailSubject || "Add a title"}
+                  {emailSubject || "Add a title"}
                 </ThemedText>
 
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -1714,19 +2215,19 @@ export default function CreateTemplet() {
                 </View>
 
                 <View style={{ marginTop: 4 }}>
-                   <TextInput
-                     value={content}
-                     onChangeText={setContent}
-                     placeholder="Add a detailed description..."
-                     placeholderTextColor={textMuted}
-                     multiline
-                     style={{
-                       fontSize: 14,
-                       color: textPrimary,
-                       lineHeight: 20,
-                       minHeight: 60,
-                     }}
-                   />
+                  <TextInput
+                    value={content}
+                    onChangeText={setContent}
+                    placeholder="Add a detailed description..."
+                    placeholderTextColor={textMuted}
+                    multiline
+                    style={{
+                      fontSize: 14,
+                      color: textPrimary,
+                      lineHeight: 20,
+                      minHeight: 60,
+                    }}
+                  />
                 </View>
               </View>
             </ThemedView>
@@ -1786,8 +2287,8 @@ export default function CreateTemplet() {
                   }}
                 />
                 <View style={{ flexDirection: "row", alignItems: "center", alignSelf: "flex-end", gap: 4, marginTop: 2 }}>
-                   <ThemedText style={{ fontSize: 10, color: isDark ? "#91a3a2" : "#8696a0" }}>12:34 PM</ThemedText>
-                   <Ionicons name="checkmark-done" size={14} color="#34B7F1" />
+                  <ThemedText style={{ fontSize: 10, color: isDark ? "#91a3a2" : "#8696a0" }}>12:34 PM</ThemedText>
+                  <Ionicons name="checkmark-done" size={14} color="#34B7F1" />
                 </View>
               </View>
             </ThemedView>
@@ -1849,64 +2350,116 @@ export default function CreateTemplet() {
               {" "}to personalize your template.
             </ThemedText>
           </View> */}
-        </ScrollView>
+          </>)}
 
-        {/* ── Footer Buttons ── */}
-        <View
-          style={{
-            flexDirection: "row",
-            gap: 12,
-            paddingHorizontal: 16,
-            paddingVertical: 14,
-            borderTopWidth: 1,
-            borderTopColor: border,
-            backgroundColor: bg,
-          }}
-        >
-          <TouchableOpacity
-            onPress={() => router.back()}
+          {/* ── Footer Buttons ── */}
+          {selectedPlatform === "WHATSAPP" ? (
+            <View style={{ flexDirection: "column", gap: 12, marginTop: 20 }}>
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <TouchableOpacity onPress={() => router.back()} style={{ flex: 1, paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: border, alignItems: "center", backgroundColor: card }}>
+                  <ThemedText style={{ fontWeight: "600", fontSize: 15, color: textPrimary }}>Back</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleCreate} disabled={submitting} style={{ flex: 1, paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: border, alignItems: "center", backgroundColor: card }}>
+                  <ThemedText style={{ fontWeight: "600", fontSize: 15, color: textPrimary }}>Save Draft</ThemedText>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity onPress={handleCreate} disabled={submitting} style={{ width: "100%", paddingVertical: 14, borderRadius: 14, alignItems: "center", backgroundColor: submitting ? "#9ca3af" : "#25D366", flexDirection: "row", justifyContent: "center", gap: 8 }}>
+                {submitting ? <Ionicons name="hourglass-outline" size={18} color="#fff" /> : <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />}
+                <ThemedText style={{ color: "#fff", fontWeight: "700", fontSize: 15 }}>Submit for Approval</ThemedText>
+              </TouchableOpacity>
+            </View>
+          ) : (
+          <View
             style={{
-              flex: 1,
-              paddingVertical: 14,
-              borderRadius: 14,
-              borderWidth: 1.5,
-              borderColor: border,
-              alignItems: "center",
-              backgroundColor: card,
-            }}
-          >
-            <ThemedText style={{ fontWeight: "600", fontSize: 15, color: textPrimary }}>
-              Cancel
-            </ThemedText>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={handleCreate}
-            disabled={submitting}
-            style={{
-              flex: 2,
-              paddingVertical: 14,
-              borderRadius: 14,
-              alignItems: "center",
-              backgroundColor: submitting ? "#9ca3af" : "#dc2626",
               flexDirection: "row",
-              justifyContent: "center",
-              gap: 8,
+              gap: 12,
+              marginTop: 20,
             }}
           >
-            {submitting ? (
-              <Ionicons name="hourglass-outline" size={18} color="#fff" />
-            ) : (
-              <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
-            )}
-            <ThemedText style={{ color: "#fff", fontWeight: "700", fontSize: 15 }}>
-              {submitting
-                ? isEditMode ? "Saving..." : "Creating..."
-                : isEditMode ? "Save Changes" : "Create Template"}
-            </ThemedText>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={{
+                flex: 1,
+                paddingVertical: 14,
+                borderRadius: 14,
+                borderWidth: 1.5,
+                borderColor: border,
+                alignItems: "center",
+                backgroundColor: card,
+              }}
+            >
+              <ThemedText style={{ fontWeight: "600", fontSize: 15, color: textPrimary }}>
+                Cancel
+              </ThemedText>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleCreate}
+              disabled={submitting}
+              style={{
+                flex: 2,
+                paddingVertical: 14,
+                borderRadius: 14,
+                alignItems: "center",
+                backgroundColor: submitting ? "#9ca3af" : "#dc2626",
+                flexDirection: "row",
+                justifyContent: "center",
+                gap: 8,
+              }}
+            >
+              {submitting ? (
+                <Ionicons name="hourglass-outline" size={18} color="#fff" />
+              ) : (
+                <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+              )}
+              <ThemedText style={{ color: "#fff", fontWeight: "700", fontSize: 15 }}>
+                {submitting
+                  ? isEditMode ? "Saving..." : "Creating..."
+                  : isEditMode ? "Save Changes" : "Create Template"}
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+          )}
+        </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* DROPDOWN MODAL */}
+      <Modal visible={customDropdown.visible} transparent animationType="fade">
+        <TouchableOpacity 
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 32 }}
+          activeOpacity={1}
+          onPress={() => setCustomDropdown(prev => ({ ...prev, visible: false }))}
+        >
+          <View style={{ backgroundColor: isDark ? "#1c1c1e" : "#ffffff", borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: border }}>
+            <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: border, backgroundColor: isDark ? "#2c2c2e" : "#f9fafb" }}>
+              <ThemedText style={{ fontSize: 16, fontWeight: "600", textAlign: "center", color: textPrimary }}>{customDropdown.title}</ThemedText>
+            </View>
+            <ScrollView style={{ maxHeight: 250 }}>
+              {customDropdown.options.map((opt, index) => (
+                <TouchableOpacity
+                  key={opt}
+                  onPress={() => {
+                    customDropdown.onSelect(opt);
+                    setCustomDropdown(prev => ({ ...prev, visible: false }));
+                  }}
+                  style={{
+                    padding: 16,
+                    borderBottomWidth: index === customDropdown.options.length - 1 ? 0 : 1,
+                    borderBottomColor: border,
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    backgroundColor: customDropdown.selectedValue === opt ? `${isDark ? "#064e3b" : "#dcfce7"}` : "transparent"
+                  }}
+                >
+                  <ThemedText style={{ fontSize: 15, color: customDropdown.selectedValue === opt ? (isDark ? "#34d399" : "#166534") : textPrimary, fontWeight: customDropdown.selectedValue === opt ? "600" : "400" }}>{opt}</ThemedText>
+                  {customDropdown.selectedValue === opt && <Ionicons name="checkmark" size={20} color={isDark ? "#34d399" : "#166534"} />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* AI TEXT MODAL */}
       <Modal visible={aiModalVisible} transparent animationType="slide">
@@ -2043,7 +2596,7 @@ export default function CreateTemplet() {
                 disabled={loadingImage}
                 onPress={handleGenerateAIImage}
                 style={{
-                  backgroundColor: loadingImage ? (isDark ? "#4b5563" : "#aaa") : (isDark ? "#1e40af" : "#2563eb"),
+                  backgroundColor: loadingImage ? "#6b7280" : "#dc2626",
                   height: 48,
                   paddingHorizontal: 16,
                   justifyContent: "center",
@@ -2060,11 +2613,8 @@ export default function CreateTemplet() {
             </View>
 
             {loadingImage ? (
-              <View style={{ height: 150, justifyContent: "center", alignItems: "center", marginVertical: 20, borderRadius: 12 }}>
-                <ActivityIndicator size="large" color="#2563eb" />
-                <Text style={{ marginTop: 12, fontWeight: "bold", color: isDark ? "#fff" : "#000" }}>
-                  Generating image...
-                </Text>
+              <View style={{ width: 100, height: 100, marginVertical: 8, borderRadius: 8, justifyContent: "center", alignItems: "center", backgroundColor: isDark ? "#1f2933" : "#f1f5f9" }}>
+                <ActivityIndicator size="small" color={isDark ? "#60a5fa" : "#2563eb"} />
               </View>
             ) : generatedImages.length > 0 ? (
               <FlatList
@@ -2110,6 +2660,105 @@ export default function CreateTemplet() {
             <TouchableOpacity onPress={() => setImageModalVisible(false)} style={{ backgroundColor: "#dc2626", padding: 12, borderRadius: 8, alignItems: "center", marginTop: 12 }}>
               <Text style={{ color: "#fff", fontWeight: "bold" }}>Close</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* UPLOAD MEDIA MODAL (EMAIL) */}
+      <Modal
+        visible={uploadModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setUploadModalVisible(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 20,
+          }}
+        >
+          <View
+            style={{
+              width: "100%",
+              maxWidth: 320,
+              backgroundColor: isDark ? "#1f2937" : "#ffffff",
+              borderRadius: 16,
+              padding: 24,
+            }}
+          >
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+              <ThemedText style={{ fontSize: 18, fontWeight: "700", color: textPrimary }}>
+                Upload Media
+              </ThemedText>
+              <TouchableOpacity onPress={() => setUploadModalVisible(false)} style={{ padding: 4, marginRight: -8, marginTop: -8 }}>
+                <Ionicons name="close" size={24} color={textMuted} />
+              </TouchableOpacity>
+            </View>
+            <ThemedText style={{ fontSize: 14, color: textMuted, marginBottom: 20 }}>
+              What kind of file do you want to attach?
+            </ThemedText>
+
+            <TouchableOpacity
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: 14,
+                paddingHorizontal: 16,
+                backgroundColor: isDark ? "#374151" : "#f3f4f6",
+                borderRadius: 12,
+                marginBottom: 10,
+              }}
+              onPress={async () => {
+                setUploadModalVisible(false);
+                const result = await DocumentPicker.getDocumentAsync({
+                  type: "application/pdf",
+                  copyToCacheDirectory: true,
+                });
+                if (result.canceled) return;
+                processUpload(result.assets[0], "pdf");
+              }}
+            >
+              <Ionicons name="document-text-outline" size={24} color="#ef4444" style={{ marginRight: 12 }} />
+              <ThemedText style={{ fontSize: 16, fontWeight: "500", color: textPrimary }}>
+                Document (PDF)
+              </ThemedText>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: 14,
+                paddingHorizontal: 16,
+                backgroundColor: isDark ? "#374151" : "#f3f4f6",
+                borderRadius: 12,
+                marginBottom: 16,
+              }}
+              onPress={async () => {
+                setUploadModalVisible(false);
+                const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (!permission.granted) {
+                  Toast.show({ type: 'info', text1: "Permission required", text2: "Please allow access to photos and videos." });
+                  return;
+                }
+                const result = await ImagePicker.launchImageLibraryAsync({
+                  mediaTypes: ImagePicker.MediaTypeOptions.All,
+                  quality: 0.8,
+                });
+                if (result.canceled) return;
+                const asset = result.assets[0];
+                processUpload(asset, asset.type === "video" ? "video" : "image");
+              }}
+            >
+              <Ionicons name="image-outline" size={24} color="#3b82f6" style={{ marginRight: 12 }} />
+              <ThemedText style={{ fontSize: 16, fontWeight: "500", color: textPrimary }}>
+                Photo / Video
+              </ThemedText>
+            </TouchableOpacity>
+
           </View>
         </View>
       </Modal>

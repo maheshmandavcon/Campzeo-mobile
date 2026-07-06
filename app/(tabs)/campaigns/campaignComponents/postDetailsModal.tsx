@@ -88,8 +88,7 @@ interface PostDetailsModalProps {
   onDelete?: (postId: number) => void;
 }
 
-// PREMIUM CUSTOM AUDIO PLAYER COMPONENT (WEBVIEW BACKED)
-function PremiumAudioPlayer({ url, isDark }: { url: string; isDark: boolean }) {
+function PremiumAudioPlayer({ url, isDark, onFailedLoad }: { url: string; isDark: boolean; onFailedLoad?: () => void }) {
   return (
     <View
       style={{
@@ -128,7 +127,7 @@ function PremiumAudioPlayer({ url, isDark }: { url: string; isDark: boolean }) {
                 </style>
               </head>
               <body>
-                <audio src="${url}" controls />
+                <audio src="${url}" controls onerror="window.ReactNativeWebView.postMessage('error')" />
               </body>
             </html>
           `,
@@ -139,13 +138,19 @@ function PremiumAudioPlayer({ url, isDark }: { url: string; isDark: boolean }) {
         }}
         javaScriptEnabled
         domStorageEnabled
+        onError={onFailedLoad}
+        onMessage={(event) => {
+          if (event.nativeEvent.data === 'error' && onFailedLoad) {
+            onFailedLoad();
+          }
+        }}
       />
     </View>
   );
 }
 
 // PREMIUM CUSTOM VIDEO CARD COMPONENT (WEBVIEW BACKED)
-function PremiumVideoPlayer({ url, isDark }: { url: string; isDark: boolean }) {
+function PremiumVideoPlayer({ url, isDark, onFailedLoad }: { url: string; isDark: boolean; onFailedLoad?: () => void }) {
   return (
     <View style={styles.videoPlayerWrapper}>
       <WebView
@@ -178,6 +183,7 @@ function PremiumVideoPlayer({ url, isDark }: { url: string; isDark: boolean }) {
                   src="${url}"
                   controls
                   playsinline
+                  onerror="window.ReactNativeWebView.postMessage('error')"
                 />
               </body>
             </html>
@@ -189,6 +195,12 @@ function PremiumVideoPlayer({ url, isDark }: { url: string; isDark: boolean }) {
         }}
         javaScriptEnabled
         domStorageEnabled
+        onError={onFailedLoad}
+        onMessage={(event) => {
+          if (event.nativeEvent.data === 'error' && onFailedLoad) {
+            onFailedLoad();
+          }
+        }}
       />
     </View>
   );
@@ -204,6 +216,13 @@ export default function PostDetailsModal({
 }: PostDetailsModalProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const [failedMedia, setFailedMedia] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (visible) {
+      setFailedMedia({});
+    }
+  }, [visible, post]);
 
   if (!visible || !post) return null;
 
@@ -293,7 +312,7 @@ export default function PostDetailsModal({
 
   return (
     <Modal
-      animationType="fade"
+      animationType="slide"
       transparent={true}
       visible={visible}
       onRequestClose={onClose}
@@ -452,24 +471,40 @@ export default function PostDetailsModal({
                     const mediaType = getMediaType(url);
 
                     if (mediaType === "audio") {
-                      return (
-                        <PremiumAudioPlayer key={idx} url={url} isDark={isDark} />
+                      return failedMedia[url] ? (
+                        <View key={idx} style={[styles.audioContainer, isDark && styles.audioContainerDark, { justifyContent: "center", flexDirection: "column" }]}>
+                          <Ionicons name="volume-mute-outline" size={32} color={isDark ? "#64748b" : "#94a3b8"} />
+                          <ThemedText style={{ fontSize: 12, color: isDark ? "#94a3b8" : "#64748b" }}>Audio is unavailable</ThemedText>
+                        </View>
+                      ) : (
+                        <PremiumAudioPlayer key={idx} url={url} isDark={isDark} onFailedLoad={() => setFailedMedia(prev => ({ ...prev, [url]: true }))} />
                       );
                     }
 
                     if (mediaType === "video") {
-                      return (
-                        <PremiumVideoPlayer key={idx} url={url} isDark={isDark} />
+                      return failedMedia[url] ? (
+                        <View key={idx} style={[styles.imageWrapper, { justifyContent: "center", alignItems: "center", backgroundColor: isDark ? "#2c2c2e" : "#f1f5f9", borderWidth: 1, borderColor: isDark ? "#3c3c3e" : "#e2e8f0" }]}>
+                          <Ionicons name="videocam-off-outline" size={40} color={isDark ? "#64748b" : "#94a3b8"} />
+                          <ThemedText style={{ marginTop: 10, fontSize: 13, color: isDark ? "#94a3b8" : "#64748b" }}>Video is unavailable</ThemedText>
+                        </View>
+                      ) : (
+                        <PremiumVideoPlayer key={idx} url={url} isDark={isDark} onFailedLoad={() => setFailedMedia(prev => ({ ...prev, [url]: true }))} />
                       );
                     }
 
                     // Defaults to image
-                    return (
+                    return failedMedia[url] ? (
+                      <View key={idx} style={[styles.imageWrapper, { justifyContent: "center", alignItems: "center", backgroundColor: isDark ? "#2c2c2e" : "#f1f5f9", borderWidth: 1, borderColor: isDark ? "#3c3c3e" : "#e2e8f0" }]}>
+                        <Ionicons name="image-outline" size={40} color={isDark ? "#64748b" : "#94a3b8"} />
+                        <ThemedText style={{ marginTop: 10, fontSize: 13, color: isDark ? "#94a3b8" : "#64748b" }}>Image is unavailable</ThemedText>
+                      </View>
+                    ) : (
                       <View key={idx} style={styles.imageWrapper}>
                         <Image
                           source={{ uri: url }}
                           style={styles.imagePreview}
                           resizeMode="cover"
+                          onError={() => setFailedMedia(prev => ({ ...prev, [url]: true }))}
                         />
                         <View style={styles.imageOverlayBadge}>
                           <Ionicons name="image-outline" size={14} color="#fff" />
@@ -581,16 +616,17 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.6)",
-    justifyContent: "center",
+    justifyContent: "flex-end",
     alignItems: "center",
-    padding: 16,
+    paddingTop: 40,
   },
   modalContent: {
     width: "100%",
     maxWidth: 500,
-    height: "85%",
+    height: "92%",
     backgroundColor: "#ffffff",
-    borderRadius: 24,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },

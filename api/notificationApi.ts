@@ -57,7 +57,7 @@ export const markAllNotificationsReadApi = async (token: AuthToken) => {
     );
     throw new Error(
       error?.response?.data?.message ||
-        "Failed to mark all notifications as read"
+      "Failed to mark all notifications as read"
     );
   }
 };

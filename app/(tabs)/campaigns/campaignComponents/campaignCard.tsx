@@ -82,16 +82,16 @@ export default function CampaignCard({
 
   // ✅ FIXED POST COUNT LOGIC
   const totalPosts =
-   postLength ?? campaign.postsCount ?? 0;
+    postLength ?? campaign.postsCount ?? 0;
 
   const handleEdit = () => {
     // if (onEdit) {
-      // onEdit(campaign); 
-           console.log(campaign.id);
-           router.push({
-        pathname: "/campaigns/createCampaign",
-        params: { Id: campaign.id },
-      });
+    // onEdit(campaign); 
+    console.log(campaign.id);
+    router.push({
+      pathname: "/campaigns/createCampaign",
+      params: { Id: campaign.id },
+    });
     // } else {
     //   router.push({
     //     pathname: "/campaigns/createCampaign",
@@ -99,8 +99,8 @@ export default function CampaignCard({
     //   });
     // }
   };
-  
-const handleDelete = async (cId: number) => {
+
+  const handleDelete = async (cId: number) => {
     Alert.alert("Delete Campaign?", `Are you sure you want to delete this campaign?`, [
       { text: "Cancel", style: "cancel" },
       {
