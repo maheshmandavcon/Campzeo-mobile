@@ -149,6 +149,29 @@ export default function Campaigns() {
   if (filter === "show") visibleCampaigns = campaigns.filter((c) => c.show);
   else if (filter === "hide") visibleCampaigns = campaigns.filter((c) => !c.show);
 
+  const getCampaignStatus = (c: Campaign) => {
+    if (!c.startDate || !c.endDate) return "Scheduled";
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = new Date(c.startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(c.endDate);
+    end.setHours(23, 59, 59, 999);
+    if (today < start) return "Scheduled";
+    if (today > end) return "Completed";
+    return "Active";
+  };
+
+  const statusOrder: Record<string, number> = {
+    "Active": 0,
+    "Scheduled": 1,
+    "Completed": 2,
+  };
+
+  visibleCampaigns = [...visibleCampaigns].sort((a, b) => {
+    return statusOrder[getCampaignStatus(a)] - statusOrder[getCampaignStatus(b)];
+  });
+
   // Delete
   const handleDelete = async (c: Campaign) => {
     Alert.alert("Delete Campaign?", "Are you sure you want to delete this campaign?", [

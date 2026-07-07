@@ -1,6 +1,7 @@
 import { getUsage } from "@/api/billingApi";
 import { getUser, getActivityLogs } from "@/api/dashboardApi";
 import { Text, TouchableOpacity, useColorScheme, View } from "react-native";
+import { formatReadableDate, formatReadableTime } from "@/utils/dateHelpers";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
@@ -689,7 +690,7 @@ export default function Insights({ userData, usageData, walletData, subscription
                             color: COLORS.textMuted,
                           }}
                         >
-                          {new Date(item.createdAt).toLocaleString()}
+                          {formatReadableDate(item.createdAt?.split('.')[0] + "Z")} at {formatReadableTime(item.createdAt?.split('.')[0] + "Z")}
                         </ThemedText>
 
                         <View

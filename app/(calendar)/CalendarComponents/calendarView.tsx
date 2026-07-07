@@ -165,8 +165,17 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts, refreshing, onRefres
       const newDate = setYear(currentDate, currentDate.getFullYear() - 1);
       setCurrentDate(newDate);
     } else if (pickerMode === "calendar") {
-      const newDate = addMonths(currentDate, -1);
-      setCurrentDate(newDate);
+      if (viewMode === "week") {
+        const newDate = subWeeks(currentDate, 1);
+        setCurrentDate(newDate);
+        setSelectedDate(newDate);
+      } else if (viewMode === "day") {
+        const newDate = subDays(currentDate, 1);
+        setCurrentDate(newDate);
+        setSelectedDate(newDate);
+      } else {
+        setCurrentDate(addMonths(currentDate, -1));
+      }
     }
   };
 
@@ -175,8 +184,17 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts, refreshing, onRefres
       const newDate = setYear(currentDate, currentDate.getFullYear() + 1);
       setCurrentDate(newDate);
     } else if (pickerMode === "calendar") {
-      const newDate = addMonths(currentDate, 1);
-      setCurrentDate(newDate);
+      if (viewMode === "week") {
+        const newDate = addWeeks(currentDate, 1);
+        setCurrentDate(newDate);
+        setSelectedDate(newDate);
+      } else if (viewMode === "day") {
+        const newDate = addDays(currentDate, 1);
+        setCurrentDate(newDate);
+        setSelectedDate(newDate);
+      } else {
+        setCurrentDate(addMonths(currentDate, 1));
+      }
     }
   };
 
@@ -265,11 +283,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts, refreshing, onRefres
           style={[
             style,
             {
-              backgroundColor: isDark ? "#1e293b" : "#ffffff",
+              backgroundColor: isDark ? config.lightColor : config.lightColor,
               borderLeftWidth: 3,
               borderLeftColor: config.color,
               borderWidth: 1,
-              borderColor: isDark ? "#334155" : "#e2e8f0",
+              borderColor: config.color,
               borderRadius: 6,
               padding: 4,
               flexDirection: "column",
@@ -528,18 +546,34 @@ const CalendarView: React.FC<CalendarViewProps> = ({ posts, refreshing, onRefres
           if (viewMode === "month") {
             setCurrentDate((prev) => subMonths(prev, 1));
           } else if (viewMode === "week") {
-            setCurrentDate((prev) => subWeeks(prev, 1));
+            setCurrentDate((prev) => {
+              const newDate = subWeeks(prev, 1);
+              setSelectedDate(newDate);
+              return newDate;
+            });
           } else if (viewMode === "day") {
-            setCurrentDate((prev) => subDays(prev, 1));
+            setCurrentDate((prev) => {
+              const newDate = subDays(prev, 1);
+              setSelectedDate(newDate);
+              return newDate;
+            });
           }
         } else if (gestureState.dx < -50) {
           // swipe left -> next week
           if (viewMode === "month") {
             setCurrentDate((prev) => addMonths(prev, 1));
           } else if (viewMode === "week") {
-            setCurrentDate((prev) => addWeeks(prev, 1));
+            setCurrentDate((prev) => {
+              const newDate = addWeeks(prev, 1);
+              setSelectedDate(newDate);
+              return newDate;
+            });
           } else if (viewMode === "day") {
-            setCurrentDate((prev) => addDays(prev, 1));
+            setCurrentDate((prev) => {
+              const newDate = addDays(prev, 1);
+              setSelectedDate(newDate);
+              return newDate;
+            });
           }
         }
       },

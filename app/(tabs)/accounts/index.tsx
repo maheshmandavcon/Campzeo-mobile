@@ -334,8 +334,9 @@ export default function Accounts() {
 
   const renderSkeleton = () => (
     <ThemedView style={[styles.container, { backgroundColor: colors.bg }]}>
-      {/* Header Card Skeleton */}
-      <View
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        {/* Header Card Skeleton */}
+        <View
         style={[
           styles.headerCard,
           {
@@ -400,7 +401,6 @@ export default function Accounts() {
       </View>
 
       {/* Platforms Skeleton */}
-      <ScrollView showsVerticalScrollIndicator={false}>
         <View
           style={[
             styles.unifiedCard,
@@ -457,7 +457,18 @@ export default function Accounts() {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: colors.bg }]}>
-      <View
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        <View
         style={[
           styles.headerCard,
           {
@@ -572,17 +583,6 @@ export default function Accounts() {
         </View>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={colors.primary}
-          />
-        }
-      >
         <View
           style={[
             styles.unifiedCard,

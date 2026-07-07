@@ -589,15 +589,6 @@ export default function BillingPage() {
               Invoices
             </Text>
           </TouchableOpacity>
-
-          {/* <TouchableOpacity
-            onPress={() => setShowComparePlans(true)}
-            className="flex-row items-center gap-1.5 px-3 py-1.5 border rounded-lg"
-            style={{ borderColor: COLORS.border, backgroundColor: COLORS.card }}
-          >
-            <ArrowLeftRight size={14} color={COLORS.text} />
-            <Text className="text-xs font-semibold" style={{ color: COLORS.text }}>Compare</Text>
-          </TouchableOpacity> */}
         </View>
       </View>
 
@@ -1157,9 +1148,8 @@ export default function BillingPage() {
                       }
 
                       return (
-                        <View style={{ width: Dimensions.get('window').width - 40, marginRight: 16 }}>
+                        <View key={plan.id || idx} style={{ width: Dimensions.get('window').width - 40, marginRight: 16 }}>
                           <View
-                            key={plan.id || idx}
                             className="p-5 rounded-2xl border flex-col justify-between"
                             style={{
                               flex: 1,
@@ -1532,8 +1522,8 @@ export default function BillingPage() {
                   className={`flex-1 p-4 rounded-xl border ${creditChannel === 'SMS' ? 'border-red-600 bg-red-50 dark:bg-red-900/20' : ''}`}
                   style={{ borderColor: creditChannel === 'SMS' ? COLORS.accent : COLORS.border }}
                 >
-                  <View className="flex-row justify-between items-center mb-2">
-                    <Text className="font-bold" style={{ color: creditChannel === 'SMS' ? COLORS.accent : COLORS.text }}>SMS Credits</Text>
+                  <View className="flex-row justify-between items-start mb-2 gap-1">
+                    <Text className="font-bold flex-1" style={{ color: creditChannel === 'SMS' ? COLORS.accent : COLORS.text }}>SMS Credits</Text>
                     {creditChannel === 'SMS' && <CheckCircle2 size={16} color={COLORS.accent} />}
                   </View>
                   <Text className="text-xs" style={{ color: COLORS.textMuted }}>
@@ -1546,8 +1536,8 @@ export default function BillingPage() {
                   className={`flex-1 p-4 rounded-xl border ${creditChannel === 'WHATSAPP' ? 'border-red-600 bg-red-50 dark:bg-red-900/20' : ''}`}
                   style={{ borderColor: creditChannel === 'WHATSAPP' ? COLORS.accent : COLORS.border }}
                 >
-                  <View className="flex-row justify-between items-center mb-2">
-                    <Text className="font-bold" style={{ color: creditChannel === 'WHATSAPP' ? COLORS.accent : COLORS.text }}>WhatsApp Credits</Text>
+                  <View className="flex-row justify-between items-start mb-2 gap-1">
+                    <Text className="font-bold flex-1" style={{ color: creditChannel === 'WHATSAPP' ? COLORS.accent : COLORS.text }}>WhatsApp Credits</Text>
                     {creditChannel === 'WHATSAPP' && <CheckCircle2 size={16} color={COLORS.accent} />}
                   </View>
                   <Text className="text-xs" style={{ color: COLORS.textMuted }}>
@@ -1559,8 +1549,30 @@ export default function BillingPage() {
               <Text className="text-sm font-bold mb-2" style={{ color: COLORS.text }}>Quantity (Min 100)</Text>
               <TextInput
                 value={creditQuantity}
-                onChangeText={(val) => setCreditQuantity(val.replace(/[^0-9]/g, ''))}
+                onChangeText={(val) => {
+                  let cleaned = val.replace(/[^0-9]/g, '');
+                  if (cleaned !== '') {
+                    const num = parseInt(cleaned, 10);
+                    if (num > 9999) {
+                      cleaned = '9999';
+                    }
+                  }
+                  setCreditQuantity(cleaned);
+                }}
+                onEndEditing={(e) => {
+                  const num = parseInt(e.nativeEvent.text || '0', 10);
+                  if (isNaN(num) || num < 100) {
+                    setCreditQuantity('100');
+                  }
+                }}
+                onBlur={() => {
+                  const num = parseInt(creditQuantity || '0', 10);
+                  if (isNaN(num) || num < 100) {
+                    setCreditQuantity('100');
+                  }
+                }}
                 keyboardType="numeric"
+                maxLength={4}
                 className="w-full border rounded-xl p-4 text-base mb-6"
                 style={{
                   color: COLORS.text,
@@ -1590,11 +1602,17 @@ export default function BillingPage() {
               </View>
 
               <TouchableOpacity
+                disabled={!creditQuantity || parseInt(creditQuantity, 10) < 100}
                 onPress={() => router.push({ pathname: '/webview', params: { url: 'https://campzeo.com/user/billing' } })}
                 className="w-full py-4 rounded-xl items-center"
-                style={{ backgroundColor: COLORS.accent }}
+                style={{ backgroundColor: (!creditQuantity || parseInt(creditQuantity, 10) < 100) ? COLORS.border : COLORS.accent }}
               >
-                <Text className="text-white font-bold text-base">Buy Credits</Text>
+                <Text 
+                  className="font-bold text-base" 
+                  style={{ color: (!creditQuantity || parseInt(creditQuantity, 10) < 100) ? COLORS.textMuted : '#fff' }}
+                >
+                  Buy Credits
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
